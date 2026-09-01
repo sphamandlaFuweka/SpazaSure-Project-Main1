@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test framework -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- Mocking -->
+    <PackageReference Include="Moq" Version="4.20.70" />
+    <!-- In-memory EF Core provider for DB tests -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.4" />
+    <!-- Configuration helpers for test setup -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
+    <!-- Fluent assertions -->
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference service and shared projects directly -->
+    <ProjectReference Include="..\..\src\Services\SpazaSure.AuthService\SpazaSure.AuthService.csproj" />
+    <ProjectReference Include="..\..\src\Services\SpazaSure.ProductService\SpazaSure.ProductService.csproj" />
+    <ProjectReference Include="..\..\src\Services\SpazaSure.OrderService\SpazaSure.OrderService.csproj" />
+    <ProjectReference Include="..\..\src\Shared\SpazaSure.Shared\SpazaSure.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Shared\SpazaSure.Infrastructure\SpazaSure.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

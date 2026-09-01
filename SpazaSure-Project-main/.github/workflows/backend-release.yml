@@ -1,0 +1,41 @@
+name: Backend - Release Validation
+
+on:
+  push:
+    branches: [release]
+    paths:
+      - 'SpazaSure.Backend/**'
+      - '!SpazaSure.Backend/**.md'
+
+concurrency:
+  group: backend-release
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build & Test for Production Readiness
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SpazaSure.Backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore SpazaSure.Backend.sln
+
+      - name: Build in Release mode
+        run: dotnet build SpazaSure.Backend.sln --no-restore -c Release
+
+      - name: Run tests
+        run: dotnet test tests/SpazaSure.Tests/SpazaSure.Tests.csproj --no-build -c Release
+
+      - name: Validation complete
+        run: echo "Backend validated - ready for production promotion"
