@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: spazasure-supplier-portal
+    runtime: static
+    rootDir: supplier-portal
+    buildCommand: npm ci && npm run build:prod
+    staticPublishPath: dist
+    buildFilter:
+      paths:
+        - supplier-portal/**
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_APP_NAME
+        value: SpazaSure Supplier Portal
+      - key: VITE_APP_ENV
+        value: production
+      - key: VITE_ENABLE_DEBUG
+        value: "false"
+      - key: VITE_API_TIMEOUT
+        value: "30000"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

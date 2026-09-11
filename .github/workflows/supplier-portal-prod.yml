@@ -45,38 +45,3 @@ jobs:
           name: supplier-portal-prod-build
           path: supplier-portal/dist/
           retention-days: 30
-
-  deploy:
-    name: Deploy to Production Server
-    needs: build
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: supplier-portal-prod-build
-          path: dist/
-
-      - name: Deploy to Production Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USERNAME }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          source: "dist/*"
-          target: "/var/www/spazasure-supplier"
-          strip_components: 1
-          overwrite: true
-          rm: true
-
-      - name: Restart Nginx
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USERNAME }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            systemctl restart nginx
-            echo "Supplier Portal - Production deployment complete"

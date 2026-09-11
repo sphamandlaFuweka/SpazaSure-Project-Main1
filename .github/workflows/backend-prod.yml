@@ -22,7 +22,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: |
+            8.0.x
+            9.0.x
       - run: dotnet restore SpazaSure.Backend.sln
       - run: dotnet build SpazaSure.Backend.sln --no-restore -c Release
       - run: dotnet test tests/SpazaSure.Tests/SpazaSure.Tests.csproj --no-build -c Release
