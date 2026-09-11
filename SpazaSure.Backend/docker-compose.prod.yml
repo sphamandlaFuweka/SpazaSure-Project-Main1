@@ -1,0 +1,233 @@
+﻿# docker-compose.prod.yml
+# Run: docker compose -f docker-compose.prod.yml up -d
+# Requires: .env.prod file at repo root (never commit this file)
+
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: spazasure-prod-db
+    restart: always
+    environment:
+      POSTGRES_DB:       spazasure
+      POSTGRES_USER:     spazasure_prod_user
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spazasure_prod_user -d spazasure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: spazasure-prod-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: spazasure
+      RABBITMQ_DEFAULT_PASS: ${PROD_RABBITMQ_PASSWORD}
+    volumes:
+      - prod_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  auth-service:
+    image: ${REGISTRY}/spazasure-auth:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-auth
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__AccessExpiryMinutes:             "30"
+      Jwt__RefreshExpiryDays:               "14"
+      AfricasTalking__Username:             ${PROD_AT_USERNAME}
+      AfricasTalking__ApiKey:               ${PROD_AT_API_KEY}
+      AfricasTalking__Sandbox:              "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  product-service:
+    image: ${REGISTRY}/spazasure-product:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-product
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  order-service:
+    image: ${REGISTRY}/spazasure-order:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-order
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  user-service:
+    image: ${REGISTRY}/spazasure-user:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-user
+    restart: always
+    volumes:
+      - prod_uploads:/app/uploads
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      PayFast__MerchantId:                  ${PROD_PAYFAST_MERCHANT_ID}
+      PayFast__MerchantKey:                 ${PROD_PAYFAST_MERCHANT_KEY}
+      PayFast__Passphrase:                  ${PROD_PAYFAST_PASSPHRASE}
+      PayFast__Sandbox:                     "false"
+      PayFast__OnboardingReturnUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/return
+      PayFast__OnboardingCancelUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/cancel
+      PayFast__OnboardingNotifyUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/notify
+      # Object storage — see appsettings.Production.json for the defaults
+      # these override. The `prod_uploads` volume above becomes an unused
+      # fallback once this is set; it's kept only so Storage__Provider can
+      # be flipped back to "local" without editing the compose file, e.g.
+      # for a single-VPS deployment where a Docker volume actually persists.
+      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-s3}
+      Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}
+      Storage__S3__ServiceUrl:              ${PROD_S3_SERVICE_URL}
+      Storage__S3__Region:                  ${PROD_S3_REGION:-auto}
+      Storage__S3__AccessKey:               ${PROD_S3_ACCESS_KEY}
+      Storage__S3__SecretKey:               ${PROD_S3_SECRET_KEY}
+      Storage__S3__PublicBaseUrl:           ${PROD_S3_PUBLIC_URL}
+      Storage__S3__ForcePathStyle:          "true"
+      Storage__S3__UsePublicReadAcl:        "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    image: ${REGISTRY}/spazasure-notification:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-notification
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  analytics-service:
+    image: ${REGISTRY}/spazasure-analytics:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-analytics
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  compliance-service:
+    image: ${REGISTRY}/spazasure-compliance:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-compliance
+    restart: always
+    volumes:
+      - prod_compliance_uploads:/app/uploads
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      # Report evidence photos — same S3 bucket as UserService's uploads.
+      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-s3}
+      Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}
+      Storage__S3__ServiceUrl:              ${PROD_S3_SERVICE_URL}
+      Storage__S3__Region:                  ${PROD_S3_REGION:-auto}
+      Storage__S3__AccessKey:               ${PROD_S3_ACCESS_KEY}
+      Storage__S3__SecretKey:               ${PROD_S3_SECRET_KEY}
+      Storage__S3__PublicBaseUrl:           ${PROD_S3_PUBLIC_URL}
+      Storage__S3__ForcePathStyle:          "true"
+      Storage__S3__UsePublicReadAcl:        "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  gateway:
+    image: ${REGISTRY}/spazasure-gateway:${IMAGE_TAG:-latest}
+    container_name: spazasure-prod-gateway
+    restart: always
+    ports:
+      - "80:5181"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Overrides the AllowedOrigins list baked into appsettings.Production.json —
+      # set this in .env.prod to your real frontend domain(s), e.g.
+      # PROD_FRONTEND_URL=https://app.spazasure.co.za
+      Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL}
+    depends_on:
+      - auth-service
+      - product-service
+      - order-service
+      - user-service
+      - notification-service
+      - analytics-service
+      - compliance-service
+
+volumes:
+  prod_postgres_data:
+  prod_uploads:
+  prod_compliance_uploads:
+  prod_rabbitmq_data:
+
+# Note: SpazaSure.PaymentService, SpazaSure.DeliveryService, and
+# SpazaSure.VerificationService are NOT included above — they're empty
+# scaffold projects (default `dotnet new webapi` boilerplate, no
+# controllers, not referenced by the Gateway's routing config). Payment
+# logic actually lives in UserService's PaymentController, and delivery
+# pricing lives in OrderService's DeliveryPricingService. Don't deploy
+# these three unless you've actually built real functionality into them
+# first — right now they'd just be dead containers burning compute.

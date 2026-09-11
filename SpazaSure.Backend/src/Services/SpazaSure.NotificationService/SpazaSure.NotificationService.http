@@ -1,0 +1,6 @@
+@SpazaSure.NotificationService_HostAddress = http://localhost:5184
+
+GET {{SpazaSure.NotificationService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

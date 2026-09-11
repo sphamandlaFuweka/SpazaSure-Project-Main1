@@ -1,0 +1,6 @@
+@SpazaSure.ProductService_HostAddress = http://localhost:5080
+
+GET {{SpazaSure.ProductService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,46 @@
+name: Supplier Portal - PR Validation
+
+on:
+  pull_request:
+    branches: [develop, release, main]
+    paths:
+      - 'supplier-portal/**'
+      - '!supplier-portal/**.md'
+
+jobs:
+  validate:
+    name: Validate Supplier Portal
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supplier-portal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: supplier-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build validation
+        run: npm run build:qa
+
+      - name: Verify build output
+        run: |
+          if [ -d "dist" ]; then
+            echo "Build successful"
+            du -sh dist/
+          else
+            echo "Build failed - no dist directory"
+            exit 1
+          fi

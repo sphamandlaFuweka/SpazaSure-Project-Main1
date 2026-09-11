@@ -1,0 +1,111 @@
+version: "3.8"
+
+services:
+  # Supplier Portal Frontend
+  supplier-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_MODE: production
+    container_name: spazasure-supplier-portal
+    ports:
+      - "3000:80"
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - spazasure-network
+
+  # .NET Backend API
+  backend-api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: spazasure-backend-api
+    ports:
+      - "5181:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mssql:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=mssql;Database=SpazaSure;User Id=sa;Password=${MSSQL_SA_PASSWORD:-SpazaSure@2024};TrustServerCertificate=True
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=${RABBITMQ_USER:-spazasure}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-spazasure_secret}
+      - RabbitMQ__VirtualHost=spazasure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - spazasure-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: spazasure-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP protocol
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-spazasure}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-spazasure_secret}
+      RABBITMQ_DEFAULT_VHOST: spazasure
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - spazasure-network
+
+  # SQL Server Database
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: spazasure-mssql
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-SpazaSure@2024}
+      MSSQL_PID: Express
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"${MSSQL_SA_PASSWORD:-SpazaSure@2024}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - spazasure-network
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  rabbitmq_logs:
+    driver: local
+  mssql_data:
+    driver: local
+
+networks:
+  spazasure-network:
+    driver: bridge

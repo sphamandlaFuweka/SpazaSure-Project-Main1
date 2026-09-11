@@ -1,0 +1,119 @@
+﻿# Triggers on a version tag push (e.g. git tag v1.2.3 && git push --tags)
+# Required GitHub Secrets: PROD_HOST, PROD_SSH_USER, PROD_SSH_KEY,
+#   PROD_DB_PASSWORD, PROD_JWT_SECRET, PROD_AT_USERNAME, PROD_AT_API_KEY
+
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet restore SpazaSure.Backend.sln
+      - run: dotnet build SpazaSure.Backend.sln --no-restore -c Release
+      - run: dotnet test tests/SpazaSure.Tests/SpazaSure.Tests.csproj --no-build -c Release
+
+  build-and-push:
+    name: Build and Push Production Images
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract version tag
+        id: tag
+        run: echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      - name: Build and push auth-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.AuthService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-auth:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-auth:latest
+      - name: Build and push product-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.ProductService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-product:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-product:latest
+      - name: Build and push order-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.ProductService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-order:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-order:latest
+      - name: Build and push user-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.UserService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-user:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-user:latest
+      - name: Build and push gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Gateway/SpazaSure.Gateway/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-gateway:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-gateway:latest
+
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy compose file to prod server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          source:   docker-compose.prod.yml
+          target:   /opt/spazasure/
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key:      ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/spazasure
+            printf "PROD_DB_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
+              "${{ secrets.PROD_DB_PASSWORD }}" "${{ secrets.PROD_JWT_SECRET }}" "${{ secrets.PROD_AT_USERNAME }}" "${{ secrets.PROD_AT_API_KEY }}" > .env.prod
+            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            rm -f .env.prod

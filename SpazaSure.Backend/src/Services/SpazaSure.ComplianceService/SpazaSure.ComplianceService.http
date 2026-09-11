@@ -1,0 +1,6 @@
+@SpazaSure.ComplianceService_HostAddress = http://localhost:5222
+
+GET {{SpazaSure.ComplianceService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,64 @@
+﻿# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.slnLaunch.user
+
+# NuGet
+**/packages/*
+!**/packages/build/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Environment secrets
+.env.qa
+.env.prod
+
+# Android release signing key (must never be committed — see
+# .github/workflows/build-mobile.yml, which expects it as the
+# ANDROID_KEYSTORE_BASE64 repo secret instead)
+keystore_base64.txt
+*.jks
+*.keystore
+
+# Log files
+*.log
+
+# Uploads (user data)
+**/uploads/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rider
+*.sln.iml
+
+# Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResult.xml
+
+# Docker
+docker-compose.override.yml

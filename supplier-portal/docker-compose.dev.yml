@@ -1,0 +1,48 @@
+version: "3.8"
+
+# Development override - run with:
+# docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Override frontend for development
+  supplier-portal:
+    build:
+      args:
+        BUILD_MODE: development
+    ports:
+      - "5173:80"
+    environment:
+      - NODE_ENV=development
+
+  # Backend API development overrides
+  backend-api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mssql;Database=SpazaSure_Dev;User Id=sa;Password=SpazaSure@Dev2024;TrustServerCertificate=True
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      - RabbitMQ__VirtualHost=/
+    ports:
+      - "5181:8080"
+
+  # RabbitMQ with development credentials
+  rabbitmq:
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # SQL Server for development
+  mssql:
+    environment:
+      MSSQL_SA_PASSWORD: "SpazaSure@Dev2024"
+    ports:
+      - "1433:1433"

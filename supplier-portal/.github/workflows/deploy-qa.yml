@@ -1,0 +1,86 @@
+name: Supplier Portal - Deploy to QA
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'supplier-portal/**'
+      - '!supplier-portal/**.md'
+
+concurrency:
+  group: supplier-portal-qa
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build Frontend (QA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supplier-portal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: supplier-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build for QA
+        run: npm run build:qa
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supplier-portal-qa-build
+          path: supplier-portal/dist/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to QA Server
+    needs: build
+    runs-on: ubuntu-latest
+    environment: qa
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: supplier-portal-qa-build
+          path: dist/
+
+      - name: Deploy to QA Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.QA_HOST }}
+          username: ${{ secrets.QA_USERNAME }}
+          key: ${{ secrets.QA_SSH_KEY }}
+          source: "dist/*"
+          target: "/var/www/spazasure-supplier"
+          strip_components: 1
+          overwrite: true
+          rm: true
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.QA_HOST }}
+          username: ${{ secrets.QA_USERNAME }}
+          key: ${{ secrets.QA_SSH_KEY }}
+          script: |
+            systemctl restart nginx
+            echo "Supplier Portal - QA deployment complete"
+            echo "Timestamp: $(date)"

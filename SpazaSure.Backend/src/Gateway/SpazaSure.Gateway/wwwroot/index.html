@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SpazaSure — API Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0f1a;color:#cbd5e1;min-height:100vh}
+
+/* ── HEADER ── */
+header{
+  background:#111827;border-bottom:1px solid #1e293b;
+  padding:16px 28px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50
+}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;font-size:18px
+}
+.brand h1{font-size:17px;font-weight:700;color:#f1f5f9}
+.brand p{font-size:11px;color:#475569;margin-top:1px}
+.gateway-pill{
+  background:#0f172a;border:1px solid #1e293b;
+  padding:5px 14px;border-radius:20px;font-size:12px;color:#64748b
+}
+.gateway-pill b{color:#6366f1}
+
+/* ── STATS BAR ── */
+.stats{
+  display:flex;flex-wrap:wrap;gap:12px;
+  padding:24px 28px 0
+}
+.stat{
+  background:#111827;border:1px solid #1e293b;border-radius:12px;
+  padding:16px 22px;min-width:110px;text-align:center;flex:1
+}
+.stat .n{font-size:28px;font-weight:800;color:#6366f1}
+.stat .l{font-size:11px;color:#475569;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── MAIN ── */
+main{padding:24px 28px 48px}
+
+/* ── SERVICE CARD ── */
+.svc{
+  background:#111827;border:1px solid #1e293b;
+  border-radius:14px;margin-bottom:20px;overflow:hidden
+}
+.svc-head{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;cursor:pointer;user-select:none;
+  transition:background .15s
+}
+.svc-head:hover{background:#161f30}
+.svc-icon{
+  width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:20px
+}
+.svc-info{flex:1}
+.svc-info h2{font-size:15px;font-weight:600;color:#f1f5f9}
+.svc-info p{font-size:12px;color:#475569;margin-top:2px}
+.svc-meta{display:flex;align-items:center;gap:8px}
+.pill{
+  font-size:11px;padding:3px 10px;border-radius:6px;
+  background:#0f172a;border:1px solid #1e293b;color:#64748b;font-family:monospace
+}
+.chevron{color:#334155;font-size:13px;transition:transform .2s;margin-left:4px}
+.svc.open .chevron{transform:rotate(180deg)}
+
+/* ── ENDPOINTS TABLE ── */
+.endpoints{display:none;border-top:1px solid #1e293b}
+.svc.open .endpoints{display:block}
+
+.ep{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:13px 20px;border-bottom:1px solid #0f172a;
+  transition:background .1s
+}
+.ep:last-child{border-bottom:none}
+.ep:hover{background:#0f172a}
+
+/* method badges */
+.m{
+  font-size:10px;font-weight:700;font-family:monospace;
+  padding:3px 9px;border-radius:5px;min-width:58px;
+  text-align:center;flex-shrink:0;margin-top:2px;letter-spacing:.3px
+}
+.GET   {background:#052e16;color:#4ade80;border:1px solid #14532d}
+.POST  {background:#0c1a3a;color:#60a5fa;border:1px solid #1e3a8a}
+.PUT   {background:#2d1a00;color:#fb923c;border:1px solid #7c2d12}
+.PATCH {background:#1e0a3c;color:#c084fc;border:1px solid #581c87}
+.DELETE{background:#2d0a0a;color:#f87171;border:1px solid #7f1d1d}
+
+.ep-body{flex:1}
+.ep-path{font-family:monospace;font-size:13px;color:#e2e8f0;word-break:break-all}
+.ep-path .qp{color:#475569}
+.ep-path .seg{color:#f59e0b}
+.ep-desc{font-size:12px;color:#475569;margin-top:4px}
+
+.auth{
+  font-size:10px;padding:2px 8px;border-radius:4px;
+  flex-shrink:0;margin-top:3px;white-space:nowrap
+}
+.auth.pub{background:#0f2a1a;border:1px solid #14532d;color:#4ade80}
+.auth.jwt{background:#1c1400;border:1px solid #78350f;color:#fbbf24}
+
+/* ── SERVICE COLOURS ── */
+.c-purple .svc-icon{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.c-blue   .svc-icon{background:linear-gradient(135deg,#3b82f6,#06b6d4)}
+.c-amber  .svc-icon{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.c-green  .svc-icon{background:linear-gradient(135deg,#10b981,#059669)}
+.c-pink   .svc-icon{background:linear-gradient(135deg,#ec4899,#8b5cf6)}
+.c-teal   .svc-icon{background:linear-gradient(135deg,#14b8a6,#3b82f6)}
+
+footer{text-align:center;padding:28px;color:#1e293b;font-size:12px;border-top:1px solid #111827}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <h1>SpazaSure API Dashboard</h1>
+      <p>All microservices — one view</p>
+    </div>
+  </div>
+  <div class="gateway-pill">Gateway <b>:5181</b></div>
+</header>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="n">6</div><div class="l">Services</div></div>
+  <div class="stat"><div class="n">23</div><div class="l">Endpoints</div></div>
+  <div class="stat"><div class="n" style="color:#4ade80">8</div><div class="l">GET</div></div>
+  <div class="stat"><div class="n" style="color:#60a5fa">8</div><div class="l">POST</div></div>
+  <div class="stat"><div class="n" style="color:#fb923c">2</div><div class="l">PUT</div></div>
+  <div class="stat"><div class="n" style="color:#c084fc">4</div><div class="l">PATCH</div></div>
+  <div class="stat"><div class="n" style="color:#f87171">1</div><div class="l">DELETE</div></div>
+</div>
+
+<main>
+
+<!-- ══════════════════════════════════════════
+     1. AUTH SERVICE  :5001
+════════════════════════════════════════════ -->
+<div class="svc c-purple open" id="s1">
+  <div class="svc-head" onclick="t('s1')">
+    <div class="svc-icon">🔐</div>
+    <div class="svc-info">
+      <h2>Auth Service</h2>
+      <p>Supplier registration, login, tokens &amp; password reset</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5001</span>
+      <span class="pill">6 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/register</div>
+        <div class="ep-desc">Register a new supplier account — returns JWT + refresh token</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/login</div>
+        <div class="ep-desc">Login with email &amp; password — returns JWT + refresh token</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/refresh</div>
+        <div class="ep-desc">Exchange a refresh token for a new access token</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/logout</div>
+        <div class="ep-desc">Revoke refresh token and end the session</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/forgot-password</div>
+        <div class="ep-desc">Send password reset email (always returns 200 — prevents enumeration)</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/auth/reset-password</div>
+        <div class="ep-desc">Reset password using the token received by email</div>
+      </div>
+      <span class="auth pub">Public</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. PRODUCT SERVICE  :5002
+════════════════════════════════════════════ -->
+<div class="svc c-blue open" id="s2">
+  <div class="svc-head" onclick="t('s2')">
+    <div class="svc-icon">📦</div>
+    <div class="svc-info">
+      <h2>Product Service</h2>
+      <p>Supplier product catalogue — CRUD, stock, availability &amp; barcodes</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5002</span>
+      <span class="pill">7 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products<span class="qp">?page&amp;pageSize&amp;search&amp;status</span></div>
+        <div class="ep-desc">List products — status: active | pending_approval | archived</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products/<span class="seg">{id}</span></div>
+        <div class="ep-desc">Get a single product by ID</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products</div>
+        <div class="ep-desc">Create a new product — auto-generates EAN-13 barcode if not supplied</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PUT">PUT</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products/<span class="seg">{id}</span></div>
+        <div class="ep-desc">Update all product fields</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PATCH">PATCH</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products/<span class="seg">{id}</span>/toggle</div>
+        <div class="ep-desc">Toggle product availability on / off</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products/<span class="seg">{id}</span>/barcode</div>
+        <div class="ep-desc">Get EAN-13 barcode + SVG render for a product</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m DELETE">DELETE</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/products/<span class="seg">{id}</span></div>
+        <div class="ep-desc">Permanently delete a product</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. ORDER SERVICE  :5003
+════════════════════════════════════════════ -->
+<div class="svc c-amber open" id="s3">
+  <div class="svc-head" onclick="t('s3')">
+    <div class="svc-icon">🛒</div>
+    <div class="svc-info">
+      <h2>Order Service</h2>
+      <p>Supplier order management and status transitions</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5003</span>
+      <span class="pill">3 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/orders<span class="qp">?page&amp;pageSize&amp;status</span></div>
+        <div class="ep-desc">List orders — status: pending | processing | dispatched | delivered | cancelled</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/orders/<span class="seg">{id}</span></div>
+        <div class="ep-desc">Get full order detail including items and shop info</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PATCH">PATCH</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/orders/<span class="seg">{id}</span>/status</div>
+        <div class="ep-desc">Transition: pending → processing → dispatched → delivered (or cancelled)</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     4. ANALYTICS SERVICE  :5004
+════════════════════════════════════════════ -->
+<div class="svc c-green open" id="s4">
+  <div class="svc-head" onclick="t('s4')">
+    <div class="svc-icon">📊</div>
+    <div class="svc-info">
+      <h2>Analytics Service</h2>
+      <p>Revenue trends, KPI summary and top-performing products</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5004</span>
+      <span class="pill">3 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/analytics/summary</div>
+        <div class="ep-desc">Monthly KPIs: revenue, orders, active products, pending orders + MoM growth %</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/analytics/revenue<span class="qp">?period=week|month|year</span></div>
+        <div class="ep-desc">Revenue chart data grouped by day (week/month) or month (year)</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/analytics/top-products</div>
+        <div class="ep-desc">Top 5 products by revenue this month with units sold</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     5. USER / PROFILE SERVICE  :5005
+════════════════════════════════════════════ -->
+<div class="svc c-pink open" id="s5">
+  <div class="svc-head" onclick="t('s5')">
+    <div class="svc-icon">👤</div>
+    <div class="svc-info">
+      <h2>User / Profile Service</h2>
+      <p>Supplier profile, compliance documents and logo upload</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5005</span>
+      <span class="pill">4 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/profile</div>
+        <div class="ep-desc">Get full supplier profile — company, banking, address, documents</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PUT">PUT</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/profile</div>
+        <div class="ep-desc">Update company info, contact details, address and banking details</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/profile/documents</div>
+        <div class="ep-desc">Upload compliance document — multipart/form-data: docType + file</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m POST">POST</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/supplier/profile/logo</div>
+        <div class="ep-desc">Upload supplier logo — JPG/PNG/WEBP, max 5MB</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     6. COMPLIANCE SERVICE  :5006
+════════════════════════════════════════════ -->
+<div class="svc c-teal open" id="s6">
+  <div class="svc-head" onclick="t('s6')">
+    <div class="svc-icon">✅</div>
+    <div class="svc-info">
+      <h2>Compliance Service</h2>
+      <p>Admin document review — approve or reject supplier documents</p>
+    </div>
+    <div class="svc-meta">
+      <span class="pill">:5006</span>
+      <span class="pill">3 endpoints</span>
+      <span class="chevron">▼</span>
+    </div>
+  </div>
+  <div class="endpoints">
+
+    <div class="ep">
+      <span class="m GET">GET</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/compliance/documents<span class="qp">?status&amp;search</span></div>
+        <div class="ep-desc">List all supplier documents with pending / approved / rejected summary counts</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PATCH">PATCH</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/compliance/documents/<span class="seg">{id}</span>/approve</div>
+        <div class="ep-desc">Approve a supplier document</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+    <div class="ep">
+      <span class="m PATCH">PATCH</span>
+      <div class="ep-body">
+        <div class="ep-path">/api/compliance/documents/<span class="seg">{id}</span>/reject</div>
+        <div class="ep-desc">Reject a document — body: { "reason": "..." }</div>
+      </div>
+      <span class="auth jwt">🔒 JWT</span>
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<footer>SpazaSure Backend &nbsp;·&nbsp; 6 microservices &nbsp;·&nbsp; 23 endpoints &nbsp;·&nbsp; Gateway :5181</footer>
+
+<script>
+  function t(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [develop, release, main]
+
+jobs:
+  # Supplier Portal validation
+  supplier-portal:
+    name: Validate Supplier Portal
+    if: contains(github.event.pull_request.changed_files_url, 'supplier-portal') || github.event.pull_request.changed_files > 0
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supplier-portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: supplier-portal/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build:qa
+
+  # Backend validation
+  backend:
+    name: Validate Backend
+    if: contains(github.event.pull_request.changed_files_url, 'SpazaSure.Backend') || github.event.pull_request.changed_files > 0
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SpazaSure.Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet restore SpazaSure.Backend.sln
+      - run: dotnet build SpazaSure.Backend.sln --no-restore -c Release
+      - run: dotnet test tests/SpazaSure.Tests/SpazaSure.Tests.csproj --no-build -c Release

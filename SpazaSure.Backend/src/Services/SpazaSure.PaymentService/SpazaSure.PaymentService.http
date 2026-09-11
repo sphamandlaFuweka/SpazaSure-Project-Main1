@@ -1,0 +1,6 @@
+@SpazaSure.PaymentService_HostAddress = http://localhost:5038
+
+GET {{SpazaSure.PaymentService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
