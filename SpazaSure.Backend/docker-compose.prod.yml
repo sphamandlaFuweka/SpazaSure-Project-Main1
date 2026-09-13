@@ -1,8 +1,6 @@
 ﻿# docker-compose.prod.yml
-# Run: docker compose -f docker-compose.prod.yml up -d
+# Run: docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 # Requires: .env.prod file at repo root (never commit this file)
-
-version: "3.9"
 
 services:
 
@@ -13,7 +11,7 @@ services:
     environment:
       POSTGRES_DB:       spazasure
       POSTGRES_USER:     spazasure_prod_user
-      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD must be set in .env.prod}
     volumes:
       - prod_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,6 +19,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  db-init:
+    image: postgres:16-alpine
+    container_name: spazasure-prod-db-init
+    restart: "no"
+    environment:
+      PGPASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD must be set in .env.prod}
+    volumes:
+      - ./migrate.sql:/migrations/migrate.sql:ro
+    command:
+      - sh
+      - -c
+      - psql -v ON_ERROR_STOP=1 -h postgres -U spazasure_prod_user -d spazasure -f /migrations/migrate.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -56,6 +70,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -73,6 +89,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -90,6 +108,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -130,6 +150,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -147,6 +169,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -164,6 +188,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
@@ -193,6 +219,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
 
