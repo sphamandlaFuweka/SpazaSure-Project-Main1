@@ -25,6 +25,16 @@ Spaza Project/
 - Flutter SDK (Dart ≥3.11 — any Flutter release from the last several months)
 
 ### 1. Database
+#### Option A: Docker (recommended)
+```bash
+cd SpazaSure.Backend
+docker compose -f docker-compose.local.yml up -d
+```
+This starts PostgreSQL on `localhost:5432`, applies `migrate.sql`, and loads
+the demo data from `seed_data.sql`. To stop the database while keeping its
+data, run `docker compose -f docker-compose.local.yml down`.
+
+#### Option B: Existing PostgreSQL installation
 ```bash
 # Create the database (matches the default connection string in each
 # service's appsettings.json — change both if you use different credentials)

@@ -1,0 +1,43 @@
+# Local PostgreSQL database for backend development.
+# Run from this directory: docker compose -f docker-compose.local.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: spazasure-local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: spazasure
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d spazasure"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  db-init:
+    image: postgres:16-alpine
+    container_name: spazasure-local-db-init
+    restart: "no"
+    environment:
+      PGPASSWORD: admin
+    volumes:
+      - ./migrate.sql:/migrations/migrate.sql:ro
+      - ./seed_data.sql:/migrations/seed_data.sql:ro
+    command:
+      - sh
+      - -c
+      - >-
+        psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d spazasure -f /migrations/migrate.sql
+        && psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d spazasure -f /migrations/seed_data.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  local_postgres_data:
