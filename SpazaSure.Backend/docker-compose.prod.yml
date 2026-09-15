@@ -52,7 +52,9 @@ services:
       retries: 5
 
   auth-service:
-    image: ${REGISTRY}/spazasure-auth:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.AuthService/Dockerfile
     container_name: spazasure-prod-auth
     restart: always
     environment:
@@ -76,7 +78,9 @@ services:
         condition: service_healthy
 
   product-service:
-    image: ${REGISTRY}/spazasure-product:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.ProductService/Dockerfile
     container_name: spazasure-prod-product
     restart: always
     environment:
@@ -95,7 +99,9 @@ services:
         condition: service_healthy
 
   order-service:
-    image: ${REGISTRY}/spazasure-order:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.OrderService/Dockerfile
     container_name: spazasure-prod-order
     restart: always
     environment:
@@ -114,7 +120,9 @@ services:
         condition: service_healthy
 
   user-service:
-    image: ${REGISTRY}/spazasure-user:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.UserService/Dockerfile
     container_name: spazasure-prod-user
     restart: always
     volumes:
@@ -156,7 +164,9 @@ services:
         condition: service_healthy
 
   notification-service:
-    image: ${REGISTRY}/spazasure-notification:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.NotificationService/Dockerfile
     container_name: spazasure-prod-notification
     restart: always
     environment:
@@ -175,7 +185,9 @@ services:
         condition: service_healthy
 
   analytics-service:
-    image: ${REGISTRY}/spazasure-analytics:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.AnalyticsService/Dockerfile
     container_name: spazasure-prod-analytics
     restart: always
     environment:
@@ -194,7 +206,9 @@ services:
         condition: service_healthy
 
   compliance-service:
-    image: ${REGISTRY}/spazasure-compliance:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.ComplianceService/Dockerfile
     container_name: spazasure-prod-compliance
     restart: always
     volumes:
@@ -225,7 +239,9 @@ services:
         condition: service_healthy
 
   gateway:
-    image: ${REGISTRY}/spazasure-gateway:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Gateway/SpazaSure.Gateway/Dockerfile
     container_name: spazasure-prod-gateway
     restart: always
     ports:
