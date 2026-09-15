@@ -8,10 +8,8 @@ namespace SpazaSure.Shared.Storage;
 /// original behavior — fine for local development, where the filesystem
 /// persists across restarts.
 ///
-/// DO NOT use this in production on Render, Fly.io, or similar platforms:
-/// their filesystems are ephemeral, so every redeploy (or every restart on
-/// Fly.io, or every scale event on Render) silently wipes anything written
-/// here. Use S3FileStorageService instead (Storage:Provider = "s3").
+/// Use S3FileStorageService instead when the production filesystem is not
+/// persistent (Storage:Provider = "s3").
 ///
 /// The URL prefix is configurable (Storage:Local:UrlPrefix, default
 /// "/uploads") because more than one service can use local storage, and the

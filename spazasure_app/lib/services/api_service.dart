@@ -5,15 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Shared QA server URL — kept as an explicit opt-in, not the default, so
-  // running the app locally doesn't silently depend on that machine being up.
-  static const _qaUrl = 'http://167.233.69.205/api';
-
   // Override at build/run time, e.g.:
   //   flutter run --dart-define=API_URL=http://localhost:5181/api        (iOS sim / web / desktop)
   //   flutter run --dart-define=API_URL=http://10.0.2.2:5181/api         (Android emulator)
   //   flutter run --dart-define=API_URL=http://<your-lan-ip>:5181/api    (physical device)
-  //   flutter run --dart-define=API_URL=http://167.233.69.205/api        (shared QA server)
+  //   flutter run --dart-define=API_URL=https://api.spazasure.co.za/api    (Hetzner production server)
   static const _override = String.fromEnvironment('API_URL');
 
   static String get baseUrl {
@@ -28,10 +24,6 @@ class ApiService {
     }
     return 'http://localhost:5181/api';
   }
-
-  // Kept for convenience if you want to point back at the shared QA
-  // deployment without typing the URL out: ApiService.useQaServer().
-  static String get qaUrl => _qaUrl;
 
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();

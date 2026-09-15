@@ -13,9 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// File storage: "local" (default) writes to disk — fine for dev, but wiped
-// on every redeploy on Render/Fly.io/etc. Set Storage:Provider = "s3" in
-// production (see appsettings.Production.json / .env.prod) to use any
+// File storage: "local" (default) writes to disk. Set Storage:Provider = "s3"
+// in production (see appsettings.Production.json / .env.prod) to use any
 // S3-compatible bucket (AWS S3, Cloudflare R2, DO Spaces, MinIO) instead.
 if (string.Equals(builder.Configuration["Storage:Provider"], "s3", StringComparison.OrdinalIgnoreCase))
 {
