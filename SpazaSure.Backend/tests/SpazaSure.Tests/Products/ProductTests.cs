@@ -65,6 +65,42 @@ public class BarcodeServiceTests
     }
 }
 
+public class OpenFoodFactsServiceTests
+{
+    [Fact]
+    public void ParseProductResponse_WithValidProduct_ReturnsSnapshot()
+    {
+        const string json = """
+        {
+          "product": {
+            "product_name": "Coca Cola",
+            "allergens_tags": ["en:milk", "en:soy"],
+            "ingredients_text": "Water, sugar",
+            "image_url": "https://example.com/product.jpg"
+          }
+        }
+        """;
+
+        var snapshot = OpenFoodFactsService.ParseProductResponse(json);
+
+        snapshot.Should().NotBeNull();
+        snapshot!.Name.Should().Be("Coca Cola");
+        snapshot.Allergens.Should().Contain(new[] { "milk", "soy" });
+        snapshot.Ingredients.Should().Be("Water, sugar");
+        snapshot.ImageUrl.Should().Be("https://example.com/product.jpg");
+    }
+
+    [Fact]
+    public void ParseProductResponse_WithMissingProduct_ReturnsNull()
+    {
+        const string json = "{\"status\":0}";
+
+        var snapshot = OpenFoodFactsService.ParseProductResponse(json);
+
+        snapshot.Should().BeNull();
+    }
+}
+
 public class ProductEntityTests
 {
     [Fact]

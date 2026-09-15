@@ -153,4 +153,35 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
 
         return Ok(ApiResponse<object>.Ok(new { report.Id, report.Status }, "Report submitted. Thanks for helping keep other shoppers safe."));
     }
+
+    public record EscalateReportRequest(string EscalatedTo, string? ResolutionNote, string Status);
+
+    [HttpPatch("{id:guid}/escalate")]
+    public async Task<IActionResult> Escalate(Guid id, [FromBody] EscalateReportRequest req)
+    {
+        var report = await db.Reports
+            .FirstOrDefaultAsync(r => r.Id == id && r.ReporterUserId == UserId);
+
+        if (report is null)
+            return NotFound(ApiResponse.Fail("Report not found."));
+
+        if (string.IsNullOrWhiteSpace(req.EscalatedTo))
+            return BadRequest(ApiResponse.Fail("Escalation destination is required."));
+
+        report.Status = string.IsNullOrWhiteSpace(req.Status) ? "escalated" : req.Status;
+        report.EscalatedTo = req.EscalatedTo;
+        report.EscalatedAt = DateTime.UtcNow;
+        report.ResolutionNote = req.ResolutionNote;
+
+        await db.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            report.Id,
+            report.Status,
+            report.EscalatedTo,
+            report.EscalatedAt,
+            report.ResolutionNote,
+        }, "Report escalated successfully."));
+    }
 }

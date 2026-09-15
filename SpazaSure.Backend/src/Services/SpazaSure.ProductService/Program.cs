@@ -9,6 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpClient<SpazaSure.ProductService.Services.OpenFoodFactsService>(client =>
+{
+    client.BaseAddress = new Uri("https://world.openfoodfacts.org/api/v2/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo

@@ -154,4 +154,80 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Spaza owner verified successfully."));
     }
+
+    //  REPORTS / REGULATORY ESCALATIONS
+
+    [HttpGet("reports")]
+    public async Task<IActionResult> GetReports(
+        [FromQuery] string? status,
+        [FromQuery] string? escalatedTo,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = db.Reports
+            .Include(r => r.Product)
+            .Include(r => r.Reporter)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(r => r.Status == status);
+
+        if (!string.IsNullOrWhiteSpace(escalatedTo))
+            query = query.Where(r => r.EscalatedTo != null && r.EscalatedTo.Contains(escalatedTo));
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new
+            {
+                r.Id,
+                r.ReportType,
+                r.Barcode,
+                ProductName = r.Product != null ? r.Product.Name : null,
+                ReporterName = r.Reporter != null && r.Reporter.Phone != null ? r.Reporter.Phone : null,
+                r.ShopName,
+                r.IsAnonymous,
+                r.Description,
+                r.PhotoUrl,
+                r.Status,
+                r.EscalatedTo,
+                r.EscalatedAt,
+                r.ResolutionNote,
+                CreatedAt = r.CreatedAt,
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
+    }
+
+    public record EscalateReportRequest(string EscalatedTo, string Status, string? ResolutionNote);
+
+    [HttpPatch("reports/{id:guid}/escalate")]
+    public async Task<IActionResult> EscalateReport(Guid id, [FromBody] EscalateReportRequest req)
+    {
+        var report = await db.Reports.FirstOrDefaultAsync(r => r.Id == id);
+        if (report is null)
+            return NotFound(ApiResponse.Fail("Report not found."));
+
+        if (string.IsNullOrWhiteSpace(req.EscalatedTo))
+            return BadRequest(ApiResponse.Fail("Escalation destination is required."));
+
+        report.Status = string.IsNullOrWhiteSpace(req.Status) ? "escalated" : req.Status;
+        report.EscalatedTo = req.EscalatedTo;
+        report.EscalatedAt = DateTime.UtcNow;
+        report.ResolutionNote = req.ResolutionNote;
+
+        await db.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            report.Id,
+            report.Status,
+            report.EscalatedTo,
+            report.EscalatedAt,
+            report.ResolutionNote
+        }, "Report escalated to the required authority."));
+    }
 }

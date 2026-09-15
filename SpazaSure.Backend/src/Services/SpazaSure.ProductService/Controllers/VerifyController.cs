@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.ProductService.Services;
 using SpazaSure.Shared.Models;
 using System.Text.Json;
 
@@ -22,7 +23,7 @@ namespace SpazaSure.ProductService.Controllers;
 [ApiController]
 [Route("api/customer/verify")]
 [Authorize]
-public class VerifyController(SpazaSureDbContext db) : ControllerBase
+public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFoodFactsService) : ControllerBase
 {
     [HttpGet("{code}")]
     public async Task<IActionResult> Verify(string code, [FromQuery] string[]? myAllergies)
@@ -68,15 +69,38 @@ public class VerifyController(SpazaSureDbContext db) : ControllerBase
                 myAllergies: myAllergies)));
         }
 
-        // 3. Not in SpazaSure's registry at all.
+        // 3. Not in SpazaSure's registry at all: use Open Food Facts for a
+        //    lightweight product lookup if the product exists globally.
+        var openFoodFactsProduct = await openFoodFactsService.LookupAsync(code);
+
+        if (openFoodFactsProduct is not null)
+        {
+            var fallbackAllergens = openFoodFactsProduct.Allergens ?? [];
+            var matchedAllergies = myAllergies is { Length: > 0 }
+                ? fallbackAllergens.Where(a => myAllergies.Contains(a, StringComparer.OrdinalIgnoreCase)).ToList()
+                : [];
+
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                source = "open_food_facts",
+                verdict = "unknown",
+                code,
+                name = openFoodFactsProduct.Name ?? openFoodFactsProduct.GenericName ?? "Unknown product",
+                description = openFoodFactsProduct.Description ?? openFoodFactsProduct.Ingredients,
+                images = new[] { openFoodFactsProduct.ImageUrl }.Where(i => !string.IsNullOrWhiteSpace(i)).ToArray(),
+                allergens = fallbackAllergens,
+                isFoodItem = true,
+                allergyWarning = matchedAllergies.Count > 0 ? new { matchedAllergens = matchedAllergies } : null,
+                message = "This product is not in SpazaSure's registry, but basic product details were found in Open Food Facts.",
+            }));
+        }
+
         return Ok(ApiResponse<object>.Ok(new
         {
             source = "not_registered",
             verdict = "unknown",
             code,
-            message = "This product isn't in SpazaSure's registry yet.",
-            // TODO: fall back to https://world.openfoodfacts.org/api/v2/product/{code}.json
-            // for basic product info on barcodes SpazaSure doesn't track.
+            message = "This product isn't in SpazaSure's registry yet."
         }));
     }
 
