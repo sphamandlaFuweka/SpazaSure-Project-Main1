@@ -248,6 +248,7 @@ services:
       - "80:5181"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5181
       # Overrides the AllowedOrigins list baked into appsettings.Production.json —
       # set this in .env.prod to your real frontend domain(s), e.g.
       # PROD_FRONTEND_URL=https://app.spazasure.co.za
