@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace SpazaSure.AuthService.Services;
 
@@ -40,6 +41,28 @@ public class SmsService(IConfiguration config, ILogger<SmsService> logger, IHttp
                 logger.LogError("AT SMS failed for {Phone}. Status: {Status}. Body: {Body}",
                     phone, response.StatusCode, body);
                 return false;
+            }
+
+            // Africa's Talking can return HTTP 200 while reporting a recipient
+            // failure in the response body. Treat that as a delivery failure.
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("SMSMessageData", out var messageData) &&
+                messageData.TryGetProperty("Recipients", out var recipients) &&
+                recipients.ValueKind == JsonValueKind.Array)
+            {
+                var statuses = recipients.EnumerateArray()
+                    .Select(recipient => recipient.TryGetProperty("status", out var status)
+                        ? status.GetString()
+                        : null)
+                    .ToArray();
+
+                if (statuses.Length == 0 || statuses.Any(status =>
+                    !string.Equals(status, "Sent", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(status, "Queued", StringComparison.OrdinalIgnoreCase)))
+                {
+                    logger.LogError("AT SMS rejected for {Phone}. Body: {Body}", phone, body);
+                    return false;
+                }
             }
 
             logger.LogInformation("AT SMS sent to {Phone}. Response: {Body}", phone, body);

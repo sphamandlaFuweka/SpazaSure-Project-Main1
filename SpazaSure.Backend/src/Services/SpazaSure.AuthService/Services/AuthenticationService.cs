@@ -14,7 +14,12 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
 
     public async Task<(bool Success, string? Error, AuthResponse? Data)> RegisterAsync(RegisterRequest req, string ipAddress)
     {
-        if (await db.Users.AnyAsync(u => u.Email == req.Email || u.Phone == req.Phone))
+        var email = req.Email?.Trim();
+        var phone = req.Phone?.Trim();
+
+        if (await db.Users.AnyAsync(u =>
+            (email != null && u.Email != null && u.Email.ToLower() == email.ToLower()) ||
+            (phone != null && u.Phone == phone)))
             return (false, "Email or phone already registered.", null);
 
         // Look up role by name from DB — no hardcoding
@@ -24,8 +29,8 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
 
         var user = new User
         {
-            Email = req.Email,
-            Phone = req.Phone,
+            Email = email,
+            Phone = phone,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             RoleId = role.Id,
             Status = "pending"
@@ -39,8 +44,8 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
                 UserId = user.Id,
                 CompanyName = req.CompanyName ?? string.Empty,
                 ContactPerson = req.ContactPerson ?? string.Empty,
-                Phone = req.Phone ?? string.Empty,
-                Email = req.Email ?? string.Empty
+                Phone = phone ?? string.Empty,
+                Email = email ?? string.Empty
             });
         }
         else if (role.Name == "spaza_owner")
@@ -61,13 +66,15 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
 
     public async Task<(bool Success, string? Error, AuthResponse? Data)> LoginAsync(LoginRequest req, string ipAddress)
     {
+        var email = req.Email?.Trim();
+        var phone = req.Phone?.Trim();
         var user = await db.Users
             .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                     .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(u =>
-                (req.Email != null && u.Email == req.Email) ||
-                (req.Phone != null && u.Phone == req.Phone));
+                (email != null && u.Email != null && u.Email.ToLower() == email.ToLower()) ||
+                (phone != null && u.Phone == phone));
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
         {

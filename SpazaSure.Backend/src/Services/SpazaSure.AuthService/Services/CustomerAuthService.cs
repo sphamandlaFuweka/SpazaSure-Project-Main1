@@ -29,13 +29,14 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         var rawOtp = Random.Shared.Next(100_000, 999_999).ToString();
         var hashed = JwtHelper.HashToken(rawOtp);
 
-        db.OtpCodes.Add(new OtpCode
+        var otpCode = new OtpCode
         {
             Phone = phone,
             Code = hashed,
             Purpose = purpose,
             ExpiresAt = DateTime.UtcNow.AddMinutes(10)
-        });
+        };
+        db.OtpCodes.Add(otpCode);
         await db.SaveChangesAsync();
 
         logger.LogWarning("[DEV-TEST] Raw OTP for {Phone}: {Otp}", phone, rawOtp);
@@ -45,7 +46,12 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
 
         var sent = await sms.SendOtpAsync(phone, rawOtp);
         if (!sent)
-            logger.LogWarning("SMS delivery failed for {Phone} — OTP still stored", phone);
+        {
+            logger.LogWarning("SMS delivery failed for {Phone} — removing unusable OTP", phone);
+            db.OtpCodes.Remove(otpCode);
+            await db.SaveChangesAsync();
+            return (false, "We could not send the verification SMS. Please check the phone number or try again later.", null);
+        }
 
         var isSandbox = config.GetValue<bool>("AfricasTalking:Sandbox", false);
         var env = config["ASPNETCORE_ENVIRONMENT"] ?? "Production";
