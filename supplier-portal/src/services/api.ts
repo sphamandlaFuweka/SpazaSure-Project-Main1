@@ -370,8 +370,11 @@ export const subscriptionApi = {
     api.get('/supplier/subscription/history').then((r) => r.data),
 };
 
-// Payment (PayFast)
+// Payment (Stripe Checkout)
 export const paymentApi = {
+  stripeCheckout: (subscriptionId: string) =>
+    api.post('/supplier/payment/stripe/checkout-session', { subscriptionId }).then((r) => r.data),
+
   /** Initiate a PayFast payment — returns form data + PayFast URL to redirect to */
   initiate: (subscriptionId: string) =>
     api.post('/supplier/payment/initiate', { subscriptionId }).then((r) => r.data),

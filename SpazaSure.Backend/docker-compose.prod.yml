@@ -142,6 +142,10 @@ services:
       PayFast__OnboardingReturnUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/return
       PayFast__OnboardingCancelUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/cancel
       PayFast__OnboardingNotifyUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/notify
+      Stripe__SecretKey:                    ${PROD_STRIPE_SECRET_KEY:-}
+      Stripe__WebhookSecret:                ${PROD_STRIPE_WEBHOOK_SECRET:-}
+      Stripe__SuccessUrl:                   ${PROD_STRIPE_SUCCESS_URL:-http://2.29.35.144:5181}
+      Stripe__CancelUrl:                    ${PROD_STRIPE_CANCEL_URL:-http://2.29.35.144:5181}
       # Object storage — see appsettings.Production.json for the defaults
       # these override. The `prod_uploads` volume above becomes an unused
       # fallback once this is set; it's kept only so Storage__Provider can

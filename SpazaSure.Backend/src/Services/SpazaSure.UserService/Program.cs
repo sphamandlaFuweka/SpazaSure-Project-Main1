@@ -39,6 +39,7 @@ builder.Services.AddDbContext<SpazaSureDbContext>(opt =>
 builder.Services.AddHttpClient(nameof(OnboardingPayFastService), client =>
     client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<OnboardingPayFastService>();
+builder.Services.AddSingleton<StripePaymentService>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

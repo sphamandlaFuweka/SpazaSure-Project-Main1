@@ -83,6 +83,15 @@ class ProfileService {
     );
   }
 
+  static Future<String?> initiateStripeOnboardingPayment() async {
+    final response = await ApiService.post(
+      '/shop/profile/onboarding-fee/stripe/checkout-session',
+      const {},
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return data['checkoutUrl']?.toString();
+  }
+
   static Future<OnboardingPaymentStatus> getOnboardingPaymentStatus() async {
     final response = await ApiService.get('/shop/profile/onboarding-fee');
     return OnboardingPaymentStatus.fromJson(

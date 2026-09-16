@@ -1,13 +1,12 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class OnboardingFeeCheckoutScreen extends StatefulWidget {
-  final OnboardingCheckout checkout;
+  final OnboardingCheckout? checkout;
+  final String? stripeUrl;
 
-  const OnboardingFeeCheckoutScreen({required this.checkout, super.key});
+  const OnboardingFeeCheckoutScreen({this.checkout, this.stripeUrl, super.key});
 
   @override
   State<OnboardingFeeCheckoutScreen> createState() =>
@@ -30,11 +29,13 @@ class _OnboardingFeeCheckoutScreenState
             if (mounted) setState(() => _loading = false);
           },
           onNavigationRequest: (request) {
-            if (request.url == widget.checkout.returnUrl) {
+            if (widget.checkout?.returnUrl != null &&
+                request.url == widget.checkout!.returnUrl) {
               Navigator.pop(context, true);
               return NavigationDecision.prevent;
             }
-            if (request.url == widget.checkout.cancelUrl) {
+            if (widget.checkout?.cancelUrl != null &&
+                request.url == widget.checkout!.cancelUrl) {
               Navigator.pop(context, false);
               return NavigationDecision.prevent;
             }
@@ -42,23 +43,9 @@ class _OnboardingFeeCheckoutScreenState
           },
         ),
       )
-      ..loadHtmlString(_paymentForm(widget.checkout));
-  }
-
-  static String _escape(String value) => const HtmlEscape().convert(value);
-
-  static String _paymentForm(OnboardingCheckout checkout) {
-    final action = _escape(checkout.actionUrl ?? '');
-    final fields = checkout.fields.entries
-        .map(
-          (entry) =>
-              '<input type="hidden" name="${_escape(entry.key)}" value="${_escape(entry.value)}">',
-        )
-        .join();
-    return '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:sans-serif;text-align:center;padding:32px"><p>Opening secure PayFast checkout…</p>
-<form id="payment" method="post" action="$action">$fields</form>
-<script>document.getElementById('payment').submit();</script></body></html>''';
+      ..loadRequest(
+        Uri.parse(widget.stripeUrl ?? widget.checkout?.actionUrl ?? ''),
+      );
   }
 
   @override

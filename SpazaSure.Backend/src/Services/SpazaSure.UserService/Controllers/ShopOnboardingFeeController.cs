@@ -16,8 +16,29 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize(Roles = "spaza_owner")]
 public class ShopOnboardingFeeController(
     SpazaSureDbContext db,
-    OnboardingPayFastService payFast) : ControllerBase
+    OnboardingPayFastService payFast,
+    StripePaymentService stripe) : ControllerBase
 {
+    [HttpPost("stripe/checkout-session")]
+    public async Task<IActionResult> StripeCheckout()
+    {
+        var shop = await db.SpazaShops.Include(s => s.User).FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
+        if (shop.OnboardingFeePaid) return Ok(ApiResponse<object>.Ok(new { paid = true }));
+        var amount = await GetConfiguredAmount();
+        if (amount <= 0) return Ok(ApiResponse<object>.Ok(new { paid = true, amount = 0 }));
+        var payment = await db.ShopOnboardingPayments.FirstOrDefaultAsync(p => p.ShopId == shop.Id && p.Status == "pending" && p.ExpiresAt > DateTime.UtcNow);
+        if (payment is null)
+        {
+            payment = new ShopOnboardingPayment { ShopId = shop.Id, Amount = amount, Status = "pending", ExpiresAt = DateTime.UtcNow.AddHours(24) };
+            db.ShopOnboardingPayments.Add(payment);
+            await db.SaveChangesAsync();
+        }
+        var url = await stripe.CreateCheckoutSessionAsync(amount, "zar", "SpazaSure shop onboarding fee", "shop_onboarding", payment.Id, shop.Email ?? shop.User.Email ?? string.Empty);
+        payment.PayFastPaymentId = $"stripe-pending-{payment.Id:N}";
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(new { paid = false, paymentId = payment.Id, amount, checkoutUrl = url }));
+    }
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]

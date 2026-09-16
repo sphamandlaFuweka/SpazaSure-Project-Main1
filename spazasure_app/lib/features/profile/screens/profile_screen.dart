@@ -855,10 +855,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: TextField(
         controller: ctrl,
         keyboardType: type,
-        style: GoogleFonts.nunito(
-          fontSize: 14,
-          color: const Color(0xFF1A1A1A),
-        ),
+        style: GoogleFonts.nunito(fontSize: 14, color: const Color(0xFF1A1A1A)),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.nunito(
@@ -886,19 +883,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_startingPayment) return;
     setState(() => _startingPayment = true);
     try {
-      final checkout = await ProfileService.initiateOnboardingPayment();
+      final stripeUrl = await ProfileService.initiateStripeOnboardingPayment();
       if (!mounted) return;
-      if (checkout.paid) {
-        await _loadProfile();
-        return;
-      }
-      if (checkout.actionUrl == null || checkout.fields.isEmpty) {
-        throw StateError('Payment checkout is unavailable.');
+      if (stripeUrl == null || stripeUrl.isEmpty) {
+        throw StateError('Stripe checkout is unavailable.');
       }
       await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => OnboardingFeeCheckoutScreen(checkout: checkout),
+          builder: (_) => OnboardingFeeCheckoutScreen(stripeUrl: stripeUrl),
         ),
       );
       final status = await ProfileService.getOnboardingPaymentStatus();
@@ -910,7 +903,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Text(
             status.paid
                 ? 'Onboarding payment confirmed.'
-                : 'Payment is still pending. Pull down to refresh after PayFast confirms it.',
+                : 'Payment is still pending. Pull down to refresh after Stripe confirms it.',
           ),
           backgroundColor: status.paid ? AppColors.success : AppColors.warning,
         ),

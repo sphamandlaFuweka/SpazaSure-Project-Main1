@@ -188,7 +188,7 @@ export default function SubscriptionPage() {
       const res = await subscriptionApi.subscribe({
         tier: selectedPlan.tier,
         billingCycle,
-        paymentMethod: selectedPlan.monthlyPrice === 0 ? 'free' : 'payfast',
+        paymentMethod: selectedPlan.monthlyPrice === 0 ? 'free' : 'stripe',
         confirmPayment: selectedPlan.monthlyPrice === 0,
       });
       const d = res?.data ?? res;
@@ -202,25 +202,11 @@ export default function SubscriptionPage() {
         const refreshed = await subscriptionApi.getCurrent();
         setCurrent(refreshed?.data ?? refreshed);
       } else {
-        const payRes = await paymentApi.initiate(d.subscriptionId);
-        const payData = payRes?.data ?? payRes;
+        const stripeRes = await paymentApi.stripeCheckout(d.subscriptionId);
+        const stripeData = stripeRes?.data ?? stripeRes;
 
-        if (payData?.payFastUrl && payData?.paymentData) {
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = payData.payFastUrl;
-          form.target = '_self';
-
-          Object.entries(payData.paymentData as Record<string, string>).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-          });
-
-          document.body.appendChild(form);
-          form.submit();
+        if (stripeData?.checkoutUrl) {
+          window.location.assign(stripeData.checkoutUrl);
         } else {
           toast.error('Failed to initiate payment. Please try again.');
           setShowConfirm(false);
