@@ -855,13 +855,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: TextField(
         controller: ctrl,
         keyboardType: type,
-        style: GoogleFonts.poppins(
+        style: GoogleFonts.nunito(
           fontSize: 14,
           color: const Color(0xFF1A1A1A),
         ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.poppins(
+          labelStyle: GoogleFonts.nunito(
             color: AppColors.textSecondary,
             fontSize: 12,
           ),

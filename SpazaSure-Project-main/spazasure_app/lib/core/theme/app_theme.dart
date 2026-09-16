@@ -19,7 +19,7 @@ class AppTheme {
           foregroundColor: AppColors.textPrimary,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: GoogleFonts.poppins(
+          titleTextStyle: GoogleFonts.nunito(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -33,7 +33,7 @@ class AppTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            textStyle: GoogleFonts.poppins(
+            textStyle: GoogleFonts.nunito(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -70,11 +70,11 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.error),
           ),
-          hintStyle: GoogleFonts.poppins(
+          hintStyle: GoogleFonts.nunito(
             color: AppColors.textSecondary,
             fontSize: 14,
           ),
-          labelStyle: GoogleFonts.poppins(
+          labelStyle: GoogleFonts.nunito(
             color: AppColors.textPrimary,
             fontSize: 14,
           ),
@@ -85,17 +85,17 @@ class AppTheme {
           selectionColor: AppColors.primaryLight,
           selectionHandleColor: AppColors.primary,
         ),
-        textTheme: GoogleFonts.poppinsTextTheme().apply(
+        textTheme: GoogleFonts.nunitoTextTheme().apply(
           bodyColor: AppColors.textPrimary,
           displayColor: AppColors.textPrimary,
         ).copyWith(
           // Explicitly set bodyLarge so TextField input text is always dark
-          bodyLarge: GoogleFonts.poppins(
+          bodyLarge: GoogleFonts.nunito(
             fontSize: 16,
             fontWeight: FontWeight.w400,
             color: AppColors.textPrimary,
           ),
-          bodyMedium: GoogleFonts.poppins(
+          bodyMedium: GoogleFonts.nunito(
             fontSize: 14,
             fontWeight: FontWeight.w400,
             color: AppColors.textPrimary,
@@ -119,7 +119,7 @@ class AppTheme {
         chipTheme: ChipThemeData(
           backgroundColor: AppColors.background,
           selectedColor: AppColors.primaryLight.withValues(alpha: 0.2),
-          labelStyle: GoogleFonts.poppins(fontSize: 12),
+          labelStyle: GoogleFonts.nunito(fontSize: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

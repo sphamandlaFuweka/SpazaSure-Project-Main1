@@ -133,7 +133,7 @@ class _ReportScreenState extends State<ReportScreen> {
           const Spacer(),
           Text(
             _step == 3 ? 'Report Submitted' : 'Report an Issue',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.white),
@@ -182,7 +182,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             ? const Icon(Icons.check_rounded,
                                 color: Colors.white, size: 16)
                             : Text('${i + 1}',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13)),
@@ -190,7 +190,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(labels[i],
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                             fontSize: 10,
                             color: isActive
                                 ? Colors.white
@@ -246,12 +246,12 @@ class _ReportScreenState extends State<ReportScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('What are you reporting?',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                         Text('Select the issue type',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 13,
                                 color:
                                     Colors.white.withValues(alpha: 0.6))),
@@ -295,7 +295,7 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(width: 14),
             Expanded(
               child: Text(type.label,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: Colors.white)),
@@ -325,12 +325,12 @@ class _ReportScreenState extends State<ReportScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Report Details',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                         Text('Provide as much detail as possible',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 13,
                                 color:
                                     Colors.white.withValues(alpha: 0.6))),
@@ -382,12 +382,12 @@ class _ReportScreenState extends State<ReportScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Add Photo (Optional)',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                     color: Colors.white)),
                             Text('Tap to attach evidence',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                     fontSize: 11,
                                     color: Colors.white
                                         .withValues(alpha: 0.5))),
@@ -424,12 +424,12 @@ class _ReportScreenState extends State<ReportScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Privacy Settings',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                         Text('How should we handle your identity?',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                                 fontSize: 13,
                                 color:
                                     Colors.white.withValues(alpha: 0.6))),
@@ -471,7 +471,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     Expanded(
                       child: Text(
                         'All reports are reviewed by our compliance team within 48 hours.',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.8)),
                       ),
@@ -523,12 +523,12 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white)),
                   Text(subtitle,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.6))),
                 ],
@@ -571,7 +571,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 .fadeIn(),
             const SizedBox(height: 28),
             Text('Report Submitted!',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Colors.white),
@@ -582,7 +582,7 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 12),
             Text(
               'Thank you for helping keep the community safe. Our team will review your report.',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.nunito(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.7)),
               textAlign: TextAlign.center,
@@ -599,19 +599,19 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 children: [
                   Text('Complaint ID',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.6))),
                   const SizedBox(height: 6),
                   Text(_complaintId ?? '',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primaryLight,
                           letterSpacing: 2)),
                   const SizedBox(height: 6),
                   Text('Save this for reference',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.5))),
                 ],
@@ -704,7 +704,7 @@ class _ReportScreenState extends State<ReportScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: Colors.white.withValues(alpha: 0.8))),
@@ -719,10 +719,10 @@ class _ReportScreenState extends State<ReportScreen> {
           child: TextField(
             controller: controller,
             maxLines: maxLines,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+            style: GoogleFonts.nunito(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: GoogleFonts.poppins(
+              hintStyle: GoogleFonts.nunito(
                   color: Colors.white.withValues(alpha: 0.35)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(

@@ -116,7 +116,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
               ),
               const Spacer(),
               Text('Rate Your Experience',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
@@ -151,13 +151,13 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Order Delivered!',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.nunito(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.white)),
                               Text(
                                   '${order.orderNumber} • ${order.supplierName}',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.nunito(
                                       fontSize: 12,
                                       color: Colors.white
                                           .withValues(alpha: 0.6))),
@@ -189,7 +189,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                           ),
                           const SizedBox(width: 12),
                           Text('Delivery Rating',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.nunito(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white)),
@@ -205,7 +205,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                       Center(
                         child: Text(
                           _ratingLabel(_deliveryRating),
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunito(
                               fontSize: 13,
                               color: _deliveryRating > 0
                                   ? AppColors.warning
@@ -239,7 +239,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                           ),
                           const SizedBox(width: 12),
                           Text('Supplier Rating',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.nunito(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white)),
@@ -255,7 +255,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                       Center(
                         child: Text(
                           _ratingLabel(_supplierRating),
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunito(
                               fontSize: 13,
                               color: _supplierRating > 0
                                   ? AppColors.warning
@@ -275,7 +275,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Leave a Comment (Optional)',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunito(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.white)),
@@ -290,12 +290,12 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                         child: TextField(
                           controller: _commentController,
                           maxLines: 3,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunito(
                               color: Colors.white, fontSize: 14),
                           decoration: InputDecoration(
                             hintText:
                                 'Share your experience with this order...',
-                            hintStyle: GoogleFonts.poppins(
+                            hintStyle: GoogleFonts.nunito(
                                 color:
                                     Colors.white.withValues(alpha: 0.35),
                                 fontSize: 13),
@@ -401,7 +401,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
             ),
             const SizedBox(height: 28),
             Text('Thank You!',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                     color: Colors.white))
@@ -411,7 +411,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
             const SizedBox(height: 12),
             Text(
               'Your feedback helps improve the SpazaSure experience for everyone.',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.nunito(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.7)),
               textAlign: TextAlign.center,
@@ -436,7 +436,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
             ).animate().fadeIn(delay: 600.ms),
             const SizedBox(height: 8),
             Text('Redirecting to home...',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.4)))
                 .animate()

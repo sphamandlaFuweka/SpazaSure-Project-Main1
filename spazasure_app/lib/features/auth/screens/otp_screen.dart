@@ -255,7 +255,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 // ── Title ──
                 Text(
                   'Verification',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -268,7 +268,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   phone.isNotEmpty
                       ? 'Code sent to $phone'
                       : 'Enter the code we sent you',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: const Color(0xFF81C784),
                     letterSpacing: 0.3,
@@ -297,7 +297,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       // Card title
                       Text(
                         'Enter 6-Digit Code',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFF1A1A1A),
@@ -308,7 +308,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         _otp.length == 6
                             ? 'Code filled — tap Verify to continue'
                             : 'Check your SMS messages',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           fontSize: 13,
                           color: _otp.length == 6
                               ? AppColors.primary
@@ -345,7 +345,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         enableActiveFill: true,
                         keyboardType: TextInputType.number,
                         animationType: AnimationType.scale,
-                        textStyle: GoogleFonts.poppins(
+                        textStyle: GoogleFonts.nunito(
                           color: const Color(0xFF1A1A1A),
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -365,7 +365,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                 const SizedBox(width: 6),
                                 Text(
                                   'Resend in ${_resendTimer}s',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.nunito(
                                     color: const Color(0xFF9E9E9E),
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
@@ -383,7 +383,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   const SizedBox(width: 6),
                                   Text(
                                     'Resend Code',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.nunito(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
@@ -427,7 +427,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   children: [
                                     Text(
                                       'Verify & Continue',
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.nunito(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -455,7 +455,7 @@ class _OtpScreenState extends State<OtpScreen> {
                               const SizedBox(width: 6),
                               Text(
                                 'OTP will auto-fill from server',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: const Color(0xFFE65100),
@@ -483,7 +483,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     const SizedBox(width: 6),
                     Text(
                       'Your code expires in 5 minutes',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                         fontSize: 11,
                         color: Colors.white.withOpacity(0.5),
                       ),

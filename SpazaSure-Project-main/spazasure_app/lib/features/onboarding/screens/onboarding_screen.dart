@@ -72,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                         ),
-                        child: Text('Skip', style: GoogleFonts.poppins(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500)),
+                        child: Text('Skip', style: GoogleFonts.nunito(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500)),
                       ),
                     ),
                   ),
@@ -128,7 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                         children: [
                           Text(
                             _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                            style: GoogleFonts.poppins(color: const Color(0xFF1B5E20), fontSize: 16, fontWeight: FontWeight.w700),
+                            style: GoogleFonts.nunito(color: const Color(0xFF1B5E20), fontSize: 16, fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(width: 8),
                           Icon(
@@ -205,7 +205,7 @@ class _OnboardingPage extends StatelessWidget {
 
           Text(
             data.title,
-            style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2),
+            style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2),
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0, delay: 200.ms),
 
@@ -213,7 +213,7 @@ class _OnboardingPage extends StatelessWidget {
 
           Text(
             data.description,
-            style: GoogleFonts.poppins(fontSize: 15, color: Colors.white.withValues(alpha: 0.7), height: 1.6),
+            style: GoogleFonts.nunito(fontSize: 15, color: Colors.white.withValues(alpha: 0.7), height: 1.6),
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0, delay: 400.ms),
         ],

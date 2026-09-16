@@ -105,7 +105,7 @@ class ReceiptScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'SpazaSure',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
               fontSize: 22,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
@@ -359,7 +359,7 @@ class ReceiptScreen extends StatelessWidget {
               children: [
                 Text(
                   'TOTAL',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -409,7 +409,7 @@ class ReceiptScreen extends StatelessWidget {
                 ),
                 child: Text(
                   _formatPaymentStatus(order.paymentStatus),
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: _paymentStatusColor(order.paymentStatus),
@@ -431,7 +431,7 @@ class ReceiptScreen extends StatelessWidget {
                 ),
                 child: Text(
                   order.status[0].toUpperCase() + order.status.substring(1),
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: _orderStatusColor(order.status),
@@ -454,7 +454,7 @@ class ReceiptScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Thank you for your order!',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -463,7 +463,7 @@ class ReceiptScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'SpazaSure — Empowering Spaza Shops',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
               fontSize: 11,
               color: AppColors.textHint,
             ),
@@ -498,7 +498,7 @@ class ReceiptScreen extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.share_outlined, size: 18),
-                label: Text('Share', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                label: Text('Share', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
@@ -519,7 +519,7 @@ class ReceiptScreen extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: Text('Download PDF', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                label: Text('Download PDF', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -653,20 +653,20 @@ class ReceiptScreen extends StatelessWidget {
 
   // ─── Shared Styles ────────────────────────────────────────────────────
 
-  TextStyle get _labelStyle => GoogleFonts.poppins(
+  TextStyle get _labelStyle => GoogleFonts.nunito(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       );
 
-  TextStyle get _sectionLabelStyle => GoogleFonts.poppins(
+  TextStyle get _sectionLabelStyle => GoogleFonts.nunito(
         fontSize: 10,
         fontWeight: FontWeight.w700,
         color: AppColors.textHint,
         letterSpacing: 1.5,
       );
 
-  TextStyle get _tableHeaderStyle => GoogleFonts.poppins(
+  TextStyle get _tableHeaderStyle => GoogleFonts.nunito(
         fontSize: 10,
         fontWeight: FontWeight.w600,
         color: AppColors.textHint,

@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // ── App Name ──
                 Text(
                   'SpazaSure',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 Text(
                   'Trusted Supply Chain',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: const Color(0xFF81C784),
                     letterSpacing: 1.5,
@@ -155,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Title
                       Text(
                         'Sign In',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFF1A1A1A),
@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Enter your phone number to continue',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           fontSize: 13,
                           color: const Color(0xFF757575),
                         ),
@@ -175,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Phone label
                       Text(
                         'Phone Number',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF424242),
@@ -202,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     '+27',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.nunito(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: const Color(0xFF1A1A1A),
@@ -218,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 controller: _phoneController,
                                 focusNode: _phoneFocus,
                                 keyboardType: TextInputType.phone,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                   color: const Color(0xFF1A1A1A),
@@ -227,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onSubmitted: (_) => _handleSignIn(),
                                 decoration: InputDecoration(
                                   hintText: '81 234 5678',
-                                  hintStyle: GoogleFonts.poppins(
+                                  hintStyle: GoogleFonts.nunito(
                                     color: const Color(0xFFBDBDBD),
                                     fontSize: 15,
                                   ),
@@ -251,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(width: 6),
                           Text(
                             'We\'ll send you a 6-digit code via SMS',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                               fontSize: 11,
                               color: const Color(0xFF9E9E9E),
                             ),
@@ -289,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 )
                               : Text(
                                   'Continue',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.nunito(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -311,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       "Don't have an account? ",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(
                         color: const Color(0xFFA5D6A7),
                         fontSize: 14,
                       ),
@@ -320,7 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () => Navigator.pushNamed(context, '/register'),
                       child: Text(
                         'Register',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -337,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // ── Footer ──
                 Text(
                   'Empowering Spaza Shops Across South Africa 🇿🇦',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 11,
                     color: Colors.white.withOpacity(0.4),
                   ),

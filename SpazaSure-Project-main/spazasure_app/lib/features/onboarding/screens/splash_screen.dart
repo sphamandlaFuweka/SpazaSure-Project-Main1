@@ -135,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   // App name with shimmer
                   Text(
                     'SpazaSure',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(
                       fontSize: 38,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -154,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
                   Text(
                     'Trusted Supply Chain',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(
                       fontSize: 15,
                       fontWeight: FontWeight.w400,
                       color: Colors.white.withValues(alpha: 0.8),
@@ -187,7 +187,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         const SizedBox(height: 12),
                         Text(
                           _loadingLabel(_progressController.value),
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.nunito(
                             fontSize: 11,
                             color: Colors.white.withValues(alpha: 0.55),
                             letterSpacing: 0.5,
@@ -208,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: Text(
                 'Empowering Spaza Shops Across South Africa 🇿🇦',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), letterSpacing: 0.5),
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.white.withValues(alpha: 0.5), letterSpacing: 0.5),
               ).animate().fadeIn(delay: 1500.ms, duration: 800.ms),
             ),
           ],

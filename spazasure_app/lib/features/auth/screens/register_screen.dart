@@ -150,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const Spacer(),
                     Text(
                       'Create Account',
-                      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+                      style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                     const Spacer(),
                     const SizedBox(width: 44),
@@ -224,11 +224,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         Text(
                           'Owner Details',
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                          style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
                         ),
                         Text(
                           'Tell us about yourself',
-                          style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF757575)),
+                          style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF757575)),
                         ),
                       ],
                     ),
@@ -281,7 +281,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Continue', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Continue', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 8),
                   const Icon(Icons.arrow_forward_rounded, size: 20),
                 ],
@@ -332,11 +332,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         Text(
                           'Shop Details',
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                          style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
                         ),
                         Text(
                           'Tell us about your shop',
-                          style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF757575)),
+                          style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF757575)),
                         ),
                       ],
                     ),
@@ -388,11 +388,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             children: [
                               Text(
                                 'Search Location',
-                                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                                style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
                               ),
                               Text(
                                 'Search and auto-fill your shop address',
-                                style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF757575)),
+                                style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF757575)),
                               ),
                             ],
                           ),
@@ -425,7 +425,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Continue', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('Continue', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 8),
                   const Icon(Icons.arrow_forward_rounded, size: 20),
                 ],
@@ -484,11 +484,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Text(
                             'Documents',
-                            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                            style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
                           ),
                           Text(
                             'Upload for verification (PDF, JPG, PNG)',
-                            style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF757575)),
+                            style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF757575)),
                           ),
                         ],
                       ),
@@ -535,7 +535,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Expanded(
                   child: Text(
                     'Documents can also be uploaded later from your profile. You can skip this step.',
-                    style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF1565C0)),
+                    style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF1565C0)),
                   ),
                 ),
               ],
@@ -560,7 +560,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Submit Registration', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                        Text('Submit Registration', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(width: 8),
                         const Icon(Icons.check_circle_rounded, size: 20),
                       ],
@@ -616,15 +616,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
                       ),
                       if (isRequired)
-                        Text(' *', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
+                        Text(' *', style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
                     ],
                   ),
                   Text(
                     isPicked ? pickedFile!.name : 'Tap to upload',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(
                       fontSize: 11,
                       color: isPicked ? color : const Color(0xFF757575),
                       fontWeight: isPicked ? FontWeight.w500 : FontWeight.w400,
@@ -723,14 +723,14 @@ class _StepIndicator extends StatelessWidget {
                           ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
                           : Text(
                               '${i + 1}',
-                              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                              style: GoogleFonts.nunito(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
                             ),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     labels[i],
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(
                       fontSize: 10,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                       color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
@@ -779,7 +779,7 @@ class _FormField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF424242)),
+          style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF424242)),
         ),
         const SizedBox(height: 8),
         Container(
@@ -792,7 +792,7 @@ class _FormField extends StatelessWidget {
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.nunito(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: const Color(0xFF1A1A1A),
@@ -800,7 +800,7 @@ class _FormField extends StatelessWidget {
             cursorColor: AppColors.primary,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: GoogleFonts.poppins(color: const Color(0xFFBDBDBD), fontSize: 14),
+              hintStyle: GoogleFonts.nunito(color: const Color(0xFFBDBDBD), fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
               prefixIcon: Padding(
@@ -828,7 +828,7 @@ class _PhoneField extends StatelessWidget {
       children: [
         Text(
           'Phone Number',
-          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF424242)),
+          style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF424242)),
         ),
         const SizedBox(height: 8),
         Container(
@@ -848,7 +848,7 @@ class _PhoneField extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       '+27',
-                      style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                      style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
                     ),
                   ],
                 ),
@@ -858,7 +858,7 @@ class _PhoneField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.phone,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF1A1A1A),
@@ -866,7 +866,7 @@ class _PhoneField extends StatelessWidget {
                   cursorColor: AppColors.primary,
                   decoration: InputDecoration(
                     hintText: '81 234 5678',
-                    hintStyle: GoogleFonts.poppins(color: const Color(0xFFBDBDBD), fontSize: 14),
+                    hintStyle: GoogleFonts.nunito(color: const Color(0xFFBDBDBD), fontSize: 14),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                   ),
@@ -966,12 +966,12 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
               children: [
                 Text(
                   'Search Address',
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
+                  style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w700, color: const Color(0xFF1A1A1A)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Type your shop address or area name',
-                  style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF757575)),
+                  style: GoogleFonts.nunito(fontSize: 13, color: const Color(0xFF757575)),
                 ),
                 const SizedBox(height: 16),
                 // Search input
@@ -994,11 +994,11 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
                       });
                     },
                     onSubmitted: _search,
-                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFF1A1A1A)),
+                    style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFF1A1A1A)),
                     cursorColor: AppColors.primary,
                     decoration: InputDecoration(
                       hintText: 'e.g. 123 Main Rd, Soweto',
-                      hintStyle: GoogleFonts.poppins(color: const Color(0xFFBDBDBD), fontSize: 14),
+                      hintStyle: GoogleFonts.nunito(color: const Color(0xFFBDBDBD), fontSize: 14),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       prefixIcon: const Padding(
@@ -1030,7 +1030,7 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(_error!, style: GoogleFonts.poppins(fontSize: 13, color: AppColors.error)),
+              child: Text(_error!, style: GoogleFonts.nunito(fontSize: 13, color: AppColors.error)),
             ),
           Expanded(
             child: _results.isEmpty && !_searching
@@ -1042,11 +1042,11 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
                         const SizedBox(height: 12),
                         Text(
                           'Search for your shop address',
-                          style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF9E9E9E)),
+                          style: GoogleFonts.nunito(fontSize: 14, color: const Color(0xFF9E9E9E)),
                         ),
                         Text(
                           'Results will appear here',
-                          style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFFBDBDBD)),
+                          style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFFBDBDBD)),
                         ),
                       ],
                     ),
@@ -1092,14 +1092,14 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
                                   children: [
                                     Text(
                                       shortName,
-                                      style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                                      style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     if (area.isNotEmpty)
                                       Text(
                                         area,
-                                        style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF757575)),
+                                        style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF757575)),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
