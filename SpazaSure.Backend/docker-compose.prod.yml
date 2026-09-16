@@ -252,7 +252,10 @@ services:
       # Overrides the AllowedOrigins list baked into appsettings.Production.json —
       # set this in .env.prod to your real frontend domain(s), e.g.
       # PROD_FRONTEND_URL=https://app.spazasure.co.za
-      Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL}
+      # Keep a working temporary origin until DNS is configured. An empty
+      # environment value would otherwise replace the configured list with a
+      # blank origin and break every browser preflight request.
+      Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL:-http://sfx7k1da9c6rutxhmfjaubnf.2.29.35.144.sslip.io}
     depends_on:
       - auth-service
       - product-service
