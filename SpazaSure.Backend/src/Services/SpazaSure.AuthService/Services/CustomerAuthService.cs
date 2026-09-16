@@ -18,6 +18,7 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
     private readonly int _refreshExpiry = int.Parse(config["Jwt:RefreshExpiryDays"] ?? "30");
+    private bool SkipOtpVerification => config.GetValue<bool>("Auth:SkipOtpVerification");
 
     public async Task<(bool Success, string? Error, string? DevOtp)> SendOtpAsync(string phone, string purpose)
     {
@@ -38,6 +39,12 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         };
         db.OtpCodes.Add(otpCode);
         await db.SaveChangesAsync();
+
+        if (SkipOtpVerification)
+        {
+            logger.LogWarning("OTP SMS bypass enabled for customer phone {Phone}", phone);
+            return (true, null, rawOtp);
+        }
 
         logger.LogWarning("[DEV-TEST] Raw OTP for {Phone}: {Otp}", phone, rawOtp);
         Console.WriteLine($"\n========================================");
@@ -63,7 +70,7 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> RegisterAsync(
         CustomerRegisterRequest req, string ipAddress)
     {
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "registration");
+        var otpError = SkipOtpVerification ? null : await VerifyOtpAsync(req.Phone, req.Otp, "registration");
         if (otpError != null) return (false, otpError, null);
 
         if (await db.Users.AnyAsync(u => u.Phone == req.Phone))
@@ -105,7 +112,7 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> LoginAsync(
         CustomerLoginRequest req, string ipAddress)
     {
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "login");
+        var otpError = SkipOtpVerification ? null : await VerifyOtpAsync(req.Phone, req.Otp, "login");
         if (otpError != null) return (false, otpError, null);
 
         var user = await db.Users

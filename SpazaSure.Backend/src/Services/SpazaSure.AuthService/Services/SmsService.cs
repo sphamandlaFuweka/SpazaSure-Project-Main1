@@ -57,6 +57,7 @@ public class SmsService(IConfiguration config, ILogger<SmsService> logger, IHttp
                     .ToArray();
 
                 if (statuses.Length == 0 || statuses.Any(status =>
+                    !string.Equals(status, "Success", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(status, "Sent", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(status, "Queued", StringComparison.OrdinalIgnoreCase)))
                 {

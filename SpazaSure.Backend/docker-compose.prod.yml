@@ -66,6 +66,7 @@ services:
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Jwt__AccessExpiryMinutes:             "30"
       Jwt__RefreshExpiryDays:               "14"
+      Auth__SkipOtpVerification:             ${PROD_SKIP_OTP_VERIFICATION:-false}
       AfricasTalking__Username:             ${PROD_AT_USERNAME}
       AfricasTalking__ApiKey:               ${PROD_AT_API_KEY}
       AfricasTalking__Sandbox: "false"

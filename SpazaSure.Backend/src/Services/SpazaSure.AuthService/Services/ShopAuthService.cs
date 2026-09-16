@@ -11,6 +11,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
     private readonly int _refreshExpiry = int.Parse(config["Jwt:RefreshExpiryDays"] ?? "30");
+    private bool SkipOtpVerification => config.GetValue<bool>("Auth:SkipOtpVerification");
 
     // ── Step 1: Send OTP ──────────────────────────────────────────────────────
     public async Task<(bool Success, string? Error, string? DevOtp)> SendOtpAsync(string phone, string purpose)
@@ -35,6 +36,12 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
         db.OtpCodes.Add(otpCode);
 
         await db.SaveChangesAsync();
+
+        if (SkipOtpVerification)
+        {
+            logger.LogWarning("OTP SMS bypass enabled for shop phone {Phone}", phone);
+            return (true, null, rawOtp);
+        }
 
         // Send OTP via Africa's Talking SMS
         // DEV: Also log raw OTP to console for testing
@@ -65,7 +72,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
         ShopRegisterRequest req, string ipAddress)
     {
         // Verify OTP
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "registration");
+        var otpError = SkipOtpVerification ? null : await VerifyOtpAsync(req.Phone, req.Otp, "registration");
         if (otpError != null) return (false, otpError, null);
 
         // Check phone not already registered
@@ -113,7 +120,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
         ShopLoginRequest req, string ipAddress)
     {
         // Verify OTP
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "login");
+        var otpError = SkipOtpVerification ? null : await VerifyOtpAsync(req.Phone, req.Otp, "login");
         if (otpError != null) return (false, otpError, null);
 
         var user = await db.Users
