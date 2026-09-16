@@ -151,7 +151,7 @@ services:
       # fallback once this is set; it's kept only so Storage__Provider can
       # be flipped back to "local" without editing the compose file, e.g.
       # for a single-VPS deployment where a Docker volume actually persists.
-      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-s3}
+      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
       Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}
       Storage__S3__ServiceUrl:              ${PROD_S3_SERVICE_URL}
       Storage__S3__Region:                  ${PROD_S3_REGION:-auto}
@@ -226,7 +226,7 @@ services:
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       # Report evidence photos — same S3 bucket as UserService's uploads.
-      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-s3}
+      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
       Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}
       Storage__S3__ServiceUrl:              ${PROD_S3_SERVICE_URL}
       Storage__S3__Region:                  ${PROD_S3_REGION:-auto}
