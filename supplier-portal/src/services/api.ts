@@ -110,8 +110,13 @@ const handleError = async (err: any) => {
 
   // Don't show toast for 401 (handled above) or cancelled requests
   if (err.response?.status && err.response.status !== 401) {
-    const msg = err.response?.data?.message ?? err.response?.data?.error ?? 'Something went wrong';
+    const msg = err.response?.data?.message
+      ?? err.response?.data?.error
+      ?? err.response?.data?.errors?.join?.(', ')
+      ?? `Request failed (${err.response.status})`;
     toast.error(msg);
+  } else if (!err.response && !err.code) {
+    toast.error('Could not reach the API. Check the backend connection.');
   }
 
   return Promise.reject(err);

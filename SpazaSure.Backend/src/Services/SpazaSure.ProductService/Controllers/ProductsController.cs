@@ -60,6 +60,9 @@ public class ProductsController(SpazaSureDbContext db) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(ProductRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.Images) || req.Images.Trim() is "[]" or "null")
+            return BadRequest(ApiResponse.Fail("A product image is required."));
+
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 

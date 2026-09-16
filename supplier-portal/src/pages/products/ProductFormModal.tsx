@@ -53,7 +53,7 @@ interface Props {
 }
 
 export default function ProductFormModal({ product, onSave, onClose }: Props) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, setError, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: product ? {
       name: product.name, description: product.description, sku: product.sku,
@@ -88,6 +88,12 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
   const clearImage = () => setValue('imageUrl', '', { shouldValidate: false });
 
   const onSubmit = async (data: FormData) => {
+    if (!product && !data.imageUrl) {
+      setError('imageUrl', { type: 'required', message: 'Product image is required' });
+      toast.error('Add a product image before submitting');
+      return;
+    }
+
     const cat = categories.find((c) => c.id === data.categoryId);
     const saved = { ...data, categoryName: cat?.name ?? data.categoryName };
 
@@ -125,8 +131,12 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
           toast.success('Product saved ✅');
         }
       }
-    } catch {
-      toast.error('Failed to save product');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const message = err?.response?.data?.message
+        ?? err?.response?.data?.error
+        ?? (status ? `Product save failed (${status})` : 'Could not reach the API while saving the product');
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -255,7 +265,7 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
 
           {/* ── Image Picker ── */}
           <div className="col-span-2">
-            <label className="label">Product Image</label>
+            <label className="label">Product Image {!product && <span className="text-red-500">*</span>}</label>
             <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit mb-3">
               <button type="button" onClick={() => setImgTab('upload')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${imgTab === 'upload' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -303,12 +313,13 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
               {/* URL input */}
               {imgTab === 'url' && (
                 <div className="flex-1 space-y-1.5">
-                  <input {...register('imageUrl')} className="input" placeholder="https://example.com/product.jpg" />
+                  <input {...register('imageUrl')} className={`input ${errors.imageUrl ? 'input-error' : ''}`} placeholder="https://example.com/product.jpg" />
                   {errors.imageUrl && <p className="text-red-500 text-xs font-medium">{errors.imageUrl.message}</p>}
                   <p className="text-xs text-gray-400">Paste a direct image URL — preview updates automatically</p>
                 </div>
               )}
             </div>
+            {!product && !imageUrl && !errors.imageUrl && <p className="text-xs text-gray-400 mt-2">Add a clear product photo by upload or image URL.</p>}
           </div>
 
           {/* ── Fields ── */}
