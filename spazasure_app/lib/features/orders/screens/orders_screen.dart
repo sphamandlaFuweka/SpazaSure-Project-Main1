@@ -25,12 +25,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final orders = await OrderService.getOrders();
       setState(() => _orders = orders);
     } catch (e) {
-      setState(() => _error = 'Unable to load orders. Pull down to refresh.');
+      setState(() => _error = 'Unable to load orders: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -50,49 +53,67 @@ class _OrdersScreenState extends State<OrdersScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: AppTextStyles.body.copyWith(color: AppColors.error)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(onPressed: _load, child: const Text('Retry')),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _error!,
+                    style: AppTextStyles.body.copyWith(color: AppColors.error),
                   ),
-                )
-              : _orders.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textHint),
-                          const SizedBox(height: 16),
-                          Text('No orders yet', style: AppTextStyles.h3),
-                          Text('Your orders will appear here', style: AppTextStyles.bodySmall),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _orders.length,
-                        itemBuilder: (context, index) => _buildOrderCard(_orders[index]),
-                      ),
-                    ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                ],
+              ),
+            )
+          : _orders.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 64,
+                    color: AppColors.textHint,
+                  ),
+                  const SizedBox(height: 16),
+                  Text('No orders yet', style: AppTextStyles.h3),
+                  Text(
+                    'Your orders will appear here',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _orders.length,
+                itemBuilder: (context, index) =>
+                    _buildOrderCard(_orders[index]),
+              ),
+            ),
     );
   }
 
   Widget _buildOrderCard(Order order) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/order-detail', arguments: order),
+      onTap: () =>
+          Navigator.pushNamed(context, '/order-detail', arguments: order),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,38 +121,72 @@ class _OrdersScreenState extends State<OrdersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(order.orderNumber, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  order.orderNumber,
+                  style: AppTextStyles.subtitle.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 StatusBadge(status: order.status),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.business, size: 16, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.business,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
-                Text(order.supplierName.isNotEmpty ? order.supplierName : 'Supplier', style: AppTextStyles.bodySmall),
+                Text(
+                  order.supplierName.isNotEmpty
+                      ? order.supplierName
+                      : 'Supplier',
+                  style: AppTextStyles.bodySmall,
+                ),
               ],
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
-                Text(DateFormat('dd MMM yyyy, HH:mm').format(order.createdAt), style: AppTextStyles.caption),
+                Text(
+                  DateFormat('dd MMM yyyy, HH:mm').format(order.createdAt),
+                  style: AppTextStyles.caption,
+                ),
               ],
             ),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(height: 1)),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${order.items.length} item${order.items.length > 1 ? 's' : ''}', style: AppTextStyles.bodySmall),
-                Text('R${order.total.toStringAsFixed(2)}', style: AppTextStyles.price),
+                Text(
+                  '${order.items.length} item${order.items.length > 1 ? 's' : ''}',
+                  style: AppTextStyles.bodySmall,
+                ),
+                Text(
+                  'R${order.total.toStringAsFixed(2)}',
+                  style: AppTextStyles.price,
+                ),
               ],
             ),
-            if (order.status == 'dispatched' && order.estimatedDelivery != null) ...[
+            if (order.status == 'dispatched' &&
+                order.estimatedDelivery != null) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.info.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
@@ -139,11 +194,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.local_shipping, size: 16, color: AppColors.info),
+                    const Icon(
+                      Icons.local_shipping,
+                      size: 16,
+                      color: AppColors.info,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'ETA: ${DateFormat('HH:mm').format(order.estimatedDelivery!)}',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.info, fontWeight: FontWeight.w600),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.info,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),

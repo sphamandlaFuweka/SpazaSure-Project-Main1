@@ -29,9 +29,13 @@ class OrderService {
   static Future<List<Order>> getOrders({String? status}) async {
     final query = status != null ? '?status=$status' : '';
     final res = await ApiService.get('/shop/orders$query');
-    final data = res['data'] as Map<String, dynamic>;
-    final items = data['items'] as List<dynamic>;
-    return items.map((i) => _mapOrder(i as Map<String, dynamic>)).toList();
+    final rawData = res['data'];
+    final items = rawData is List
+        ? rawData
+        : rawData is Map<String, dynamic>
+        ? (rawData['items'] as List<dynamic>? ?? const [])
+        : const <dynamic>[];
+    return items.whereType<Map<String, dynamic>>().map(_mapOrder).toList();
   }
 
   static Future<Order> getOrder(String id) async {
@@ -50,7 +54,7 @@ class OrderService {
             productId: i['productId'].toString(),
             productName: i['name'] ?? i['productName'] ?? '',
             productImage: '',
-            quantity: i['quantity'] as int,
+            quantity: (i['quantity'] as num?)?.toInt() ?? 0,
             price: (i['unitPrice'] as num).toDouble(),
           ),
         )

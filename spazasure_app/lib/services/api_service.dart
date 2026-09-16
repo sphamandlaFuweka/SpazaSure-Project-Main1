@@ -113,6 +113,12 @@ class ApiService {
   }
 
   static Map<String, dynamic> _handle(http.Response res) {
+    if (res.statusCode >= 300 && res.statusCode < 400) {
+      throw ApiException(
+        'API redirected the request (${res.statusCode}). Build the app with the current API URL.',
+        res.statusCode,
+      );
+    }
     if (res.body.isEmpty) {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return {'success': true};
