@@ -1,39 +1,36 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary - Trust & Reliability
-  static const primary = Color(0xFF1B5E20);
-  static const primaryLight = Color(0xFF4CAF50);
-  static const primaryDark = Color(0xFF0D3B0F);
+  // SpazaSure brand palette: trust, community, growth, and energy.
+  static const primary = Color(0xFF25449A);
+  static const primaryLight = Color(0xFF4A67B5);
+  static const primaryDark = Color(0xFF173274);
 
-  // Secondary - Energy & Commerce
-  static const secondary = Color(0xFFF57C00);
-  static const secondaryLight = Color(0xFFFFB74D);
+  static const secondary = Color(0xFF078C50);
+  static const secondaryLight = Color(0xFF45B77E);
 
-  // Accent
-  static const accent = Color(0xFF00897B);
+  static const accent = Color(0xFFF8B217);
 
   // Status
-  static const success = Color(0xFF2E7D32);
-  static const warning = Color(0xFFF9A825);
-  static const error = Color(0xFFC62828);
-  static const info = Color(0xFF1565C0);
+  static const success = Color(0xFF078C50);
+  static const warning = Color(0xFFF8B217);
+  static const error = Color(0xFFE02526);
+  static const info = Color(0xFF25449A);
 
   // Neutrals
-  static const background = Color(0xFFF5F5F5);
+  static const background = Color(0xFFF5F7FC);
   static const surface = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF212121);
-  static const textSecondary = Color(0xFF757575);
+  static const textPrimary = Color(0xFF17244F);
+  static const textSecondary = Color(0xFF667085);
   static const textHint = Color(0xFF9E9E9E);
-  static const divider = Color(0xFFE0E0E0);
+  static const divider = Color(0xFFDDE3F0);
   static const disabled = Color(0xFF9E9E9E);
 
   // Order Status Colors
-  static const statusPending = Color(0xFFFFA726);
-  static const statusConfirmed = Color(0xFF42A5F5);
-  static const statusProcessing = Color(0xFF7E57C2);
-  static const statusDispatched = Color(0xFF26C6DA);
-  static const statusDelivered = Color(0xFF66BB6A);
-  static const statusCancelled = Color(0xFFEF5350);
+  static const statusPending = Color(0xFFF8B217);
+  static const statusConfirmed = Color(0xFF25449A);
+  static const statusProcessing = Color(0xFF078C50);
+  static const statusDispatched = Color(0xFF4A67B5);
+  static const statusDelivered = Color(0xFF078C50);
+  static const statusCancelled = Color(0xFFE02526);
 }
-

@@ -323,7 +323,7 @@
 
 /* Gradient text shimmer */
 .gradient-text-shimmer {
-  background: linear-gradient(90deg, #1B4332, #4CAF50, #1B4332);
+  background: linear-gradient(90deg, #25449A, #078C50, #25449A);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -406,7 +406,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 /* Typing cursor blink */
 .login-cursor {
   animation: loginCursorBlink 0.8s step-end infinite;
-  color: #4CAF50;
+  color: #078C50;
   font-weight: 300;
   margin-left: 1px;
 }
@@ -566,7 +566,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   left: 0;
   width: 0;
   height: 1.5px;
-  background: linear-gradient(90deg, #1B4332, #4CAF50);
+  background: linear-gradient(90deg, #25449A, #078C50);
   transition: width 0.3s ease;
 }
 .login-register-link:hover::after {
