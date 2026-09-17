@@ -8,6 +8,7 @@ class AuthSession {
   final String fullName;
   final String token;
   final String refreshToken;
+  final String role;
 
   AuthSession({
     required this.userId,
@@ -16,6 +17,7 @@ class AuthSession {
     this.fullName = '',
     required this.token,
     required this.refreshToken,
+    this.role = 'spaza_owner',
   });
 }
 
@@ -28,13 +30,14 @@ class AuthService {
   static const _fullNameKey = 'full_name';
 
   // ── Step 1: Request OTP ───────────────────────────────────────────────────
-  static Future<String?> sendOtp(String phone, {String purpose = 'login'}) async {
+  static Future<String?> sendOtp(
+    String phone, {
+    String purpose = 'login',
+  }) async {
     final formatted = _formatPhone(phone);
-    final res = await ApiService.post(
-      '/shop/auth/send-otp?purpose=$purpose',
-      {'phone': formatted},
-      auth: false,
-    );
+    final res = await ApiService.post('/shop/auth/send-otp?purpose=$purpose', {
+      'phone': formatted,
+    }, auth: false);
     // In QA/dev, backend returns the OTP for auto-fill
     final data = res['data'];
     if (data is Map<String, dynamic> && data.containsKey('otp')) {
@@ -46,12 +49,50 @@ class AuthService {
   // ── Step 2a: Verify OTP + Login ───────────────────────────────────────────
   static Future<AuthSession> verifyLogin(String phone, String otp) async {
     final formatted = _formatPhone(phone);
+    final res = await ApiService.post('/shop/auth/login', {
+      'phone': formatted,
+      'otp': otp,
+    }, auth: false);
+    return _parseAndSave(res['data'] as Map<String, dynamic>);
+  }
+
+  static Future<String?> sendCustomerOtp(
+    String phone, {
+    String purpose = 'login',
+  }) async {
     final res = await ApiService.post(
-      '/shop/auth/login',
-      {'phone': formatted, 'otp': otp},
+      '/customer/auth/send-otp?purpose=$purpose',
+      {'phone': _formatPhone(phone)},
       auth: false,
     );
-    return _parseAndSave(res['data'] as Map<String, dynamic>);
+    final data = res['data'];
+    return data is Map<String, dynamic> ? data['otp']?.toString() : null;
+  }
+
+  static Future<AuthSession> verifyCustomerLogin(
+    String phone,
+    String otp,
+  ) async {
+    final res = await ApiService.post('/customer/auth/login', {
+      'phone': _formatPhone(phone),
+      'otp': otp,
+    }, auth: false);
+    return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
+  }
+
+  static Future<AuthSession> verifyCustomerRegister({
+    required String phone,
+    required String otp,
+    required String fullName,
+    List<String>? allergies,
+  }) async {
+    final res = await ApiService.post('/customer/auth/register', {
+      'phone': _formatPhone(phone),
+      'otp': otp,
+      'fullName': fullName,
+      'allergies': allergies ?? const <String>[],
+    }, auth: false);
+    return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
 
   // ── Step 2b: Verify OTP + Register ───────────────────────────────────────
@@ -64,18 +105,14 @@ class AuthService {
     String? idNumber,
   }) async {
     final formatted = _formatPhone(phone);
-    final res = await ApiService.post(
-      '/shop/auth/register',
-      {
-        'phone': formatted,
-        'otp': otp,
-        'fullName': fullName,
-        'shopName': shopName,
-        'address': address,
-        if (idNumber != null && idNumber.isNotEmpty) 'idNumber': idNumber,
-      },
-      auth: false,
-    );
+    final res = await ApiService.post('/shop/auth/register', {
+      'phone': formatted,
+      'otp': otp,
+      'fullName': fullName,
+      'shopName': shopName,
+      'address': address,
+      if (idNumber != null && idNumber.isNotEmpty) 'idNumber': idNumber,
+    }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);
   }
 
@@ -91,6 +128,7 @@ class AuthService {
       fullName: prefs.getString(_fullNameKey) ?? '',
       token: token,
       refreshToken: prefs.getString(_refreshKey) ?? '',
+      role: prefs.getString('user_role') ?? 'spaza_owner',
     );
   }
 
@@ -116,7 +154,10 @@ class AuthService {
     return '+27$digits';
   }
 
-  static Future<AuthSession> _parseAndSave(Map<String, dynamic> data) async {
+  static Future<AuthSession> _parseAndSave(
+    Map<String, dynamic> data, {
+    String role = 'spaza_owner',
+  }) async {
     final session = AuthSession(
       userId: data['userId'].toString(),
       shopName: data['shopName'] ?? '',
@@ -124,6 +165,7 @@ class AuthService {
       fullName: data['fullName'] ?? '',
       token: data['accessToken'],
       refreshToken: data['refreshToken'],
+      role: role,
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, session.token);
@@ -132,8 +174,11 @@ class AuthService {
     await prefs.setString(_shopNameKey, session.shopName);
     await prefs.setString(_phoneKey, session.phone);
     await prefs.setString(_fullNameKey, session.fullName);
+    await prefs.setString('user_role', session.role);
     // Debug: print what was saved
-    print('[AUTH] Session saved - shopName: "${session.shopName}", fullName: "${session.fullName}", phone: "${session.phone}"');
+    print(
+      '[AUTH] Session saved - shopName: "${session.shopName}", fullName: "${session.fullName}", phone: "${session.phone}"',
+    );
     return session;
   }
 }

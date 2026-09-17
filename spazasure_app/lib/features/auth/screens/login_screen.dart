@@ -50,7 +50,9 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text(e.toString()),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } finally {
@@ -68,11 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0A2E0C),
-              Color(0xFF144417),
-              Color(0xFF1B5E20),
-            ],
+            colors: [Color(0xFF0A2E0C), Color(0xFF144417), Color(0xFF1B5E20)],
           ),
         ),
         child: SafeArea(
@@ -84,30 +82,34 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ── Logo ──
                 Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4CAF50).withOpacity(0.3),
-                        blurRadius: 40,
-                        spreadRadius: 8,
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            blurRadius: 40,
+                            spreadRadius: 8,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/spazasure_logo.jpg',
-                      fit: BoxFit.cover,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/spazasure_logo.jpg',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .scale(
+                      begin: const Offset(0.8, 0.8),
+                      end: const Offset(1, 1),
+                      duration: 600.ms,
+                      curve: Curves.easeOutBack,
                     ),
-                  ),
-                ).animate().fadeIn(duration: 600.ms).scale(
-                    begin: const Offset(0.8, 0.8),
-                    end: const Offset(1, 1),
-                    duration: 600.ms,
-                    curve: Curves.easeOutBack),
 
                 const SizedBox(height: 20),
 
@@ -136,172 +138,196 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ── Login Card ──
                 Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 30,
-                        offset: const Offset(0, 12),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title
-                      Text(
-                        'Sign In',
-                        style: GoogleFonts.nunito(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Enter your phone number to continue',
-                        style: GoogleFonts.nunito(
-                          fontSize: 13,
-                          color: const Color(0xFF757575),
-                        ),
-                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Text(
+                            'Sign In',
+                            style: GoogleFonts.nunito(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1A1A1A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Enter your phone number to continue',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              color: const Color(0xFF757575),
+                            ),
+                          ),
 
-                      const SizedBox(height: 28),
+                          const SizedBox(height: 28),
 
-                      // Phone label
-                      Text(
-                        'Phone Number',
-                        style: GoogleFonts.nunito(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF424242),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                          // Phone label
+                          Text(
+                            'Phone Number',
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF424242),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
 
-                      // Phone input
-                      Container(
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE0E0E0)),
-                        ),
-                        child: Row(
-                          children: [
-                            // Country code prefix
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              child: Row(
-                                children: [
-                                  const Text('🇿🇦', style: TextStyle(fontSize: 22)),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '+27',
+                          // Phone input
+                          Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFE0E0E0),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Country code prefix
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Text(
+                                        '🇿🇦',
+                                        style: TextStyle(fontSize: 22),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '+27',
+                                        style: GoogleFonts.nunito(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF1A1A1A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 28,
+                                  color: const Color(0xFFE0E0E0),
+                                ),
+                                // Text field
+                                Expanded(
+                                  child: TextField(
+                                    controller: _phoneController,
+                                    focusNode: _phoneFocus,
+                                    keyboardType: TextInputType.phone,
                                     style: GoogleFonts.nunito(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
                                       color: const Color(0xFF1A1A1A),
                                     ),
+                                    cursorColor: AppColors.primary,
+                                    onSubmitted: (_) => _handleSignIn(),
+                                    decoration: InputDecoration(
+                                      hintText: '81 234 5678',
+                                      hintStyle: GoogleFonts.nunito(
+                                        color: const Color(0xFFBDBDBD),
+                                        fontSize: 15,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 16,
+                                          ),
+                                    ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            Container(width: 1, height: 28, color: const Color(0xFFE0E0E0)),
-                            // Text field
-                            Expanded(
-                              child: TextField(
-                                controller: _phoneController,
-                                focusNode: _phoneFocus,
-                                keyboardType: TextInputType.phone,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Helper text
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 14,
+                                color: Color(0xFF9E9E9E),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'We\'ll send you a 6-digit code via SMS',
                                 style: GoogleFonts.nunito(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF1A1A1A),
-                                ),
-                                cursorColor: AppColors.primary,
-                                onSubmitted: (_) => _handleSignIn(),
-                                decoration: InputDecoration(
-                                  hintText: '81 234 5678',
-                                  hintStyle: GoogleFonts.nunito(
-                                    color: const Color(0xFFBDBDBD),
-                                    fontSize: 15,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 16),
+                                  fontSize: 11,
+                                  color: const Color(0xFF9E9E9E),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
+                            ],
+                          ),
 
-                      const SizedBox(height: 12),
+                          const SizedBox(height: 24),
 
-                      // Helper text
-                      Row(
-                        children: [
-                          const Icon(Icons.lock_outline_rounded,
-                              size: 14, color: Color(0xFF9E9E9E)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'We\'ll send you a 6-digit code via SMS',
-                            style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              color: const Color(0xFF9E9E9E),
+                          // Sign In button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _handleSignIn,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                disabledBackgroundColor: AppColors.primary
+                                    .withOpacity(0.5),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : Text(
+                                      'Continue',
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 24),
-
-                      // Sign In button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleSignIn,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            disabledBackgroundColor:
-                                AppColors.primary.withOpacity(0.5),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
-                              : Text(
-                                  'Continue',
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
+                    )
                     .animate()
                     .fadeIn(delay: 400.ms, duration: 500.ms)
-                    .slideY(begin: 0.1, end: 0, delay: 400.ms, duration: 500.ms),
+                    .slideY(
+                      begin: 0.1,
+                      end: 0,
+                      delay: 400.ms,
+                      duration: 500.ms,
+                    ),
 
                 const SizedBox(height: 32),
 
@@ -331,6 +357,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ).animate().fadeIn(delay: 600.ms),
+
+                const SizedBox(height: 14),
+                GestureDetector(
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/customer-register'),
+                  child: Text(
+                    'I am a customer: create an account',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.nunito(
+                      color: const Color(0xFFFFC107),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 700.ms),
 
                 const SizedBox(height: 50),
 

@@ -10,7 +10,9 @@ import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/otp_screen.dart';
 import 'features/auth/screens/register_screen.dart';
+import 'features/auth/screens/customer_register_screen.dart';
 import 'features/main_shell.dart';
+import 'features/customer/customer_shell.dart';
 import 'features/marketplace/screens/marketplace_screen.dart';
 import 'features/marketplace/screens/product_detail_screen.dart';
 import 'features/cart/screens/cart_screen.dart';
@@ -30,10 +32,12 @@ import 'core/widgets/logo_page_route.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
   runApp(
     MultiProvider(
       providers: [
@@ -58,31 +62,36 @@ class SpazaSureApp extends StatelessWidget {
       initialRoute: '/splash',
       onGenerateRoute: (settings) {
         final pages = <String, Widget Function()>{
-          '/splash':            () => const SplashScreen(),
-          '/onboarding':        () => const OnboardingScreen(),
-          '/login':             () => const LoginScreen(),
-          '/otp':               () => const OtpScreen(),
-          '/register':          () => const RegisterScreen(),
-          '/home':              () => const MainShell(),
-          '/marketplace':       () => const MarketplaceScreen(),
-          '/product':           () => const ProductDetailScreen(),
-          '/cart':              () => const CartScreen(),
-          '/orders':            () => const OrdersScreen(),
-          '/order-detail':      () => const OrderDetailScreen(),
+          '/splash': () => const SplashScreen(),
+          '/onboarding': () => const OnboardingScreen(),
+          '/login': () => const LoginScreen(),
+          '/otp': () => const OtpScreen(),
+          '/register': () => const RegisterScreen(),
+          '/customer-register': () => const CustomerRegisterScreen(),
+          '/home': () => const MainShell(),
+          '/customer-home': () => const CustomerShell(),
+          '/marketplace': () => const MarketplaceScreen(),
+          '/product': () => const ProductDetailScreen(),
+          '/cart': () => const CartScreen(),
+          '/orders': () => const OrdersScreen(),
+          '/order-detail': () => const OrderDetailScreen(),
           '/delivery-tracking': () => const DeliveryTrackingScreen(),
-          '/compliance':        () => const ComplianceScreen(),
-          '/notifications':     () => const NotificationsScreen(),
-          '/wallet':            () => const WalletScreen(),
-          '/group-buy':         () => const GroupBuyScreen(),
-          '/qr-scanner':        () => const QrScannerScreen(),
-          '/report':            () => const ReportScreen(),
-          '/rate-delivery':     () => const RateDeliveryScreen(),
-          '/receipt':           () => const ReceiptScreen(),
+          '/compliance': () => const ComplianceScreen(),
+          '/notifications': () => const NotificationsScreen(),
+          '/wallet': () => const WalletScreen(),
+          '/group-buy': () => const GroupBuyScreen(),
+          '/qr-scanner': () => const QrScannerScreen(),
+          '/report': () => const ReportScreen(),
+          '/rate-delivery': () => const RateDeliveryScreen(),
+          '/receipt': () => const ReceiptScreen(),
         };
         final builder = pages[settings.name];
         if (builder == null) return null;
         if (settings.name == '/splash') {
-          return MaterialPageRoute(builder: (_) => builder(), settings: settings);
+          return MaterialPageRoute(
+            builder: (_) => builder(),
+            settings: settings,
+          );
         }
         return LogoPageRoute.logoRoute(builder(), settings: settings);
       },

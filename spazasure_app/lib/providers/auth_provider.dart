@@ -29,9 +29,36 @@ class AuthProvider extends ChangeNotifier {
     return await AuthService.sendOtp(phone, purpose: 'registration');
   }
 
+  Future<String?> sendCustomerOtp(
+    String phone, {
+    String purpose = 'login',
+  }) async {
+    return await AuthService.sendCustomerOtp(phone, purpose: purpose);
+  }
+
   // Step 2 — verify OTP + login
   Future<void> verifyLogin(String phone, String otp) async {
     _session = await AuthService.verifyLogin(phone, otp);
+    notifyListeners();
+  }
+
+  Future<void> verifyCustomerLogin(String phone, String otp) async {
+    _session = await AuthService.verifyCustomerLogin(phone, otp);
+    notifyListeners();
+  }
+
+  Future<void> verifyCustomerRegister({
+    required String phone,
+    required String otp,
+    required String fullName,
+    List<String>? allergies,
+  }) async {
+    _session = await AuthService.verifyCustomerRegister(
+      phone: phone,
+      otp: otp,
+      fullName: fullName,
+      allergies: allergies,
+    );
     notifyListeners();
   }
 
