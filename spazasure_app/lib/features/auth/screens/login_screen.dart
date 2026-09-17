@@ -89,7 +89,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            color: const Color(
+                              0xFF4CAF50,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 40,
                             spreadRadius: 8,
                           ),
@@ -145,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 30,
                             offset: const Offset(0, 12),
                           ),
@@ -289,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 disabledBackgroundColor: AppColors.primary
-                                    .withOpacity(0.5),
+                                    .withValues(alpha: 0.5),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -380,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Empowering Spaza Shops Across South Africa 🇿🇦',
                   style: GoogleFonts.nunito(
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.4),
+                    color: Colors.white.withValues(alpha: 0.4),
                   ),
                   textAlign: TextAlign.center,
                 ).animate().fadeIn(delay: 800.ms),

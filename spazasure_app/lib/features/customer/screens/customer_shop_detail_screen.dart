@@ -47,7 +47,7 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<int>(
-                value: rating,
+                initialValue: rating,
                 items: [1, 2, 3, 4, 5]
                     .map(
                       (value) => DropdownMenuItem(

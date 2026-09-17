@@ -127,7 +127,12 @@ class _OtpScreenState extends State<OtpScreen> {
         await context.read<AuthProvider>().verifyCustomerRegister(
           phone: phone,
           otp: otpToVerify,
-          fullName: args['fullName'] as String? ?? '',
+          firstName: args['firstName'] as String? ?? '',
+          lastName: args['lastName'] as String? ?? '',
+          email: args['email'] as String? ?? '',
+          password: args['password'] as String? ?? '',
+          age: args['age'] as int?,
+          allergies: (args['allergies'] as List?)?.cast<String>(),
         );
       } else if (purpose == 'login') {
         await context.read<AuthProvider>().verifyLogin(phone, otpToVerify);
@@ -243,10 +248,10 @@ class _OtpScreenState extends State<OtpScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
                       child: const Icon(
@@ -269,7 +274,9 @@ class _OtpScreenState extends State<OtpScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF4CAF50).withOpacity(0.3),
+                            color: const Color(
+                              0xFF4CAF50,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -326,7 +333,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 30,
                             offset: const Offset(0, 12),
                           ),
@@ -454,10 +461,12 @@ class _OtpScreenState extends State<OtpScreen> {
                                     ? AppColors.primary
                                     : const Color(0xFF9E9E9E),
                                 disabledBackgroundColor: AppColors.primary
-                                    .withOpacity(0.5),
+                                    .withValues(alpha: 0.5),
                                 foregroundColor: Colors.white,
                                 elevation: hasOtp ? 4 : 0,
-                                shadowColor: AppColors.primary.withOpacity(0.3),
+                                shadowColor: AppColors.primary.withValues(
+                                  alpha: 0.3,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -549,14 +558,14 @@ class _OtpScreenState extends State<OtpScreen> {
                     Icon(
                       Icons.shield_outlined,
                       size: 14,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Your code expires in 5 minutes',
                       style: GoogleFonts.nunito(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                   ],

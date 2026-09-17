@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Storage;
 using SpazaSure.UserService.Services;
 
@@ -66,6 +67,7 @@ builder.Services.AddCors(opt =>
 
 var app = builder.Build();
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("SupplierPortal");
 app.UseSwagger();
 app.UseSwaggerUI(c =>

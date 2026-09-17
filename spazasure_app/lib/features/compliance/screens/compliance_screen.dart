@@ -59,11 +59,12 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
     setState(() => _loading = true);
     try {
       final docs = await ComplianceService.getDocuments();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _docs = docs;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -115,7 +116,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.info.withOpacity(0.1),
+                          color: AppColors.info.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -157,7 +158,10 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+          ),
         ],
       ),
       child: Row(
@@ -195,7 +199,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -258,9 +262,9 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -273,7 +277,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(meta.icon, color: statusColor),
@@ -298,7 +302,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity(0.1),
+                                color: AppColors.error.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -346,12 +350,12 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
           if (!isApproved)
             Container(
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.05),
+                color: statusColor.withValues(alpha: 0.05),
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(16),
                 ),
                 border: Border(
-                  top: BorderSide(color: statusColor.withOpacity(0.15)),
+                  top: BorderSide(color: statusColor.withValues(alpha: 0.15)),
                 ),
               ),
               child: Row(
@@ -376,7 +380,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                   Container(
                     width: 1,
                     height: 32,
-                    color: statusColor.withOpacity(0.15),
+                    color: statusColor.withValues(alpha: 0.15),
                   ),
                   Expanded(
                     child: TextButton.icon(
@@ -518,7 +522,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(meta.icon, color: AppColors.info),
@@ -542,9 +546,11 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.08),
+                color: AppColors.info.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.info.withOpacity(0.2)),
+                border: Border.all(
+                  color: AppColors.info.withValues(alpha: 0.2),
+                ),
               ),
               child: Row(
                 children: [
@@ -609,7 +615,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Center(

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("Portal");
 app.UseSwagger();
 app.UseSwaggerUI(c =>

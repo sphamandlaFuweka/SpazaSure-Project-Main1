@@ -76,12 +76,17 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         if (await db.Users.AnyAsync(u => u.Phone == req.Phone))
             return (false, "Phone number already registered.", null);
 
+        if (await db.Users.AnyAsync(u => u.Email == req.Email))
+            return (false, "Email address already registered.", null);
+
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == "customer" && r.IsActive);
         if (role is null) return (false, "Role configuration error.", null);
 
         var user = new User
         {
             Phone = req.Phone,
+            Email = req.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             RoleId = role.Id,
             Status = "active"
         };
@@ -90,7 +95,9 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         var profile = new CustomerProfile
         {
             UserId = user.Id,
-            FullName = req.FullName,
+            FirstName = req.FirstName.Trim(),
+            LastName = req.LastName.Trim(),
+            Age = req.Age,
             Allergies = JsonSerializer.Serialize(req.Allergies ?? [])
         };
         db.CustomerProfiles.Add(profile);
@@ -176,13 +183,20 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         try { allergies = JsonSerializer.Deserialize<List<string>>(profile?.Allergies ?? "[]") ?? []; }
         catch (JsonException) { allergies = []; }
 
+        var firstName = profile?.FirstName ?? string.Empty;
+        var lastName = profile?.LastName ?? string.Empty;
+
         return new CustomerAuthResponse(
             accessToken,
             rawRefresh,
             DateTime.UtcNow.AddMinutes(_accessExpiry),
             user.Id,
-            profile?.FullName ?? string.Empty,
+            firstName,
+            lastName,
+            $"{firstName} {lastName}".Trim(),
+            user.Email ?? string.Empty,
             user.Phone ?? string.Empty,
+            profile?.Age,
             allergies
         );
     }

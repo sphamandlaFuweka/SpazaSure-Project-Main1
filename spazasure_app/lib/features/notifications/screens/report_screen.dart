@@ -28,13 +28,22 @@ class _ReportScreenState extends State<ReportScreen> {
   final _descriptionController = TextEditingController();
 
   static const _reportTypes = [
-    _ReportType(Icons.dangerous_rounded, 'Fake / Counterfeit Product',
-        AppColors.error),
+    _ReportType(
+      Icons.dangerous_rounded,
+      'Fake / Counterfeit Product',
+      AppColors.error,
+    ),
     _ReportType(Icons.schedule_outlined, 'Expired Goods', AppColors.warning),
-    _ReportType(Icons.price_change_outlined, 'Misleading Pricing',
-        AppColors.secondary),
-    _ReportType(Icons.cleaning_services_outlined, 'Unhygienic Conditions',
-        AppColors.info),
+    _ReportType(
+      Icons.price_change_outlined,
+      'Misleading Pricing',
+      AppColors.secondary,
+    ),
+    _ReportType(
+      Icons.cleaning_services_outlined,
+      'Unhygienic Conditions',
+      AppColors.info,
+    ),
     _ReportType(Icons.more_horiz_rounded, 'Other', AppColors.textSecondary),
   ];
 
@@ -58,7 +67,8 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _pickPhoto() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
-      withData: true, // portable bytes across mobile/web/desktop, no dart:io needed
+      withData:
+          true, // portable bytes across mobile/web/desktop, no dart:io needed
     );
     if (result != null && result.files.isNotEmpty) {
       setState(() => _photoFile = result.files.single);
@@ -66,7 +76,10 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _submitReport() async {
-    setState(() { _submitting = true; _submitError = null; });
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
     try {
       String? photoUrl;
       if (_photoFile?.bytes != null) {
@@ -82,7 +95,9 @@ class _ReportScreenState extends State<ReportScreen> {
       final res = await ApiService.post('/customer/reports', {
         'reportType': _selectedType,
         'shopName': _shopNameController.text.trim(),
-        'purchaseLocation': _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        'purchaseLocation': _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
         'description': _descriptionController.text.trim().isEmpty
             ? '${_productController.text.trim().isNotEmpty ? "Product: ${_productController.text.trim()}. " : ""}$_selectedType'
             : _descriptionController.text.trim(),
@@ -171,20 +186,23 @@ class _ReportScreenState extends State<ReportScreen> {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border:
-                    Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
               ),
-              child: const Icon(Icons.arrow_back_rounded,
-                  color: Colors.white, size: 22),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
           ),
           const Spacer(),
           Text(
             _step == 3 ? 'Report Submitted' : 'Report an Issue',
             style: GoogleFonts.nunito(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.white),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
           const Spacer(),
           const SizedBox(width: 44),
@@ -227,22 +245,31 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                       child: Center(
                         child: isCompleted
-                            ? const Icon(Icons.check_rounded,
-                                color: Colors.white, size: 16)
-                            : Text('${i + 1}',
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              )
+                            : Text(
+                                '${i + 1}',
                                 style: GoogleFonts.nunito(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(labels[i],
-                        style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            color: isActive
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.4))),
+                    Text(
+                      labels[i],
+                      style: GoogleFonts.nunito(
+                        fontSize: 10,
+                        color: isActive
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.4),
+                      ),
+                    ),
                   ],
                 ),
                 if (i < 2)
@@ -286,23 +313,27 @@ class _ReportScreenState extends State<ReportScreen> {
             children: [
               Row(
                 children: [
-                  _iconBox(Icons.report_problem_outlined,
-                      AppColors.secondary),
+                  _iconBox(Icons.report_problem_outlined, AppColors.secondary),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('What are you reporting?',
-                            style: GoogleFonts.nunito(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                        Text('Select the issue type',
-                            style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                color:
-                                    Colors.white.withValues(alpha: 0.6))),
+                        Text(
+                          'What are you reporting?',
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Select the issue type',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -342,11 +373,14 @@ class _ReportScreenState extends State<ReportScreen> {
             Icon(type.icon, color: type.color, size: 22),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(type.label,
-                  style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white)),
+              child: Text(
+                type.label,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
             ),
             if (isSelected)
               Icon(Icons.check_circle_rounded, color: type.color, size: 20),
@@ -372,34 +406,55 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Report Details',
-                            style: GoogleFonts.nunito(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                        Text('Provide as much detail as possible',
-                            style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                color:
-                                    Colors.white.withValues(alpha: 0.6))),
+                        Text(
+                          'Report Details',
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Provide as much detail as possible',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              _glassField(_shopNameController, 'Shop Name *',
-                  'Enter shop name', Icons.store_outlined),
+              _glassField(
+                _shopNameController,
+                'Shop Name *',
+                'Enter shop name',
+                Icons.store_outlined,
+              ),
               const SizedBox(height: 16),
-              _glassField(_locationController, 'Location',
-                  'Street address or area', Icons.location_on_outlined),
+              _glassField(
+                _locationController,
+                'Location',
+                'Street address or area',
+                Icons.location_on_outlined,
+              ),
               const SizedBox(height: 16),
-              _glassField(_productController, 'Product Name',
-                  'Product involved (if any)', Icons.inventory_2_outlined),
+              _glassField(
+                _productController,
+                'Product Name',
+                'Product involved (if any)',
+                Icons.inventory_2_outlined,
+              ),
               const SizedBox(height: 16),
-              _glassField(_descriptionController, 'Description *',
-                  'Describe the issue in detail...', Icons.description_outlined,
-                  maxLines: 4),
+              _glassField(
+                _descriptionController,
+                'Description *',
+                'Describe the issue in detail...',
+                Icons.description_outlined,
+                maxLines: 4,
+              ),
               const SizedBox(height: 16),
               // Photo attachment
               GestureDetector(
@@ -410,7 +465,8 @@ class _ReportScreenState extends State<ReportScreen> {
                     color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1)),
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -422,10 +478,12 @@ class _ReportScreenState extends State<ReportScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                            _photoFile != null
-                                ? Icons.check_circle_rounded
-                                : Icons.add_a_photo_outlined,
-                            color: AppColors.info, size: 22),
+                          _photoFile != null
+                              ? Icons.check_circle_rounded
+                              : Icons.add_a_photo_outlined,
+                          color: AppColors.info,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -433,33 +491,42 @@ class _ReportScreenState extends State<ReportScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                                _photoFile != null
-                                    ? 'Photo attached'
-                                    : 'Add Photo (Optional)',
-                                style: GoogleFonts.nunito(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white)),
+                              _photoFile != null
+                                  ? 'Photo attached'
+                                  : 'Add Photo (Optional)',
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
                             Text(
-                                _photoFile != null
-                                    ? _photoFile!.name
-                                    : 'Tap to attach evidence',
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.nunito(
-                                    fontSize: 11,
-                                    color: Colors.white
-                                        .withValues(alpha: 0.5))),
+                              _photoFile != null
+                                  ? _photoFile!.name
+                                  : 'Tap to attach evidence',
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       if (_photoFile != null)
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
                           onPressed: () => setState(() => _photoFile = null),
                         )
                       else
-                        Icon(Icons.chevron_right_rounded,
-                            color: Colors.white.withValues(alpha: 0.4)),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
                     ],
                   ),
                 ),
@@ -487,16 +554,21 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Privacy Settings',
-                            style: GoogleFonts.nunito(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                        Text('How should we handle your identity?',
-                            style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                color:
-                                    Colors.white.withValues(alpha: 0.6))),
+                        Text(
+                          'Privacy Settings',
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'How should we handle your identity?',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -525,19 +597,24 @@ class _ReportScreenState extends State<ReportScreen> {
                   color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: AppColors.warning.withValues(alpha: 0.3)),
+                    color: AppColors.warning.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline,
-                        color: AppColors.warning, size: 18),
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppColors.warning,
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'All reports are reviewed by our compliance team within 48 hours.',
                         style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8)),
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
                       ),
                     ),
                   ],
@@ -550,8 +627,13 @@ class _ReportScreenState extends State<ReportScreen> {
     ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.05, end: 0);
   }
 
-  Widget _buildAnonOption(bool value, IconData icon, String title,
-      String subtitle, Color color) {
+  Widget _buildAnonOption(
+    bool value,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+  ) {
     final isSelected = _isAnonymous == value;
     return GestureDetector(
       onTap: () => setState(() => _isAnonymous = value),
@@ -586,15 +668,21 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white)),
-                  Text(subtitle,
-                      style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.6))),
+                  Text(
+                    title,
+                    style: GoogleFonts.nunito(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -615,31 +703,39 @@ class _ReportScreenState extends State<ReportScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.3),
-                    width: 2),
-              ),
-              child: const Icon(Icons.check_circle_rounded,
-                  color: AppColors.success, size: 56),
-            )
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 56,
+                  ),
+                )
                 .animate()
                 .scale(
-                    begin: const Offset(0.3, 0.3),
-                    duration: 600.ms,
-                    curve: Curves.elasticOut)
+                  begin: const Offset(0.3, 0.3),
+                  duration: 600.ms,
+                  curve: Curves.elasticOut,
+                )
                 .fadeIn(),
             const SizedBox(height: 28),
-            Text('Report Submitted!',
-                style: GoogleFonts.nunito(
+            Text(
+                  'Report Submitted!',
+                  style: GoogleFonts.nunito(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white),
-                textAlign: TextAlign.center)
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                )
                 .animate()
                 .fadeIn(delay: 300.ms)
                 .slideY(begin: 0.3, end: 0, delay: 300.ms),
@@ -647,57 +743,72 @@ class _ReportScreenState extends State<ReportScreen> {
             Text(
               'Thank you for helping keep the community safe. Our team will review your report.',
               style: GoogleFonts.nunito(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.7)),
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(delay: 400.ms),
             const SizedBox(height: 28),
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                children: [
-                  Text('Complaint ID',
-                      style: GoogleFonts.nunito(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Complaint ID',
+                        style: GoogleFonts.nunito(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.6))),
-                  const SizedBox(height: 6),
-                  Text(_complaintId ?? '',
-                      style: GoogleFonts.nunito(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _complaintId ?? '',
+                        style: GoogleFonts.nunito(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primaryLight,
-                          letterSpacing: 2)),
-                  const SizedBox(height: 6),
-                  Text('Save this for reference',
-                      style: GoogleFonts.nunito(
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Save this for reference',
+                        style: GoogleFonts.nunito(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5))),
-                ],
-              ),
-            ).animate().fadeIn(delay: 500.ms).scale(
-                begin: const Offset(0.9, 0.9), delay: 500.ms),
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                .animate()
+                .fadeIn(delay: 500.ms)
+                .scale(begin: const Offset(0.9, 0.9), delay: 500.ms),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () =>
-                    Navigator.pushNamedAndRemoveUntil(
-                        context, '/home', (r) => false),
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/home',
+                  (r) => false,
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryLight,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                child: Text('Back to Home',
-                    style: AppTextStyles.button),
+                child: Text('Back to Home', style: AppTextStyles.button),
               ),
             ).animate().fadeIn(delay: 600.ms),
           ],
@@ -712,12 +823,15 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_submitError != null) Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(_submitError!,
+          if (_submitError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _submitError!,
                 style: GoogleFonts.nunito(color: AppColors.error, fontSize: 13),
-                textAlign: TextAlign.center),
-          ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -728,10 +842,18 @@ class _ReportScreenState extends State<ReportScreen> {
                 disabledBackgroundColor: Colors.white.withValues(alpha: 0.15),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               child: _submitting
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
                   : Text(
                       _step == 2 ? 'Submit Report' : 'Continue',
                       style: AppTextStyles.button,
@@ -752,9 +874,10 @@ class _ReportScreenState extends State<ReportScreen> {
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8))
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: child,
@@ -766,50 +889,64 @@ class _ReportScreenState extends State<ReportScreen> {
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-            colors: [color.withValues(alpha: 0.8), color]),
+        gradient: LinearGradient(colors: [color.withValues(alpha: 0.8), color]),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(icon, color: Colors.white, size: 26),
     );
   }
 
-  Widget _glassField(TextEditingController controller, String label,
-      String hint, IconData icon,
-      {int maxLines = 1}) {
+  Widget _glassField(
+    TextEditingController controller,
+    String label,
+    String hint,
+    IconData icon, {
+    int maxLines = 1,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.nunito(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.8))),
+        Text(
+          label,
+          style: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            // Solid dark fill (not a translucent white overlay) — guarantees
+            // the white input text stays legible regardless of how the
+            // surrounding gradient/alpha blending renders on a given device.
+            color: Colors.black.withValues(alpha: 0.28),
             borderRadius: BorderRadius.circular(14),
-            border:
-                Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
             style: GoogleFonts.nunito(color: Colors.white, fontSize: 14),
+            cursorColor: Colors.white,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: GoogleFonts.nunito(
-                  color: Colors.white.withValues(alpha: 0.35)),
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 14),
+                horizontal: 16,
+                vertical: 14,
+              ),
               prefixIcon: maxLines == 1
                   ? Padding(
                       padding: const EdgeInsets.only(left: 14),
-                      child: Icon(icon,
-                          color: Colors.white.withValues(alpha: 0.5),
-                          size: 20),
+                      child: Icon(
+                        icon,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 20,
+                      ),
                     )
                   : null,
             ),

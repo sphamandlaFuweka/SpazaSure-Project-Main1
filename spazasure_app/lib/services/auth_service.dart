@@ -6,6 +6,11 @@ class AuthSession {
   final String shopName;
   final String phone;
   final String fullName;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final int? age;
+  final List<String> allergies;
   final String token;
   final String refreshToken;
   final String role;
@@ -15,6 +20,11 @@ class AuthSession {
     required this.shopName,
     required this.phone,
     this.fullName = '',
+    this.firstName = '',
+    this.lastName = '',
+    this.email = '',
+    this.age,
+    this.allergies = const [],
     required this.token,
     required this.refreshToken,
     this.role = 'spaza_owner',
@@ -28,6 +38,11 @@ class AuthService {
   static const _shopNameKey = 'shop_name';
   static const _phoneKey = 'phone';
   static const _fullNameKey = 'full_name';
+  static const _firstNameKey = 'first_name';
+  static const _lastNameKey = 'last_name';
+  static const _emailKey = 'email';
+  static const _ageKey = 'age';
+  static const _allergiesKey = 'allergies';
 
   // ── Step 1: Request OTP ───────────────────────────────────────────────────
   static Future<String?> sendOtp(
@@ -83,13 +98,21 @@ class AuthService {
   static Future<AuthSession> verifyCustomerRegister({
     required String phone,
     required String otp,
-    required String fullName,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    int? age,
     List<String>? allergies,
   }) async {
     final res = await ApiService.post('/customer/auth/register', {
       'phone': _formatPhone(phone),
       'otp': otp,
-      'fullName': fullName,
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'password': password,
+      if (age != null) 'age': age,
       'allergies': allergies ?? const <String>[],
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
@@ -126,6 +149,11 @@ class AuthService {
       shopName: prefs.getString(_shopNameKey) ?? '',
       phone: prefs.getString(_phoneKey) ?? '',
       fullName: prefs.getString(_fullNameKey) ?? '',
+      firstName: prefs.getString(_firstNameKey) ?? '',
+      lastName: prefs.getString(_lastNameKey) ?? '',
+      email: prefs.getString(_emailKey) ?? '',
+      age: prefs.getInt(_ageKey),
+      allergies: prefs.getStringList(_allergiesKey) ?? const [],
       token: token,
       refreshToken: prefs.getString(_refreshKey) ?? '',
       role: prefs.getString('user_role') ?? 'spaza_owner',
@@ -139,6 +167,11 @@ class AuthService {
     await prefs.remove(_userIdKey);
     await prefs.remove(_shopNameKey);
     await prefs.remove(_phoneKey);
+    await prefs.remove(_firstNameKey);
+    await prefs.remove(_lastNameKey);
+    await prefs.remove(_emailKey);
+    await prefs.remove(_ageKey);
+    await prefs.remove(_allergiesKey);
   }
 
   static Future<bool> isLoggedIn() async {
@@ -163,6 +196,13 @@ class AuthService {
       shopName: data['shopName'] ?? '',
       phone: data['phone'] ?? '',
       fullName: data['fullName'] ?? '',
+      firstName: data['firstName'] ?? '',
+      lastName: data['lastName'] ?? '',
+      email: data['email'] ?? '',
+      age: (data['age'] as num?)?.toInt(),
+      allergies:
+          (data['allergies'] as List?)?.map((a) => a.toString()).toList() ??
+          const [],
       token: data['accessToken'],
       refreshToken: data['refreshToken'],
       role: role,
@@ -174,11 +214,12 @@ class AuthService {
     await prefs.setString(_shopNameKey, session.shopName);
     await prefs.setString(_phoneKey, session.phone);
     await prefs.setString(_fullNameKey, session.fullName);
+    await prefs.setString(_firstNameKey, session.firstName);
+    await prefs.setString(_lastNameKey, session.lastName);
+    await prefs.setString(_emailKey, session.email);
+    if (session.age != null) await prefs.setInt(_ageKey, session.age!);
+    await prefs.setStringList(_allergiesKey, session.allergies);
     await prefs.setString('user_role', session.role);
-    // Debug: print what was saved
-    print(
-      '[AUTH] Session saved - shopName: "${session.shopName}", fullName: "${session.fullName}", phone: "${session.phone}"',
-    );
     return session;
   }
 }

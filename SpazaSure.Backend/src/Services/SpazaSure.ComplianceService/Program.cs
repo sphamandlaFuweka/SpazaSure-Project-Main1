@@ -108,6 +108,7 @@ if (!string.Equals(builder.Configuration["Storage:Provider"], "s3", StringCompar
     });
 }
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("SupplierPortal");
 app.UseSwagger();
 app.UseSwaggerUI(c =>

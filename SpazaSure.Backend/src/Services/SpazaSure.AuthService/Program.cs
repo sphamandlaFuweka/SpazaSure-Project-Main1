@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.AuthService.Services;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,6 +107,7 @@ using (var scope = app.Services.CreateScope())
     logger.LogInformation("Auth database schema and required roles are ready.");
 } 
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("Portal");
 app.UseSwagger();
 app.UseSwaggerUI(c =>

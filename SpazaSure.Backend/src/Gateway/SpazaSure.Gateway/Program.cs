@@ -31,6 +31,29 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// When a downstream service is unreachable, times out, or a route doesn't
+// match any endpoint, YARP/Kestrel return a bare status code with an EMPTY
+// body — the client then has nothing to parse and surfaces a confusing
+// "server returned an empty response" error. This guarantees every such
+// response still comes back as JSON the mobile/web clients can read a real
+// message from (mirrors SpazaSure.Shared's ExceptionHandlingMiddleware,
+// which only covers unhandled exceptions *inside* each downstream service).
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (response.ContentLength is > 0) return;
+
+    response.ContentType = "application/json";
+    var message = response.StatusCode switch
+    {
+        502 or 503 => "The requested service is temporarily unavailable. Please try again shortly.",
+        504 => "The request timed out. Please try again.",
+        404 => "The requested resource was not found.",
+        _ => "Something went wrong processing your request. Please try again."
+    };
+    await response.WriteAsync($"{{\"success\":false,\"message\":\"{message}\"}}");
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

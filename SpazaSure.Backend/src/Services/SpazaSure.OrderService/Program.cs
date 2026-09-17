@@ -82,6 +82,7 @@ builder.Services.AddCors(opt =>
 
 var app = builder.Build();
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("SupplierPortal");
 app.UseSwagger();
 app.UseSwaggerUI(c =>

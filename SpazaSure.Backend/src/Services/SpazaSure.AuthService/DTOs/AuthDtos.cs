@@ -75,7 +75,11 @@ public record CustomerLoginRequest(
 public record CustomerRegisterRequest(
     [Required, Phone] string Phone,
     [Required, Length(6, 6)] string Otp,
-    [Required] string FullName,
+    [Required] string FirstName,
+    [Required] string LastName,
+    [Required, EmailAddress] string Email,
+    [Required, MinLength(8)] string Password,
+    int? Age,
     List<string>? Allergies
 );
 
@@ -84,7 +88,11 @@ public record CustomerAuthResponse(
     string RefreshToken,
     DateTime ExpiresAt,
     Guid UserId,
+    string FirstName,
+    string LastName,
     string FullName,
+    string Email,
     string Phone,
+    int? Age,
     List<string> Allergies
 );

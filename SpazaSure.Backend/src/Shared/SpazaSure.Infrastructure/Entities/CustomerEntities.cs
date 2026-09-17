@@ -5,7 +5,9 @@ namespace SpazaSure.Infrastructure.Entities;
 public class CustomerProfile : BaseEntity
 {
     public Guid UserId { get; set; }
-    public string FullName { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public int? Age { get; set; }
 
     /// <summary>JSON array of declared allergies, e.g. ["peanuts","dairy"].</summary>
     public string Allergies { get; set; } = "[]";

@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using SpazaSure.NotificationService.Consumers;
 using SpazaSure.NotificationService.Data;
 using SpazaSure.NotificationService.Hubs;
+using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +84,7 @@ builder.Services.AddCors(opt =>
 
 var app = builder.Build();
 
+app.UseSpazaSureExceptionHandling();
 app.UseCors("AllowPortal");
 app.UseSwagger();
 app.UseSwaggerUI();

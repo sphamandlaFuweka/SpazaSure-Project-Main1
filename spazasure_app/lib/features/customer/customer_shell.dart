@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
-import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/screens/customer_shops_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_reports_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_home_screen.dart';
+import 'package:spazasure_app/features/customer/screens/customer_profile_screen.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
-import 'package:spazasure_app/features/notifications/screens/notifications_screen.dart';
-import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
-import 'package:spazasure_app/features/profile/screens/profile_screen.dart';
 
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key});
@@ -24,7 +21,7 @@ class _CustomerShellState extends State<CustomerShell> {
     QrScannerScreen(customerMode: true),
     CustomerShopsScreen(),
     CustomerReportsScreen(),
-    ProfileScreen(),
+    CustomerProfileScreen(),
   ];
 
   static const _items = [

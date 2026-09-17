@@ -675,13 +675,15 @@ class _WalletScreenState extends State<WalletScreen> {
                               );
                               _loadWallet();
                             } catch (error) {
-                              if (ctx.mounted)
+                              if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(
                                   SnackBar(content: Text(error.toString())),
                                 );
+                              }
                             } finally {
-                              if (ctx.mounted)
+                              if (ctx.mounted) {
                                 setSheetState(() => submitting = false);
+                              }
                             }
                           },
                     style: ElevatedButton.styleFrom(
@@ -1226,7 +1228,7 @@ class _WalletScreenState extends State<WalletScreen> {
             Switch(
               value: true,
               onChanged: (_) {},
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
             )
           else
             const Icon(

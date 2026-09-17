@@ -12,6 +12,11 @@ class AuthProvider extends ChangeNotifier {
   String get shopName => _session?.shopName ?? '';
   String get fullName => _session?.fullName ?? '';
   String get phone => _session?.phone ?? '';
+  String get firstName => _session?.firstName ?? '';
+  String get lastName => _session?.lastName ?? '';
+  String get email => _session?.email ?? '';
+  int? get age => _session?.age;
+  List<String> get allergies => _session?.allergies ?? const [];
 
   Future<void> init() async {
     _session = await AuthService.getSession();
@@ -50,13 +55,21 @@ class AuthProvider extends ChangeNotifier {
   Future<void> verifyCustomerRegister({
     required String phone,
     required String otp,
-    required String fullName,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    int? age,
     List<String>? allergies,
   }) async {
     _session = await AuthService.verifyCustomerRegister(
       phone: phone,
       otp: otp,
-      fullName: fullName,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      password: password,
+      age: age,
       allergies: allergies,
     );
     notifyListeners();

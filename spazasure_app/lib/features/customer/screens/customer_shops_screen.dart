@@ -113,7 +113,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                             width: 48,
                             height: 48,
                             child: GestureDetector(
-                              onTap: () => _openShop(shop),
+                              onTap: () => _showShop(shop),
                               child: const Icon(
                                 Icons.location_on,
                                 color: AppColors.primary,
@@ -172,8 +172,17 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(shop.name, style: AppTextStyles.h3),
-            const SizedBox(height: 8),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primary.withValues(alpha: .12),
+                  child: const Icon(Icons.storefront, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(shop.name, style: AppTextStyles.h3)),
+              ],
+            ),
+            const SizedBox(height: 12),
             Text(
               [
                 shop.address,
@@ -189,6 +198,17 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
             ),
             const SizedBox(height: 8),
             Chip(label: Text('Compliance: ${shop.complianceStatus}')),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openShop(shop);
+                },
+                child: const Text('View shop profile'),
+              ),
+            ),
           ],
         ),
       ),

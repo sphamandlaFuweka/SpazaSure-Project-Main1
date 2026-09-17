@@ -29,10 +29,11 @@ class _CustomerRewardsScreenState extends State<CustomerRewardsScreen> {
     });
     try {
       final response = await ApiService.get('/customer/rewards');
-      if (mounted)
+      if (mounted) {
         setState(
           () => _summary = response['data'] as Map<String, dynamic>? ?? {},
         );
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -56,10 +57,11 @@ class _CustomerRewardsScreenState extends State<CustomerRewardsScreen> {
         await _load();
       }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     } finally {
       if (mounted) setState(() => _redeeming = false);
     }
