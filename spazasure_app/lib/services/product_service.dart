@@ -25,8 +25,12 @@ class ProductService {
 
       final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final res = await ApiService.get('/shop/marketplace/products?$query');
-      final data = res['data'] as Map<String, dynamic>;
-      final items = data['items'] as List<dynamic>;
+      final rawData = res['data'];
+      final items = rawData is Map<String, dynamic>
+          ? (rawData['items'] as List<dynamic>? ?? const [])
+          : rawData is List<dynamic>
+          ? rawData
+          : const <dynamic>[];
 
       return items.map((i) => _mapProduct(i as Map<String, dynamic>)).toList();
     } catch (e) {
@@ -47,13 +51,15 @@ class ProductService {
       final res = await ApiService.get('/shop/marketplace/categories');
       final items = res['data'] as List<dynamic>;
       return items
-          .map((i) => Category(
-                id: i['id'].toString(),
-                name: i['name'] ?? '',
-                iconName: _slugToIcon(i['slug'] ?? ''),
-                parentId: i['parentId']?.toString(),
-                productCount: i['productCount'] ?? 0,
-              ))
+          .map(
+            (i) => Category(
+              id: i['id'].toString(),
+              name: i['name'] ?? '',
+              iconName: _slugToIcon(i['slug'] ?? ''),
+              parentId: i['parentId']?.toString(),
+              productCount: i['productCount'] ?? 0,
+            ),
+          )
           .toList();
     } catch (e) {
       rethrow;
@@ -66,14 +72,16 @@ class ProductService {
       final res = await ApiService.get('/shop/marketplace/suppliers');
       final items = res['data'] as List<dynamic>;
       return items
-          .map((i) => Supplier(
-                id: i['id'].toString(),
-                companyName: i['companyName'] ?? '',
-                logoUrl: i['logoUrl'] ?? '',
-                tier: i['tier'] ?? 'basic',
-                productCount: i['productCount'] ?? 0,
-                isVerified: true,
-              ))
+          .map(
+            (i) => Supplier(
+              id: i['id'].toString(),
+              companyName: i['companyName'] ?? '',
+              logoUrl: i['logoUrl'] ?? '',
+              tier: i['tier'] ?? 'basic',
+              productCount: i['productCount'] ?? 0,
+              isVerified: true,
+            ),
+          )
           .toList();
     } catch (e) {
       rethrow;
@@ -116,8 +124,8 @@ class ProductService {
       categoryName: i['categoryName'] ?? '',
       supplierId: i['supplierId']?.toString() ?? '',
       supplierName: i['supplierName'] ?? '',
-      stockQuantity: i['stockQty'] ?? 0,
-      minOrderQty: i['minOrderQty'] ?? 1,
+      stockQuantity: (i['stockQty'] as num?)?.toInt() ?? 0,
+      minOrderQty: (i['minOrderQty'] as num?)?.toInt() ?? 1,
       rating: (i['rating'] as num?)?.toDouble() ?? 4.0,
       reviewCount: i['reviewCount'] ?? 0,
       isAvailable: i['isAvailable'] ?? true,

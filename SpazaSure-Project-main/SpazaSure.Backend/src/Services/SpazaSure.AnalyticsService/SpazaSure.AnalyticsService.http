@@ -1,6 +1,0 @@
-@SpazaSure.AnalyticsService_HostAddress = http://localhost:5149
-
-GET {{SpazaSure.AnalyticsService_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

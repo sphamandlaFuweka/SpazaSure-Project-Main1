@@ -54,18 +54,22 @@ class ProductProvider extends ChangeNotifier {
 
     try {
       _error = null;
-      // Fetch fresh data from backend
-      final results = await Future.wait([
-        ProductService.getProducts(pageSize: 50),
-        ProductService.getProducts(pageSize: 10),
-        ProductService.getCategories(),
-        ProductService.getSuppliers(),
-      ]);
+      // Products are the primary content. Optional filters and supplier
+      // metadata must not make the catalog disappear when one endpoint fails.
+      final products = await ProductService.getProducts(pageSize: 50);
+      _products = products;
+      _homeProducts = products.take(10).toList();
 
-      _products = results[0] as List<Product>;
-      _homeProducts = results[1] as List<Product>;
-      _categories = results[2] as List<Category>;
-      _suppliers = results[3] as List<Supplier>;
+      try {
+        _categories = await ProductService.getCategories();
+      } catch (_) {
+        _categories = [];
+      }
+      try {
+        _suppliers = await ProductService.getSuppliers();
+      } catch (_) {
+        _suppliers = [];
+      }
       _lastFetchTime = DateTime.now();
       _error = null;
       notifyListeners();

@@ -9,6 +9,9 @@ docs/
 .sixth/
 start-all.bat
 
+# Archived/duplicate project tree kept out of active workspace tooling
+SpazaSure-Project-main/
+
 # IDE / Editor
 .vs/
 .vscode/
@@ -66,3 +69,15 @@ supplier-portal/dist/
 supplier-portal/.env
 supplier-portal/.env.local
 supplier-portal/.env.*.local
+
+# Generated/dependency folders in any project copy
+**/.dart_tool/
+**/build/
+**/coverage/
+**/node_modules/
+**/dist/
+**/bin/
+**/obj/
+**/out/
+**/.gradle/
+**/ephemeral/
