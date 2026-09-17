@@ -28,6 +28,13 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
         if (req.Items is null || req.Items.Count == 0)
             return BadRequest(ApiResponse.Fail("Order must have at least one item."));
 
+        // Wallet top-ups are not implemented yet. Never create an order while
+        // the shop has no available wallet balance.
+        var walletBalance = 0m;
+        if (walletBalance <= 0m)
+            return BadRequest(ApiResponse.Fail(
+                "Your wallet balance is R0.00. Add funds before placing an order."));
+
         // Load products and validate
         var productIds = req.Items.Select(i => i.ProductId).ToList();
         var products = await db.Products

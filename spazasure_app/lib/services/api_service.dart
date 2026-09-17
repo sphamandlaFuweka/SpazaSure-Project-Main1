@@ -128,7 +128,15 @@ class ApiService {
         res.statusCode,
       );
     }
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw ApiException(
+        'Server returned ${res.statusCode} with a non-JSON response.',
+        res.statusCode,
+      );
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) return body;
     final msg = body['message'] ?? body['error'] ?? 'Something went wrong';
     throw ApiException(msg.toString(), res.statusCode);

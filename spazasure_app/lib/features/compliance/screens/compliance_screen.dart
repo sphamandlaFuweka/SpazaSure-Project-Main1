@@ -15,10 +15,34 @@ class ComplianceScreen extends StatefulWidget {
 
 class _ComplianceScreenState extends State<ComplianceScreen> {
   static const _requiredDocs = {
-    'business_permit': _DocMeta('Business Permit', Icons.description_outlined, 'Local Municipality', 'https://www.cogta.gov.za', true),
-    'health_cert': _DocMeta('Health Certificate', Icons.health_and_safety_outlined, 'Dept. of Health', 'https://www.health.gov.za', true),
-    'lease': _DocMeta('Lease Agreement', Icons.home_work_outlined, 'Download Template', 'https://www.justice.gov.za', false),
-    'id_document': _DocMeta('ID Document', Icons.badge_outlined, 'Dept. of Home Affairs', 'https://www.dha.gov.za', true),
+    'business_permit': _DocMeta(
+      'Business Permit',
+      Icons.description_outlined,
+      'Local Municipality',
+      'https://www.cogta.gov.za',
+      true,
+    ),
+    'health_certificate': _DocMeta(
+      'Health Certificate',
+      Icons.health_and_safety_outlined,
+      'Dept. of Health',
+      'https://www.health.gov.za',
+      true,
+    ),
+    'lease_agreement': _DocMeta(
+      'Lease Agreement',
+      Icons.home_work_outlined,
+      'Download Template',
+      'https://www.justice.gov.za',
+      false,
+    ),
+    'id_document': _DocMeta(
+      'ID Document',
+      Icons.badge_outlined,
+      'Dept. of Home Affairs',
+      'https://www.dha.gov.za',
+      true,
+    ),
   };
 
   List<ComplianceDoc> _docs = [];
@@ -35,7 +59,11 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
     setState(() => _loading = true);
     try {
       final docs = await ComplianceService.getDocuments();
-      if (mounted) setState(() { _docs = docs; _loading = false; });
+      if (mounted)
+        setState(() {
+          _docs = docs;
+          _loading = false;
+        });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -52,8 +80,12 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final approvedCount = _requiredDocs.keys.where((k) => _getDocStatus(k) == 'approved').length;
-    final progress = _requiredDocs.isEmpty ? 0.0 : approvedCount / _requiredDocs.length;
+    final approvedCount = _requiredDocs.keys
+        .where((k) => _getDocStatus(k) == 'approved')
+        .length;
+    final progress = _requiredDocs.isEmpty
+        ? 0.0
+        : approvedCount / _requiredDocs.length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -88,9 +120,18 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                         ),
                         child: Row(
                           children: [
-                            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                             const SizedBox(width: 12),
-                            Text('Uploading document...', style: AppTextStyles.body.copyWith(color: AppColors.info)),
+                            Text(
+                              'Uploading document...',
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.info,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -115,7 +156,9 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
+        ],
       ),
       child: Row(
         children: [
@@ -123,7 +166,10 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             radius: 40,
             lineWidth: 8,
             percent: progress,
-            center: Text('${(progress * 100).toInt()}%', style: AppTextStyles.h3.copyWith(color: AppColors.primary)),
+            center: Text(
+              '${(progress * 100).toInt()}%',
+              style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+            ),
             progressColor: AppColors.primary,
             backgroundColor: AppColors.divider,
             circularStrokeCap: CircularStrokeCap.round,
@@ -137,17 +183,36 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '$approvedCount of ${_requiredDocs.length} documents approved',
-                  style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 if (progress == 1.0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                    child: Text('✓ Fully Compliant', style: AppTextStyles.caption.copyWith(color: AppColors.success, fontWeight: FontWeight.w700)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '✓ Fully Compliant',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   )
                 else
-                  Text('Upload missing documents to get verified', style: AppTextStyles.caption.copyWith(color: AppColors.warning)),
+                  Text(
+                    'Upload missing documents to get verified',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.warning,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -156,7 +221,12 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
     ).animate().fadeIn(duration: 400.ms);
   }
 
-  Widget _buildDocCard(BuildContext context, String docType, _DocMeta meta, ComplianceDoc? doc) {
+  Widget _buildDocCard(
+    BuildContext context,
+    String docType,
+    _DocMeta meta,
+    ComplianceDoc? doc,
+  ) {
     final status = doc?.status ?? 'missing';
     final isApproved = status == 'approved';
     final isPending = status == 'pending';
@@ -189,7 +259,9 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: statusColor.withOpacity(0.3)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
+        ],
       ),
       child: Column(
         children: [
@@ -198,8 +270,12 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 48, height: 48,
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Icon(meta.icon, color: statusColor),
                 ),
                 const SizedBox(width: 14),
@@ -209,12 +285,30 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text(meta.title, style: AppTextStyles.subtitle)),
+                          Expanded(
+                            child: Text(
+                              meta.title,
+                              style: AppTextStyles.subtitle,
+                            ),
+                          ),
                           if (meta.required)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                              child: Text('Required', style: AppTextStyles.caption.copyWith(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Required',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -223,13 +317,24 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                         children: [
                           Icon(statusIcon, size: 14, color: statusColor),
                           const SizedBox(width: 4),
-                          Text(statusLabel, style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
+                          Text(
+                            statusLabel,
+                            style: AppTextStyles.caption.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                       if (isRejected && doc?.rejectionNote != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Text(doc!.rejectionNote!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                          child: Text(
+                            doc!.rejectionNote!,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -242,26 +347,53 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             Container(
               decoration: BoxDecoration(
                 color: statusColor.withOpacity(0.05),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                border: Border(top: BorderSide(color: statusColor.withOpacity(0.15))),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(16),
+                ),
+                border: Border(
+                  top: BorderSide(color: statusColor.withOpacity(0.15)),
+                ),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextButton.icon(
                       onPressed: () => _showHowTo(context, meta),
-                      icon: Icon(Icons.help_outline_rounded, size: 16, color: statusColor),
-                      label: Text('How to get', style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
+                      icon: Icon(
+                        Icons.help_outline_rounded,
+                        size: 16,
+                        color: statusColor,
+                      ),
+                      label: Text(
+                        'How to get',
+                        style: AppTextStyles.caption.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                  Container(width: 1, height: 32, color: statusColor.withOpacity(0.15)),
+                  Container(
+                    width: 1,
+                    height: 32,
+                    color: statusColor.withOpacity(0.15),
+                  ),
                   Expanded(
                     child: TextButton.icon(
-                      onPressed: _uploading ? null : () => _pickAndUpload(docType, meta.title),
-                      icon: Icon(Icons.cloud_upload_outlined, size: 16, color: statusColor),
+                      onPressed: _uploading
+                          ? null
+                          : () => _pickAndUpload(docType, meta.title),
+                      icon: Icon(
+                        Icons.cloud_upload_outlined,
+                        size: 16,
+                        color: statusColor,
+                      ),
                       label: Text(
                         isPending ? 'Re-upload' : 'Upload',
-                        style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600),
+                        style: AppTextStyles.caption.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -285,24 +417,32 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
     final file = result.files.first;
     if (file.bytes == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Could not read file data'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not read file data'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('File too large. Max 10MB.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('File too large. Max 10MB.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
       return;
     }
@@ -317,22 +457,30 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$docTitle uploaded successfully'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$docTitle uploaded successfully'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         _loadDocs(); // Refresh the list
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Upload failed: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -344,23 +492,44 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)))),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
                 Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(color: AppColors.info.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Icon(meta.icon, color: AppColors.info),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: Text('How to get: ${meta.title}', style: AppTextStyles.h3)),
+                Expanded(
+                  child: Text(
+                    'How to get: ${meta.title}',
+                    style: AppTextStyles.h3,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -379,14 +548,29 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.link_rounded, color: AppColors.info, size: 20),
+                  const Icon(
+                    Icons.link_rounded,
+                    color: AppColors.info,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(meta.department, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600, color: AppColors.info)),
-                        Text(meta.url, style: AppTextStyles.caption.copyWith(color: AppColors.info)),
+                        Text(
+                          meta.department,
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.info,
+                          ),
+                        ),
+                        Text(
+                          meta.url,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.info,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -395,10 +579,17 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
             ),
             const SizedBox(height: 20),
             SizedBox(
-              width: double.infinity, height: 52,
+              width: double.infinity,
+              height: 52,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 child: const Text('Got it'),
               ),
             ),
@@ -415,9 +606,21 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 24, height: 24,
-            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
-            child: Center(child: Text(num, style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700))),
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                num,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: AppTextStyles.body)),
@@ -431,5 +634,11 @@ class _DocMeta {
   final String title, department, url;
   final IconData icon;
   final bool required;
-  const _DocMeta(this.title, this.icon, this.department, this.url, this.required);
+  const _DocMeta(
+    this.title,
+    this.icon,
+    this.department,
+    this.url,
+    this.required,
+  );
 }
