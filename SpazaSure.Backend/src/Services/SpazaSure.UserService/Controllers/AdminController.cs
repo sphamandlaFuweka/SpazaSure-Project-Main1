@@ -155,6 +155,42 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse.Ok("Spaza owner verified successfully."));
     }
 
+    [HttpGet("wallet-top-ups")]
+    public async Task<IActionResult> GetWalletTopUps([FromQuery] string status = "pending")
+    {
+        var query = db.ShopWalletTransactions.Include(t => t.Shop).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(t => t.Status == status);
+        var items = await query.OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new {
+            t.Id, t.Amount, t.Method, t.Status, t.Reference, t.Notes,
+            t.CreatedAt, ShopId = t.ShopId, ShopName = t.Shop.ShopName
+        }).ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    [HttpPatch("wallet-top-ups/{id:guid}/approve")]
+    public async Task<IActionResult> ApproveWalletTopUp(Guid id)
+    {
+        var transaction = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == "top_up");
+        if (transaction is null) return NotFound(ApiResponse.Fail("Top-up request not found."));
+        if (transaction.Status != "pending") return BadRequest(ApiResponse.Fail("Top-up request is no longer pending."));
+        transaction.Status = "approved";
+        transaction.ApprovedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Wallet top-up approved."));
+    }
+
+    [HttpPatch("wallet-top-ups/{id:guid}/reject")]
+    public async Task<IActionResult> RejectWalletTopUp(Guid id, [FromBody] WalletTopUpRejectRequest req)
+    {
+        var transaction = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == "top_up");
+        if (transaction is null) return NotFound(ApiResponse.Fail("Top-up request not found."));
+        if (transaction.Status != "pending") return BadRequest(ApiResponse.Fail("Top-up request is no longer pending."));
+        transaction.Status = "rejected";
+        transaction.Notes = req.Reason;
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Wallet top-up rejected."));
+    }
+
     //  REPORTS / REGULATORY ESCALATIONS
 
     [HttpGet("reports")]
@@ -231,3 +267,5 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
         }, "Report escalated to the required authority."));
     }
 }
+
+public record WalletTopUpRejectRequest(string? Reason);

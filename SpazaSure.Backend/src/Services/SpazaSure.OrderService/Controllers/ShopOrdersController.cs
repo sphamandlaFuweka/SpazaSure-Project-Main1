@@ -30,7 +30,13 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
 
         // Wallet top-ups are not implemented yet. Never create an order while
         // the shop has no available wallet balance.
-        var walletBalance = 0m;
+        var credits = await db.ShopWalletTransactions
+            .Where(t => t.ShopId == shop.Id && t.Type == "top_up" && t.Status == "approved")
+            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+        var spent = await db.Orders
+            .Where(o => o.ShopId == shop.Id && (o.Status == "delivered" || o.Status == "confirmed" || o.Status == "dispatched"))
+            .SumAsync(o => (decimal?)o.TotalAmount) ?? 0m;
+        var walletBalance = credits - spent;
         if (walletBalance <= 0m)
             return BadRequest(ApiResponse.Fail(
                 "Your wallet balance is R0.00. Add funds before placing an order."));

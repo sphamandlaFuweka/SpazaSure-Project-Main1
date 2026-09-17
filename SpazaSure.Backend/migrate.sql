@@ -170,6 +170,23 @@ CREATE TABLE IF NOT EXISTS spaza_shops (
     CONSTRAINT "FK_SpazaShops_Users_UserId" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS shop_wallet_transactions (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    shop_id uuid NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    type text NOT NULL DEFAULT 'top_up',
+    status text NOT NULL DEFAULT 'pending',
+    method text NOT NULL DEFAULT 'eft',
+    reference text,
+    notes text,
+    approved_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_ShopWalletTransactions" PRIMARY KEY (id),
+    CONSTRAINT "FK_ShopWalletTransactions_SpazaShops" FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "IX_ShopWalletTransactions_ShopId" ON shop_wallet_transactions(shop_id);
+
 CREATE TABLE IF NOT EXISTS suppliers (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,
