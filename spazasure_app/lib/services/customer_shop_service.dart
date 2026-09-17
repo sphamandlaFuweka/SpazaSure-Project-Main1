@@ -58,4 +58,17 @@ class CustomerShopService {
     final response = await ApiService.get('/customer/shops/$id');
     return CustomerShop.fromJson(response['data'] as Map<String, dynamic>);
   }
+
+  static Future<List<Map<String, dynamic>>> reviews(String id) async {
+    final response = await ApiService.get('/customer/shops/$id/reviews');
+    final raw = response['data'];
+    return raw is List ? raw.whereType<Map<String, dynamic>>().toList() : [];
+  }
+
+  static Future<void> review(String id, int rating, String? comment) async {
+    await ApiService.post('/customer/shops/$id/reviews', {
+      'rating': rating,
+      'comment': comment,
+    });
+  }
 }

@@ -30,6 +30,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
     public DbSet<ShopOnboardingPayment> ShopOnboardingPayments => Set<ShopOnboardingPayment>();
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
+    public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<Report> Reports => Set<Report>();
 
@@ -130,6 +131,14 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(s => s.User).WithOne(u => u.SpazaShop)
              .HasForeignKey<SpazaShop>(s => s.UserId);
             e.Property(s => s.RatingAvg).HasPrecision(3, 2);
+        });
+
+        model.Entity<ShopReview>(e =>
+        {
+            e.ToTable("shop_reviews");
+            e.HasIndex(r => new { r.ShopId, r.ReviewerUserId }).IsUnique();
+            e.HasOne(r => r.Shop).WithMany().HasForeignKey(r => r.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Reviewer).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ShopDocument

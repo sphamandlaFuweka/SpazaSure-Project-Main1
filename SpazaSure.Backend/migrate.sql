@@ -187,6 +187,21 @@ CREATE TABLE IF NOT EXISTS shop_wallet_transactions (
 );
 CREATE INDEX IF NOT EXISTS "IX_ShopWalletTransactions_ShopId" ON shop_wallet_transactions(shop_id);
 
+CREATE TABLE IF NOT EXISTS shop_reviews (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    shop_id uuid NOT NULL,
+    reviewer_user_id uuid NOT NULL,
+    rating integer NOT NULL,
+    comment text,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_ShopReviews" PRIMARY KEY (id),
+    CONSTRAINT "FK_ShopReviews_SpazaShops" FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_ShopReviews_Users" FOREIGN KEY (reviewer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT "UX_ShopReviews_ShopReviewer" UNIQUE (shop_id, reviewer_user_id)
+);
+CREATE INDEX IF NOT EXISTS "IX_ShopReviews_ShopId" ON shop_reviews(shop_id);
+
 CREATE TABLE IF NOT EXISTS suppliers (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,

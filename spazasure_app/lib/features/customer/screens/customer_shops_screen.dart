@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
+import 'customer_shop_detail_screen.dart';
 
 class CustomerShopsScreen extends StatefulWidget {
   const CustomerShopsScreen({super.key});
@@ -112,7 +113,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                             width: 48,
                             height: 48,
                             child: GestureDetector(
-                              onTap: () => _showShop(shop),
+                              onTap: () => _openShop(shop),
                               child: const Icon(
                                 Icons.location_on,
                                 color: AppColors.primary,
@@ -153,6 +154,13 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
       ),
     ),
   );
+
+  void _openShop(CustomerShop shop) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CustomerShopDetailScreen(shop: shop)),
+    );
+  }
 
   void _showShop(CustomerShop shop) {
     showModalBottomSheet<void>(

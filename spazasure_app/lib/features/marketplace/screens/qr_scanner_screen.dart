@@ -5,7 +5,9 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
 
 class QrScannerScreen extends StatefulWidget {
-  const QrScannerScreen({super.key});
+  final bool customerMode;
+
+  const QrScannerScreen({super.key, this.customerMode = false});
 
   @override
   State<QrScannerScreen> createState() => _QrScannerScreenState();
@@ -68,7 +70,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final encodedCode = Uri.encodeComponent(code.trim());
-      final res = await ApiService.get('/shop/marketplace/scan/$encodedCode');
+      final route = widget.customerMode
+          ? '/customer/verify/$encodedCode'
+          : '/shop/marketplace/scan/$encodedCode';
+      final res = await ApiService.get(route);
       if (!mounted) return;
       setState(() {
         _product = res['data'] as Map<String, dynamic>;
