@@ -32,6 +32,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
     public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
+    public DbSet<CustomerScanEvent> CustomerScanEvents => Set<CustomerScanEvent>();
+    public DbSet<CustomerRewardTransaction> CustomerRewardTransactions => Set<CustomerRewardTransaction>();
+    public DbSet<CustomerVoucher> CustomerVouchers => Set<CustomerVoucher>();
     public DbSet<Report> Reports => Set<Report>();
 
     protected override void OnModelCreating(ModelBuilder model)
@@ -111,6 +114,30 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(cp => cp.User).WithOne(u => u.CustomerProfile)
              .HasForeignKey<CustomerProfile>(cp => cp.UserId);
             e.HasIndex(cp => cp.UserId).IsUnique();
+        });
+
+        model.Entity<CustomerScanEvent>(e =>
+        {
+            e.ToTable("customer_scan_events");
+            e.HasIndex(s => new { s.CustomerUserId, s.Code, s.CreatedAt });
+            e.HasOne(s => s.Customer).WithMany().HasForeignKey(s => s.CustomerUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.Product).WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        model.Entity<CustomerRewardTransaction>(e =>
+        {
+            e.ToTable("customer_reward_transactions");
+            e.HasIndex(t => new { t.CustomerUserId, t.CreatedAt });
+            e.HasOne(t => t.Customer).WithMany().HasForeignKey(t => t.CustomerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<CustomerVoucher>(e =>
+        {
+            e.ToTable("customer_vouchers");
+            e.HasIndex(v => v.Code).IsUnique();
+            e.HasIndex(v => new { v.CustomerUserId, v.Status });
+            e.Property(v => v.Amount).HasPrecision(10, 2);
+            e.HasOne(v => v.Customer).WithMany().HasForeignKey(v => v.CustomerUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Report  filed by any authenticated user (customer or retailer),

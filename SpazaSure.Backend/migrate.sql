@@ -371,6 +371,50 @@ CREATE TABLE IF NOT EXISTS customer_profiles (
     CONSTRAINT "UQ_CustomerProfiles_UserId" UNIQUE (user_id)
 );
 
+CREATE TABLE IF NOT EXISTS customer_scan_events (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    customer_user_id uuid NOT NULL,
+    code text NOT NULL,
+    product_id uuid,
+    source text NOT NULL DEFAULT 'unknown',
+    points_awarded integer NOT NULL DEFAULT 5,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_CustomerScanEvents" PRIMARY KEY (id),
+    CONSTRAINT "FK_CustomerScanEvents_Users" FOREIGN KEY (customer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_CustomerScanEvents_Products" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS "IX_CustomerScanEvents_CustomerCodeDate" ON customer_scan_events(customer_user_id, code, created_at);
+
+CREATE TABLE IF NOT EXISTS customer_reward_transactions (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    customer_user_id uuid NOT NULL,
+    points integer NOT NULL,
+    type text NOT NULL DEFAULT 'scan',
+    reference text,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_CustomerRewardTransactions" PRIMARY KEY (id),
+    CONSTRAINT "FK_CustomerRewardTransactions_Users" FOREIGN KEY (customer_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "IX_CustomerRewardTransactions_CustomerDate" ON customer_reward_transactions(customer_user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS customer_vouchers (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    customer_user_id uuid NOT NULL,
+    code text NOT NULL,
+    amount numeric(10,2) NOT NULL DEFAULT 20,
+    status text NOT NULL DEFAULT 'active',
+    redeemed_at timestamp with time zone,
+    redeemed_by_user_id uuid,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_CustomerVouchers" PRIMARY KEY (id),
+    CONSTRAINT "FK_CustomerVouchers_Users" FOREIGN KEY (customer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT "UQ_CustomerVouchers_Code" UNIQUE (code)
+);
+CREATE INDEX IF NOT EXISTS "IX_CustomerVouchers_CustomerStatus" ON customer_vouchers(customer_user_id, status);
+
 -- A scan a customer (or retailer) flagged as suspicious, escalatable by
 -- admin to an external health authority. product_id is nullable because a
 -- report can be filed against a barcode SpazaSure doesn't even recognize.

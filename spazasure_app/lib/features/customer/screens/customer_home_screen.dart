@@ -3,6 +3,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
+import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -42,7 +43,21 @@ class CustomerHomeScreen extends StatelessWidget {
           AppColors.primary,
           () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+            MaterialPageRoute(
+              builder: (_) => const QrScannerScreen(customerMode: true),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _action(
+          context,
+          Icons.card_giftcard_rounded,
+          'My rewards',
+          'Earn 5 points per scan and redeem R20 vouchers',
+          AppColors.secondary,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerRewardsScreen()),
           ),
         ),
         const SizedBox(height: 12),

@@ -23,6 +23,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   Map<String, dynamic>? _product;
   String? _error;
   String? _lastScanned;
+  String? _rewardMessage;
+  bool _rewardDuplicate = false;
 
   @override
   void initState() {
@@ -66,6 +68,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       _loading = true;
       _error = null;
       _product = null;
+      _rewardMessage = null;
+      _rewardDuplicate = false;
     });
 
     try {
@@ -75,9 +79,27 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           : '/shop/marketplace/scan/$encodedCode';
       final res = await ApiService.get(route);
       if (!mounted) return;
-      setState(() {
-        _product = res['data'] as Map<String, dynamic>;
-      });
+      final product = res['data'] as Map<String, dynamic>;
+      setState(() => _product = product);
+
+      if (widget.customerMode) {
+        try {
+          final reward = await ApiService.post(
+            '/customer/verify/$encodedCode/reward'
+            '?productId=${product['productId'] ?? ''}&source=${product['source'] ?? 'unknown'}',
+            {},
+          );
+          final rewardData = reward['data'] as Map<String, dynamic>? ?? {};
+          if (!mounted) return;
+          setState(() {
+            _rewardMessage =
+                rewardData['message']?.toString() ?? '+5 reward points earned.';
+            _rewardDuplicate = rewardData['duplicate'] == true;
+          });
+        } catch (_) {
+          // Verification remains useful if rewards are temporarily unavailable.
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -417,6 +439,41 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     return Column(
       children: [
+        if (widget.customerMode && _rewardMessage != null)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: (_rewardDuplicate ? AppColors.warning : AppColors.success)
+                  .withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color:
+                    (_rewardDuplicate ? AppColors.warning : AppColors.success)
+                        .withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _rewardDuplicate ? Icons.info_outline : Icons.stars_rounded,
+                  color: _rewardDuplicate
+                      ? AppColors.warning
+                      : AppColors.success,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _rewardMessage!,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         // Verification banner
         Container(
           width: double.infinity,
