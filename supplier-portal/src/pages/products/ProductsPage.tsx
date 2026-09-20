@@ -61,7 +61,7 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const [productsRes, profileRes] = await Promise.allSettled([
-        productsApi.list(),
+        productsApi.list({ pageSize: 100 }),
         profileApi.get(),
       ]);
 

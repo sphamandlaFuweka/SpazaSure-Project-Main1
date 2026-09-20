@@ -54,7 +54,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         pageSize: 50,
       );
       setState(() {
-        _filteredProducts = products;
+        // A transient empty server response must not wipe an already visible
+        // catalogue. Empty is still shown normally on a first load or after
+        // an explicit search/filter produces no matches.
+        final hasFilter =
+            _searchController.text.isNotEmpty || _selectedCategory != null;
+        if (products.isNotEmpty || _filteredProducts.isEmpty || hasFilter) {
+          _filteredProducts = products;
+        }
         _loading = false;
       });
     } catch (e) {

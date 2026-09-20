@@ -37,8 +37,11 @@ class ProductCard extends StatelessWidget {
         return SizedBox(
           width: double.infinity,
           height: 120,
-          child: Image.memory(bytes, fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _imagePlaceholder()),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _imagePlaceholder(),
+          ),
         );
       } catch (_) {
         return _imagePlaceholder();
@@ -49,8 +52,11 @@ class ProductCard extends StatelessWidget {
       return SizedBox(
         width: double.infinity,
         height: 120,
-        child: Image.network(url, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _imagePlaceholder()),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+        ),
       );
     }
     return _imagePlaceholder();
@@ -90,13 +96,17 @@ class ProductCard extends StatelessWidget {
               height: 120,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
               ),
               child: Stack(
                 children: [
                   // Show actual image or fallback to icon
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     child: _buildProductImage(),
                   ),
                   if (product.discountPrice != null)
@@ -104,14 +114,20 @@ class ProductCard extends StatelessWidget {
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.error,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '${(((product.price - product.discountPrice!) / product.price) * 100).round()}% OFF',
-                          style: AppTextStyles.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -119,7 +135,9 @@ class ProductCard extends StatelessWidget {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: _SupplierTierBadge(supplierName: product.supplierName),
+                    child: _SupplierTierBadge(
+                      supplierName: product.supplierName,
+                    ),
                   ),
                   // Nearby badge
                   if (product.isNearby)
@@ -127,20 +145,36 @@ class ProductCard extends StatelessWidget {
                       bottom: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 4)],
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.4),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.near_me, size: 10, color: Colors.white),
+                            const Icon(
+                              Icons.near_me,
+                              size: 10,
+                              color: Colors.white,
+                            ),
                             const SizedBox(width: 3),
                             Text(
                               'Nearby',
-                              style: AppTextStyles.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10),
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                              ),
                             ),
                           ],
                         ),
@@ -150,95 +184,121 @@ class ProductCard extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black45,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                       ),
                       child: Center(
-                        child: Text('Out of Stock', style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
+                        child: Text(
+                          'Out of Stock',
+                          style: AppTextStyles.subtitle.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      product.name,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    product.name,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      product.supplierName,
-                      style: AppTextStyles.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (product.supplierCity != null && product.supplierCity!.isNotEmpty)
-                      Row(
-                        children: [
-                          Icon(Icons.location_on, size: 10, color: product.isNearby ? AppColors.primary : AppColors.textHint),
-                          const SizedBox(width: 2),
-                          Expanded(
-                            child: Text(
-                              product.supplierCity!,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 10,
-                                color: product.isNearby ? AppColors.primary : AppColors.textHint,
-                                fontWeight: product.isNearby ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const Spacer(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    product.supplierName,
+                    style: AppTextStyles.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (product.supplierCity != null &&
+                      product.supplierCity!.isNotEmpty)
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (product.discountPrice != null) ...[
-                                Text(
-                                  'R${product.price.toStringAsFixed(2)}',
-                                  style: AppTextStyles.caption.copyWith(
-                                    decoration: TextDecoration.lineThrough,
-                                    color: AppColors.textHint,
-                                  ),
-                                ),
-                                Text('R${product.discountPrice!.toStringAsFixed(2)}', style: AppTextStyles.priceSmall),
-                              ] else
-                                Text('R${product.price.toStringAsFixed(2)}', style: AppTextStyles.priceSmall),
-                            ],
+                        Icon(
+                          Icons.location_on,
+                          size: 10,
+                          color: product.isNearby
+                              ? AppColors.primary
+                              : AppColors.textHint,
+                        ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            product.supplierCity!,
+                            style: AppTextStyles.caption.copyWith(
+                              fontSize: 10,
+                              color: product.isNearby
+                                  ? AppColors.primary
+                                  : AppColors.textHint,
+                              fontWeight: product.isNearby
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (product.isAvailable)
-                          GestureDetector(
-                            onTap: onAddToCart,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.add, color: Colors.white, size: 18),
-                            ),
-                          ),
                       ],
                     ),
-                  ],
-                ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (product.discountPrice != null) ...[
+                              Text(
+                                'R${product.price.toStringAsFixed(2)}',
+                                style: AppTextStyles.caption.copyWith(
+                                  decoration: TextDecoration.lineThrough,
+                                  color: AppColors.textHint,
+                                ),
+                              ),
+                              Text(
+                                'R${product.discountPrice!.toStringAsFixed(2)}',
+                                style: AppTextStyles.priceSmall,
+                              ),
+                            ] else
+                              Text(
+                                'R${product.price.toStringAsFixed(2)}',
+                                style: AppTextStyles.priceSmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (product.isAvailable)
+                        GestureDetector(
+                          onTap: onAddToCart,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -247,7 +307,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 }
-
 
 // ─── Supplier Tier Badge ──────────────────────────────────────────────────────
 // Derives a mock tier from the supplier name hash so it's deterministic.

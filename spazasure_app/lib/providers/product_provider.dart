@@ -29,8 +29,15 @@ class ProductProvider extends ChangeNotifier {
       // Products are the primary content. Optional filters and supplier
       // metadata must not make the catalog disappear when one endpoint fails.
       final products = await ProductService.getProducts(pageSize: 50);
-      _products = products;
-      _homeProducts = products.take(10).toList();
+      // Keep the last successful catalogue if the server briefly responds
+      // with no items; a real first load can still show an empty state.
+      if (products.isNotEmpty || _products.isEmpty) {
+        _products = products;
+        _homeProducts = products.take(10).toList();
+      } else {
+        _error =
+            'Products could not be refreshed. Showing the last saved list.';
+      }
 
       try {
         _categories = await ProductService.getCategories();
@@ -42,7 +49,7 @@ class ProductProvider extends ChangeNotifier {
       } catch (_) {
         _suppliers = [];
       }
-      _error = null;
+      if (products.isNotEmpty || _products.isEmpty) _error = null;
       notifyListeners();
     } catch (e) {
       _error = 'Unable to load data. Pull down to refresh.';
