@@ -24,6 +24,9 @@ class ProductProvider extends ChangeNotifier {
     // Don't run concurrent refreshes
     if (_loading) return;
 
+    _loading = true;
+    notifyListeners();
+
     try {
       _error = null;
       // Products are the primary content. Optional filters and supplier
@@ -53,6 +56,8 @@ class ProductProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _error = 'Unable to load data. Pull down to refresh.';
+    } finally {
+      _loading = false;
       notifyListeners();
     }
   }
@@ -60,13 +65,7 @@ class ProductProvider extends ChangeNotifier {
   /// Initial load — shows loading indicator
   Future<void> loadInitial() async {
     if (_homeProducts.isNotEmpty) return; // Already loaded
-    _loading = true;
-    notifyListeners();
-
     await refreshAll();
-
-    _loading = false;
-    notifyListeners();
   }
 
   /// Search/filter products from the backend (used by marketplace)
