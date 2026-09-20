@@ -1,11 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/product_service.dart';
 import '../models/models.dart';
 
-/// Central product state provider that auto-refreshes data periodically.
-/// This ensures spaza shop owners always see the latest products
-/// without needing to logout and login.
+/// Central product state provider that keeps the last successful catalogue
+/// visible until the user explicitly asks to refresh it.
 class ProductProvider extends ChangeNotifier {
   List<Product> _products = [];
   List<Product> _homeProducts = [];
@@ -13,11 +11,6 @@ class ProductProvider extends ChangeNotifier {
   List<Supplier> _suppliers = [];
   bool _loading = false;
   String? _error;
-  Timer? _refreshTimer;
-  DateTime? _lastFetchTime;
-
-  // How often to auto-refresh (every 30 seconds)
-  static const _refreshInterval = Duration(seconds: 30);
 
   List<Product> get products => _products;
   List<Product> get homeProducts => _homeProducts;
@@ -25,27 +18,6 @@ class ProductProvider extends ChangeNotifier {
   List<Supplier> get suppliers => _suppliers;
   bool get loading => _loading;
   String? get error => _error;
-
-  ProductProvider() {
-    _startAutoRefresh();
-  }
-
-  /// Start periodic auto-refresh timer
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
-      refreshAll();
-    });
-  }
-
-  /// Call this when the app comes back to the foreground
-  void onAppResumed() {
-    // If data is stale (more than 30 seconds old), refresh immediately
-    if (_lastFetchTime == null ||
-        DateTime.now().difference(_lastFetchTime!) > _refreshInterval) {
-      refreshAll();
-    }
-  }
 
   /// Refresh all product data from the backend
   Future<void> refreshAll() async {
@@ -70,7 +42,6 @@ class ProductProvider extends ChangeNotifier {
       } catch (_) {
         _suppliers = [];
       }
-      _lastFetchTime = DateTime.now();
       _error = null;
       notifyListeners();
     } catch (e) {
@@ -111,11 +82,5 @@ class ProductProvider extends ChangeNotifier {
     } catch (e) {
       rethrow;
     }
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
   }
 }

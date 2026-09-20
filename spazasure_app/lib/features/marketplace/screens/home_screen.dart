@@ -46,9 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Auto-refresh when the app comes back to foreground
     if (state == AppLifecycleState.resumed) {
-      context.read<ProductProvider>().onAppResumed();
       _loadOrders();
     }
   }
