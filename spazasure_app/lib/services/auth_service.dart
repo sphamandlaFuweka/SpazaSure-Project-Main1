@@ -181,8 +181,8 @@ class AuthService {
 
   // ── Private ───────────────────────────────────────────────────────────────
   static String _formatPhone(String phone) {
-    final digits = phone.replaceAll(RegExp(r'\s+'), '');
-    if (digits.startsWith('+27')) return digits;
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('27')) return '+$digits';
     if (digits.startsWith('0')) return '+27${digits.substring(1)}';
     return '+27$digits';
   }

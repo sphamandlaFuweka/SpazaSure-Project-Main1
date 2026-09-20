@@ -358,11 +358,13 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS allergens text NOT NULL DEFAULT '[
 
 -- ── Customer role ────────────────────────────────────────────────────────
 -- Lightweight profile — customers don't run a business, so this is just
--- display name + declared allergies, unlike suppliers/spaza_shops.
+-- personal details + declared allergies, unlike suppliers/spaza_shops.
 CREATE TABLE IF NOT EXISTS customer_profiles (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,
-    full_name text NOT NULL,
+    first_name text NOT NULL,
+    last_name text NOT NULL,
+    age integer,
     allergies text NOT NULL DEFAULT '[]',
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
     updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
@@ -370,6 +372,33 @@ CREATE TABLE IF NOT EXISTS customer_profiles (
     CONSTRAINT "FK_CustomerProfiles_Users_UserId" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT "UQ_CustomerProfiles_UserId" UNIQUE (user_id)
 );
+
+-- Upgrade databases created before customer names were split. Keep the old
+-- full_name column intact for backwards compatibility with existing data.
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS first_name text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS last_name text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS age integer;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'customer_profiles' AND column_name = 'full_name'
+    ) THEN
+        EXECUTE $sql$
+            UPDATE customer_profiles
+            SET
+                first_name = COALESCE(NULLIF(first_name, ''), split_part(full_name, ' ', 1), ''),
+                last_name = COALESCE(NULLIF(last_name, ''), NULLIF(trim(substr(full_name, length(split_part(full_name, ' ', 1)) + 1)), ''), '')
+            WHERE first_name IS NULL OR last_name IS NULL
+        $sql$;
+    END IF;
+END $$;
+ALTER TABLE customer_profiles ALTER COLUMN first_name SET DEFAULT '';
+ALTER TABLE customer_profiles ALTER COLUMN last_name SET DEFAULT '';
+UPDATE customer_profiles SET first_name = '' WHERE first_name IS NULL;
+UPDATE customer_profiles SET last_name = '' WHERE last_name IS NULL;
+ALTER TABLE customer_profiles ALTER COLUMN first_name SET NOT NULL;
+ALTER TABLE customer_profiles ALTER COLUMN last_name SET NOT NULL;
 
 CREATE TABLE IF NOT EXISTS customer_scan_events (
     id uuid NOT NULL DEFAULT gen_random_uuid(),

@@ -175,7 +175,14 @@ class _OtpScreenState extends State<OtpScreen> {
     final purpose = args['purpose'] as String? ?? 'login';
     try {
       String? newOtp;
-      if (purpose == 'login') {
+      if (purpose == 'customer_login') {
+        newOtp = await context.read<AuthProvider>().sendCustomerOtp(phone);
+      } else if (purpose == 'customer_registration') {
+        newOtp = await context.read<AuthProvider>().sendCustomerOtp(
+          phone,
+          purpose: 'registration',
+        );
+      } else if (purpose == 'login') {
         newOtp = await context.read<AuthProvider>().sendLoginOtp(phone);
       } else {
         newOtp = await context.read<AuthProvider>().sendRegisterOtp(phone);

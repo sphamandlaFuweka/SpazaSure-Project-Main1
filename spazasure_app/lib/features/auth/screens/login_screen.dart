@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _phoneFocus = FocusNode();
   bool _isLoading = false;
+  bool _customerLogin = false;
 
   @override
   void dispose() {
@@ -32,14 +33,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      final otp = await context.read<AuthProvider>().sendLoginOtp(phone);
+      final auth = context.read<AuthProvider>();
+      final otp = _customerLogin
+          ? await auth.sendCustomerOtp(phone, purpose: 'login')
+          : await auth.sendLoginOtp(phone);
       if (!mounted) return;
       Navigator.pushNamed(
         context,
         '/otp',
         arguments: {
           'phone': phone,
-          'purpose': 'login',
+          'purpose': _customerLogin ? 'customer_login' : 'login',
           if (otp != null) 'otp': otp,
         },
       );
@@ -158,7 +162,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           // Title
                           Text(
-                            'Sign In',
+                            _customerLogin
+                                ? 'Customer Sign In'
+                                : 'Retailer Sign In',
                             style: GoogleFonts.nunito(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
@@ -167,13 +173,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Enter your phone number to continue',
+                            _customerLogin
+                                ? 'Sign in to verify products and track reports'
+                                : 'Enter your shop phone number to continue',
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               color: const Color(0xFF757575),
                             ),
                           ),
 
+                          const SizedBox(height: 20),
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                value: false,
+                                icon: Icon(Icons.storefront_outlined),
+                                label: Text('Retailer'),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                icon: Icon(Icons.person_outline),
+                                label: Text('Customer'),
+                              ),
+                            ],
+                            selected: {_customerLogin},
+                            onSelectionChanged: (selected) {
+                              setState(() => _customerLogin = selected.first);
+                            },
+                          ),
                           const SizedBox(height: 28),
 
                           // Phone label
