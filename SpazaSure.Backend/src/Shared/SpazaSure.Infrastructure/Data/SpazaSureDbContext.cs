@@ -168,6 +168,13 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(r => r.Reviewer).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        model.Entity<ShopWalletTransaction>(e =>
+        {
+            e.ToTable("shop_wallet_transactions");
+            e.HasIndex(t => t.ShopId);
+            e.HasOne(t => t.Shop).WithMany().HasForeignKey(t => t.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ShopDocument
         model.Entity<ShopDocument>(e =>
         {
