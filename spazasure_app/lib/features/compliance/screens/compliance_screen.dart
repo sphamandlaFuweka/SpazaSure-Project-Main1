@@ -346,8 +346,9 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
               ],
             ),
           ),
-          // Action buttons
-          if (!isApproved)
+          // A pending document has already been submitted; only missing or
+          // rejected documents need an upload action.
+          if (!isApproved && !isPending)
             Container(
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.05),
@@ -393,7 +394,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
                         color: statusColor,
                       ),
                       label: Text(
-                        isPending ? 'Re-upload' : 'Upload',
+                        isRejected ? 'Re-upload' : 'Upload',
                         style: AppTextStyles.caption.copyWith(
                           color: statusColor,
                           fontWeight: FontWeight.w600,
