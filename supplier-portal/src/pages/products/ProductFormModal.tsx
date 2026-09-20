@@ -68,10 +68,7 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
   const [imgTab,    setImgTab]    = useState<'upload' | 'url'>(product?.imageUrl ? 'url' : 'upload');
   const [dragOver,  setDragOver]  = useState(false);
   const [saving,    setSaving]    = useState(false);
-  const [barcodeResult, setBarcodeResult] = useState<BarcodeResult | null>(
-    // If editing an existing product that already has a barcode, pre-load it
-    product?.qrCode ? { productId: product.id, productName: product.name, sku: product.sku, barcode: product.qrCode, barcodeSvg: '' } : null
-  );
+  const [barcodeResult, setBarcodeResult] = useState<BarcodeResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const barcodeRef   = useRef<HTMLDivElement>(null);
 
