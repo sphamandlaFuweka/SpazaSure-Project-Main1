@@ -257,7 +257,7 @@ services:
     container_name: spazasure-prod-gateway
     restart: always
     ports:
-      - "80:5181"
+      - "5181:5181"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5181
