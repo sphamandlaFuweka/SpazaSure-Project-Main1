@@ -218,6 +218,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
   Widget _shopCard(CustomerShop shop) => Card(
     margin: const EdgeInsets.only(bottom: 12),
     child: ListTile(
+      onTap: () => _openShop(shop),
       leading: CircleAvatar(
         backgroundColor: AppColors.primary.withValues(alpha: .12),
         child: const Icon(Icons.storefront, color: AppColors.primary),

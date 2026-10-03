@@ -27,6 +27,10 @@ public class PaymentController(SpazaSureDbContext db, IConfiguration config, Str
     [HttpPost("stripe/checkout-session")]
     public async Task<IActionResult> CreateStripeCheckout([FromBody] InitiatePaymentRequest req)
     {
+        if (!stripe.IsConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("Stripe checkout is not configured."));
+
         var sub = await db.SupplierSubscriptions.Include(s => s.Plan).Include(s => s.Supplier)
             .FirstOrDefaultAsync(s => s.Id == req.SubscriptionId);
         if (sub is null) return NotFound(ApiResponse.Fail("Subscription not found."));
@@ -50,7 +54,8 @@ public class PaymentController(SpazaSureDbContext db, IConfiguration config, Str
         try
         {
             var stripeEvent = stripe.ConstructWebhookEvent(payload, Request.Headers["Stripe-Signature"].ToString());
-            if (stripeEvent.Type == Stripe.EventTypes.CheckoutSessionCompleted && stripeEvent.Data.Object is Stripe.Checkout.Session session)
+            if (stripeEvent.Type == Stripe.EventTypes.CheckoutSessionCompleted &&
+                stripeEvent.Data.Object is Stripe.Checkout.Session { PaymentStatus: "paid" } session)
             {
                 var metadata = session.Metadata;
                 if (metadata.TryGetValue("payment_type", out var type) &&

@@ -22,6 +22,10 @@ public class ShopOnboardingFeeController(
     [HttpPost("stripe/checkout-session")]
     public async Task<IActionResult> StripeCheckout()
     {
+        if (!stripe.IsConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("Stripe checkout is not configured."));
+
         var shop = await db.SpazaShops.Include(s => s.User).FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
         if (shop.OnboardingFeePaid) return Ok(ApiResponse<object>.Ok(new { paid = true }));

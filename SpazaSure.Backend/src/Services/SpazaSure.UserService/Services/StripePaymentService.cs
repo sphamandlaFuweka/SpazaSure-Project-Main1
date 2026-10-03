@@ -11,6 +11,7 @@ public sealed class StripePaymentService(IConfiguration config)
     private readonly string _cancelUrl = config["Stripe:CancelUrl"] ?? string.Empty;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_secretKey) &&
+                                !string.IsNullOrWhiteSpace(_webhookSecret) &&
                                 !string.IsNullOrWhiteSpace(_successUrl) &&
                                 !string.IsNullOrWhiteSpace(_cancelUrl);
 
@@ -29,6 +30,7 @@ public sealed class StripePaymentService(IConfiguration config)
         var options = new SessionCreateOptions
         {
             Mode = "payment",
+            PaymentMethodTypes = ["card"],
             CustomerEmail = string.IsNullOrWhiteSpace(customerEmail) ? null : customerEmail,
             SuccessUrl = $"{_successUrl}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
             CancelUrl = $"{_cancelUrl}?payment=cancelled",

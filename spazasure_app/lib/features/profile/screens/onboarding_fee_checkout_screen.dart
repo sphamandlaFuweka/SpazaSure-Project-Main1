@@ -29,6 +29,14 @@ class _OnboardingFeeCheckoutScreenState
             if (mounted) setState(() => _loading = false);
           },
           onNavigationRequest: (request) {
+            final paymentResult = Uri.tryParse(
+              request.url,
+            )?.queryParameters['payment'];
+            if (widget.stripeUrl != null &&
+                (paymentResult == 'success' || paymentResult == 'cancelled')) {
+              Navigator.pop(context, paymentResult == 'success');
+              return NavigationDecision.prevent;
+            }
             if (widget.checkout?.returnUrl != null &&
                 request.url == widget.checkout!.returnUrl) {
               Navigator.pop(context, true);
