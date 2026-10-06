@@ -65,7 +65,9 @@ class _CustomerScanHistoryScreenState extends State<CustomerScanHistoryScreen>
     backgroundColor: AppColors.background,
     appBar: AppBar(
       title: const Text('Scan history'),
-      actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
+      actions: [
+        IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+      ],
       bottom: TabBar(
         controller: _tabController,
         tabs: [
@@ -138,7 +140,7 @@ class _CustomerScanHistoryScreenState extends State<CustomerScanHistoryScreen>
       child: ListTile(
         leading: Icon(
           isReport
-              ? Icons.report_problem_outlined
+              ? Icons.report_problem_rounded
               : Icons.qr_code_scanner_rounded,
           color: isReport ? AppColors.warning : AppColors.primary,
         ),

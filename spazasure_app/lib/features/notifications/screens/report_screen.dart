@@ -5,9 +5,25 @@ import 'package:file_picker/file_picker.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/auth_service.dart';
 
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key});
+  final String? barcode;
+  final String? productId;
+  final String? productName;
+  final String? batchNumber;
+  final String? expiryDate;
+  final String? initialType;
+
+  const ReportScreen({
+    super.key,
+    this.barcode,
+    this.productId,
+    this.productName,
+    this.batchNumber,
+    this.expiryDate,
+    this.initialType,
+  });
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -46,6 +62,13 @@ class _ReportScreenState extends State<ReportScreen> {
     ),
     _ReportType(Icons.more_horiz_rounded, 'Other', AppColors.textSecondary),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = widget.initialType;
+    _productController.text = widget.productName ?? '';
+  }
 
   @override
   void dispose() {
@@ -103,6 +126,10 @@ class _ReportScreenState extends State<ReportScreen> {
             : _descriptionController.text.trim(),
         'isAnonymous': _isAnonymous ?? false,
         'photoUrl': photoUrl,
+        if (widget.barcode != null) 'barcode': widget.barcode,
+        if (widget.productId != null) 'productId': widget.productId,
+        if (widget.batchNumber != null) 'batchNumber': widget.batchNumber,
+        if (widget.expiryDate != null) 'expiryDate': widget.expiryDate,
       });
 
       final reportId = (res['data'] as Map?)?['id'] as String?;
@@ -796,11 +823,15 @@ class _ReportScreenState extends State<ReportScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/home',
-                  (r) => false,
-                ),
+                onPressed: () async {
+                  final home = await AuthService.homeRoute();
+                  if (!mounted) return;
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    home,
+                    (r) => false,
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryLight,
                   foregroundColor: Colors.white,
@@ -934,7 +965,11 @@ class _ReportScreenState extends State<ReportScreen> {
               hintStyle: GoogleFonts.nunito(
                 color: Colors.white.withValues(alpha: 0.5),
               ),
+              // The app theme fills every field white; opt out so the dark container shows.
+              filled: false,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 14,

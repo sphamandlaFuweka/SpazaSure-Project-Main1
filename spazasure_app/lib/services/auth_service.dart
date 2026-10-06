@@ -160,6 +160,10 @@ class AuthService {
     );
   }
 
+  /// Customers have their own shell; everyone else lands on the retailer home.
+  static Future<String> homeRoute() async =>
+      (await getSession())?.role == 'customer' ? '/customer-home' : '/home';
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);

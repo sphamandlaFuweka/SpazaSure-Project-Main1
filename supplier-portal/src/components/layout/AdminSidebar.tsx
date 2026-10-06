@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart,
-  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight,
+  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -15,7 +15,7 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
   const { logout } = useAuthStore();
-  const { pendingSuppliers, pendingDocuments, fetchBadges } = useAdminBadgeStore();
+  const { pendingSuppliers, pendingDocuments, pendingReports, fetchBadges } = useAdminBadgeStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -34,6 +34,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
     { to: '/admin/documents',     icon: ShieldCheck,     label: 'Documents',    badge: pendingDocuments > 0 ? pendingDocuments : undefined },
     { to: '/admin/products',      icon: Package,         label: 'Products' },
     { to: '/admin/orders',        icon: ShoppingCart,    label: 'Orders' },
+    { to: '/admin/reports',       icon: Flag,            label: 'Reports',      badge: pendingReports > 0 ? pendingReports : undefined },
     { to: '/admin/analytics',     icon: BarChart2,       label: 'Analytics' },
     { to: '/admin/settings',      icon: Settings,        label: 'Settings' },
   ];

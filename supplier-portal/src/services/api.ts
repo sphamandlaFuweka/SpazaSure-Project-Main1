@@ -2,6 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import type { Product, ProductFormData, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, GroupBuyApprovalRequest } from '../types';
 import env from '../config/env';
+import type { AdminReport } from '../types/adminReport';
 
 const BASE_URL = env.apiUrl;
 
@@ -246,6 +247,23 @@ export const adminOrdersApi = {
     api.get(`/admin/orders/${id}`).then((r) => r.data?.data ?? r.data),
   updateStatus: (id: string, status: string, reason?: string) =>
     api.patch(`/admin/orders/${id}/status`, { status, reason }).then((r) => r.data),
+};
+
+// Admin Reports (customer/retailer product & shop reports)
+export const adminReportsApi = {
+  list: async (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
+    const res = await api.get('/admin/reports', { params });
+    const d = res.data?.data ?? res.data;
+    return {
+      items: (d?.items ?? []) as AdminReport[],
+      total: (d?.total ?? 0) as number,
+      counts: (d?.counts ?? []) as { status: string; count: number }[],
+    };
+  },
+  respond: (id: string, body: { status: 'under_review' | 'resolved' | 'dismissed'; message?: string }) =>
+    api.patch(`/admin/reports/${id}/respond`, body).then((r) => r.data),
+  escalate: (id: string, body: { escalatedTo: string; resolutionNote?: string }) =>
+    api.patch(`/admin/reports/${id}/escalate`, { ...body, status: 'escalated' }).then((r) => r.data),
 };
 
 // Analytics

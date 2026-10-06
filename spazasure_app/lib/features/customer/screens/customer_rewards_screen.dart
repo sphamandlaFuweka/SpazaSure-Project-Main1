@@ -116,7 +116,7 @@ class _CustomerRewardsScreenState extends State<CustomerRewardsScreen> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Icon(Icons.redeem),
+                                  : const Icon(Icons.redeem_rounded),
                               label: const Text('Redeem 500 points for R20'),
                             ),
                           ),
@@ -142,7 +142,7 @@ class _CustomerRewardsScreenState extends State<CustomerRewardsScreen> {
                       return Card(
                         child: ListTile(
                           leading: const Icon(
-                            Icons.local_offer,
+                            Icons.local_offer_rounded,
                             color: AppColors.primary,
                           ),
                           title: Text('R${item['amount']} voucher'),

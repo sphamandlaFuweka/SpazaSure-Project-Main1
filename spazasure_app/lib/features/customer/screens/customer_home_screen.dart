@@ -21,7 +21,7 @@ class CustomerHomeScreen extends StatelessWidget {
             'Ask SpazaSure',
             'Ask about product safety, shop verification, or suspicious goods.',
           ),
-          icon: const Icon(Icons.chat_bubble_outline),
+          icon: const Icon(Icons.chat_bubble_outline_rounded),
         ),
       ],
     ),
@@ -37,7 +37,7 @@ class CustomerHomeScreen extends StatelessWidget {
         const SizedBox(height: 24),
         _action(
           context,
-          Icons.qr_code_scanner,
+          Icons.qr_code_scanner_rounded,
           'Verify a product',
           'Scan a barcode or QR code',
           AppColors.primary,
@@ -77,13 +77,13 @@ class CustomerHomeScreen extends StatelessWidget {
         const SizedBox(height: 10),
         _infoCard(
           context,
-          Icons.school_outlined,
+          Icons.school_rounded,
           'Safety basics',
           'Learn how to spot suspicious packaging and unsafe products.',
         ),
         _infoCard(
           context,
-          Icons.smart_toy_outlined,
+          Icons.smart_toy_rounded,
           'Kwazi authenticity guide',
           'Answer a few questions when a product does not look right.',
         ),
@@ -92,7 +92,10 @@ class CustomerHomeScreen extends StatelessWidget {
         const SizedBox(height: 10),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.history, color: AppColors.primary),
+            leading: const Icon(
+              Icons.history_rounded,
+              color: AppColors.primary,
+            ),
             title: const Text('Your recent scans will appear here'),
             subtitle: const Text('Start by verifying a product.'),
           ),
@@ -112,13 +115,25 @@ class CustomerHomeScreen extends StatelessWidget {
     child: ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.all(16),
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: .12),
-        child: Icon(icon, color: color),
+      leading: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: color, size: 26),
       ),
       title: Text(title, style: AppTextStyles.subtitle),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
     ),
   );
 

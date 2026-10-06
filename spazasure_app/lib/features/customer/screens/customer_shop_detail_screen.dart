@@ -122,7 +122,7 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
             borderRadius: BorderRadius.circular(22),
           ),
           child: const Icon(
-            Icons.storefront,
+            Icons.storefront_rounded,
             size: 72,
             color: AppColors.primary,
           ),
@@ -141,7 +141,11 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            const Icon(Icons.verified_user, color: AppColors.success, size: 20),
+            const Icon(
+              Icons.verified_user_rounded,
+              color: AppColors.success,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Text(
               'Compliance: ${shop.complianceStatus}',
@@ -159,7 +163,7 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: () => _openDirections(context),
-          icon: const Icon(Icons.directions),
+          icon: const Icon(Icons.directions_rounded),
           label: const Text('Get directions'),
         ),
         const SizedBox(height: 12),
@@ -171,13 +175,13 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
               ),
             ),
           ),
-          icon: const Icon(Icons.chat_bubble_outline),
+          icon: const Icon(Icons.chat_bubble_outline_rounded),
           label: const Text('Message shop'),
         ),
         const SizedBox(height: 24),
         FilledButton.tonalIcon(
           onPressed: _writeReview,
-          icon: const Icon(Icons.rate_review),
+          icon: const Icon(Icons.rate_review_rounded),
           label: const Text('Write a review'),
         ),
         Text('Reviews', style: AppTextStyles.h3),
@@ -187,7 +191,7 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
           const Card(
             child: ListTile(
               leading: Icon(
-                Icons.rate_review_outlined,
+                Icons.rate_review_rounded,
                 color: AppColors.primary,
               ),
               title: Text('No reviews yet'),

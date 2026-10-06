@@ -26,6 +26,7 @@ import AdminSuppliersPage from './pages/admin/AdminSuppliersPage';
 import DocumentVerificationPage from './pages/admin/DocumentVerificationPage';
 import AdminProductsPage from './pages/admin/AdminProductsPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="documents" element={<DocumentVerificationPage />} />
         <Route path="products"      element={<AdminProductsPage />} />
         <Route path="orders"        element={<AdminOrdersPage />} />
+        <Route path="reports"       element={<AdminReportsPage />} />
         <Route path="analytics"     element={<AdminAnalyticsPage />} />
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="settings"      element={<AdminSettingsPage />} />

@@ -8,6 +8,8 @@ class CustomerReport {
   final String? shopName;
   final String description;
   final String status;
+  final String? resolutionNote;
+  final String? escalatedTo;
   final DateTime? createdAt;
 
   const CustomerReport({
@@ -18,6 +20,8 @@ class CustomerReport {
     this.shopName,
     required this.description,
     required this.status,
+    this.resolutionNote,
+    this.escalatedTo,
     this.createdAt,
   });
 
@@ -29,6 +33,8 @@ class CustomerReport {
     shopName: json['shopName']?.toString(),
     description: json['description']?.toString() ?? '',
     status: json['status']?.toString() ?? 'submitted',
+    resolutionNote: json['resolutionNote']?.toString(),
+    escalatedTo: json['escalatedTo']?.toString(),
     createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
   );
 }

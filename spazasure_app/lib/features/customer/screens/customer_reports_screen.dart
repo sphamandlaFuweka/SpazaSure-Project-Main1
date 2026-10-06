@@ -43,7 +43,9 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
     backgroundColor: AppColors.background,
     appBar: AppBar(
       title: const Text('My reports'),
-      actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
+      actions: [
+        IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+      ],
     ),
     floatingActionButton: FloatingActionButton.extended(
       onPressed: () async {
@@ -53,7 +55,7 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
         );
         _load();
       },
-      icon: const Icon(Icons.add),
+      icon: const Icon(Icons.add_rounded),
       label: const Text('New report'),
     ),
     body: RefreshIndicator(
@@ -77,7 +79,7 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
               padding: const EdgeInsets.all(40),
               children: const [
                 Icon(
-                  Icons.verified_user_outlined,
+                  Icons.verified_user_rounded,
                   size: 56,
                   color: AppColors.textHint,
                 ),
@@ -97,13 +99,24 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
     final date = report.createdAt == null
         ? ''
         : DateFormat('dd MMM yyyy').format(report.createdAt!);
-    final statusColor = report.status == 'resolved'
-        ? AppColors.success
-        : AppColors.warning;
+    final statusColor = switch (report.status) {
+      'resolved' => AppColors.success,
+      'escalated' => AppColors.info,
+      'dismissed' => AppColors.textHint,
+      _ => AppColors.warning,
+    };
+    final statusLabel = switch (report.status) {
+      'under_review' => 'Under review',
+      'escalated' => 'Escalated',
+      'resolved' => 'Resolved',
+      'dismissed' => 'Closed',
+      _ => 'Submitted',
+    };
+    final response = report.resolutionNote?.trim();
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(Icons.report_problem_outlined, color: statusColor),
+        leading: Icon(Icons.flag_rounded, color: statusColor),
         title: Text(
           report.reportType ?? 'Product report',
           style: AppTextStyles.subtitle,
@@ -113,12 +126,15 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
             if (report.productName?.isNotEmpty == true) report.productName!,
             report.description,
             if (date.isNotEmpty) date,
+            if (report.escalatedTo?.isNotEmpty == true)
+              'Referred to ${report.escalatedTo}',
+            if (response?.isNotEmpty == true) 'SpazaSure replied: $response',
           ].join(' • '),
-          maxLines: 3,
+          maxLines: 5,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: Chip(
-          label: Text(report.status),
+          label: Text(statusLabel),
           labelStyle: TextStyle(color: statusColor),
         ),
       ),

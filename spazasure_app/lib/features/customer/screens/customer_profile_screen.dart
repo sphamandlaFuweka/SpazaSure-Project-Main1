@@ -195,26 +195,18 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       title: 'Account details',
       children: [
         _infoTile(
-          Icons.badge_outlined,
+          Icons.badge_rounded,
           'First name',
           firstName.isNotEmpty ? firstName : '—',
         ),
         _infoTile(
-          Icons.badge_outlined,
+          Icons.badge_rounded,
           'Last name',
           lastName.isNotEmpty ? lastName : '—',
         ),
-        _infoTile(
-          Icons.email_outlined,
-          'Email',
-          email.isNotEmpty ? email : '—',
-        ),
-        _infoTile(
-          Icons.phone_outlined,
-          'Phone',
-          phone.isNotEmpty ? phone : '—',
-        ),
-        _infoTile(Icons.cake_outlined, 'Age', age != null ? '$age' : '—'),
+        _infoTile(Icons.email_rounded, 'Email', email.isNotEmpty ? email : '—'),
+        _infoTile(Icons.phone_rounded, 'Phone', phone.isNotEmpty ? phone : '—'),
+        _infoTile(Icons.cake_rounded, 'Age', age != null ? '$age' : '—'),
       ],
     );
   }

@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import api from '../services/api';
-import { adminSuppliersApi } from '../services/api';
+import { adminSuppliersApi, adminReportsApi } from '../services/api';
 
 interface AdminBadgeState {
   pendingSuppliers: number;
   pendingDocuments: number;
+  pendingReports: number;
   lastFetched: number;
   fetchBadges: () => Promise<void>;
 }
@@ -12,6 +13,7 @@ interface AdminBadgeState {
 export const useAdminBadgeStore = create<AdminBadgeState>((set, get) => ({
   pendingSuppliers: 0,
   pendingDocuments: 0,
+  pendingReports: 0,
   lastFetched: 0,
 
   fetchBadges: async () => {
@@ -36,7 +38,13 @@ export const useAdminBadgeStore = create<AdminBadgeState>((set, get) => ({
         pendingDocuments = docRes.data?.data?.summary?.pending ?? 0;
       } catch {}
 
-      set({ pendingSuppliers, pendingDocuments, lastFetched: now });
+      // New reports waiting for review
+      let pendingReports = 0;
+      try {
+        pendingReports = (await adminReportsApi.list({ status: 'submitted', pageSize: 1 })).total;
+      } catch {}
+
+      set({ pendingSuppliers, pendingDocuments, pendingReports, lastFetched: now });
     } catch {
       // Silently fail
     }

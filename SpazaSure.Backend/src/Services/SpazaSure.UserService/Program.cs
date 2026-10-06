@@ -41,6 +41,20 @@ builder.Services.AddHttpClient(nameof(OnboardingPayFastService), client =>
     client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<OnboardingPayFastService>();
 builder.Services.AddSingleton<StripePaymentService>();
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new EventPublisher(
+        host: config["RabbitMQ:Host"] ?? "localhost",
+        username: config["RabbitMQ:Username"] ?? "spazasure",
+        password: config["RabbitMQ:Password"] ?? "guest");
+});
+builder.Services.AddHttpClient<GeocodingService>(client =>
+{
+    client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0");
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
