@@ -7,4 +7,9 @@ export default defineConfig({
     alias: { '@': '/src' },
   },
   server: { port: 3000 },
+  build: {
+    // The gzip size report needs extra memory and got the Docker build OOM-killed.
+    reportCompressedSize: false,
+    sourcemap: false,
+  },
 });
