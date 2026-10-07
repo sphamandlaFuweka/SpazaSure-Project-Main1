@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
-using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.UserService.Controllers;
@@ -10,7 +9,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "admin")]
-public class AdminController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+public class AdminController(SpazaSureDbContext db) : ControllerBase
 {
     //  SUPPLIERS 
 
@@ -194,13 +193,10 @@ public class AdminController(SpazaSureDbContext db, EventPublisher events) : Con
 
     //  REPORTS / REGULATORY ESCALATIONS
 
-    private static readonly string[] ReportStatuses = ["submitted", "under_review", "escalated", "resolved", "dismissed"];
-
     [HttpGet("reports")]
     public async Task<IActionResult> GetReports(
         [FromQuery] string? status,
         [FromQuery] string? escalatedTo,
-        [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -209,23 +205,11 @@ public class AdminController(SpazaSureDbContext db, EventPublisher events) : Con
             .Include(r => r.Reporter)
             .AsQueryable();
 
-        var counts = await db.Reports
-            .GroupBy(r => r.Status)
-            .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToListAsync();
-
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(r => r.Status == status);
 
         if (!string.IsNullOrWhiteSpace(escalatedTo))
             query = query.Where(r => r.EscalatedTo != null && r.EscalatedTo.Contains(escalatedTo));
-
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(r =>
-                r.Description.Contains(search) ||
-                (r.Barcode != null && r.Barcode.Contains(search)) ||
-                (r.ShopName != null && r.ShopName.Contains(search)) ||
-                (r.Product != null && r.Product.Name.Contains(search)));
 
         var total = await query.CountAsync();
         var items = await query
@@ -236,35 +220,25 @@ public class AdminController(SpazaSureDbContext db, EventPublisher events) : Con
             {
                 r.Id,
                 r.ReportType,
-                r.ProductId,
                 r.Barcode,
                 ProductName = r.Product != null ? r.Product.Name : null,
-                // Anonymous reporters stay anonymous to staff too; replies still reach them by account.
-                ReporterName = !r.IsAnonymous && r.Reporter != null ? r.Reporter.Phone : null,
+                ReporterName = r.Reporter != null && r.Reporter.Phone != null ? r.Reporter.Phone : null,
                 r.ShopName,
                 r.IsAnonymous,
                 r.Description,
                 r.PhotoUrl,
-                r.BatchNumber,
-                r.ExpiryDate,
-                r.PurchaseLocation,
-                r.SupplierName,
                 r.Status,
                 r.EscalatedTo,
                 r.EscalatedAt,
                 r.ResolutionNote,
-                RelatedReports = db.Reports.Count(x => x.Id != r.Id &&
-                    ((r.ProductId != null && x.ProductId == r.ProductId) ||
-                     (r.Barcode != null && x.Barcode == r.Barcode))),
                 CreatedAt = r.CreatedAt,
             })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize, counts }));
+        return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
     }
 
     public record EscalateReportRequest(string EscalatedTo, string Status, string? ResolutionNote);
-    public record RespondReportRequest(string Status, string? Message);
 
     [HttpPatch("reports/{id:guid}/escalate")]
     public async Task<IActionResult> EscalateReport(Guid id, [FromBody] EscalateReportRequest req)
@@ -276,21 +250,12 @@ public class AdminController(SpazaSureDbContext db, EventPublisher events) : Con
         if (string.IsNullOrWhiteSpace(req.EscalatedTo))
             return BadRequest(ApiResponse.Fail("Escalation destination is required."));
 
-        var status = string.IsNullOrWhiteSpace(req.Status) ? "escalated" : req.Status;
-        if (!ReportStatuses.Contains(status))
-            return BadRequest(ApiResponse.Fail("Unknown report status."));
-
-        report.Status = status;
+        report.Status = string.IsNullOrWhiteSpace(req.Status) ? "escalated" : req.Status;
         report.EscalatedTo = req.EscalatedTo;
         report.EscalatedAt = DateTime.UtcNow;
         report.ResolutionNote = req.ResolutionNote;
 
         await db.SaveChangesAsync();
-
-        events.PublishNotification(
-            report.ReporterUserId.ToString(), "report", "Your report was escalated",
-            $"Thank you for reporting. SpazaSure has referred your report to {req.EscalatedTo} for investigation.",
-            referenceId: report.Id.ToString(), routingKey: "notification.report");
 
         return Ok(ApiResponse<object>.Ok(new
         {
@@ -300,37 +265,6 @@ public class AdminController(SpazaSureDbContext db, EventPublisher events) : Con
             report.EscalatedAt,
             report.ResolutionNote
         }, "Report escalated to the required authority."));
-    }
-
-    /// <summary>Moves a report through review and sends the reporter an update they can read in the app.</summary>
-    [HttpPatch("reports/{id:guid}/respond")]
-    public async Task<IActionResult> RespondToReport(Guid id, [FromBody] RespondReportRequest req)
-    {
-        var report = await db.Reports.FirstOrDefaultAsync(r => r.Id == id);
-        if (report is null)
-            return NotFound(ApiResponse.Fail("Report not found."));
-
-        if (req.Status is not ("under_review" or "resolved" or "dismissed"))
-            return BadRequest(ApiResponse.Fail("Status must be under_review, resolved or dismissed."));
-        if (req.Status != "under_review" && string.IsNullOrWhiteSpace(req.Message))
-            return BadRequest(ApiResponse.Fail("A response message is required to close a report."));
-
-        report.Status = req.Status;
-        if (!string.IsNullOrWhiteSpace(req.Message)) report.ResolutionNote = req.Message.Trim();
-        await db.SaveChangesAsync();
-
-        var title = req.Status switch
-        {
-            "resolved" => "Your report was resolved",
-            "dismissed" => "Update on your report",
-            _ => "Your report is being reviewed",
-        };
-        events.PublishNotification(
-            report.ReporterUserId.ToString(), "report", title,
-            string.IsNullOrWhiteSpace(req.Message) ? "SpazaSure is looking into your report." : req.Message.Trim(),
-            referenceId: report.Id.ToString(), routingKey: "notification.report");
-
-        return Ok(ApiResponse<object>.Ok(new { report.Id, report.Status, report.ResolutionNote }, "Response saved."));
     }
 }
 

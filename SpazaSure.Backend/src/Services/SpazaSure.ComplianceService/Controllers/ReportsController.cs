@@ -81,7 +81,6 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
                 r.PhotoUrl,
                 r.Status,
                 r.EscalatedTo,
-                r.ResolutionNote,
                 r.CreatedAt,
             })
             .ToListAsync();

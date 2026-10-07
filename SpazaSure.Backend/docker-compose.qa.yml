@@ -153,10 +153,6 @@ services:
       PayFast__OnboardingReturnUrl:         ${QA_PUBLIC_URL}/api/shop/profile/onboarding-fee/return
       PayFast__OnboardingCancelUrl:         ${QA_PUBLIC_URL}/api/shop/profile/onboarding-fee/cancel
       PayFast__OnboardingNotifyUrl:         ${QA_PUBLIC_URL}/api/shop/profile/onboarding-fee/notify
-      Stripe__SecretKey:                    ${QA_STRIPE_SECRET_KEY:-}
-      Stripe__WebhookSecret:                ${QA_STRIPE_WEBHOOK_SECRET:-}
-      Stripe__SuccessUrl:                   ${QA_STRIPE_SUCCESS_URL:-}
-      Stripe__CancelUrl:                    ${QA_STRIPE_CANCEL_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
