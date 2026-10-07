@@ -14,7 +14,6 @@ COPY . .
 
 # Build the application
 ARG BUILD_MODE=production
-ENV NODE_OPTIONS=--max-old-space-size=1024
 RUN npm run build -- --mode ${BUILD_MODE}
 
 # Production stage
