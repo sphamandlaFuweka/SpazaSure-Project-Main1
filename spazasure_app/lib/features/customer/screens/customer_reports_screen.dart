@@ -38,6 +38,57 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
     }
   }
 
+  Future<void> _openReport(CustomerReport report) async {
+    try {
+      final detail = await CustomerReportService.getById(report.id);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(detail.reportType ?? 'Product report'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(detail.description),
+                if (detail.barcode?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  Text('Barcode: ${detail.barcode}'),
+                ],
+                if (detail.escalatedTo?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  Text('Referred to ${detail.escalatedTo}'),
+                ],
+                if (detail.resolutionNote?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'SpazaSure update',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(detail.resolutionNote!),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load report details: $error')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
@@ -116,6 +167,7 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        onTap: () => _openReport(report),
         leading: Icon(Icons.flag_rounded, color: statusColor),
         title: Text(
           report.reportType ?? 'Product report',

@@ -49,4 +49,9 @@ class CustomerReportService {
         .map(CustomerReport.fromJson)
         .toList();
   }
+
+  static Future<CustomerReport> getById(String id) async {
+    final response = await ApiService.get('/customer/reports/$id');
+    return CustomerReport.fromJson(response['data'] as Map<String, dynamic>);
+  }
 }

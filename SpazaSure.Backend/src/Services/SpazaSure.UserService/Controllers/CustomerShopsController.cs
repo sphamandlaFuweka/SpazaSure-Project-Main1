@@ -6,7 +6,7 @@ using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
 using System.Security.Claims;
 
-namespace SpazaSure.UserService.Controllers;
+namespace SpazaSureUserService.Controllers;
 
 /// <summary>
 /// The Customer app's "Shops" tab — a directory of active, verified spaza
@@ -24,7 +24,7 @@ public class CustomerShopsController(SpazaSureDbContext db) : ControllerBase
     public async Task<IActionResult> GetShops([FromQuery] string? search)
     {
         var query = db.SpazaShops
-            .Where(s => s.Status == "active")
+            .Where(s => s.Status == "active" || s.Status == "verified")
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -54,7 +54,7 @@ public class CustomerShopsController(SpazaSureDbContext db) : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var shop = await db.SpazaShops
-            .Where(s => s.Id == id && s.Status == "active")
+            .Where(s => s.Id == id && (s.Status == "active" || s.Status == "verified"))
             .Select(s => new
             {
                 s.Id,
@@ -89,7 +89,8 @@ public class CustomerShopsController(SpazaSureDbContext db) : ControllerBase
     public async Task<IActionResult> CreateReview(Guid id, [FromBody] CreateShopReviewRequest req)
     {
         if (req.Rating is < 1 or > 5) return BadRequest(ApiResponse.Fail("Rating must be between 1 and 5."));
-        if (!await db.SpazaShops.AnyAsync(s => s.Id == id && s.Status == "active"))
+        if (!await db.SpazaShops.AnyAsync(s =>
+                s.Id == id && (s.Status == "active" || s.Status == "verified")))
             return NotFound(ApiResponse.Fail("Shop not found."));
 
         var review = await db.ShopReviews.FirstOrDefaultAsync(r => r.ShopId == id && r.ReviewerUserId == UserId);

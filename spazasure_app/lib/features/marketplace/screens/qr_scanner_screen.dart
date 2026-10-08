@@ -102,19 +102,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final encodedCode = Uri.encodeComponent(code.trim());
-      final query = <String, String>{
-        if (expiry != null)
-          'expiryDate': expiry.toIso8601String().substring(0, 10),
-        if (packagingText != null && packagingText.trim().isNotEmpty)
-          'packagingText': packagingText.length > 600
-              ? packagingText.substring(0, 600)
-              : packagingText,
-      };
-      final queryString = query.isEmpty
-          ? ''
-          : '?${Uri(queryParameters: query).query}';
       final route = widget.customerMode
-          ? '/customer/verify/$encodedCode$queryString'
+          ? '/customer/verify/$encodedCode'
           : '/shop/marketplace/scan/$encodedCode';
       final res = await ApiService.get(route);
       if (!mounted) return;
@@ -631,40 +620,39 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   Widget _buildCustomerResult() {
     final p = _product!;
     final source = p['source']?.toString() ?? 'not_registered';
-    final level = p['riskLevel']?.toString() ?? 'review';
     final notRecognised = source == 'not_registered';
     final recalled = p['isRecalled'] == true;
-    final color = switch (level) {
-      'low' => AppColors.success,
-      'review' => AppColors.warning,
-      'suspicious' => Colors.deepOrange,
-      _ => AppColors.error,
-    };
+    final expired =
+        _expiry != null &&
+        _expiry!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+    final hasConcern = recalled || expired;
+    final level = recalled || expired
+        ? 'warning'
+        : notRecognised
+        ? 'unknown'
+        : 'informational';
+    final color = hasConcern
+        ? AppColors.error
+        : notRecognised
+        ? AppColors.warning
+        : AppColors.success;
     final title = notRecognised
         ? 'Product not recognised'
         : recalled
         ? 'Recalled product'
-        : switch (level) {
-            'low' => 'No major issues detected',
-            'review' => 'Something needs checking',
-            'suspicious' => 'Potentially suspicious product',
-            _ => 'High risk: further assessment recommended',
-          };
+        : expired
+        ? 'Expiry date has passed'
+        : 'Product information found';
     final message = notRecognised
         ? (p['message']?.toString() ??
               "We couldn't find this product in the SpazaSure database.")
         : recalled
         ? 'Do not buy or use this product. It has an active recall.'
-        : switch (level) {
-            'low' => 'Based only on the information we checked.',
-            'review' => 'Some information needs a closer look.',
-            _ =>
-              'Indicators were found that need further assessment. This is not a confirmed counterfeit determination.',
-          };
-    final indicators =
-        (p['indicators'] as List?)?.whereType<Map>().toList() ?? [];
-    final checks = (p['checks'] as List?)?.whereType<Map>().toList() ?? [];
-    final tips = (p['tips'] as List?)?.map((e) => '$e').toList() ?? [];
+        : expired
+        ? 'The expiry date read from the package is in the past. Check the printed date before using this product.'
+        : notRecognised
+        ? "Not found in SpazaSure's registry. This does not mean the product is counterfeit."
+        : 'This product is in the SpazaSure registry. This check is not an authenticity guarantee.';
     final allergens =
         (p['allergens'] as List?)?.map((e) => '$e').toList() ?? [];
     final matched =
@@ -811,7 +799,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ],
           ),
         ),
-        if (indicators.isNotEmpty) ...[
+        if (recalled || expired) ...[
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
@@ -830,38 +818,19 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                for (final i in indicators)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          i['severity'] == 'info'
-                              ? Icons.info_outline
-                              : Icons.warning_amber_rounded,
-                          size: 18,
-                          color: i['severity'] == 'critical'
-                              ? AppColors.error
-                              : i['severity'] == 'info'
-                              ? AppColors.textHint
-                              : AppColors.warning,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${i['message']}',
-                            style: AppTextStyles.bodySmall,
-                          ),
-                        ),
-                      ],
-                    ),
+                if (recalled)
+                  _customerIndicator(
+                    'The product or a tracked batch is recalled.',
+                  ),
+                if (expired)
+                  _customerIndicator(
+                    'Expiry date ${_expiry!.toIso8601String().substring(0, 10)} has passed.',
                   ),
               ],
             ),
           ),
         ],
-        if (checks.isNotEmpty) ...[
+        if (!notRecognised || _expiry != null) ...[
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
@@ -880,9 +849,24 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                for (final c in checks)
-                  _riskCheckRow('${c['label']}', '${c['status']}'),
-                if (!notRecognised && p['expiryDate'] == null) ...[
+                _riskCheckRow(
+                  notRecognised
+                      ? 'Barcode not found in SpazaSure registry'
+                      : 'Product barcode found in SpazaSure registry',
+                  notRecognised ? 'unknown' : 'pass',
+                ),
+                _riskCheckRow(
+                  recalled
+                      ? 'Known product recall exists'
+                      : 'No tracked recall found',
+                  recalled ? 'fail' : 'pass',
+                ),
+                if (_expiry != null)
+                  _riskCheckRow(
+                    'Package expiry date checked',
+                    expired ? 'fail' : 'pass',
+                  ),
+                if (_expiry == null) ...[
                   const SizedBox(height: 4),
                   OutlinedButton.icon(
                     onPressed: _loading ? null : _pickExpiry,
@@ -894,7 +878,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
           ),
         ],
-        if (tips.isNotEmpty) ...[
+        ...[
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -909,13 +893,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var n = 0; n < tips.length; n++)
+                for (final tip in [
+                  if (p['name'] != null)
+                    'Check the product name reads "${p['name']}".',
+                  'Compare the logo, colours and print quality with a pack you trust.',
+                  'Look for a clearly printed batch number and expiry or best-before date.',
+                  if (allergens.isNotEmpty)
+                    'Review the listed allergens: ${allergens.join(', ')}.',
+                ])
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      '${n + 1}. ${tips[n]}',
-                      style: AppTextStyles.bodySmall,
-                    ),
+                    child: Text(tip, style: AppTextStyles.bodySmall),
                   ),
               ],
             ),
@@ -925,7 +913,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: () => _openReport(indicators, level, notRecognised),
+            onPressed: () => _openReport(level, notRecognised),
             icon: const Icon(Icons.flag_outlined),
             label: Text(
               notRecognised ? 'Submit product for review' : 'Report product',
@@ -941,6 +929,22 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       ],
     );
   }
+
+  Widget _customerIndicator(String message) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.warning_amber_rounded,
+          size: 18,
+          color: AppColors.error,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message, style: AppTextStyles.bodySmall)),
+      ],
+    ),
+  );
 
   Widget _riskCheckRow(String label, String status) {
     final (icon, color) = switch (status) {
@@ -983,12 +987,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     }
   }
 
-  void _openReport(List<Map> indicators, String level, bool notRecognised) {
+  void _openReport(String level, bool notRecognised) {
     final p = _product!;
-    final expired = indicators.any((i) => i['code'] == 'expired');
     final expiry =
         p['expiryDate']?.toString() ??
         _expiry?.toIso8601String().substring(0, 10);
+    final expired =
+        _expiry != null &&
+        _expiry!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
     Navigator.push(
       context,
       MaterialPageRoute(

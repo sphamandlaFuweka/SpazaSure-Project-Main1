@@ -251,19 +251,19 @@ export const adminOrdersApi = {
 
 // Admin Reports (customer/retailer product & shop reports)
 export const adminReportsApi = {
-  list: async (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
+  list: async (params?: { page?: number; pageSize?: number; status?: string }) => {
     const res = await api.get('/admin/reports', { params });
     const d = res.data?.data ?? res.data;
     return {
       items: (d?.items ?? []) as AdminReport[],
       total: (d?.total ?? 0) as number,
-      counts: (d?.counts ?? []) as { status: string; count: number }[],
     };
   },
-  respond: (id: string, body: { status: 'under_review' | 'resolved' | 'dismissed'; message?: string }) =>
-    api.patch(`/admin/reports/${id}/respond`, body).then((r) => r.data),
   escalate: (id: string, body: { escalatedTo: string; resolutionNote?: string }) =>
-    api.patch(`/admin/reports/${id}/escalate`, { ...body, status: 'escalated' }).then((r) => r.data),
+    api.patch(`/admin/reports/${id}/escalate`, {
+      ...body,
+      status: 'escalated',
+    }).then((r) => r.data),
 };
 
 // Analytics
