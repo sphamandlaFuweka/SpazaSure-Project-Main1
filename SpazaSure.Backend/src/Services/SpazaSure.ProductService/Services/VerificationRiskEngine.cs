@@ -20,6 +20,10 @@ public sealed class VerificationInput
     public bool PackagingBarcodeMatches { get; init; } = true;
     public bool HasIngredients { get; init; }
     public bool IsFood { get; init; }
+    public bool CloneSuspected { get; init; }
+
+    /// <summary>none, required, valid, invalid, reused or locked (scratch-off PIN result).</summary>
+    public string PinStatus { get; init; } = "none";
 }
 
 /// <summary>Rule-based risk scoring. A score is an indicator, never proof of authenticity.</summary>
@@ -84,6 +88,34 @@ public static class VerificationRiskEngine
         }
 
         // Recall
+        switch (i.PinStatus)
+        {
+            case "valid":
+                checks.Add(new("Scratch-off PIN", "pass", "PIN confirmed. This is the first time this item was verified."));
+                break;
+            case "required":
+                checks.Add(new("Scratch-off PIN", "unknown", "Scratch the panel and enter the PIN to finish verifying this item."));
+                break;
+            case "invalid":
+                score += 40; indicators.Add("The PIN you entered does not match this item.");
+                checks.Add(new("Scratch-off PIN", "fail", "Wrong PIN."));
+                break;
+            case "reused":
+                score += 55; indicators.Add("This item was already verified before, so the pack may be a copy or refill.");
+                checks.Add(new("Scratch-off PIN", "fail", "This code was already used."));
+                break;
+            case "locked":
+                score += 60; indicators.Add("Too many wrong PIN attempts were made on this code.");
+                checks.Add(new("Scratch-off PIN", "fail", "Code locked after repeated wrong PINs."));
+                break;
+        }
+
+        if (i.CloneSuspected)
+        {
+            score += 45; indicators.Add("This code was scanned far away from another recent scan, so it may be copied.");
+            checks.Add(new("Scan locations", "fail", "The same code appeared in two distant places too quickly."));
+        }
+
         if (i.Recalled)
         {
             score += 60; indicators.Add("This product or one of its batches has an active recall.");

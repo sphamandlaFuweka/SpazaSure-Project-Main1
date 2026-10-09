@@ -36,7 +36,15 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
         string? BatchNumber,
         DateOnly? ExpiryDate,
         string? PurchaseLocation,
-        string? SupplierName
+        string? SupplierName,
+        double? Latitude = null,
+        double? Longitude = null,
+        string? DeviceId = null,
+        string? SerialCode = null,
+        string? ShopAddress = null,
+        decimal? PurchasePrice = null,
+        bool? ScratchPanelIntact = null,
+        bool? SealTampered = null
     );
 
     /// <summary>
@@ -125,6 +133,20 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
         if (string.IsNullOrWhiteSpace(req.Description))
             return BadRequest(ApiResponse.Fail("A description of the issue is required."));
 
+        // Product reports without a scanned barcode must identify the item by serial or PIN.
+        var isProductReport = req.ReportType is "Fake / Counterfeit Product" or "Expired Goods";
+        if (isProductReport && string.IsNullOrWhiteSpace(req.Barcode) && string.IsNullOrWhiteSpace(req.SerialCode))
+            return BadRequest(ApiResponse.Fail("Enter the product's serial or PIN code."));
+
+        var locationError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
+        if (locationError is not null) req = req with { Latitude = null, Longitude = null };
+
+        if (req.PurchasePrice is < 0 or > 1_000_000)
+            return BadRequest(ApiResponse.Fail("Purchase price is not valid."));
+
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
+        var ip = !string.IsNullOrWhiteSpace(forwarded) ? forwarded : HttpContext.Connection.RemoteIpAddress?.ToString();
+
         // If a product was matched during the scan, tie the report to it —
         // but don't hard-fail if the caller passes a stale/invalid id.
         Guid? productId = null;
@@ -145,6 +167,15 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
             ExpiryDate = req.ExpiryDate,
             PurchaseLocation = req.PurchaseLocation,
             SupplierName = req.SupplierName,
+            Latitude = req.Latitude,
+            Longitude = req.Longitude,
+            ReporterIp = ip,
+            DeviceId = req.DeviceId?.Trim(),
+            SerialCode = req.SerialCode?.Trim(),
+            ShopAddress = req.ShopAddress?.Trim(),
+            PurchasePrice = req.PurchasePrice,
+            ScratchPanelIntact = req.ScratchPanelIntact,
+            SealTampered = req.SealTampered,
             Status = "submitted",
         };
 

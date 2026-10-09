@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SpazaSure.Infrastructure.Data;
@@ -11,9 +12,11 @@ using SpazaSure.Infrastructure.Data;
 namespace SpazaSure.Infrastructure.Migrations
 {
     [DbContext(typeof(SpazaSureDbContext))]
-    partial class SpazaSureDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009210702_AddReportEvidenceAndScanLocation")]
+    partial class AddReportEvidenceAndScanLocation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1046,82 +1049,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_product_qr_codes_qr_code");
 
                     b.ToTable("product_qr_codes", (string)null);
-                });
-
-            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductUnitCode", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BatchNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("batch_number");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime?>("ConsumedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("consumed_at");
-
-                    b.Property<Guid?>("ConsumedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("consumed_by_user_id");
-
-                    b.Property<double?>("ConsumedLatitude")
-                        .HasColumnType("double precision")
-                        .HasColumnName("consumed_latitude");
-
-                    b.Property<double?>("ConsumedLongitude")
-                        .HasColumnType("double precision")
-                        .HasColumnName("consumed_longitude");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateOnly?>("ExpiryDate")
-                        .HasColumnType("date")
-                        .HasColumnName("expiry_date");
-
-                    b.Property<int>("FailedPinAttempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("failed_pin_attempts");
-
-                    b.Property<string>("PinHash")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("pin_hash");
-
-                    b.Property<Guid>("ProductId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("product_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_product_unit_codes");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_product_unit_codes_code");
-
-                    b.HasIndex("ProductId", "BatchNumber")
-                        .HasDatabaseName("ix_product_unit_codes_product_id_batch_number");
-
-                    b.ToTable("product_unit_codes", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.RefreshToken", b =>
@@ -2358,18 +2285,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_product_qr_codes_products_product_id");
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductUnitCode", b =>
-                {
-                    b.HasOne("SpazaSure.Infrastructure.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_product_unit_codes_products_product_id");
 
                     b.Navigation("Product");
                 });

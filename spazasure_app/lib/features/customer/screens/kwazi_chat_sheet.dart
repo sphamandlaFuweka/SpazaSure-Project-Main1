@@ -31,44 +31,44 @@ class _Faq {
 }
 
 const _greeting =
-    'Sawubona! I\u2019m Kwazi, your Authenticity Guide. Spotted a bargain that feels too good to be true, or want to check if your grocery haul is the real deal? Ask me anything about product safety, spot-checking fakes, or how to use our scanner!';
+    'Sawubona! I\u2019m Kwazi, your authenticity guide. Saw a deal that looks too good to be true? Or want to check if what you bought is the real thing? Ask me about fake products, how to spot them, or how to use the scanner. Sharp!';
 
 const _faqs = [
   _Faq(
     'Fake food or oil?',
-    'How do I know if cooking oil or packaged food is fake?',
-    'Check the cap and the seal first! Genuine cooking oil bottles have tight, unbroken plastic rings and smooth cap threading. Look closely at the print quality of the label. Fakes often have blurry text, missing batch numbers, or smear easily if a drop of water touches them. When in doubt, scan the barcode with this app!',
+    'How do I know if cooking oil or packed food is fake?',
+    'Look at the cap and the seal first. Real oil bottles have a tight, unbroken ring under the cap. Check the label too. Fake ones often have blurry words, no batch number, or the ink smears when it gets wet. Still not sure? Scan the barcode with this app.',
     ['oil', 'food', 'packaged', 'seal', 'cap', 'fake food'],
   ),
   _Faq(
     'Red warning',
-    'What should I do if a scanned product shows a Red Warning?',
-    'Do not use or consume it! A red warning means the barcode is unrecognised or flagged as suspicious. Please leave the item alone if you\u2019re in-store, or set it aside if you bought it. Tap \u201cReport this product\u201d below to send us the store location and photos so our safety team can investigate.',
+    'What must I do if the scan shows a red warning?',
+    'Don\u2019t use it and don\u2019t eat it. Red means we don\u2019t know this barcode, or people reported it. If you are still in the shop, leave it on the shelf. If you already bought it, put it aside. Tap \u201cReport this product\u201d below and tell us where you got it, so our team can check.',
     ['red', 'warning', 'flagged', 'unverified', 'scan result', 'suspicious'],
     offerReport: true,
   ),
   _Faq(
     'Fake cosmetics',
-    'Why is buying counterfeit cosmetics or soap dangerous?',
-    'Unlike food, which you digest immediately, fake cosmetics and soaps are absorbed directly through your skin. Counterfeit lotions and creams often contain industrial chemicals, banned bleaching agents, or harmful bacteria that cause severe rashes, burns, and long-term skin damage. Never risk your skin for a cheap knockoff!',
+    'Why is fake soap or lotion dangerous?',
+    'Your skin soaks up what you put on it. Fake lotions, creams and soaps can have harsh chemicals, banned skin lighteners or germs. That can cause rashes, burns and long-term skin damage. Rather skip the cheap copy. Your skin is worth more.',
     ['cosmetic', 'soap', 'lotion', 'cream', 'skin', 'toothpaste'],
   ),
   _Faq(
     'Cheap price',
-    'The price is super cheap. Does that automatically mean it\u2019s fake?',
-    'Not always. It could be expired-closeout stock or a clearance sale. However, if a high-end brand is selling for a fraction of its normal price at an unauthorised flea market or random pop-up shop, it\u2019s likely counterfeit or stolen stock. Protect your peace and check the batch details!',
+    'The price is very cheap. Is it fake?',
+    'Not always. It can be a real special, or stock that is close to its expiry date. But if a big brand sells for way less than other shops, like at a street stall or a pop-up, be careful. It could be fake or stolen. Check the batch number and expiry date.',
     ['cheap', 'price', 'discount', 'bargain', 'too good'],
   ),
   _Faq(
     'Batch number',
-    'What is a \u2018Batch Number\u2019 and where do I find it?',
-    'A batch number is a code assigned by the manufacturer to a specific production run. It helps track when and where the item was made. You\u2019ll usually find it stamped near the expiry date, printed on the bottom of cans, or along the crimp of tubes and sachets. If a product has no batch number at all, steer clear!',
+    'What is a batch number and where do I find it?',
+    'A batch number is a code the factory puts on each production run. It tells us when and where the product was made. Look near the expiry date, at the bottom of cans, or on the sealed edge of tubes and sachets. No batch number at all? Don\u2019t buy it.',
     ['batch', 'lot', 'code number'],
   ),
   _Faq(
     'Report anonymously',
-    'Can I report a suspicious shop or market vendor anonymously?',
-    'Yes, absolutely! Your safety and privacy come first. When you use the report feature in the app, you can choose to submit your findings completely anonymously. Every report helps us protect the wider community.',
+    'Can I report a shop or seller without my name?',
+    'Yes, you can. When you report in the app, choose to stay anonymous. Your name won\u2019t be shown. Every report helps keep our community safe.',
     ['anonymous', 'anonymously', 'vendor', 'privacy'],
     offerReport: true,
   ),
@@ -195,7 +195,7 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
     _Reply('Ask something else', () {
       _userSays('Ask something else');
       _botSay(
-        const _Message('Of course! What would you like to know?'),
+        const _Message('Yebo! What do you want to know?'),
         then: _mainMenu,
         delay: 400,
       );
@@ -258,7 +258,7 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
     } else {
       _botSay(
         _Message(
-          'I\u2019m not sure about that one yet. Pick a topic below, or report it and our safety team will take a look.',
+          'Eish, I\u2019m not sure about that one yet. Pick a topic below, or report it and our safety team will check it out.',
           actions: [_reportAction()],
         ),
         then: _mainMenu,
@@ -274,7 +274,7 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
     _userSays('Check a product');
     _botSay(
       const _Message(
-        'Let\u2019s inspect it together. What kind of product is it?',
+        'Let\u2019s check it together. What kind of product is it?',
       ),
       then: () => _setReplies([
         _Reply('Food or drink', () => _pickCategory('Food or drink')),
@@ -288,24 +288,24 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
     _category = category;
     _userSays(category);
     _ask(
-      'How does the packaging and print look? Think logos, colours and spelling.',
-      good: 'Crisp and clear',
-      bad: 'Blurry or misspelt',
-      badNote: 'poor print quality on the packaging',
+      'How does the pack look? Check the logo, colours and spelling.',
+      good: 'Clear and neat',
+      bad: 'Blurry or spelling mistakes',
+      badNote: 'the print on the pack looks poor',
       next: _askSeal,
     );
   }
 
   void _askSeal() => _ask(
-    'Is the seal or shrink-wrap intact?',
-    good: 'Intact',
+    'Is the seal or plastic wrap still closed and neat?',
+    good: 'Seal is fine',
     bad: 'Broken or glued',
-    badNote: 'the seal looks broken, double-layered or glued',
+    badNote: 'the seal looks broken or glued',
     next: _askLabel,
   );
 
   void _askLabel() => _ask(
-    'Are the batch number and expiry date clearly printed?',
+    'Can you see the batch number and expiry date clearly?',
     good: 'Yes, both',
     bad: 'Missing or smudged',
     badNote: 'the batch number or expiry date is missing or smudged',
@@ -313,10 +313,10 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
   );
 
   void _askPrice() => _ask(
-    'How is the price compared with other shops?',
+    'How does the price compare to other shops?',
     good: 'About normal',
     bad: 'Much cheaper',
-    badNote: 'the price is far below normal retail value',
+    badNote: 'the price is far lower than normal',
     next: _verdict,
   );
 
@@ -347,28 +347,28 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
   void _verdict() {
     final tip = switch (_category) {
       'Cosmetics or soap' =>
-        'Fake cosmetics are absorbed through your skin, so stop using it if you feel any irritation.',
+        'Fake cosmetics go through your skin, so stop using it if you feel any itching or irritation.',
       'Household cleaner' =>
-        'Diluted or fake cleaners may not sanitise, and can irritate skin. Do not mix it with other products.',
+        'Fake cleaners may not kill germs and can burn your skin. Never mix them with other products.',
       _ =>
-        'Fake food can contain unsafe ingredients. Do not eat or drink it if you are unsure.',
+        'Fake food can have unsafe things in it. If you are not sure, don\u2019t eat or drink it.',
     };
     final (title, color, body) = _redFlags >= 2
         ? (
-            'High concern',
+            'Rather stay away',
             AppColors.error,
-            'I found $_redFlags warning signs: ${_flagNotes.join('; ')}. Please do not buy or use this product.',
+            'I found $_redFlags warning signs: ${_flagNotes.join('; ')}. Please don\u2019t buy or use it.',
           )
         : _redFlags == 1
         ? (
             'Be careful',
             AppColors.warning,
-            'One warning sign: ${_flagNotes.first}. This does not prove it is fake, but scan it before you buy.',
+            'One warning sign: ${_flagNotes.first}. This doesn\u2019t prove it\u2019s fake, but scan it before you buy.',
           )
         : (
-            'No obvious red flags',
+            'Looks okay so far',
             AppColors.success,
-            'It passes the physical checks. A scan can still confirm the barcode and batch.',
+            'It looks fine on the outside. Scan the barcode to be sure.',
           );
     _botSay(
       _Message(
@@ -431,8 +431,22 @@ class _KwaziChatSheetState extends State<_KwaziChatSheet> {
                             ActionChip(
                               avatar: r.icon == null
                                   ? null
-                                  : Icon(r.icon, size: 18),
+                                  : Icon(
+                                      r.icon,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
                               label: Text(r.label),
+                              labelStyle: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              backgroundColor: Colors.white,
+                              side: BorderSide(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.35,
+                                ),
+                              ),
                               onPressed: r.onTap,
                             ),
                         ],

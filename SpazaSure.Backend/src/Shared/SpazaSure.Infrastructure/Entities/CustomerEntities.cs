@@ -41,6 +41,19 @@ public class Report : BaseEntity
     public string? PurchaseLocation { get; set; }
     public string? SupplierName { get; set; }
 
+    // Captured automatically by the app/API at the time of the report.
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? ReporterIp { get; set; }
+    public string? DeviceId { get; set; }
+
+    // Provided by the reporter.
+    public string? SerialCode { get; set; }
+    public string? ShopAddress { get; set; }
+    public decimal? PurchasePrice { get; set; }
+    public bool? ScratchPanelIntact { get; set; }
+    public bool? SealTampered { get; set; }
+
     /// <summary>submitted -&gt; under_review -&gt; escalated -&gt; resolved (or dismissed).</summary>
     public string Status { get; set; } = "submitted";
     public string? EscalatedTo { get; set; }

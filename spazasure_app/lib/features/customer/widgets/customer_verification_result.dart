@@ -2,6 +2,72 @@ import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 
+/// Asks for the hidden scratch-off PIN printed under the panel on the pack.
+class _PinCard extends StatefulWidget {
+  final bool invalid;
+  final ValueChanged<String> onSubmit;
+
+  const _PinCard({required this.invalid, required this.onSubmit});
+
+  @override
+  State<_PinCard> createState() => _PinCardState();
+}
+
+class _PinCardState extends State<_PinCard> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.invalid ? AppColors.error : AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.invalid
+                ? 'That PIN did not match. Check it and try again.'
+                : 'Scratch the silver panel and enter the PIN',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _controller,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(
+              hintText: 'XXXX-XXXX-XXXX',
+              prefixIcon: Icon(Icons.pin_outlined),
+            ),
+            onSubmitted: (v) => widget.onSubmit(v.trim()),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => widget.onSubmit(_controller.text.trim()),
+              child: const Text('Check PIN'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Full product verification report shown to customers after a lookup.
 class CustomerVerificationResult extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -11,6 +77,7 @@ class CustomerVerificationResult extends StatelessWidget {
   final bool rewardDuplicate;
   final VoidCallback onReport;
   final VoidCallback? onCheckExpiry;
+  final ValueChanged<String>? onSubmitPin;
 
   const CustomerVerificationResult({
     super.key,
@@ -21,6 +88,7 @@ class CustomerVerificationResult extends StatelessWidget {
     this.rewardMessage,
     this.rewardDuplicate = false,
     this.onCheckExpiry,
+    this.onSubmitPin,
   });
 
   static String? _text(dynamic v) {
@@ -75,6 +143,14 @@ class CustomerVerificationResult extends StatelessWidget {
       children: [
         if (rewardMessage != null) _rewardBanner(),
         _riskBanner(level, color, headline, score),
+        if (onSubmitPin != null &&
+            (p['requiresPin'] == true || p['pinStatus'] == 'invalid')) ...[
+          const SizedBox(height: 12),
+          _PinCard(
+            invalid: p['pinStatus'] == 'invalid',
+            onSubmit: onSubmitPin!,
+          ),
+        ],
         if (matched.isNotEmpty) ...[
           const SizedBox(height: 12),
           _card(

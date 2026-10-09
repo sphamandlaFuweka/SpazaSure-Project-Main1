@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/services/address_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/auth_service.dart';
+import 'package:spazasure_app/services/device_context.dart';
 
 class ReportScreen extends StatefulWidget {
   final String? barcode;
@@ -44,6 +46,18 @@ class _ReportScreenState extends State<ReportScreen> {
   final _locationController = TextEditingController();
   final _productController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _serialController = TextEditingController();
+  final _priceController = TextEditingController();
+  bool? _scratchIntact;
+  bool? _sealTampered;
+  DeviceFix? _fix;
+  bool _locating = false;
+
+  // Product reports without a scanned barcode must identify the item by serial or PIN.
+  bool get _needsSerial =>
+      (widget.barcode ?? '').trim().isEmpty &&
+      (_selectedType == 'Fake / Counterfeit Product' ||
+          _selectedType == 'Expired Goods');
 
   static const _reportTypes = [
     _ReportType(
@@ -71,6 +85,40 @@ class _ReportScreenState extends State<ReportScreen> {
     _selectedType = widget.initialType;
     _productController.text = widget.productName ?? '';
     _descriptionController.text = widget.initialDescription ?? '';
+    DeviceContext.location().then((fix) {
+      if (mounted) setState(() => _fix = fix);
+    });
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    try {
+      final fix = _fix ?? await DeviceContext.location();
+      if (fix == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Turn on location and allow access to use this.'),
+            ),
+          );
+        }
+        return;
+      }
+      final place = await AddressService.reverse(fix.latitude, fix.longitude);
+      if (!mounted) return;
+      setState(() {
+        _fix = fix;
+        if (place != null) _locationController.text = place.label;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not find your address.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   @override
@@ -79,6 +127,8 @@ class _ReportScreenState extends State<ReportScreen> {
     _locationController.dispose();
     _productController.dispose();
     _descriptionController.dispose();
+    _serialController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -118,12 +168,31 @@ class _ReportScreenState extends State<ReportScreen> {
         photoUrl = (res['data'] as Map?)?['url'] as String?;
       }
 
+      final deviceId = await DeviceContext.deviceId();
+      final fix = _fix ?? await DeviceContext.location();
+      final price = double.tryParse(
+        _priceController.text.trim().replaceAll(',', '.'),
+      );
+
       final res = await ApiService.post('/customer/reports', {
         'reportType': _selectedType,
         'shopName': _shopNameController.text.trim(),
         'purchaseLocation': _locationController.text.trim().isEmpty
             ? null
             : _locationController.text.trim(),
+        'shopAddress': _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
+        if (_serialController.text.trim().isNotEmpty)
+          'serialCode': _serialController.text.trim(),
+        if (price != null) 'purchasePrice': price,
+        if (_scratchIntact != null) 'scratchPanelIntact': _scratchIntact,
+        if (_sealTampered != null) 'sealTampered': _sealTampered,
+        'deviceId': deviceId,
+        if (fix != null) ...{
+          'latitude': fix.latitude,
+          'longitude': fix.longitude,
+        },
         'description': _descriptionController.text.trim().isEmpty
             ? '${_productController.text.trim().isNotEmpty ? "Product: ${_productController.text.trim()}. " : ""}$_selectedType'
             : _descriptionController.text.trim(),
@@ -157,7 +226,8 @@ class _ReportScreenState extends State<ReportScreen> {
         return _selectedType != null;
       case 1:
         return _shopNameController.text.trim().isNotEmpty &&
-            _descriptionController.text.trim().isNotEmpty;
+            _descriptionController.text.trim().isNotEmpty &&
+            (!_needsSerial || _serialController.text.trim().length >= 4);
       case 2:
         return _isAnonymous != null;
       default:
@@ -459,23 +529,69 @@ class _ReportScreenState extends State<ReportScreen> {
               const SizedBox(height: 24),
               _glassField(
                 _shopNameController,
-                'Shop Name *',
+                'Where did you buy it? (Shop name) *',
                 'Enter shop name',
                 Icons.store_outlined,
               ),
               const SizedBox(height: 16),
               _glassField(
                 _locationController,
-                'Location',
+                'Shop address',
                 'Street address or area',
                 Icons.location_on_outlined,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _locating ? null : _useCurrentLocation,
+                  icon: _locating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded, size: 18),
+                  label: const Text('Use my current location'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 8),
               _glassField(
                 _productController,
                 'Product Name',
                 'Product involved (if any)',
                 Icons.inventory_2_outlined,
+              ),
+              const SizedBox(height: 16),
+              _glassField(
+                _serialController,
+                _needsSerial ? 'Serial or PIN code *' : 'Serial or PIN code',
+                'e.g. 8 to 12 character code or batch number',
+                Icons.pin_outlined,
+                onChanged: () => setState(() {}),
+              ),
+              const SizedBox(height: 16),
+              _glassField(
+                _priceController,
+                'How much did you pay? (R)',
+                'e.g. 24.99',
+                Icons.payments_outlined,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _yesNo(
+                'Was the scratch panel intact before you bought it?',
+                _scratchIntact,
+                (v) => setState(() => _scratchIntact = v),
+              ),
+              const SizedBox(height: 12),
+              _yesNo(
+                'Does the seal look tampered with?',
+                _sealTampered,
+                (v) => setState(() => _sealTampered = v),
               ),
               const SizedBox(height: 16),
               _glassField(
@@ -523,7 +639,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             Text(
                               _photoFile != null
                                   ? 'Photo attached'
-                                  : 'Add Photo (Optional)',
+                                  : 'Add photo (product, receipt or shop front)',
                               style: GoogleFonts.nunito(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -930,12 +1046,52 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  Widget _yesNo(String label, bool? value, ValueChanged<bool> onChanged) {
+    Widget chip(String text, bool v) {
+      final selected = value == v;
+      return Padding(
+        padding: const EdgeInsets.only(right: 10),
+        child: ChoiceChip(
+          label: Text(text),
+          selected: selected,
+          onSelected: (_) => onChanged(v),
+          selectedColor: Colors.white,
+          backgroundColor: Colors.black.withValues(alpha: 0.28),
+          labelStyle: GoogleFonts.nunito(
+            fontWeight: FontWeight.w700,
+            color: selected ? AppColors.primary : Colors.white,
+          ),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+          showCheckmark: false,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(children: [chip('Yes', true), chip('No', false)]),
+      ],
+    );
+  }
+
   Widget _glassField(
     TextEditingController controller,
     String label,
     String hint,
     IconData icon, {
     int maxLines = 1,
+    TextInputType? keyboardType,
+    VoidCallback? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,6 +1117,8 @@ class _ReportScreenState extends State<ReportScreen> {
           child: TextField(
             controller: controller,
             maxLines: maxLines,
+            keyboardType: keyboardType,
+            onChanged: onChanged == null ? null : (_) => onChanged(),
             style: GoogleFonts.nunito(color: Colors.white, fontSize: 14),
             cursorColor: Colors.white,
             decoration: InputDecoration(

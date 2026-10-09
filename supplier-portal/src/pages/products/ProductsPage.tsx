@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Product, ComplianceDoc } from '../../types';
 import { EmptyState } from '../../components/ui';
@@ -8,6 +8,7 @@ import PageLoader from '../../components/ui/PageLoader';
 import clsx from 'clsx';
 import ProductFormModal from './ProductFormModal';
 import BarcodeModal from './BarcodeModal';
+import ProductCodesModal from './ProductCodesModal';
 import BulkUploadModal from './BulkUploadModal';
 import { productsApi, profileApi } from '../../services/api';
 import { Star } from 'lucide-react';
@@ -42,6 +43,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+  const [codesProduct, setCodesProduct] = useState<Product | null>(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -323,6 +325,9 @@ export default function ProductsPage() {
                   <button onClick={() => setBarcodeProduct(p)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View QR & Barcode">
                     <QrCode size={16} />
                   </button>
+                  <button onClick={() => setCodesProduct(p)} className="p-1.5 text-primary hover:bg-primary-50 rounded-lg transition-colors" title="Authenticity codes">
+                    <ShieldCheck size={16} />
+                  </button>
                   <button onClick={() => handleToggle(p.id)} className={clsx('p-1.5 rounded-lg transition-colors', p.isAvailable ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100')}>
                     {p.isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
@@ -407,6 +412,9 @@ export default function ProductsPage() {
                         <button onClick={() => setBarcodeProduct(p)} className="btn-icon hover:text-emerald-600 hover:bg-emerald-50" title="View QR & Barcode">
                           <QrCode size={14} />
                         </button>
+                        <button onClick={() => setCodesProduct(p)} className="btn-icon hover:text-primary hover:bg-primary-50" title="Authenticity codes">
+                          <ShieldCheck size={14} />
+                        </button>
                         <button onClick={isCompliant ? () => handleDelete(p.id) : handleBlockedAction} className="btn-icon hover:text-red-500 hover:bg-red-50" title={isCompliant ? "Delete" : "Documents required"}>
                           <Trash2 size={14} />
                         </button>
@@ -433,6 +441,10 @@ export default function ProductsPage() {
           product={barcodeProduct}
           onClose={() => setBarcodeProduct(null)}
         />
+      )}
+
+      {codesProduct && (
+        <ProductCodesModal product={codesProduct} onClose={() => setCodesProduct(null)} />
       )}
 
       {showBulkUpload && isCompliant && (

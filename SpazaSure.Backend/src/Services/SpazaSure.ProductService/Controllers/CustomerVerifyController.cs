@@ -16,7 +16,13 @@ public class CustomerVerifyController(SpazaSureDbContext db) : ControllerBase
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpPost("{code}/reward")]
-    public async Task<IActionResult> RewardScan(string code, [FromQuery] Guid? productId, [FromQuery] string? source)
+    public async Task<IActionResult> RewardScan(
+        string code,
+        [FromQuery] Guid? productId,
+        [FromQuery] string? source,
+        [FromQuery] double? lat,
+        [FromQuery] double? lng,
+        [FromQuery] string? deviceId)
     {
         code = code.Trim();
         if (string.IsNullOrWhiteSpace(code)) return BadRequest(ApiResponse.Fail("A product code is required."));
@@ -27,6 +33,8 @@ public class CustomerVerifyController(SpazaSureDbContext db) : ControllerBase
         if (alreadyAwarded)
             return Ok(ApiResponse<object>.Ok(new { pointsAwarded = 0, duplicate = true, message = "This product was already counted today." }));
 
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
+        var validLocation = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(lat, lng) is null;
         var scan = new CustomerScanEvent
         {
             CustomerUserId = UserId,
@@ -34,6 +42,10 @@ public class CustomerVerifyController(SpazaSureDbContext db) : ControllerBase
             ProductId = productId,
             Source = source ?? "unknown",
             PointsAwarded = 5,
+            Latitude = validLocation ? lat : null,
+            Longitude = validLocation ? lng : null,
+            DeviceId = deviceId?.Trim(),
+            IpAddress = !string.IsNullOrWhiteSpace(forwarded) ? forwarded : HttpContext.Connection.RemoteIpAddress?.ToString(),
         };
         db.CustomerScanEvents.Add(scan);
         db.CustomerRewardTransactions.Add(new CustomerRewardTransaction

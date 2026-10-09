@@ -43,6 +43,10 @@ function Field({ label, value }: { label: string; value?: string | number | null
   );
 }
 
+function yesNo(v?: boolean | null) {
+  return v == null ? 'Not answered' : v ? 'Yes' : 'No';
+}
+
 // Reporter identity is left out: the recipient is an outside authority.
 function buildEvidenceEmail(report: AdminReport, authority: string, note: string) {
   const lines = [
@@ -52,6 +56,13 @@ function buildEvidenceEmail(report: AdminReport, authority: string, note: string
     `Product: ${report.productName ?? 'Not matched to a registered product'}`,
     `Barcode: ${report.barcode ?? 'Not provided'}`,
     `Shop: ${report.shopName ?? 'Not provided'}`,
+    `Shop address: ${report.shopAddress ?? report.purchaseLocation ?? 'Not provided'}`,
+    `Serial / PIN: ${report.serialCode ?? 'Not provided'}`,
+    `Batch: ${report.batchNumber ?? 'Not provided'}`,
+    `Price paid: ${report.purchasePrice != null ? `R${report.purchasePrice}` : 'Not provided'}`,
+    `Scratch panel intact: ${yesNo(report.scratchPanelIntact)}`,
+    `Seal tampered: ${yesNo(report.sealTampered)}`,
+    `Report location: ${report.latitude != null ? `${report.latitude}, ${report.longitude}` : 'Not provided'}`,
     `Photo evidence: ${resolveUploadUrl(report.photoUrl) ?? 'None attached'}`,
     '',
     'Reporter description:',
@@ -224,6 +235,15 @@ function ReportDetailModal({ report, onClose, onUpdated }: {
           <Field label="Product" value={report.productName} />
           <Field label="Barcode" value={report.barcode} />
           <Field label="Shop" value={report.shopName} />
+          <Field label="Shop address" value={report.shopAddress ?? report.purchaseLocation} />
+          <Field label="Serial / PIN" value={report.serialCode} />
+          <Field label="Batch" value={report.batchNumber} />
+          <Field label="Price paid" value={report.purchasePrice != null ? `R${report.purchasePrice}` : null} />
+          <Field label="Scratch panel intact" value={report.scratchPanelIntact == null ? null : yesNo(report.scratchPanelIntact)} />
+          <Field label="Seal tampered" value={report.sealTampered == null ? null : yesNo(report.sealTampered)} />
+          <Field label="Report location" value={report.latitude != null ? `${report.latitude.toFixed(5)}, ${report.longitude?.toFixed(5)}` : null} />
+          <Field label="IP address" value={report.reporterIp} />
+          <Field label="Device ID" value={report.deviceId} />
           <Field label="Reporter" value="Identity withheld" />
         </div>
 

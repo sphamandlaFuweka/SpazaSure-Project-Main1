@@ -10,6 +10,17 @@ export interface AdminReport {
   isAnonymous: boolean;
   description: string;
   photoUrl?: string | null;
+  batchNumber?: string | null;
+  serialCode?: string | null;
+  shopAddress?: string | null;
+  purchaseLocation?: string | null;
+  purchasePrice?: number | null;
+  scratchPanelIntact?: boolean | null;
+  sealTampered?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  reporterIp?: string | null;
+  deviceId?: string | null;
   status: ReportStatus;
   escalatedTo?: string | null;
   escalatedAt?: string | null;

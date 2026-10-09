@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/device_context.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
 import 'package:spazasure_app/services/packaging_text_parser.dart';
 
@@ -22,6 +23,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _codeController = TextEditingController();
+  final _pinController = TextEditingController();
+  String? _pin;
   final _packagingBarcodeController = TextEditingController();
   MobileScannerController? _cameraController;
   bool _loading = false;
@@ -72,6 +75,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   void dispose() {
     _tabController.dispose();
     _codeController.dispose();
+    _pinController.dispose();
     _packagingBarcodeController.dispose();
     _cameraController?.dispose();
     super.dispose();
@@ -82,6 +86,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     DateTime? expiry,
     String? batch,
     String? packagingText,
+    String? pin,
     bool reward = true,
   }) async {
     if (code.isEmpty) return;
@@ -92,6 +97,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       _error = null;
       _product = null;
       _verifiedCode = code.trim();
+      _pin = pin;
       _expiry = expiry;
       _batch = batch;
       _packagingText = packagingText;
@@ -103,14 +109,24 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final encodedCode = Uri.encodeComponent(code.trim());
+      final fix = widget.customerMode ? await DeviceContext.location() : null;
+      final deviceId = widget.customerMode
+          ? await DeviceContext.deviceId()
+          : null;
       final base = widget.customerMode
           ? '/customer/verify/$encodedCode'
           : '/shop/marketplace/scan/$encodedCode';
       final query = <String, String>{
+        if (fix != null) ...{
+          'lat': '${fix.latitude}',
+          'lng': '${fix.longitude}',
+        },
         if (widget.customerMode && expiry != null)
           'expiry': expiry.toIso8601String().substring(0, 10),
         if (widget.customerMode && batch != null && batch.isNotEmpty)
           'batch': batch,
+        if (widget.customerMode && pin != null && pin.trim().isNotEmpty)
+          'pin': pin.trim(),
         if (widget.customerMode &&
             packagingText != null &&
             packagingText.trim().isNotEmpty)
@@ -126,11 +142,16 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       final product = res['data'] as Map<String, dynamic>;
       setState(() => _product = product);
 
-      if (widget.customerMode && reward) {
+      if (widget.customerMode &&
+          reward &&
+          product['requiresPin'] != true &&
+          (product['pinStatus'] == null || product['pinStatus'] == 'valid')) {
         try {
           final reward = await ApiService.post(
             '/customer/verify/$encodedCode/reward'
-            '?productId=${product['productId'] ?? ''}&source=${product['source'] ?? 'unknown'}',
+            '?productId=${product['productId'] ?? ''}&source=${product['source'] ?? 'unknown'}'
+            '${fix != null ? '&lat=${fix.latitude}&lng=${fix.longitude}' : ''}'
+            '&deviceId=$deviceId',
             {},
           );
           final rewardData = reward['data'] as Map<String, dynamic>? ?? {};
@@ -563,14 +584,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       vertical: 14,
                     ),
                   ),
-                  onSubmitted: (v) => _lookupProduct(v.trim()),
+                  onSubmitted: (v) =>
+                      _lookupProduct(v.trim(), pin: _pinController.text.trim()),
                 ),
               ),
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: _loading
                     ? null
-                    : () => _lookupProduct(_codeController.text.trim()),
+                    : () => _lookupProduct(
+                        _codeController.text.trim(),
+                        pin: _pinController.text.trim(),
+                      ),
                 child: Container(
                   width: 52,
                   height: 52,
@@ -595,6 +620,26 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               ),
             ],
           ),
+          if (widget.customerMode) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pinController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'Scratch-off PIN (if the pack has one)',
+                prefixIcon: const Icon(
+                  Icons.pin_outlined,
+                  color: AppColors.primary,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -658,6 +703,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         expiry: picked,
         batch: _batch,
         packagingText: _packagingText,
+        pin: _pin,
         reward: false,
       );
     }
@@ -711,6 +757,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           rewardMessage: _rewardMessage,
           rewardDuplicate: _rewardDuplicate,
           onCheckExpiry: _loading ? null : _pickExpiry,
+          onSubmitPin: _loading
+              ? null
+              : (pin) => _lookupProduct(
+                  _verifiedCode ?? '',
+                  expiry: _expiry,
+                  batch: _batch,
+                  packagingText: _packagingText,
+                  pin: pin,
+                ),
           onReport: _openReport,
         ),
       );

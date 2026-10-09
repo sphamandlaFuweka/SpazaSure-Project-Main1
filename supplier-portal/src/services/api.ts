@@ -194,6 +194,26 @@ export const productsApi = {
     productApi.get(`/supplier/products/${id}/qr-code`).then((r) => r.data?.data ?? r.data),
 };
 
+export interface IssuedCode { code: string; pin: string }
+export interface CodeBatch {
+  batchNumber: string;
+  expiryDate?: string | null;
+  total: number;
+  verified: number;
+  compromised: number;
+  recalled: number;
+}
+
+// Per-unit authenticity codes (open code plus scratch-off PIN)
+export const productCodesApi = {
+  generate: (productId: string, body: { batchNumber: string; expiryDate: string | null; quantity: number }) =>
+    api.post(`/supplier/products/${productId}/codes`, body).then((r) => (r.data?.data ?? r.data) as { batchNumber: string; codes: IssuedCode[] }),
+  batches: (productId: string) =>
+    api.get(`/supplier/products/${productId}/codes/batches`).then((r) => (r.data?.data ?? r.data ?? []) as CodeBatch[]),
+  recall: (productId: string, batchNumber: string) =>
+    api.patch(`/supplier/products/${productId}/codes/batches/${encodeURIComponent(batchNumber)}/recall`).then((r) => r.data),
+};
+
 // Admin Products — admin-level product management
 export const adminProductsApi = {
   list: async (params?: { page?: number; pageSize?: number; search?: string; status?: string }) => {

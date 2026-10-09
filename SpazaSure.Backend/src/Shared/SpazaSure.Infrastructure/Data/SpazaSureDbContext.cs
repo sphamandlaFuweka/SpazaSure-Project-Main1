@@ -19,6 +19,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductQrCode> ProductQrCodes => Set<ProductQrCode>();
+    public DbSet<ProductUnitCode> ProductUnitCodes => Set<ProductUnitCode>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
@@ -203,6 +204,14 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(q => q.ProductId).IsUnique()
                 .HasFilter("order_item_id IS NULL")
                 .HasDatabaseName("UX_ProductQrCodes_DefaultProduct");
+        });
+
+        // ProductUnitCode
+        model.Entity<ProductUnitCode>(e =>
+        {
+            e.ToTable("product_unit_codes");
+            e.HasIndex(u => u.Code).IsUnique();
+            e.HasIndex(u => new { u.ProductId, u.BatchNumber });
         });
 
         // Order

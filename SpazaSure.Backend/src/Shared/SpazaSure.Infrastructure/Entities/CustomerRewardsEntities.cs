@@ -9,6 +9,10 @@ public class CustomerScanEvent : BaseEntity
     public Guid? ProductId { get; set; }
     public string Source { get; set; } = "unknown";
     public int PointsAwarded { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? DeviceId { get; set; }
+    public string? IpAddress { get; set; }
     public User Customer { get; set; } = null!;
     public Product? Product { get; set; }
 }

@@ -68,6 +68,24 @@ class AddressSuggestion {
 }
 
 class AddressService {
+  /// Street address for a GPS point, or null when nothing is found.
+  static Future<AddressSuggestion?> reverse(double lat, double lng) async {
+    final uri = Uri.https('nominatim.openstreetmap.org', '/reverse', {
+      'lat': '$lat',
+      'lon': '$lng',
+      'format': 'jsonv2',
+      'addressdetails': '1',
+    });
+    final res = await http
+        .get(uri, headers: {'User-Agent': 'SpazaSure-App/1.0'})
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) return null;
+    final data = jsonDecode(res.body);
+    if (data is! Map<String, dynamic> || data['lat'] == null) return null;
+    final s = AddressSuggestion.fromNominatim(data);
+    return s.label.isEmpty ? null : s;
+  }
+
   /// Autocomplete for South African addresses via OpenStreetMap Nominatim.
   static Future<List<AddressSuggestion>> search(String query) async {
     final q = query.trim();

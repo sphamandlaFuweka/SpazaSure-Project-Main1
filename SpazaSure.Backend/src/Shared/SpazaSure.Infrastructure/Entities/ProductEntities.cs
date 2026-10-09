@@ -56,6 +56,29 @@ public class ProductQrCode : BaseEntity
     public Product Product { get; set; } = null!;
 }
 
+/// <summary>
+/// One physical item. The outer Code is printed openly (barcode/QR); the inner PIN sits under a
+/// scratch panel and only its hash is stored. Scratching and verifying the PIN consumes the unit.
+/// </summary>
+public class ProductUnitCode : BaseEntity
+{
+    public Guid ProductId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string PinHash { get; set; } = string.Empty;
+    public string BatchNumber { get; set; } = string.Empty;
+    public DateOnly? ExpiryDate { get; set; }
+
+    /// <summary>active, consumed, recalled or compromised.</summary>
+    public string Status { get; set; } = "active";
+    public int FailedPinAttempts { get; set; }
+    public DateTime? ConsumedAt { get; set; }
+    public Guid? ConsumedByUserId { get; set; }
+    public double? ConsumedLatitude { get; set; }
+    public double? ConsumedLongitude { get; set; }
+
+    public Product Product { get; set; } = null!;
+}
+
 public class SupplierDocument : BaseEntity
 {
     public Guid SupplierId { get; set; }

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Infrastructure.Entities;
+using System.Security.Claims;
 using SpazaSure.ProductService.Services;
 using SpazaSure.Shared.Models;
 using System.Text.Json;
@@ -23,20 +25,67 @@ namespace SpazaSure.ProductService.Controllers;
 [ApiController]
 [Route("api/customer/verify")]
 [Authorize]
-public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFoodFactsService) : ControllerBase
+public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFoodFactsService, IConfiguration config) : ControllerBase
 {
+    private const int MaxPinAttempts = 5;
+
     [HttpGet("{code}")]
     public async Task<IActionResult> Verify(
         string code,
         [FromQuery] string[]? myAllergies,
         [FromQuery] DateOnly? expiry,
         [FromQuery] string? batch,
-        [FromQuery] string? packagingText)
+        [FromQuery] string? packagingText,
+        [FromQuery] double? lat,
+        [FromQuery] double? lng,
+        [FromQuery] string? pin)
     {
         code = code.Trim();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var cloned = await LooksClonedAsync(code, lat, lng);
         batch = string.IsNullOrWhiteSpace(batch) ? null : batch.Trim();
         var scannedPackaging = !string.IsNullOrWhiteSpace(packagingText);
+
+        // 0. A per-unit code with a hidden scratch-off PIN.
+        var unit = await db.ProductUnitCodes
+            .Include(u => u.Product).ThenInclude(p => p.Supplier)
+            .Include(u => u.Product).ThenInclude(p => p.Category)
+            .FirstOrDefaultAsync(u => u.Code == code);
+
+        if (unit is not null)
+        {
+            var pinStatus = await CheckPinAsync(unit, pin, lat, lng);
+            var recalled = unit.Status == "recalled";
+            var unitExpiry = unit.ExpiryDate ?? expiry;
+            var unitRisk = VerificationRiskEngine.Evaluate(new VerificationInput
+            {
+                Code = code,
+                InSpazaSureRegistry = true,
+                InGlobalDatabase = true,
+                Recalled = recalled,
+                SupplierVerified = unit.Product.Supplier.Status == "verified",
+                ExpiryDate = unitExpiry,
+                BatchNumber = unit.BatchNumber,
+                BatchTracked = true,
+                PackagingScanned = scannedPackaging,
+                PackagingBarcodeMatches = !scannedPackaging || PackagingMatches(unit.Product.Name, packagingText),
+                IsFood = unit.Product.IsFoodItem,
+                CloneSuspected = cloned,
+                PinStatus = pinStatus,
+            }, today);
+
+            return Ok(ApiResponse<object>.Ok(BuildResult(
+                source: "spazasure_unit",
+                verdict: recalled ? "recalled" : pinStatus is "valid" ? "genuine" : pinStatus,
+                product: unit.Product,
+                batchNumber: unit.BatchNumber,
+                expiryDate: unitExpiry,
+                isRecalled: recalled,
+                myAllergies: myAllergies,
+                risk: unitRisk,
+                requiresPin: pinStatus == "required",
+                pinStatus: pinStatus)));
+        }
 
         // 1. Is this a SpazaSure-issued QR code for a specific batch? Those
         //    carry recall/batch info a plain barcode lookup can't.
@@ -62,7 +111,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 PackagingScanned = scannedPackaging,
                 PackagingBarcodeMatches = !scannedPackaging || PackagingMatches(qr.Product.Name, packagingText),
                 HasIngredients = false,
-                IsFood = qr.Product.IsFoodItem,
+                IsFood = qr.Product.IsFoodItem, CloneSuspected = cloned,
             }, today);
 
             return Ok(ApiResponse<object>.Ok(BuildResult(
@@ -104,7 +153,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 BatchTracked = batchTracked,
                 PackagingScanned = scannedPackaging,
                 PackagingBarcodeMatches = !scannedPackaging || PackagingMatches(product.Name, packagingText),
-                IsFood = product.IsFoodItem,
+                IsFood = product.IsFoodItem, CloneSuspected = cloned,
             }, today);
 
             return Ok(ApiResponse<object>.Ok(BuildResult(
@@ -138,7 +187,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 PackagingScanned = scannedPackaging,
                 PackagingBarcodeMatches = !scannedPackaging || PackagingMatches(openFoodFactsProduct.Name, packagingText),
                 HasIngredients = !string.IsNullOrWhiteSpace(openFoodFactsProduct.Ingredients),
-                IsFood = true,
+                IsFood = true, CloneSuspected = cloned,
             }, today);
 
             return Ok(ApiResponse<object>.Ok(new
@@ -178,7 +227,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             ExpiryDate = expiry,
             BatchNumber = batch,
             PackagingScanned = scannedPackaging,
-            IsFood = true,
+            IsFood = true, CloneSuspected = cloned,
         }, today);
 
         return Ok(ApiResponse<object>.Ok(new
@@ -196,6 +245,66 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             checks = unknownRisk.Checks,
             tips = unknownRisk.Tips,
         }));
+    }
+
+    // Validates the scratch PIN and consumes the unit on first success.
+    private async Task<string> CheckPinAsync(ProductUnitCode unit, string? pin, double? lat, double? lng)
+    {
+        if (unit.Status == "compromised" || unit.FailedPinAttempts >= MaxPinAttempts) return "locked";
+        if (string.IsNullOrWhiteSpace(pin)) return unit.Status == "consumed" ? "reused" : "required";
+
+        var secret = config["Codes:PinSecret"] ?? config["Jwt:Secret"]!;
+        var normalized = UnitCodeService.NormalizePin(pin);
+        if (!UnitCodeService.PinMatches(normalized, unit.PinHash, secret))
+        {
+            unit.FailedPinAttempts++;
+            if (unit.FailedPinAttempts >= MaxPinAttempts) unit.Status = "compromised";
+            await db.SaveChangesAsync();
+            return unit.Status == "compromised" ? "locked" : "invalid";
+        }
+
+        var userId = Guid.TryParse(User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var uid) ? uid : (Guid?)null;
+        if (unit.Status == "consumed")
+            return unit.ConsumedByUserId == userId ? "valid" : "reused";
+        if (unit.Status != "active") return "valid";
+
+        unit.Status = "consumed";
+        unit.ConsumedAt = DateTime.UtcNow;
+        unit.ConsumedByUserId = userId;
+        var okLocation = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(lat, lng) is null;
+        unit.ConsumedLatitude = okLocation ? lat : null;
+        unit.ConsumedLongitude = okLocation ? lng : null;
+        await db.SaveChangesAsync();
+        return "valid";
+    }
+
+    // True when the same code was scanned elsewhere recently at an impossible travel speed.
+    private async Task<bool> LooksClonedAsync(string code, double? lat, double? lng)
+    {
+        if (lat is null || lng is null) return false;
+        var since = DateTime.UtcNow.AddHours(-24);
+        var recent = await db.CustomerScanEvents
+            .Where(s => s.Code == code && s.CreatedAt >= since && s.Latitude != null && s.Longitude != null)
+            .Select(s => new { s.Latitude, s.Longitude, s.CreatedAt })
+            .ToListAsync();
+
+        foreach (var s in recent)
+        {
+            var km = DistanceKm(lat.Value, lng.Value, s.Latitude!.Value, s.Longitude!.Value);
+            var hours = Math.Max((DateTime.UtcNow - s.CreatedAt).TotalHours, 1.0 / 60);
+            if (km > 100 && km / hours > 250) return true;
+        }
+        return false;
+    }
+
+    private static double DistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        static double Rad(double d) => d * Math.PI / 180;
+        var dLat = Rad(lat2 - lat1);
+        var dLon = Rad(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return 6371 * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     // True when any distinctive word of the product name appears in the OCR text.
@@ -217,7 +326,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
     private static object BuildResult(
         string source, string verdict, Infrastructure.Entities.Product product,
         string? batchNumber, DateOnly? expiryDate, bool isRecalled, string[]? myAllergies,
-        VerificationRisk risk)
+        VerificationRisk risk, bool requiresPin = false, string? pinStatus = null)
     {
         var productAllergens = DeserializeList(product.Allergens);
         var matchedAllergies = myAllergies is { Length: > 0 }
@@ -249,6 +358,8 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             supplierCity = product.Supplier.City,
             supplierProvince = product.Supplier.Province,
             riskScore = risk.Score,
+            requiresPin,
+            pinStatus,
             riskLevel = risk.Level,
             riskHeadline = risk.Headline,
             indicators = risk.Indicators,
