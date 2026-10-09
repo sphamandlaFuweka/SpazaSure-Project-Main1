@@ -33,7 +33,7 @@ export default function AppLayout() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Header */}
-        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 1px 0 rgba(0,0,0,0.02)' }}>
+        <header className="app-header bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 1px 0 rgba(0,0,0,0.02)' }}>
           {/* Breadcrumb */}
           <div className="flex items-center gap-2.5 text-sm">
             <div className="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-emerald-50 border border-primary-100/60 px-2.5 py-1 rounded-lg">

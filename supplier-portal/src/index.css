@@ -879,3 +879,38 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .animate-table-row:nth-child(3) { animation-delay: 0.2s; }
 .animate-table-row:nth-child(4) { animation-delay: 0.25s; }
 .animate-table-row:nth-child(5) { animation-delay: 0.3s; }
+
+/* ─── Compact dashboard spacing for common laptop viewports (1366x768, 1280x720) ─── */
+@media (min-width: 1200px) and (max-width: 1440px) and (max-height: 800px) {
+  .app-header { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  .dashboard-page { padding: 1rem !important; }
+  .dashboard-page.space-y-6 > :not([hidden]) ~ :not([hidden]),
+  .dashboard-page.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem !important; }
+  .dashboard-hero { padding: 1.25rem !important; }
+  .dashboard-hero-top { margin-bottom: 0.75rem !important; }
+  .dashboard-hero-greeting { margin-bottom: 1rem !important; }
+  .dashboard-hero-title { font-size: 1.875rem !important; line-height: 2.25rem !important; }
+  .dashboard-hero-stats { gap: 1rem !important; }
+  .dashboard-hero-stat { padding: 0.75rem 1rem !important; }
+  .dashboard-hero-stat > div:first-child { margin-bottom: 0.5rem !important; }
+  .dashboard-hero-stat > p { font-size: 1.5rem !important; line-height: 2rem !important; }
+  .dashboard-hero-skeleton { height: 7rem !important; }
+  .dashboard-quick-actions { gap: 0.75rem !important; }
+  .dashboard-quick-action { padding: 0.75rem !important; gap: 0.5rem !important; }
+  .dashboard-charts-row { gap: 1rem !important; }
+  .dashboard-bottom-row { gap: 0.75rem !important; }
+  .dashboard-card { padding: 1rem !important; }
+  .dashboard-card-header { margin-bottom: 0.75rem !important; }
+  .dashboard-pipeline > :not([hidden]) ~ :not([hidden]) { margin-top: 0.625rem !important; }
+  .dashboard-pipeline-footer { margin-top: 0.75rem !important; padding-top: 0.75rem !important; }
+  .dashboard-compliance-grid { gap: 0.75rem !important; }
+  .dashboard-compliance-tile { padding: 0.75rem !important; }
+  .dashboard-cta { padding: 1rem !important; }
+}
+
+@media (min-width: 1200px) and (max-width: 1440px) and (max-height: 740px) {
+  .dashboard-page { padding: 0.75rem !important; }
+  .dashboard-hero { padding: 1rem !important; }
+  .dashboard-hero-title { font-size: 1.75rem !important; line-height: 2.125rem !important; }
+  .dashboard-hero-stat { padding: 0.625rem 0.875rem !important; }
+}
