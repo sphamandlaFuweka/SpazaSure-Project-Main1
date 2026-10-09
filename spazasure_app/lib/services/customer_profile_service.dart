@@ -10,6 +10,7 @@ class CustomerProfile {
   final int? age;
   final List<String> allergies;
   final String? joinedAt;
+  final String? profilePhotoUrl;
 
   const CustomerProfile({
     required this.id,
@@ -21,6 +22,7 @@ class CustomerProfile {
     this.age,
     this.allergies = const [],
     this.joinedAt,
+    this.profilePhotoUrl,
   });
 
   factory CustomerProfile.fromJson(Map<String, dynamic> json) =>
@@ -36,6 +38,7 @@ class CustomerProfile {
             (json['allergies'] as List?)?.map((a) => a.toString()).toList() ??
             const [],
         joinedAt: json['joinedAt']?.toString(),
+        profilePhotoUrl: json['profilePhotoUrl']?.toString(),
       );
 }
 
@@ -50,12 +53,14 @@ class CustomerProfileService {
     String? lastName,
     int? age,
     List<String>? allergies,
+    String? email,
   }) async {
     await ApiService.patch('/customer/profile', {
       if (firstName != null) 'firstName': firstName,
       if (lastName != null) 'lastName': lastName,
       if (age != null) 'age': age,
       if (allergies != null) 'allergies': allergies,
+      if (email != null && email.isNotEmpty) 'email': email,
     });
   }
 }

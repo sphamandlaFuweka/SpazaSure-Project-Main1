@@ -18,6 +18,7 @@ class ShopProfile {
   final String joinedAt;
   final double? latitude;
   final double? longitude;
+  final String? profilePhotoUrl;
 
   ShopProfile({
     required this.id,
@@ -37,6 +38,7 @@ class ShopProfile {
     required this.joinedAt,
     this.latitude,
     this.longitude,
+    this.profilePhotoUrl,
   });
 
   factory ShopProfile.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class ShopProfile {
       joinedAt: json['joinedAt'] ?? '',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      profilePhotoUrl: json['profilePhotoUrl']?.toString(),
     );
   }
 }

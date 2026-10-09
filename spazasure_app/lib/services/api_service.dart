@@ -25,6 +25,14 @@ class ApiService {
     return 'http://localhost:5181/api';
   }
 
+  /// Turns a stored upload path like /uploads/x.jpg into a full URL on the same server.
+  static String? resolveUploadUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final root = baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return '$root${url.startsWith('/') ? '' : '/'}$url';
+  }
+
   static Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');

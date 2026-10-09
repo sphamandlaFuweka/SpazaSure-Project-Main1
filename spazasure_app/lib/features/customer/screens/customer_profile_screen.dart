@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/widgets/editable_avatar.dart';
 import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_scan_history_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
@@ -37,6 +38,153 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       // Fall back to whatever the session already has cached.
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _showEdit() async {
+    final p = _profile!;
+    final first = TextEditingController(text: p.firstName);
+    final last = TextEditingController(text: p.lastName);
+    final email = TextEditingController(text: p.email);
+    final age = TextEditingController(text: p.age?.toString() ?? '');
+    final allergies = TextEditingController(text: p.allergies.join(', '));
+    final formKey = GlobalKey<FormState>();
+    var saving = false;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Edit profile', style: AppTextStyles.h3),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: first,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'First name'),
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? 'Enter your first name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: last,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Last name'),
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? 'Enter your last name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    validator: (v) {
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty) return null;
+                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)
+                          ? null
+                          : 'Enter a valid email';
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: age,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Age'),
+                    validator: (v) {
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty) return null;
+                      final n = int.tryParse(t);
+                      return n == null || n < 0 || n > 130
+                          ? 'Enter a valid age'
+                          : null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: allergies,
+                    decoration: const InputDecoration(
+                      labelText: 'Allergies',
+                      helperText: 'Separate with commas, e.g. peanuts, milk',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setSheet(() => saving = true);
+                              try {
+                                final list = allergies.text
+                                    .split(',')
+                                    .map((a) => a.trim().toLowerCase())
+                                    .where((a) => a.isNotEmpty)
+                                    .toSet()
+                                    .toList();
+                                await CustomerProfileService.updateProfile(
+                                  firstName: first.text.trim(),
+                                  lastName: last.text.trim(),
+                                  email: email.text.trim(),
+                                  age: int.tryParse(age.text.trim()),
+                                  allergies: list,
+                                );
+                                if (ctx.mounted) Navigator.pop(ctx, true);
+                              } catch (e) {
+                                setSheet(() => saving = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString()),
+                                      backgroundColor: AppColors.error,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      child: Text(saving ? 'Saving...' : 'Save changes'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    first.dispose();
+    last.dispose();
+    email.dispose();
+    age.dispose();
+    allergies.dispose();
+
+    if (saved == true) {
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     }
   }
 
@@ -112,7 +260,15 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             children: [
               Row(
                 children: [
-                  const SizedBox(width: 48),
+                  IconButton(
+                    tooltip: 'Edit profile',
+                    onPressed: _profile == null ? null : _showEdit,
+                    icon: const Icon(
+                      Icons.edit_rounded,
+                      color: Colors.white70,
+                      size: 22,
+                    ),
+                  ),
                   const Spacer(),
                   const Text(
                     'My Profile',
@@ -134,32 +290,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
+              EditableAvatar(
+                initials: initials,
+                photoUrl: _profile?.profilePhotoUrl,
+                uploadPath: '/customer/profile/photo',
+                onUploaded: (_) => _load(),
               ),
               const SizedBox(height: 14),
               Text(

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
+import 'package:spazasure_app/core/widgets/editable_avatar.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/profile_service.dart';
@@ -186,32 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
               // Avatar
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
+              EditableAvatar(
+                initials: initials,
+                photoUrl: _profile?.profilePhotoUrl,
+                uploadPath: '/shop/profile/photo',
+                onUploaded: (_) => _loadProfile(),
               ),
               const SizedBox(height: 14),
               Text(

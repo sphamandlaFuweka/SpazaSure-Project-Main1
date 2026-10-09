@@ -52,6 +52,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             shop.PostalCode,
             shop.Latitude,
             shop.Longitude,
+            ProfilePhotoUrl = shop.User?.ProfilePhotoUrl,
             shop.Status,
             shop.ComplianceStatus,
             shop.OnboardingFeePaid,
@@ -107,6 +108,24 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             shop.Longitude,
             Message = "Profile updated successfully."
         }));
+    }
+
+    /// <summary>
+    /// Upload or replace the owner's profile picture
+    /// </summary>
+    [HttpPost("photo")]
+    [RequestSizeLimit(6_000_000)]
+    public async Task<IActionResult> UploadPhoto(IFormFile file)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == UserId);
+        if (user is null) return NotFound(ApiResponse.Fail("User not found."));
+
+        var (url, error) = await SpazaSure.UserService.Services.ProfilePhotoUploader
+            .SaveAsync(storage, user, file, HttpContext.RequestAborted);
+        if (url is null) return BadRequest(ApiResponse.Fail(error!));
+
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(new { profilePhotoUrl = url }, "Profile picture updated."));
     }
 
     /// <summary>

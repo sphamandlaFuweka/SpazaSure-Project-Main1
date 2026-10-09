@@ -14,6 +14,7 @@ public class User : BaseEntity
     public short FailedAttempts { get; set; } = 0;
     public DateTime? LockedUntil { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    public string? ProfilePhotoUrl { get; set; }
 
     public Role Role { get; set; } = null!;
     public Supplier? Supplier { get; set; }
