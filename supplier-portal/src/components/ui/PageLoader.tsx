@@ -84,14 +84,14 @@ export default function PageLoader({ variant = 'dashboard' }: { variant?: 'dashb
 
   // Dashboard (default)
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className="dashboard-page p-6 space-y-5 animate-fade-in">
       {/* Welcome banner skeleton */}
-      <div className="skeleton rounded-2xl h-32 w-full" />
+      <div className="dashboard-hero-skeleton skeleton rounded-2xl h-32 w-full" />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="card p-5 space-y-3">
+          <div key={i} className="card dashboard-card dashboard-card-sm p-5 space-y-3">
             <div className="flex items-start justify-between">
               <div className="space-y-2 flex-1">
                 <div className="skeleton h-3 rounded w-24" />
@@ -111,7 +111,7 @@ export default function PageLoader({ variant = 'dashboard' }: { variant?: 'dashb
 
       {/* Charts row */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="card p-5 col-span-2 space-y-4">
+        <div className="card dashboard-card dashboard-card-sm p-5 col-span-2 space-y-4">
           <div className="flex justify-between">
             <div className="space-y-2">
               <div className="skeleton h-4 rounded w-32" />
@@ -121,7 +121,7 @@ export default function PageLoader({ variant = 'dashboard' }: { variant?: 'dashb
           </div>
           <div className="skeleton h-52 rounded-xl w-full" />
         </div>
-        <div className="card p-5 space-y-4">
+        <div className="card dashboard-card dashboard-card-sm p-5 space-y-4">
           <div className="skeleton h-4 rounded w-28" />
           {[...Array(4)].map((_, i) => (
             <div key={i} className="space-y-1.5">

@@ -68,7 +68,30 @@ const DOC_META: { docType: string; label: string }[] = [
   { docType: 'product_license',  label: 'Product License' },
 ];
 
+const COMPACT_QUERY = '(min-width: 1200px) and (max-width: 1440px) and (max-height: 800px)';
+const TIGHT_QUERY = '(min-width: 1200px) and (max-width: 1440px) and (max-height: 740px)';
+
+function useMediaQuery(query: string) {
+  const get = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const [matches, setMatches] = useState(get);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+
 export default function DashboardPage() {
+  const compact = useMediaQuery(COMPACT_QUERY);
+  const tight = useMediaQuery(TIGHT_QUERY);
+  const chartHeights = {
+    revenue: tight ? 180 : compact ? 190 : 240,
+    topProducts: tight ? 140 : compact ? 150 : 180,
+  };
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [alertDismissed, setAlertDismissed] = useState(false);
@@ -196,11 +219,11 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="p-6 space-y-6 animate-in">
+    <div className="dashboard-page p-6 space-y-6 animate-in">
       {/* ══════════════════════════════════════════════════════════════
           HERO WELCOME BANNER — World Class with Animations
          ══════════════════════════════════════════════════════════════ */}
-      <div className="bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl group">
+      <div className="dashboard-hero bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl group">
         {/* Animated floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-6 right-20 w-3 h-3 bg-green-400/30 rounded-full animate-float-slow" />
@@ -217,7 +240,7 @@ export default function DashboardPage() {
 
         <div className="relative z-10">
           {/* Top bar with date and live indicator */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="dashboard-hero-top flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-green-300/80 uppercase tracking-[0.2em]">
                 {format(new Date(), 'EEEE, d MMMM yyyy')}
@@ -247,16 +270,16 @@ export default function DashboardPage() {
           </div>
 
           {/* Main greeting */}
-          <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tight">
+          <div className="dashboard-hero-greeting mb-8">
+            <h1 className="dashboard-hero-title text-4xl md:text-5xl font-black text-white leading-tight tracking-tight">
               {greeting}, <span className="bg-gradient-to-r from-green-200 via-emerald-200 to-green-300 bg-clip-text text-transparent">{user?.companyName?.split(' ')[0]}</span> 👋
             </h1>
             <p className="text-green-200/70 text-base mt-2 max-w-lg">Here's your real-time business performance. Everything is looking great.</p>
           </div>
 
           {/* Hero Stats Row — Big animated numbers */}
-          <div className="grid grid-cols-3 gap-6">
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02] group/stat">
+          <div className="dashboard-hero-stats grid grid-cols-3 gap-6">
+            <div className="dashboard-hero-stat bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02] group/stat">
               <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-emerald-500/20 rounded-lg">
                   <DollarSign size={16} className="text-emerald-300" />
@@ -277,7 +300,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
+            <div className="dashboard-hero-stat bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <ShoppingCart size={16} className="text-blue-300" />
@@ -292,7 +315,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
+            <div className="dashboard-hero-stat bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-violet-500/20 rounded-lg">
                   <Package size={16} className="text-violet-300" />
@@ -320,12 +343,12 @@ export default function DashboardPage() {
       )}
 
       {/* Quick Actions — Premium Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="dashboard-quick-actions grid grid-cols-4 gap-4">
         {quickActions.map(({ label, icon: Icon, to, color }, i) => (
           <button
             key={label}
             onClick={() => navigate(to)}
-            className={`group relative flex flex-col items-start gap-3 p-5 rounded-2xl font-semibold text-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] border hover:shadow-xl ${color}`}
+            className={`dashboard-quick-action group relative flex flex-col items-start gap-3 p-5 rounded-2xl font-semibold text-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] border hover:shadow-xl ${color}`}
             style={{ animationDelay: `${i * 0.05}s` }}
           >
             <div className="p-2.5 bg-white/80 rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-110">
@@ -338,10 +361,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row — Enhanced */}
-      <div className="grid grid-cols-3 gap-5">
+      <div className="dashboard-charts-row grid grid-cols-3 gap-5">
         {/* Revenue Chart */}
-        <div className="card p-6 col-span-2 group hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-6">
+        <div className="card dashboard-card p-6 col-span-2 group hover:shadow-xl transition-shadow duration-300">
+          <div className="dashboard-card-header flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-black text-gray-900">Revenue Trend</h3>
               <p className="text-xs text-gray-400 mt-1">Last 6 months performance overview</p>
@@ -361,7 +384,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="animate-chart-reveal">
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={chartHeights.revenue}>
               <AreaChart data={revenue}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -383,8 +406,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Order Pipeline — Enhanced */}
-        <div className="card p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-6">
+        <div className="card dashboard-card p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="dashboard-card-header flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-black text-gray-900">Order Pipeline</h3>
               <p className="text-xs text-gray-400 mt-1">Active order flow</p>
@@ -394,7 +417,7 @@ export default function DashboardPage() {
               <span className="text-xs font-black text-gray-700 tabular-nums">{pipelineTotal}</span>
             </div>
           </div>
-          <div className="space-y-4">
+          <div className="dashboard-pipeline space-y-4">
             {orderTimeline.map(({ label, count, color }, i) => (
               <div key={label} className="group/pipeline">
                 <div className="flex items-center gap-3">
@@ -416,7 +439,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-6 pt-5 border-t border-gray-100">
+          <div className="dashboard-pipeline-footer mt-6 pt-5 border-t border-gray-100">
             {pendingCount > 0 && (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3 animate-glow-pulse">
                 <Clock size={14} className="text-amber-500" />
@@ -431,14 +454,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="dashboard-bottom-row grid grid-cols-3 gap-4">
         {/* Top Products */}
-        <div className="card p-5">
+        <div className="card dashboard-card dashboard-card-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900">Top Products</h3>
             <button onClick={() => navigate('/products')} className="text-xs text-primary font-semibold hover:underline">View all</button>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={chartHeights.topProducts}>
             <BarChart data={topProducts} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
@@ -495,8 +518,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Compliance Status — Enhanced */}
-      <div className="card p-6 hover:shadow-xl transition-shadow duration-300">
-        <div className="flex items-center justify-between mb-5">
+      <div className="card dashboard-card p-6 hover:shadow-xl transition-shadow duration-300">
+        <div className="dashboard-card-header flex items-center justify-between mb-5">
           <div>
             <h3 className="text-lg font-black text-gray-900">Compliance Status</h3>
             <p className="text-xs text-gray-400 mt-1">Keep your documents up to date to avoid restrictions</p>
@@ -505,7 +528,7 @@ export default function DashboardPage() {
             Manage <ArrowRight size={13} />
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="dashboard-compliance-grid grid grid-cols-4 gap-4">
           {DOC_META.map(({ docType, label }) => {
             const doc = docs.find((d) => d.docType === docType);
             const status = doc?.status ?? 'missing';
@@ -513,7 +536,7 @@ export default function DashboardPage() {
             return (
             <div
               key={docType}
-              className={`compliance-card p-5 rounded-2xl border-2 cursor-default ${
+              className={`compliance-card dashboard-compliance-tile p-5 rounded-2xl border-2 cursor-default ${
                 status === 'approved' ? 'bg-emerald-50/80 border-emerald-200 hover:border-emerald-300' :
                 status === 'pending'  ? 'bg-amber-50/80 border-amber-200 hover:border-amber-300' :
                 'bg-gray-50/80 border-gray-200 hover:border-gray-300'
@@ -538,7 +561,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Upgrade CTA Banner — Premium with shimmer */}
-      <div className="rounded-3xl bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 p-6 flex items-center justify-between relative overflow-hidden shadow-2xl animate-upgrade-shimmer group">
+      <div className="dashboard-cta rounded-3xl bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 p-6 flex items-center justify-between relative overflow-hidden shadow-2xl animate-upgrade-shimmer group">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="relative z-10 flex items-center gap-5">
           <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
