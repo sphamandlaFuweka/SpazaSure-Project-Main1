@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/profile_service.dart';
@@ -685,6 +686,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final longitudeCtrl = TextEditingController(
       text: longitude?.toString() ?? '',
     );
+    var addressConfirmed = latitude != null && longitude != null;
+    String? postalCode;
 
     showModalBottomSheet(
       context: context,
@@ -732,6 +735,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Spacer(),
                     ElevatedButton(
                       onPressed: () async {
+                        if (addressCtrl.text != address && !addressConfirmed) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Pick your address from the suggestions to confirm it.',
+                              ),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         try {
                           await ProfileService.updateProfile({
                             'shopName': shopCtrl.text,
@@ -741,6 +759,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             'address': addressCtrl.text,
                             'city': cityCtrl.text,
                             'province': provinceCtrl.text,
+                            if (postalCode != null) 'postalCode': postalCode,
                             'latitude': latitudeCtrl.text.trim().isEmpty
                                 ? null
                                 : double.tryParse(latitudeCtrl.text.trim()),
@@ -808,31 +827,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Icons.email_outlined,
                       type: TextInputType.emailAddress,
                     ),
-                    _editField(
-                      'Address',
-                      addressCtrl,
-                      Icons.location_on_outlined,
+                    StatefulBuilder(
+                      builder: (_, setFieldState) => Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: AddressAutocompleteField(
+                          controller: addressCtrl,
+                          label: 'Address',
+                          confirmed: addressConfirmed,
+                          onSelected: (s) => setFieldState(() {
+                            addressConfirmed = true;
+                            addressCtrl.text = s.addressLine.isEmpty
+                                ? s.label
+                                : s.addressLine;
+                            cityCtrl.text = s.city;
+                            provinceCtrl.text = s.province;
+                            postalCode = s.postalCode;
+                            latitudeCtrl.text = s.latitude.toString();
+                            longitudeCtrl.text = s.longitude.toString();
+                          }),
+                          onEdited: () {
+                            if (addressConfirmed) {
+                              setFieldState(() => addressConfirmed = false);
+                            }
+                          },
+                        ),
+                      ),
                     ),
                     _editField('City', cityCtrl, Icons.location_city_outlined),
                     _editField('Province', provinceCtrl, Icons.map_outlined),
-                    _editField(
-                      'Latitude (optional)',
-                      latitudeCtrl,
-                      Icons.my_location_outlined,
-                      type: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                    ),
-                    _editField(
-                      'Longitude (optional)',
-                      longitudeCtrl,
-                      Icons.explore_outlined,
-                      type: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                    ),
                     const SizedBox(height: 40),
                   ],
                 ),

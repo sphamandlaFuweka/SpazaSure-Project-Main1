@@ -214,6 +214,9 @@ export interface SupplierProfile {
   email: string;
   phone: string;
   address: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
   tier: 'basic' | 'bronze' | 'silver' | 'gold';
   isVerified: boolean;
   logoUrl?: string;

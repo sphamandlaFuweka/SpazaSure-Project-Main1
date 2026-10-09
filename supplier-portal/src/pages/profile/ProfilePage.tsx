@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
+import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
 import { profileApi, resolveUploadUrl } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import clsx from 'clsx';
@@ -43,7 +44,9 @@ export default function ProfilePage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>('company');
   const [previewDoc, setPreviewDoc] = useState<ComplianceDoc & { label: string } | null>(null);
-  const { register, handleSubmit, reset } = useForm<SupplierProfile>({ values: profile || undefined });
+  const { register, handleSubmit, reset, setValue, watch } = useForm<SupplierProfile>({ values: profile || undefined });
+  const addressText = watch('address') ?? '';
+  const addressConfirmed = watch('latitude') != null && watch('longitude') != null;
 
   useEffect(() => {
     profileApi.get()
@@ -61,6 +64,11 @@ export default function ProfilePage() {
   }, []);
 
   const onSubmit = async (data: SupplierProfile) => {
+    // A changed address must be picked from the suggestions so it is validated.
+    if (data.address !== profile?.address && (data.latitude == null || data.longitude == null)) {
+      toast.error('Pick the new address from the suggestions to confirm it');
+      return;
+    }
     setSaving(true);
     try {
       await profileApi.update(data);
@@ -295,28 +303,33 @@ export default function ProfilePage() {
               <label className="label">Phone Number</label>
               <input {...register('phone')} className="input" />
             </div>
-            <div>
+            <div className="col-span-2">
               <label className="label">Business Address</label>
-              <input {...register('address')} className="input" />
-            </div>
-            <div className="col-span-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <MapPin size={17} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-blue-900">Dispatch coordinates (optional)</p>
-                  <p className="text-xs text-blue-700 mt-0.5">Used to calculate kilometre-based delivery for group-buy orders.</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Latitude</label>
-                  <input {...register('latitude', { valueAsNumber: true })} type="number" step="any" min="-90" max="90" placeholder="e.g. -26.2041" className="input font-mono" />
-                </div>
-                <div>
-                  <label className="label">Longitude</label>
-                  <input {...register('longitude', { valueAsNumber: true })} type="number" step="any" min="-180" max="180" placeholder="e.g. 28.0473" className="input font-mono" />
-                </div>
-              </div>
+              <AddressAutocomplete
+                value={addressText}
+                confirmed={addressConfirmed}
+                onTextChange={(text) => {
+                  setValue('address', text);
+                  if (text !== profile?.address) {
+                    setValue('latitude', undefined);
+                    setValue('longitude', undefined);
+                  }
+                }}
+                onSelect={(s) => {
+                  setValue('address', s.label);
+                  setValue('city', s.city);
+                  setValue('province', s.province);
+                  setValue('postalCode', s.postalCode);
+                  setValue('latitude', s.latitude);
+                  setValue('longitude', s.longitude);
+                }}
+              />
+              {addressConfirmed && (
+                <p className="text-xs text-gray-400 mt-1 font-mono">
+                  <MapPin size={11} className="inline mr-1" />
+                  {watch('latitude')?.toFixed(5)}, {watch('longitude')?.toFixed(5)}. Used to calculate kilometre-based delivery for group-buy orders.
+                </p>
+              )}
             </div>
             <div className="col-span-2 flex justify-end pt-2">
               <button type="submit" disabled={saving} className="btn-primary min-w-[140px]">

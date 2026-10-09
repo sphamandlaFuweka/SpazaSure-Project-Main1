@@ -72,6 +72,9 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
         ShopRegisterRequest req, string ipAddress)
     {
         // Verify OTP
+        var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
+        if (addressError is not null) return (false, addressError, null);
+
         var otpError = SkipOtpVerification ? null : await VerifyOtpAsync(req.Phone, req.Otp, "registration");
         if (otpError != null) return (false, otpError, null);
 
@@ -97,7 +100,12 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config, ILogg
             OwnerName = req.FullName,
             OwnerIdNumber = req.IdNumber,
             Phone = req.Phone,
-            Address = req.Address
+            Address = req.Address,
+            City = req.City,
+            Province = req.Province,
+            PostalCode = req.PostalCode,
+            Latitude = req.Latitude,
+            Longitude = req.Longitude
         };
         db.SpazaShops.Add(shop);
 

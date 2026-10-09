@@ -143,6 +143,11 @@ class _OtpScreenState extends State<OtpScreen> {
           fullName: args['fullName'] as String? ?? '',
           shopName: args['shopName'] as String? ?? '',
           address: args['address'] as String? ?? '',
+          city: args['city'] as String?,
+          province: args['province'] as String?,
+          postalCode: args['postalCode'] as String?,
+          latitude: args['latitude'] as double?,
+          longitude: args['longitude'] as double?,
           idNumber: args['idNumber'] as String?,
           documents: args['documents'] as Map<String, dynamic>?,
         );

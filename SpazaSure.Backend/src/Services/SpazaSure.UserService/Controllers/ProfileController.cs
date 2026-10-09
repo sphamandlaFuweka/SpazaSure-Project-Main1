@@ -49,6 +49,8 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
             return BadRequest(ApiResponse.Fail("Latitude must be between -90 and 90."));
         if (hasLongitude && (!double.IsFinite(req.Longitude!.Value) || req.Longitude < -180 || req.Longitude > 180))
             return BadRequest(ApiResponse.Fail("Longitude must be between -180 and 180."));
+        var addressError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
+        if (addressError is not null) return BadRequest(ApiResponse.Fail(addressError));
 
         supplier.CompanyName        = req.CompanyName        ?? supplier.CompanyName;
         supplier.ContactPerson      = req.ContactPerson      ?? supplier.ContactPerson;

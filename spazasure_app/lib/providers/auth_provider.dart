@@ -82,6 +82,11 @@ class AuthProvider extends ChangeNotifier {
     required String fullName,
     required String shopName,
     required String address,
+    String? city,
+    String? province,
+    String? postalCode,
+    double? latitude,
+    double? longitude,
     String? idNumber,
     Map<String, dynamic>? documents,
   }) async {
@@ -91,6 +96,11 @@ class AuthProvider extends ChangeNotifier {
       fullName: fullName,
       shopName: shopName,
       address: address,
+      city: city,
+      province: province,
+      postalCode: postalCode,
+      latitude: latitude,
+      longitude: longitude,
       idNumber: idNumber,
     );
     notifyListeners();

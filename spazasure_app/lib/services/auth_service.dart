@@ -125,6 +125,11 @@ class AuthService {
     required String fullName,
     required String shopName,
     required String address,
+    String? city,
+    String? province,
+    String? postalCode,
+    double? latitude,
+    double? longitude,
     String? idNumber,
   }) async {
     final formatted = _formatPhone(phone);
@@ -134,6 +139,13 @@ class AuthService {
       'fullName': fullName,
       'shopName': shopName,
       'address': address,
+      if (city != null && city.isNotEmpty) 'city': city,
+      if (province != null && province.isNotEmpty) 'province': province,
+      if (postalCode != null && postalCode.isNotEmpty) 'postalCode': postalCode,
+      if (latitude != null && longitude != null) ...{
+        'latitude': latitude,
+        'longitude': longitude,
+      },
       if (idNumber != null && idNumber.isNotEmpty) 'idNumber': idNumber,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);

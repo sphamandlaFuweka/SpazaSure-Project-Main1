@@ -14,6 +14,9 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
 
     public async Task<(bool Success, string? Error, AuthResponse? Data)> RegisterAsync(RegisterRequest req, string ipAddress)
     {
+        var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
+        if (addressError is not null) return (false, addressError, null);
+
         var email = req.Email?.Trim();
         var phone = req.Phone?.Trim();
 
@@ -45,7 +48,13 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
                 CompanyName = req.CompanyName ?? string.Empty,
                 ContactPerson = req.ContactPerson ?? string.Empty,
                 Phone = phone ?? string.Empty,
-                Email = email ?? string.Empty
+                Email = email ?? string.Empty,
+                Address = req.Address,
+                City = req.City,
+                Province = req.Province,
+                PostalCode = req.PostalCode,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude
             });
         }
         else if (role.Name == "spaza_owner")
@@ -56,7 +65,12 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
                 ShopName = req.ShopName ?? string.Empty,
                 OwnerName = req.OwnerName ?? string.Empty,
                 Phone = req.Phone ?? string.Empty,
-                Address = req.Address ?? string.Empty
+                Address = req.Address ?? string.Empty,
+                City = req.City,
+                Province = req.Province,
+                PostalCode = req.PostalCode,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude
             });
         }
 

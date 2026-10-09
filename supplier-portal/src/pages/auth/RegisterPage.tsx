@@ -6,6 +6,7 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, CheckCircle, ArrowRight, Building2, User, Lock } from 'lucide-react';
 import { Spinner } from '../../components/ui';
+import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -16,6 +17,11 @@ const schema = z.object({
   email: z.string().email('Invalid email'),
   phone: z.string().min(10, 'Invalid phone number'),
   address: z.string().min(5, 'Required'),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  postalCode: z.string().optional(),
+  latitude: z.number({ required_error: 'Pick the address from the suggestions', invalid_type_error: 'Pick the address from the suggestions' }),
+  longitude: z.number({ required_error: 'Pick the address from the suggestions', invalid_type_error: 'Pick the address from the suggestions' }),
   password: z.string().min(8, 'Minimum 8 characters'),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
@@ -37,12 +43,14 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
-  const { register, handleSubmit, trigger, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, trigger, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+  const addressText = watch('address') ?? '';
+  const addressConfirmed = watch('latitude') != null;
 
   const stepFields: (keyof FormData)[][] = [
-    ['companyName', 'registrationNumber', 'address'],
+    ['companyName', 'registrationNumber', 'address', 'latitude'],
     ['contactName', 'email', 'phone'],
     ['password', 'confirmPassword'],
   ];
@@ -63,6 +71,11 @@ export default function RegisterPage() {
         companyName: data.companyName,
         contactPerson: data.contactName,
         address: data.address,
+        city: data.city,
+        province: data.province,
+        postalCode: data.postalCode,
+        latitude: data.latitude,
+        longitude: data.longitude,
       });
 
       if (!res.success) {
@@ -203,8 +216,25 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="label">Business Address</label>
-                    <input {...register('address')} className={`input ${errors.address ? 'input-error' : ''}`} placeholder="12 Industrial Road, Johannesburg, 2001" />
-                    {errors.address && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.address.message}</p>}
+                    <AddressAutocomplete
+                      value={addressText}
+                      confirmed={addressConfirmed}
+                      error={errors.address?.message ?? errors.latitude?.message}
+                      placeholder="12 Industrial Road, Johannesburg"
+                      onTextChange={(text) => {
+                        setValue('address', text, { shouldValidate: false });
+                        setValue('latitude', undefined as unknown as number);
+                        setValue('longitude', undefined as unknown as number);
+                      }}
+                      onSelect={(s) => {
+                        setValue('address', s.label, { shouldValidate: true });
+                        setValue('city', s.city);
+                        setValue('province', s.province);
+                        setValue('postalCode', s.postalCode);
+                        setValue('latitude', s.latitude, { shouldValidate: true });
+                        setValue('longitude', s.longitude);
+                      }}
+                    />
                   </div>
                 </div>
               )}

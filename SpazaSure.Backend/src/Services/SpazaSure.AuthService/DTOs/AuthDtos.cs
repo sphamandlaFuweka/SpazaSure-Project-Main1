@@ -11,7 +11,12 @@ public record RegisterRequest(
     string? ContactPerson,
     string? ShopName,
     string? OwnerName,
-    string? Address
+    string? Address,
+    string? City = null,
+    string? Province = null,
+    string? PostalCode = null,
+    double? Latitude = null,
+    double? Longitude = null
 );
 
 public record LoginRequest(
@@ -53,7 +58,12 @@ public record ShopRegisterRequest(
     [Required] string FullName,
     [Required] string ShopName,
     [Required] string Address,
-    string? IdNumber
+    string? IdNumber,
+    string? City = null,
+    string? Province = null,
+    string? PostalCode = null,
+    double? Latitude = null,
+    double? Longitude = null
 );
 
 public record ShopAuthResponse(
