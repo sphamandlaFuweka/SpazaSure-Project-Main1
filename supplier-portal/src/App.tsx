@@ -28,6 +28,7 @@ import AdminProductsPage from './pages/admin/AdminProductsPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminShopsMapPage from './pages/admin/AdminShopsMapPage';
+import AdminGroupBuysPage from './pages/admin/AdminGroupBuysPage';
 import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="suppliers" element={<AdminSuppliersPage />} />
         <Route path="shops-map" element={<AdminShopsMapPage />} />
+        <Route path="group-buys" element={<AdminGroupBuysPage />} />
         <Route path="documents" element={<DocumentVerificationPage />} />
         <Route path="products"      element={<AdminProductsPage />} />
         <Route path="orders"        element={<AdminOrdersPage />} />

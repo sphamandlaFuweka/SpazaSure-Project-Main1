@@ -33,7 +33,8 @@ internal static class GroupBuyResponse
             groupBuy.Description,
             groupBuy.SupplierId,
             SupplierName = groupBuy.Supplier.CompanyName,
-            CreatedByShopName = groupBuy.CreatedByShop.ShopName,
+            CreatedByShopName = groupBuy.CreatedByShop?.ShopName ?? "",
+            groupBuy.CreatedByRole,
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
             ParticipantCount = groupBuy.Participants.Count(p => p.Status != "cancelled"),
@@ -44,6 +45,9 @@ internal static class GroupBuyResponse
                 p.ProductId,
                 ProductName = p.Product.Name,
                 MinOrderQty = p.Product.MinOrderQty,
+                p.OriginalPrice,
+                p.DiscountPrice,
+                p.DiscountPct,
                 p.TargetQty,
                 p.CurrentQty,
                 ParticipantCount = p.Items.Where(i => i.Status != "cancelled")
@@ -66,7 +70,10 @@ internal static class GroupBuyResponse
             groupBuy.Description,
             groupBuy.SupplierId,
             SupplierName = groupBuy.Supplier.CompanyName,
-            CreatedByShopName = groupBuy.CreatedByShop.ShopName,
+            CreatedByShopName = groupBuy.CreatedByShop?.ShopName ?? "",
+            groupBuy.CreatedByRole,
+            groupBuy.RejectionNote,
+            groupBuy.ApprovedAt,
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
             ParticipantCount = groupBuy.Participants.Count(p => p.Status != "cancelled"),
@@ -172,96 +179,7 @@ public class ShopGroupBuyController(SpazaSureDbContext db) : ControllerBase
             : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy)));
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateGroupBuyRequest req)
-    {
-        var errors = ValidateCreate(req);
-        if (errors.Count > 0) return BadRequest(ApiResponse.Fail("Invalid group buy.", errors));
-
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
-
-        var productIds = req.Products.Select(p => p.ProductId).ToList();
-        var products = await db.Products
-            .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved)
-            .ToListAsync();
-        if (products.Count != productIds.Count)
-            return BadRequest(ApiResponse.Fail("All products must exist, be available, and be approved."));
-        if (products.Select(p => p.SupplierId).Distinct().Count() != 1)
-            return BadRequest(ApiResponse.Fail("All products must belong to the same supplier."));
-
-        foreach (var input in req.Products)
-        {
-            var product = products.Single(p => p.Id == input.ProductId);
-            if (product.StockQty <= 0)
-                errors.Add($"'{product.Name}' must have stock available.");
-            if (input.TargetQty <= 0 || input.TargetQty > product.StockQty)
-                errors.Add($"Target quantity for '{product.Name}' must be between 1 and the available stock of {product.StockQty}.");
-            if (input.MyQty < product.MinOrderQty || input.MyQty > input.TargetQty)
-                errors.Add($"Your quantity for '{product.Name}' must be between {product.MinOrderQty} and {input.TargetQty}.");
-            if (input.MyQty > product.StockQty)
-                errors.Add($"Requested commitments for '{product.Name}' exceed available stock of {product.StockQty}.");
-        }
-        if (errors.Count > 0) return BadRequest(ApiResponse.Fail("Invalid group buy products.", errors));
-
-        var firstInput = req.Products[0];
-        var firstProduct = products.Single(p => p.Id == firstInput.ProductId);
-        var groupBuy = new GroupBuy
-        {
-            Title = string.IsNullOrWhiteSpace(req.Title) ? $"Group Buy: {firstProduct.Name}" : req.Title.Trim(),
-            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            ProductId = firstProduct.Id,
-            SupplierId = firstProduct.SupplierId,
-            TargetQty = firstInput.TargetQty,
-            CurrentQty = firstInput.MyQty,
-            OriginalPrice = firstProduct.Price,
-            DiscountPrice = firstProduct.Price,
-            DiscountPct = 0,
-            ExpiresAt = DateTime.UtcNow.AddDays(req.DurationDays),
-            Status = "active",
-            CreatedByShopId = shop.Id
-        };
-        var participant = new GroupBuyParticipant
-        {
-            GroupBuyId = groupBuy.Id,
-            ShopId = shop.Id,
-            Quantity = req.Products.Sum(p => p.MyQty),
-            Status = "joined"
-        };
-
-        foreach (var input in req.Products)
-        {
-            var product = products.Single(p => p.Id == input.ProductId);
-            var normalizedProduct = new GroupBuyProduct
-            {
-                GroupBuyId = groupBuy.Id,
-                ProductId = product.Id,
-                OriginalPrice = product.Price,
-                DiscountPrice = product.Price,
-                DiscountPct = 0,
-                TargetQty = input.TargetQty,
-                CurrentQty = input.MyQty,
-                Status = input.MyQty >= input.TargetQty ? "qualified" : "active"
-            };
-            groupBuy.Products.Add(normalizedProduct);
-            participant.Items.Add(new GroupBuyParticipantItem
-            {
-                ParticipantId = participant.Id,
-                GroupBuyProductId = normalizedProduct.Id,
-                Quantity = input.MyQty,
-                Status = "joined",
-                GroupBuyProduct = normalizedProduct
-            });
-        }
-        groupBuy.Participants.Add(participant);
-        db.GroupBuys.Add(groupBuy);
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return Ok(ApiResponse<object>.Ok(new { groupBuy.Id, Message = "Group buy created successfully." }));
-    }
-
-    [HttpPost("{id:guid}/join")]
+[HttpPost("{id:guid}/join")]
     public async Task<IActionResult> Join(Guid id, [FromBody] JoinGroupBuyRequest req)
     {
         if (req.Items is null || req.Items.Count == 0)
@@ -408,21 +326,6 @@ public class ShopGroupBuyController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { Message = "You have left the group buy." }));
     }
 
-    private static List<string> ValidateCreate(CreateGroupBuyRequest req)
-    {
-        var errors = new List<string>();
-        if (req.Title?.Length > 200) errors.Add("Title cannot exceed 200 characters.");
-        if (req.Description?.Length > 2000) errors.Add("Description cannot exceed 2000 characters.");
-        if (req.DurationDays is < 1 or > 30) errors.Add("Duration must be between 1 and 30 days.");
-        if (req.Products is null || req.Products.Count is < 1 or > 20)
-            errors.Add("Products must contain between 1 and 20 items.");
-        else if (req.Products.Select(p => p.ProductId).Distinct().Count() != req.Products.Count)
-            errors.Add("Product IDs must be unique.");
-        return errors;
-    }
-
-    private static decimal Discounted(decimal price, int pct) =>
-        Math.Round(price * (1m - pct / 100m), 2, MidpointRounding.AwayFromZero);
 }
 
 [ApiController]
@@ -439,8 +342,8 @@ public class SupplierGroupBuyController(
     public async Task<IActionResult> List([FromQuery] string status = "all")
     {
         status = status.Trim().ToLowerInvariant();
-        if (status is not ("all" or "active" or "completed" or "expired"))
-            return BadRequest(ApiResponse.Fail("Status must be all, active, completed, or expired."));
+        if (status is not ("all" or "active" or "completed" or "expired" or "pending" or "rejected" or "cancelled"))
+            return BadRequest(ApiResponse.Fail("Status must be all, active, pending, completed, expired, rejected, or cancelled."));
 
         var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
@@ -454,11 +357,49 @@ public class SupplierGroupBuyController(
             "expired" => query.Where(g => g.Status == "expired" ||
                 (g.Status == "active" && g.ExpiresAt <= now)),
             "completed" => query.Where(g => g.Status == "completed"),
+            "pending" => query.Where(g => g.Status == "pending_approval"),
+            "rejected" => query.Where(g => g.Status == "rejected"),
+            "cancelled" => query.Where(g => g.Status == "cancelled"),
             _ => query
         };
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         return Ok(ApiResponse<object>.Ok(campaigns.Select(GroupBuyResponse.ProjectSupplier).ToList()));
+    }
+
+    /// <summary>Suppliers propose a campaign; it only goes live after an admin approves it.</summary>
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] NewGroupBuyRequest req)
+    {
+        var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+
+        var (groupBuy, error) = await GroupBuyFactory.BuildAsync(
+            db, supplier.Id, req, "supplier", UserId, "pending_approval");
+        if (groupBuy is null) return BadRequest(ApiResponse.Fail(error!));
+
+        db.GroupBuys.Add(groupBuy);
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(new { groupBuy.Id, groupBuy.Status },
+            "Group buy submitted. It will go live once an admin approves it."));
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+
+        var groupBuy = await db.GroupBuys.Include(g => g.Products)
+            .FirstOrDefaultAsync(g => g.Id == id && g.SupplierId == supplier.Id);
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+        if (groupBuy.Status != "pending_approval")
+            return BadRequest(ApiResponse.Fail("Only campaigns waiting for approval can be withdrawn. Ask an admin to cancel a live one."));
+
+        groupBuy.Status = "cancelled";
+        foreach (var p in groupBuy.Products) p.Status = "cancelled";
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Group buy withdrawn."));
     }
 
     [HttpGet("{id:guid}")]
@@ -795,21 +736,6 @@ public record ApproveGroupBuyProductRequest
 {
     public Guid GroupBuyProductId { get; init; }
     public int DiscountPct { get; init; }
-}
-
-public record CreateGroupBuyRequest
-{
-    public string? Title { get; init; }
-    public string? Description { get; init; }
-    public int DurationDays { get; init; }
-    public List<CreateGroupBuyProductRequest> Products { get; init; } = [];
-}
-
-public record CreateGroupBuyProductRequest
-{
-    public Guid ProductId { get; init; }
-    public int TargetQty { get; init; }
-    public int MyQty { get; init; }
 }
 
 public record JoinGroupBuyRequest

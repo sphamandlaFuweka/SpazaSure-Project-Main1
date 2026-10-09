@@ -125,7 +125,15 @@ export interface Order {
 }
 
 // Group Buy
-export type GroupBuyFilter = 'all' | 'active' | 'completed';
+export type GroupBuyFilter = 'all' | 'active' | 'pending' | 'completed' | 'rejected' | 'cancelled';
+
+export interface NewGroupBuyRequest {
+  supplierId?: string;
+  title: string;
+  description?: string;
+  durationDays: number;
+  products: { productId: string; targetQty: number; discountPct: number }[];
+}
 
 export interface GroupBuyApprovalProduct {
   groupBuyProductId: string;
@@ -173,6 +181,9 @@ export interface GroupBuy {
   supplierId: string;
   supplierName: string;
   createdByShopName: string;
+  createdByRole?: 'supplier' | 'admin' | 'shop';
+  rejectionNote?: string | null;
+  approvedAt?: string | null;
   expiresAt: string;
   status: string;
   participantCount: number;

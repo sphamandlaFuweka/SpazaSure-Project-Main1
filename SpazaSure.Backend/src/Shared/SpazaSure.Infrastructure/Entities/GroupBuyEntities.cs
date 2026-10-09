@@ -15,13 +15,22 @@ public class GroupBuy : BaseEntity
     public decimal DiscountPrice { get; set; }
     public int DiscountPct { get; set; }
     public DateTime ExpiresAt { get; set; }
-    /// <summary>Status: active, completed, expired, cancelled</summary>
-    public string Status { get; set; } = "active";
-    public Guid CreatedByShopId { get; set; }
+    /// <summary>Status: pending_approval, active, completed, expired, cancelled, rejected</summary>
+    public string Status { get; set; } = "pending_approval";
+
+    /// <summary>Only set for campaigns that existed before shops lost the ability to create them.</summary>
+    public Guid? CreatedByShopId { get; set; }
+
+    /// <summary>supplier or admin.</summary>
+    public string CreatedByRole { get; set; } = "supplier";
+    public Guid? CreatedByUserId { get; set; }
+    public Guid? ApprovedByUserId { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? RejectionNote { get; set; }
 
     public Product Product { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;
-    public SpazaShop CreatedByShop { get; set; } = null!;
+    public SpazaShop? CreatedByShop { get; set; }
     public ICollection<GroupBuyProduct> Products { get; set; } = [];
     public ICollection<GroupBuyParticipant> Participants { get; set; } = [];
 }

@@ -7,6 +7,7 @@ import {
   Clock,
   MapPin,
   Package,
+  Plus,
   Share2,
   ShoppingBag,
   TrendingUp,
@@ -15,12 +16,18 @@ import {
 import toast from 'react-hot-toast';
 import { groupBuyApi } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter, GroupBuyProduct } from '../../types';
+import GroupBuyCreateModal from './GroupBuyCreateModal';
 
 const filters: { value: GroupBuyFilter; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Awaiting approval' },
   { value: 'active', label: 'Active' },
   { value: 'completed', label: 'Completed' },
+  { value: 'rejected', label: 'Rejected' },
 ];
+
+const statusLabel = (status: string) =>
+  status === 'pending_approval' ? 'Waiting for admin approval' : status;
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(Number(value) || 0);
@@ -31,7 +38,7 @@ const discountedPrice = (originalPrice: number, discountPct: number) =>
 const statusClass = (status: string) => {
   const normalized = status.toLowerCase();
   if (normalized === 'qualified' || normalized === 'completed') return 'bg-emerald-100 text-emerald-700';
-  if (normalized === 'expired' || normalized === 'cancelled') return 'bg-red-100 text-red-700';
+  if (normalized === 'expired' || normalized === 'cancelled' || normalized === 'rejected') return 'bg-red-100 text-red-700';
   return 'bg-amber-100 text-amber-700';
 };
 
@@ -57,6 +64,18 @@ export default function GroupBuyPage() {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({});
+  const [showCreate, setShowCreate] = useState(false);
+
+  const withdraw = async (group: GroupBuy) => {
+    if (!window.confirm(`Withdraw "${group.title}"?`)) return;
+    try {
+      await groupBuyApi.withdraw(group.id);
+      toast.success('Group buy withdrawn');
+      loadGroups();
+    } catch {
+      // The shared API interceptor displays the backend message.
+    }
+  };
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -120,9 +139,14 @@ export default function GroupBuyPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in">
-      <div>
-        <h1 className="page-title">Group Buy Contracts</h1>
-        <p className="page-subtitle">Review pooled, multi-product orders and approve qualified product lines.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Group Buy Contracts</h1>
+          <p className="page-subtitle">Create deals for shops to join. An admin approves each deal before it goes live.</p>
+        </div>
+        <button className="btn-primary flex items-center gap-2 flex-shrink-0" onClick={() => setShowCreate(true)}>
+          <Plus size={16} /> Create group buy
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -154,7 +178,7 @@ export default function GroupBuyPage() {
         <div className="card py-16 text-center">
           <Users size={44} className="mx-auto text-gray-300 mb-3" />
           <p className="font-semibold text-gray-700">No {filter === 'all' ? '' : filter} group buys</p>
-          <p className="text-sm text-gray-400 mt-1">Shop-created contracts for your products will appear here.</p>
+          <p className="text-sm text-gray-400 mt-1">Create a group buy to offer shops a bulk discount.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -168,9 +192,14 @@ export default function GroupBuyPage() {
               onDiscountChange={(productId, value) => setDiscountInputs((current) => ({ ...current, [productId]: value }))}
               onToggle={() => setExpandedId((current) => current === group.id ? null : group.id)}
               onApprove={() => approve(group)}
+              onWithdraw={() => withdraw(group)}
             />
           ))}
         </div>
+      )}
+
+      {showCreate && (
+        <GroupBuyCreateModal mode="supplier" onClose={() => setShowCreate(false)} onCreated={() => { setFilter('pending'); loadGroups(); }} />
       )}
     </div>
   );
@@ -199,6 +228,7 @@ function GroupCard({
   onDiscountChange,
   onToggle,
   onApprove,
+  onWithdraw,
 }: {
   group: GroupBuy;
   expanded: boolean;
@@ -207,6 +237,7 @@ function GroupCard({
   onDiscountChange: (productId: string, value: string) => void;
   onToggle: () => void;
   onApprove: () => void;
+  onWithdraw: () => void;
 }) {
   const qualified = canApprove(group);
   const offerRevenue = supplierOfferRevenue(group, discounts);
@@ -220,7 +251,7 @@ function GroupCard({
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black text-gray-900">{group.title}</h2>
               <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize ${statusClass(group.status)}`}>
-                {group.status}
+                {statusLabel(group.status).replace('_', ' ')}
               </span>
               {qualified && group.status.toLowerCase() !== 'completed' && (
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
@@ -230,7 +261,7 @@ function GroupCard({
             </div>
             {group.description && <p className="text-sm text-gray-500 mt-1 max-w-3xl">{group.description}</p>}
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-gray-500">
-              <span>Started by <strong className="text-gray-700">{group.createdByShopName}</strong></span>
+              <span>Created by <strong className="text-gray-700">{group.createdByRole === 'admin' ? 'SpazaSure admin' : group.createdByRole === 'shop' ? group.createdByShopName : 'You'}</strong></span>
               <span>{group.participantCount} shop{group.participantCount === 1 ? '' : 's'}</span>
               <span>{group.products.length} product{group.products.length === 1 ? '' : 's'}</span>
               <span>{daysLeft > 0 ? `${daysLeft} days remaining` : 'Closed'}</span>
@@ -254,6 +285,13 @@ function GroupCard({
           />
         ))}
 
+        {group.status === 'rejected' && group.rejectionNote && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4">
+            <AlertTriangle size={17} className="text-red-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-red-800"><strong>Admin feedback:</strong> {group.rejectionNote}</p>
+          </div>
+        )}
+
         {!qualified && group.status.toLowerCase() === 'active' && (
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
             <Share2 size={17} className="text-blue-600 mt-0.5 flex-shrink-0" />
@@ -270,6 +308,10 @@ function GroupCard({
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           <div className="flex flex-col sm:items-end gap-1">
+            {group.status === 'pending_approval' ? (
+              <button onClick={onWithdraw} className="btn-secondary">Withdraw</button>
+            ) : (
+              <>
             <button
               onClick={onApprove}
               disabled={!qualified || approving || group.status.toLowerCase() === 'completed'}
@@ -280,6 +322,8 @@ function GroupCard({
             <p className="text-[11px] text-gray-400 sm:text-right">
               You, the supplier, own and fund every entered discount. Qualified products require a fresh 1–99% whole-number discount.
             </p>
+              </>
+            )}
           </div>
         </div>
       </div>

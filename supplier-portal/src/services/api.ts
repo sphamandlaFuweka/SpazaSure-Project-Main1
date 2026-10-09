@@ -1,6 +1,6 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import type { Product, ProductFormData, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, GroupBuyApprovalRequest } from '../types';
+import type { Product, ProductFormData, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, GroupBuyApprovalRequest, NewGroupBuyRequest } from '../types';
 import env from '../config/env';
 import type { AdminReport } from '../types/adminReport';
 
@@ -239,6 +239,27 @@ export const groupBuyApi = {
   },
   approve: (id: string, request: GroupBuyApprovalRequest) =>
     api.post(`/supplier/group-buy/${id}/approve`, request).then((r) => r.data?.data ?? r.data),
+  create: (body: NewGroupBuyRequest) =>
+    api.post('/supplier/group-buy', body).then((r) => r.data),
+  withdraw: (id: string) =>
+    api.post(`/supplier/group-buy/${id}/cancel`).then((r) => r.data),
+};
+
+export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number }
+
+// Admin group buys: create for any supplier, approve or reject supplier proposals, monitor, cancel
+export const adminGroupBuyApi = {
+  list: async (status: GroupBuyFilter = 'all'): Promise<GroupBuy[]> => {
+    const res = await api.get('/admin/group-buy', { params: { status } });
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  },
+  supplierProducts: (supplierId: string) =>
+    api.get(`/admin/group-buy/suppliers/${supplierId}/products`).then((r) => (r.data?.data ?? r.data ?? []) as SupplierProductOption[]),
+  create: (body: NewGroupBuyRequest) => api.post('/admin/group-buy', body).then((r) => r.data),
+  approve: (id: string) => api.post(`/admin/group-buy/${id}/approve`).then((r) => r.data),
+  reject: (id: string, note: string) => api.post(`/admin/group-buy/${id}/reject`, { note }).then((r) => r.data),
+  cancel: (id: string, note?: string) => api.post(`/admin/group-buy/${id}/cancel`, { note }).then((r) => r.data),
 };
 
 // Orders

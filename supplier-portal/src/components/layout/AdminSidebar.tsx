@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart,
-  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin,
+  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -35,6 +35,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
     { to: '/admin/shops-map',     icon: MapPin,          label: 'Shops Map' },
     { to: '/admin/products',      icon: Package,         label: 'Products' },
     { to: '/admin/orders',        icon: ShoppingCart,    label: 'Orders' },
+    { to: '/admin/group-buys',    icon: UsersRound,      label: 'Group Buys' },
     { to: '/admin/reports',       icon: Flag,            label: 'Reports',      badge: pendingReports > 0 ? pendingReports : undefined },
     { to: '/admin/analytics',     icon: BarChart2,       label: 'Analytics' },
     { to: '/admin/settings',      icon: Settings,        label: 'Settings' },

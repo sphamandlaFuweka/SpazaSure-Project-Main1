@@ -10,6 +10,8 @@ class GroupBuyProduct {
   final int participantCount;
   final double progress;
   final String status;
+  final int discountPct;
+  final double discountPrice;
 
   const GroupBuyProduct({
     required this.id,
@@ -21,6 +23,8 @@ class GroupBuyProduct {
     required this.participantCount,
     required this.progress,
     required this.status,
+    this.discountPct = 0,
+    this.discountPrice = 0,
   });
 
   factory GroupBuyProduct.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,8 @@ class GroupBuyProduct {
           ? (json['progress'] as num).toDouble() / 100
           : (target > 0 ? current / target : 0),
       status: json['status']?.toString() ?? 'active',
+      discountPct: (json['discountPct'] as num?)?.toInt() ?? 0,
+      discountPrice: (json['discountPrice'] as num?)?.toDouble() ?? 0,
     );
   }
 }
@@ -110,21 +116,6 @@ class GroupBuyService {
   static Future<GroupBuy> getGroupBuy(String id) async {
     final response = await ApiService.get('/shop/group-buy/$id');
     return GroupBuy.fromJson(response['data'] as Map<String, dynamic>);
-  }
-
-  static Future<void> create({
-    String? title,
-    String? description,
-    required int durationDays,
-    required List<Map<String, dynamic>> products,
-  }) async {
-    await ApiService.post('/shop/group-buy', {
-      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
-      if (description != null && description.trim().isNotEmpty)
-        'description': description.trim(),
-      'durationDays': durationDays,
-      'products': products,
-    });
   }
 
   static Future<void> join(String id, List<Map<String, dynamic>> items) async {

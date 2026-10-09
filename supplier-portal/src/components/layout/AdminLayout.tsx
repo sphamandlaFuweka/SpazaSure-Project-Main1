@@ -11,6 +11,7 @@ const breadcrumbMap: Record<string, string> = {
   dashboard:     'Dashboard',
   suppliers:     'Suppliers',
   'shops-map':   'Shops Map',
+  'group-buys':  'Group Buys',
   documents:     'Document Verification',
   products:      'Products',
   orders:        'Orders',

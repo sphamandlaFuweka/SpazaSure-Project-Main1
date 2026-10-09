@@ -1,12 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
-import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
-import 'package:spazasure_app/services/product_service.dart';
 
 class GroupBuyScreen extends StatefulWidget {
   const GroupBuyScreen({super.key});
@@ -73,16 +71,6 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateDialog,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text(
-          'Create Group Buy',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -135,7 +123,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
             const SizedBox(height: 8),
             Text(
               showJoin
-                  ? 'Create one to start saving!'
+                  ? 'Deals from suppliers will show up here'
                   : 'Join a deal from the Available tab',
               style: AppTextStyles.caption,
             ),
@@ -378,7 +366,8 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
             children: [
               Expanded(
                 child: Text(
-                  '${product.productName} ${product.currentQty}/${product.targetQty}',
+                  '${product.productName} ${product.currentQty}/${product.targetQty}'
+                  '${product.discountPct > 0 ? '  \u2022  Save ${product.discountPct}%' : ''}',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -407,20 +396,30 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     );
   }
 
+  // Public advert page served by the gateway, so the link opens without the app or a login.
+  String _advertLink(GroupBuy group) {
+    final root = ApiService.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    return '$root/g/${group.id}';
+  }
+
   Future<void> _shareGroup(GroupBuy group) async {
-    final products = group.products
-        .map(
-          (product) =>
-              '${product.productName} ${product.currentQty}/${product.targetQty}',
-        )
-        .join(', ');
-    final link = '${ApiService.baseUrl}/shop/group-buy/${group.id}';
+    final lines = group.products
+        .map((p) {
+          final saving = p.discountPct > 0 ? ' (save ${p.discountPct}%)' : '';
+          return '- ${p.productName}$saving: ${p.currentQty}/${p.targetQty} joined';
+        })
+        .join('\n');
     final message =
-        '${group.title} from ${group.supplierName}: $products. '
-        'Join nearby shops and save: $link';
+        'Group buy: ${group.title}\n'
+        'From ${group.supplierName}\n'
+        '$lines\n\n'
+        'Join on the SpazaSure app and save together:\n${_advertLink(group)}';
     await Clipboard.setData(ClipboardData(text: message));
     if (!mounted) return;
-    _showMessage('Group buy message and link copied', AppColors.info);
+    _showMessage(
+      'Advert copied. Paste it in WhatsApp or your group.',
+      AppColors.info,
+    );
   }
 
   Future<void> _showJoinDialog(GroupBuy group) async {
@@ -577,263 +576,6 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     } catch (error) {
       if (mounted) _showMessage(error.toString(), AppColors.error);
     }
-  }
-
-  Future<void> _showCreateDialog() async {
-    List<Product> products;
-    try {
-      products = await ProductService.getProducts(pageSize: 100);
-    } catch (error) {
-      if (mounted) {
-        _showMessage('Unable to load products: $error', AppColors.error);
-      }
-      return;
-    }
-    if (!mounted) return;
-    if (products.isEmpty) {
-      _showMessage('No products are available', AppColors.warning);
-      return;
-    }
-
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final daysController = TextEditingController(text: '7');
-    final selectedIds = <String>{};
-    final targets = <String, TextEditingController>{};
-    final commitments = <String, TextEditingController>{};
-    String? supplierId;
-
-    TextEditingController controllerFor(
-      Map<String, TextEditingController> map,
-      Product product,
-      String initialValue,
-    ) {
-      return map.putIfAbsent(
-        product.id,
-        () => TextEditingController(text: initialValue),
-      );
-    }
-
-    final formKey = GlobalKey<FormState>();
-    final created = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.groups_rounded, color: AppColors.accent),
-              SizedBox(width: 8),
-              Expanded(child: Text('Create Group Buy')),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextFormField(
-                      controller: titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Title (optional)',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: descriptionController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: daysController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration (days)',
-                        prefixIcon: Icon(Icons.timer_outlined),
-                      ),
-                      validator: (value) {
-                        final days = int.tryParse(value ?? '');
-                        return days == null || days < 1
-                            ? 'Enter at least 1 day'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Products from one supplier',
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      supplierId == null
-                          ? 'Your first selection sets the supplier.'
-                          : 'Only products from the selected supplier can be added.',
-                      style: AppTextStyles.caption,
-                    ),
-                    const SizedBox(height: 8),
-                    ...products.map((product) {
-                      final selected = selectedIds.contains(product.id);
-                      final disabled =
-                          supplierId != null &&
-                          supplierId != product.supplierId &&
-                          !selected;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: disabled
-                              ? AppColors.background
-                              : AppColors.surface,
-                          border: Border.all(color: AppColors.divider),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            CheckboxListTile(
-                              value: selected,
-                              activeColor: AppColors.primary,
-                              title: Text(product.name),
-                              subtitle: Text(
-                                '${product.supplierName} • R${product.price.toStringAsFixed(2)}',
-                              ),
-                              onChanged: disabled
-                                  ? null
-                                  : (value) => setDialogState(() {
-                                      if (value == true) {
-                                        selectedIds.add(product.id);
-                                        supplierId = product.supplierId;
-                                      } else {
-                                        selectedIds.remove(product.id);
-                                        if (selectedIds.isEmpty) {
-                                          supplierId = null;
-                                        }
-                                      }
-                                    }),
-                            ),
-                            if (selected)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  0,
-                                  12,
-                                  12,
-                                ),
-                                child: Column(
-                                  children: [
-                                    _numberField(
-                                      controllerFor(targets, product, '50'),
-                                      'Target quantity',
-                                      minimum: 1,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _numberField(
-                                      controllerFor(
-                                        commitments,
-                                        product,
-                                        '${product.minOrderQty}',
-                                      ),
-                                      'My quantity',
-                                      minimum: product.minOrderQty,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedIds.isEmpty) {
-                  _showMessage(
-                    'Select at least one product',
-                    AppColors.warning,
-                  );
-                  return;
-                }
-                if (formKey.currentState?.validate() != true) return;
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (created == true) {
-      final selectedProducts = products
-          .where((product) => selectedIds.contains(product.id))
-          .toList();
-      try {
-        await GroupBuyService.create(
-          title: titleController.text,
-          description: descriptionController.text,
-          durationDays: int.parse(daysController.text),
-          products: selectedProducts
-              .map(
-                (product) => <String, dynamic>{
-                  'productId': product.id,
-                  'targetQty': int.parse(targets[product.id]!.text),
-                  'myQty': int.parse(commitments[product.id]!.text),
-                },
-              )
-              .toList(),
-        );
-        if (mounted) {
-          _showMessage('Multi-product group buy created!', AppColors.success);
-          await _loadData();
-        }
-      } catch (error) {
-        if (mounted) _showMessage('Failed: $error', AppColors.error);
-      }
-    }
-
-    titleController.dispose();
-    descriptionController.dispose();
-    daysController.dispose();
-    for (final controller in [...targets.values, ...commitments.values]) {
-      controller.dispose();
-    }
-  }
-
-  Widget _numberField(
-    TextEditingController controller,
-    String label, {
-    required int minimum,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label),
-      validator: (value) {
-        final number = int.tryParse(value ?? '');
-        if (number == null || number < minimum) {
-          return 'Minimum $minimum';
-        }
-        return null;
-      },
-    );
   }
 
   void _showMessage(String message, Color color) {
