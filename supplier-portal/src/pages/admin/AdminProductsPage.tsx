@@ -10,6 +10,7 @@ import clsx from 'clsx';
 import { format } from 'date-fns';
 import { adminProductsApi, resolveUploadUrl } from '../../services/api';
 import type { Product } from '../../types';
+import { Copy } from 'lucide-react';
 
 type StatusFilter = 'all' | 'pending_approval' | 'active' | 'archived';
 type ViewMode = 'flat' | 'grouped';
@@ -705,7 +706,7 @@ export default function AdminProductsPage() {
                           }}
                           className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:border-gray-300 hover:shadow-sm transition-all"
                         >
-                          📋 Copy
+                          <Copy size={13} /> Copy
                         </button>
                         <button
                           onClick={() => {

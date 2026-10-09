@@ -104,7 +104,7 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
           const d = res.data ?? res;
           setBarcodeResult(d);
         } catch {
-          toast.success('Product updated ✅');
+          toast.success('Product updated');
         }
       } else {
         // Creating — call API directly so we get the real product ID back
@@ -116,16 +116,16 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
             const res: any = await productsApi.getBarcode(productId);
             const d = res.data ?? res;
             setBarcodeResult(d);
-            toast.success('Product saved! Barcode generated ✅');
+            toast.success('Product saved! Barcode generated');
           } catch {
             const local = generateLocalBarcode(data.name, data.sku);
             setBarcodeResult(local);
-            toast.success('Product saved! Barcode generated locally ✅');
+            toast.success('Product saved! Barcode generated locally');
           }
         } else {
           const local = generateLocalBarcode(data.name, data.sku);
           setBarcodeResult(local);
-          toast.success('Product saved ✅');
+          toast.success('Product saved');
         }
       }
     } catch (err: any) {

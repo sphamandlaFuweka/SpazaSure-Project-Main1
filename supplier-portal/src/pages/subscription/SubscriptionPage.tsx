@@ -5,14 +5,14 @@ import {
   Headphones, Code2, Palette, ArrowRight, Crown,
   ChevronDown, ChevronUp, Receipt, AlertTriangle,
   CheckCircle, Clock, Loader2, ExternalLink, Sparkles,
-  TrendingUp, Trophy,
+  TrendingUp, Trophy, Lightbulb, CreditCard, Landmark, Smartphone, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { subscriptionApi, paymentApi, faqApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { SubscriptionPlan, CurrentSubscription } from '../../types';
-import { Modal, Spinner } from '../../components/ui';
+import { Modal, Spinner, TierIcon } from '../../components/ui';
 import { format } from 'date-fns';
 
 // ─── Tier theme config ────────────────────────────────────────────────────────
@@ -23,45 +23,41 @@ const TIER_THEME = {
     border: 'border-slate-200',
     ring: 'ring-slate-300',
     badge: 'bg-slate-100 text-slate-700 border-slate-200',
-    icon: '⚡',
     iconBg: 'bg-slate-100',
     glow: '',
     popular: false,
     accentColor: 'slate',
   },
   bronze: {
-    gradient: 'from-orange-600 via-amber-500 to-orange-400',
-    lightGradient: 'from-orange-50 to-amber-50',
-    border: 'border-orange-200',
-    ring: 'ring-orange-300',
-    badge: 'bg-orange-50 text-orange-700 border-orange-200',
-    icon: '🥉',
-    iconBg: 'bg-orange-100',
-    glow: 'shadow-[0_8px_40px_rgba(234,88,12,0.12)]',
+    gradient: 'from-primary-500 via-primary-400 to-primary-300',
+    lightGradient: 'from-primary-50 to-primary-100',
+    border: 'border-primary-200',
+    ring: 'ring-primary-300',
+    badge: 'bg-primary-50 text-primary-700 border-primary-200',
+    iconBg: 'bg-primary-100',
+    glow: 'shadow-[0_8px_40px_rgba(37,68,154,0.12)]',
     popular: false,
     accentColor: 'orange',
   },
   silver: {
-    gradient: 'from-indigo-600 via-purple-500 to-indigo-400',
-    lightGradient: 'from-indigo-50 to-purple-50',
-    border: 'border-indigo-200',
-    ring: 'ring-indigo-300',
-    badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    icon: '🥈',
-    iconBg: 'bg-indigo-100',
+    gradient: 'from-primary-600 via-primary-500 to-primary-400',
+    lightGradient: 'from-primary-50 to-primary-50',
+    border: 'border-primary-200',
+    ring: 'ring-primary-300',
+    badge: 'bg-primary-50 text-primary-700 border-primary-200',
+    iconBg: 'bg-primary-100',
     glow: 'shadow-[0_8px_40px_rgba(99,102,241,0.15)]',
     popular: true,
     accentColor: 'indigo',
   },
   gold: {
-    gradient: 'from-amber-500 via-yellow-400 to-amber-300',
-    lightGradient: 'from-amber-50 to-yellow-50',
-    border: 'border-amber-300',
-    ring: 'ring-amber-400',
-    badge: 'bg-amber-50 text-amber-700 border-amber-200',
-    icon: '🥇',
-    iconBg: 'bg-amber-100',
-    glow: 'shadow-[0_8px_40px_rgba(245,158,11,0.20)]',
+    gradient: 'from-accent-700 via-accent-600 to-accent-500',
+    lightGradient: 'from-accent-50 to-accent-100',
+    border: 'border-accent-400',
+    ring: 'ring-accent-500',
+    badge: 'bg-accent-50 text-accent-700 border-accent-400',
+    iconBg: 'bg-accent-100',
+    glow: 'shadow-[0_8px_40px_rgba(248,178,23,0.20)]',
     popular: false,
     accentColor: 'amber',
   },
@@ -312,7 +308,7 @@ export default function SubscriptionPage() {
                     Pay less commission.
                   </span>
                 </h1>
-                <p className="text-green-200/80 text-sm md:text-base max-w-lg leading-relaxed mt-3">
+                <p className="text-primary-200/80 text-sm md:text-base max-w-lg leading-relaxed mt-3">
                   Upgrade your plan to unlock lower commission rates, more product listings, and powerful tools to scale your spaza shop network.
                 </p>
               </div>
@@ -320,28 +316,28 @@ export default function SubscriptionPage() {
               {/* Current plan chips */}
               <div className="flex flex-wrap items-center gap-3">
                 <div className="group flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-5 py-3 hover:bg-white/15 transition-all duration-300">
-                  <span className="text-xl">{TIER_THEME[currentTier as keyof typeof TIER_THEME]?.icon ?? '⚡'}</span>
+                  <TierIcon tier={currentTier} size={22} className="text-accent" />
                   <div>
-                    <p className="text-[9px] text-green-300/80 font-bold uppercase tracking-[0.15em]">Current Plan</p>
+                    <p className="text-[9px] text-primary-200/80 font-bold uppercase tracking-[0.15em]">Current Plan</p>
                     <p className="text-base font-black text-white capitalize">{currentTier}</p>
                   </div>
                 </div>
                 <div className="group flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-5 py-3 hover:bg-white/15 transition-all duration-300">
                   <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                    <TrendingUp size={14} className="text-green-300" />
+                    <TrendingUp size={14} className="text-primary-200" />
                   </div>
                   <div>
-                    <p className="text-[9px] text-green-300/80 font-bold uppercase tracking-[0.15em]">Commission</p>
+                    <p className="text-[9px] text-primary-200/80 font-bold uppercase tracking-[0.15em]">Commission</p>
                     <p className="text-base font-black text-white">{current?.commissionRate ?? 5}%</p>
                   </div>
                 </div>
                 {current?.subscription?.nextBillingDate && (
                   <div className="group flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-5 py-3 hover:bg-white/15 transition-all duration-300">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                      <Clock size={14} className="text-green-300" />
+                      <Clock size={14} className="text-primary-200" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-green-300/80 font-bold uppercase tracking-[0.15em]">Next Bill</p>
+                      <p className="text-[9px] text-primary-200/80 font-bold uppercase tracking-[0.15em]">Next Bill</p>
                       <p className="text-base font-black text-white">
                         {format(new Date(current.subscription.nextBillingDate), 'dd MMM')}
                       </p>
@@ -457,7 +453,7 @@ export default function SubscriptionPage() {
                 isCurrent
                   ? `${theme.border} ring-2 ${theme.ring} ring-offset-2 ${theme.glow} scale-[1.02]`
                   : `border-gray-100 hover:border-gray-200 hover:shadow-card-xl hover:-translate-y-2 ${theme.glow}`,
-                theme.popular && !isCurrent && 'ring-2 ring-indigo-200 ring-offset-2 hover:ring-indigo-300'
+                theme.popular && !isCurrent && 'ring-2 ring-primary-200 ring-offset-2 hover:ring-primary-300'
               )}
               style={{ animationDelay: `${idx * 0.1}s` }}
             >
@@ -465,7 +461,7 @@ export default function SubscriptionPage() {
               {theme.popular && !isCurrent && (
                 <div className="absolute -top-px left-1/2 -translate-x-1/2 z-10">
                   <div className="relative">
-                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black px-4 py-1.5 rounded-b-xl shadow-lg flex items-center gap-1.5">
+                    <span className="bg-gradient-to-r from-primary-600 to-primary-600 text-white text-[10px] font-black px-4 py-1.5 rounded-b-xl shadow-lg flex items-center gap-1.5">
                       <Star size={9} fill="white" /> MOST POPULAR
                     </span>
                   </div>
@@ -479,7 +475,7 @@ export default function SubscriptionPage() {
                     'text-[9px] font-black px-3 py-1.5 rounded-full border backdrop-blur-sm shadow-sm',
                     theme.badge
                   )}>
-                    ✓ CURRENT
+                    <Check size={10} strokeWidth={3} className="inline mr-0.5" /> CURRENT
                   </span>
                 </div>
               )}
@@ -493,7 +489,7 @@ export default function SubscriptionPage() {
                 <div className="relative">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <span className="text-3xl drop-shadow-sm">{theme.icon}</span>
+                      <TierIcon tier={plan.tier} size={30} className="drop-shadow-sm" />
                       <h3 className="text-xl font-black mt-2 tracking-tight">{plan.name}</h3>
                     </div>
                     <div className="bg-white/15 backdrop-blur-sm border border-white/20 text-[10px] font-black px-3 py-1.5 rounded-full text-white/90">
@@ -626,7 +622,7 @@ export default function SubscriptionPage() {
                 {plans.map(p => (
                   <th key={p.tier} className={clsx('table-header text-center', p.tier === currentTier && 'text-primary')}>
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="text-base">{TIER_THEME[p.tier as keyof typeof TIER_THEME]?.icon}</span>
+                      <TierIcon tier={p.tier} size={16} />
                       <span>{p.name}</span>
                       {p.tier === currentTier && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
                     </span>
@@ -678,8 +674,8 @@ export default function SubscriptionPage() {
       {/* ── FAQ ───────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-            <span className="text-lg">💡</span>
+          <div className="w-10 h-10 rounded-xl bg-accent-50 flex items-center justify-center">
+            <Lightbulb size={18} className="text-accent-700" />
           </div>
           <div>
             <h2 className="font-black text-gray-900 text-lg tracking-tight">Frequently Asked Questions</h2>
@@ -786,9 +782,14 @@ export default function SubscriptionPage() {
                       <strong>R{billingCycle === 'annual' ? selectedPlan.annualPrice.toLocaleString() : selectedPlan.monthlyPrice.toLocaleString()}</strong>.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {['💳 Credit/Debit Card', '🏦 EFT/Bank Transfer', '📱 SnapScan', '🔄 Mobicred'].map(method => (
-                        <span key={method} className="text-[10px] font-semibold bg-white/80 border border-blue-200 px-2.5 py-1 rounded-full text-blue-700">
-                          {method}
+                      {[
+                        { label: 'Credit/Debit Card', Icon: CreditCard },
+                        { label: 'EFT/Bank Transfer', Icon: Landmark },
+                        { label: 'SnapScan', Icon: Smartphone },
+                        { label: 'Mobicred', Icon: RefreshCw },
+                      ].map(({ label, Icon }) => (
+                        <span key={label} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/80 border border-blue-200 px-2.5 py-1 rounded-full text-blue-700">
+                          <Icon size={11} /> {label}
                         </span>
                       ))}
                     </div>
@@ -1017,7 +1018,7 @@ function CommissionCalculator({ currentTier, plans }: { currentTier: string; pla
 
               <div className="relative">
                 <p className={clsx('text-xs font-bold uppercase tracking-wider mb-3', isCurrent ? 'text-white/70' : 'text-gray-400')}>
-                  {theme.icon} {plan.name}
+                  <span className="inline-flex items-center gap-1.5"><TierIcon tier={plan.tier} size={12} /> {plan.name}</span>
                 </p>
                 <p className={clsx('text-2xl font-black tabular-nums', isCurrent ? 'text-white' : 'text-gray-900')}>
                   R{commission.toLocaleString(undefined, { maximumFractionDigits: 0 })}

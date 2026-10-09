@@ -9,6 +9,7 @@ import PageLoader from '../../components/ui/PageLoader';
 import { analyticsApi, ordersApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import type { AnalyticsSummary, RevenueDataPoint, TopProduct, Order } from '../../types';
+import { TierIcon } from '../../components/ui';
 
 const COLORS = ['#1B4332', '#2E7D52', '#4CAF50', '#81C784', '#A5D6A7'];
 
@@ -155,7 +156,7 @@ export default function AnalyticsPage() {
             <h3 className="font-bold text-gray-900">Subscription Tier Savings</h3>
             <p className="text-xs text-gray-400 mt-0.5">Your Silver tier saves you commission vs Basic</p>
           </div>
-          <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-full">🥈 Silver Plan</span>
+          <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-full inline-flex items-center gap-1"><TierIcon tier="silver" size={12} /> Silver Plan</span>
         </div>
         <div className="grid grid-cols-4 gap-3">
           {[
@@ -177,7 +178,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
           <p className="text-sm text-emerald-800 font-medium">
-            💰 At Silver (3%), you save <strong>R731.25</strong> vs Basic (5%) on this month's orders
+            At Silver (3%), you save <strong>R731.25</strong> vs Basic (5%) on this month's orders
           </p>
           <button className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
             Upgrade to Gold <ArrowUpRight size={12} />

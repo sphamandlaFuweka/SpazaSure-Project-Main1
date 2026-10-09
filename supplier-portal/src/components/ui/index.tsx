@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { TrendingUp, TrendingDown, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Zap, Medal, Award, Crown } from 'lucide-react';
 import clsx from 'clsx';
 import type { OrderStatus, PaymentStatus } from '../../types';
 
@@ -24,7 +24,7 @@ export function StatCard({ title, value, change, icon, prefix = '', suffix = '',
         <div className="absolute inset-0 bg-gradient-mesh opacity-30 pointer-events-none rounded-2xl" />
         <div className="flex items-start justify-between relative z-10">
           <div>
-            <p className="text-green-100/80 text-xs font-semibold uppercase tracking-wider">{title}</p>
+            <p className="text-primary-200/80 text-xs font-semibold uppercase tracking-wider">{title}</p>
             <p className="kpi-value text-white mt-1.5">
               {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
             </p>
@@ -34,10 +34,10 @@ export function StatCard({ title, value, change, icon, prefix = '', suffix = '',
                   {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                   {Math.abs(change)}%
                 </span>
-                <span className="text-green-200/70 text-[11px]">vs last month</span>
+                <span className="text-primary-200/70 text-[11px]">vs last month</span>
               </div>
             )}
-            {description && <p className="text-xs text-green-200/60 mt-1">{description}</p>}
+            {description && <p className="text-xs text-primary-200/60 mt-1">{description}</p>}
           </div>
           <div className="p-2.5 bg-white/15 rounded-xl ring-1 ring-white/10">{icon}</div>
         </div>
@@ -133,15 +133,26 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
 
 // ─── Tier Badge ───────────────────────────────────────────────────────────────
 const tierMap: Record<string, { className: string; label: string }> = {
-  basic:  { className: 'bg-gray-100 text-gray-600 border border-gray-200',         label: 'Basic' },
-  bronze: { className: 'bg-orange-50 text-orange-700 border border-orange-200',    label: '🥉 Bronze' },
-  silver: { className: 'bg-slate-100 text-slate-700 border border-slate-300',      label: '🥈 Silver' },
-  gold:   { className: 'bg-amber-50 text-amber-700 border border-amber-300',       label: '🥇 Gold' },
+  basic:  { className: 'bg-gray-100 text-gray-600 border border-gray-200',            label: 'Basic' },
+  bronze: { className: 'bg-primary-50 text-primary-600 border border-primary-100',     label: 'Bronze' },
+  silver: { className: 'bg-primary-100 text-primary-800 border border-primary-200',    label: 'Silver' },
+  gold:   { className: 'bg-accent-50 text-accent-700 border border-accent-400',        label: 'Gold' },
 };
+
+const tierIcons = { basic: Zap, bronze: Medal, silver: Award, gold: Crown } as const;
+
+export function TierIcon({ tier, size = 14, className }: { tier: string; size?: number; className?: string }) {
+  const Icon = tierIcons[tier as keyof typeof tierIcons] ?? Zap;
+  return <Icon size={size} className={className} />;
+}
 
 export function TierBadge({ tier }: { tier: string }) {
   const { className, label } = tierMap[tier] ?? tierMap.basic;
-  return <span className={clsx('text-xs font-bold px-2.5 py-1 rounded-full', className)}>{label}</span>;
+  return (
+    <span className={clsx('inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full', className)}>
+      <TierIcon tier={tier} size={12} /> {label}
+    </span>
+  );
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────

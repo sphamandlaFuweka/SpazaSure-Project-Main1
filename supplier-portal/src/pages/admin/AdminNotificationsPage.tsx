@@ -132,7 +132,7 @@ export default function AdminNotificationsPage() {
                             <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">URGENT</span>
                           )}
                           <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full capitalize">
-                            → {n.sentTo === 'all' ? 'Everyone' : n.sentTo}
+                            To {n.sentTo === 'all' ? 'Everyone' : n.sentTo}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">

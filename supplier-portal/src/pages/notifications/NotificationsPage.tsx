@@ -159,7 +159,7 @@ export default function NotificationsPage() {
         <div className="card p-16 text-center">
           <Bell size={36} className="text-gray-200 mx-auto mb-4" />
           <p className="font-bold text-gray-600">No notifications</p>
-          <p className="text-gray-400 text-sm mt-1">You're all caught up! 🎉</p>
+          <p className="text-gray-400 text-sm mt-1">You're all caught up</p>
         </div>
       ) : (
         Object.entries(grouped).map(([dateLabel, items]) => (

@@ -74,7 +74,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center font-black text-white text-sm">S</div>
               <div>
                 <h1 className="text-base font-black text-white tracking-tight leading-none">SpazaSure</h1>
-                <p className="text-[10px] text-green-300 font-medium mt-0.5 tracking-wide uppercase">Supplier Portal</p>
+                <p className="text-[10px] text-primary-200 font-medium mt-0.5 tracking-wide uppercase">Supplier Portal</p>
               </div>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <div className="flex items-center gap-1.5 mt-1">
                 <TierBadge tier={user.tier} />
                 {user.isVerified && (
-                  <span className="flex items-center gap-0.5 text-[10px] text-green-300 font-medium">
+                  <span className="flex items-center gap-0.5 text-[10px] text-primary-200 font-medium">
                     <CheckCircle size={10} /> Verified
                   </span>
                 )}
@@ -123,7 +123,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/20'
                   : highlight
                     ? 'text-accent hover:bg-accent/15 hover:text-accent border border-accent/20'
-                    : 'text-green-100/80 hover:bg-white/10 hover:text-white'
+                    : 'text-primary-200/80 hover:bg-white/10 hover:text-white'
               )}
             >
               {isActive && (
@@ -158,7 +158,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           onClick={handleLogout}
           title={collapsed ? 'Sign Out' : undefined}
           className={clsx(
-            'flex items-center rounded-xl text-sm text-green-100/70 hover:bg-white/10 hover:text-white transition-all duration-150 w-full group relative',
+            'flex items-center rounded-xl text-sm text-primary-200/70 hover:bg-white/10 hover:text-white transition-all duration-150 w-full group relative',
             collapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5'
           )}
         >

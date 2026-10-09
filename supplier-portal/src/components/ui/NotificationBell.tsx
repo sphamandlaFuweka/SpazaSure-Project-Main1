@@ -155,7 +155,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
             {preview.length === 0 ? (
               <div className="py-12 text-center">
                 <Bell size={28} className="mx-auto text-gray-200 mb-2" />
-                <p className="text-sm font-semibold text-gray-400">All caught up! 🎉</p>
+                <p className="text-sm font-semibold text-gray-400">All caught up</p>
               </div>
             ) : (
               preview.map((n, i) => {

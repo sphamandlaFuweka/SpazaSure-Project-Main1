@@ -205,23 +205,23 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-3xl p-8 compact:p-5 compact:rounded-2xl text-white relative overflow-hidden shadow-2xl group">
         {/* Animated floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-6 right-20 w-3 h-3 bg-green-400/30 rounded-full animate-float-slow" />
-          <div className="absolute top-16 right-48 w-2 h-2 bg-emerald-300/20 rounded-full animate-float-medium" />
+          <div className="absolute top-6 right-20 w-3 h-3 bg-primary-300/30 rounded-full animate-float-slow" />
+          <div className="absolute top-16 right-48 w-2 h-2 bg-primary-300/20 rounded-full animate-float-medium" />
           <div className="absolute bottom-8 right-36 w-4 h-4 bg-accent/20 rounded-full animate-float-fast" />
           <div className="absolute top-1/2 right-8 w-2 h-2 bg-white/10 rounded-full animate-float-slow" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-12 left-1/3 w-2 h-2 bg-green-300/15 rounded-full animate-float-medium" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute bottom-12 left-1/3 w-2 h-2 bg-primary-300/15 rounded-full animate-float-medium" style={{ animationDelay: '0.5s' }} />
         </div>
 
         {/* Decorative gradient orbs */}
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-green-400/10 to-transparent rounded-full blur-3xl group-hover:scale-110 transition-transform duration-1000" />
+        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-primary-300/10 to-transparent rounded-full blur-3xl group-hover:scale-110 transition-transform duration-1000" />
         <div className="absolute -bottom-16 -left-16 w-60 h-60 bg-gradient-to-tr from-accent/10 to-transparent rounded-full blur-2xl" />
-        <div className="absolute top-0 left-1/2 w-96 h-1 bg-gradient-to-r from-transparent via-green-400/30 to-transparent" />
+        <div className="absolute top-0 left-1/2 w-96 h-1 bg-gradient-to-r from-transparent via-primary-300/30 to-transparent" />
 
         <div className="relative z-10">
           {/* Top bar with date and live indicator */}
           <div className="flex items-center justify-between mb-6 compact:mb-3">
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-green-300/80 uppercase tracking-[0.2em]">
+              <span className="text-xs font-bold text-primary-200/80 uppercase tracking-[0.2em]">
                 {format(new Date(), 'EEEE, d MMMM yyyy')}
               </span>
               <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2.5 py-1">
@@ -251,9 +251,9 @@ export default function DashboardPage() {
           {/* Main greeting */}
           <div className="mb-8 compact:mb-3">
             <h1 className="text-4xl md:text-5xl compact:md:text-3xl font-black text-white leading-tight tracking-tight">
-              {greeting}, <span className="bg-gradient-to-r from-green-200 via-emerald-200 to-green-300 bg-clip-text text-transparent">{user?.companyName?.split(' ')[0]}</span> 👋
+              {greeting}, <span className="bg-gradient-to-r from-white via-primary-100 to-accent-400 bg-clip-text text-transparent">{user?.companyName?.split(' ')[0]}</span>
             </h1>
-            <p className="text-green-200/70 text-base compact:text-sm mt-2 compact:mt-1 max-w-lg">Here's your real-time business performance.</p>
+            <p className="text-primary-200/70 text-base compact:text-sm mt-2 compact:mt-1 max-w-lg">Here's your real-time business performance.</p>
           </div>
 
           {/* Hero Stats Row — Big animated numbers */}
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-emerald-500/20 rounded-lg">
                   <DollarSign size={16} className="text-emerald-300" />
                 </div>
-                <span className="text-xs font-semibold text-green-200/60 uppercase tracking-wider">Revenue</span>
+                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Revenue</span>
               </div>
               <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">
                 R{animRevenue.toLocaleString()}
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                     {s.revenueChange >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                     {Math.abs(s.revenueChange)}%
                   </span>
-                  <span className="text-[11px] text-green-200/50">this month</span>
+                  <span className="text-[11px] text-primary-200/50">this month</span>
                 </div>
               )}
             </div>
@@ -284,7 +284,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <ShoppingCart size={16} className="text-blue-300" />
                 </div>
-                <span className="text-xs font-semibold text-green-200/60 uppercase tracking-wider">Orders</span>
+                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Orders</span>
               </div>
               <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">{animOrders}</p>
               <div className="flex items-center gap-1.5 mt-2">
@@ -299,7 +299,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-violet-500/20 rounded-lg">
                   <Package size={16} className="text-violet-300" />
                 </div>
-                <span className="text-xs font-semibold text-green-200/60 uppercase tracking-wider">Products</span>
+                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Products</span>
               </div>
               <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">{animProducts}</p>
               <div className="flex items-center gap-1.5 mt-2">
@@ -316,7 +316,7 @@ export default function DashboardPage() {
       {!alertDismissed && beePending && (
         <AlertBanner
           type="warning"
-          message="⚠️ Your BEE Certificate is pending review. Upload it to maintain full compliance and avoid account restrictions."
+          message="Your BEE Certificate is pending review. Upload it to maintain full compliance and avoid account restrictions."
           onDismiss={() => setAlertDismissed(true)}
         />
       )}
@@ -549,7 +549,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="font-black text-white text-base">Upgrade to Gold and pay lower commission</p>
-            <p className="text-green-200/70 text-sm mt-1">Compare tiers to see how much you could save at your current volume</p>
+            <p className="text-primary-200/70 text-sm mt-1">Compare tiers to see how much you could save at your current volume</p>
           </div>
         </div>
         <button

@@ -116,7 +116,7 @@ export default function AdminDashboardPage() {
             <Zap size={16} className="text-amber-400" />
             <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Admin Control Center</span>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">{greeting}, Admin 👋</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">{greeting}, Admin</h1>
           <p className="text-sm text-slate-400 mt-1 font-medium">
             {format(new Date(), 'EEEE, d MMMM yyyy')} · Here's your platform overview
           </p>

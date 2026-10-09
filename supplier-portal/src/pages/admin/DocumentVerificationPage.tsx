@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import clsx from 'clsx';
 import api, { resolveUploadUrl } from '../../services/api';
 import { Spinner } from '../../components/ui';
+import { Building2, Receipt, Handshake, ClipboardList, Calendar, Mail, type LucideIcon } from 'lucide-react';
 
 type DocStatus = 'pending' | 'approved' | 'rejected';
 type FilterStatus = 'all' | DocStatus;
@@ -35,12 +36,17 @@ const docLabels: Record<string, string> = {
   product_license: 'Product License',
 };
 
-const docIcons: Record<string, string> = {
-  cipc_certificate: '🏢',
-  tax_clearance: '🧾',
-  bee_certificate: '🤝',
-  product_license: '📋',
+const docIcons: Record<string, LucideIcon> = {
+  cipc_certificate: Building2,
+  tax_clearance: Receipt,
+  bee_certificate: Handshake,
+  product_license: ClipboardList,
 };
+
+function DocIcon({ type, size = 20 }: { type: string; size?: number }) {
+  const Icon = docIcons[type] ?? FileText;
+  return <Icon size={size} />;
+}
 
 const statusConfig: Record<DocStatus, { label: string; icon: React.ReactNode; className: string; dotColor: string }> = {
   pending:  { label: 'Pending Review', icon: <Clock size={12} />,       className: 'bg-amber-50 text-amber-700 border-amber-200', dotColor: 'bg-amber-400' },
@@ -109,7 +115,7 @@ export default function DocumentVerificationPage() {
       } else {
         await api.patch(`/compliance/documents/${id}/reject`, { reason });
       }
-      toast.success(status === 'approved' ? '✅ Document approved' : '❌ Document rejected');
+      toast.success(status === 'approved' ? 'Document approved' : 'Document rejected');
       setRejectTarget(null);
       setRejectReason('');
       setPreviewDoc(null);
@@ -413,7 +419,7 @@ export default function DocumentVerificationPage() {
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-gradient-to-br from-slate-50 to-white rounded-xl flex items-center justify-center border border-slate-100 text-lg shadow-sm">
-                            {docIcons[doc.docType] ?? '📄'}
+                            <DocIcon type={doc.docType} />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">{doc.label}</p>
@@ -473,7 +479,7 @@ export default function DocumentVerificationPage() {
                       <div key={docType} className="flex items-center justify-between px-6 py-4 bg-gray-50/50">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200 text-lg opacity-40">
-                            {docIcons[docType] ?? '📄'}
+                            <DocIcon type={docType} />
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-400">{docLabels[docType] ?? docType}</p>
@@ -503,7 +509,7 @@ export default function DocumentVerificationPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl flex items-center justify-center text-lg shadow-sm">
-                  {docIcons[previewDoc.docType] ?? '📄'}
+                  <DocIcon type={previewDoc.docType} size={26} />
                 </div>
                 <div>
                   <p className="font-bold text-gray-900">{previewDoc.label}</p>
@@ -533,9 +539,9 @@ export default function DocumentVerificationPage() {
 
             {/* Info Bar */}
             <div className="flex items-center gap-6 px-6 py-3 bg-gray-50/80 border-b border-gray-100 text-xs text-gray-500 flex-shrink-0 font-medium">
-              <span>📅 Uploaded: <strong className="text-gray-700">{format(new Date(previewDoc.uploadedAt), 'dd MMM yyyy')}</strong></span>
-              {previewDoc.expiryDate && <span>⏰ Expires: <strong className="text-gray-700">{format(new Date(previewDoc.expiryDate), 'dd MMM yyyy')}</strong></span>}
-              <span>📧 {previewDoc.supplierEmail}</span>
+              <span className="inline-flex items-center gap-1.5"><Calendar size={13} /> Uploaded: <strong className="text-gray-700">{format(new Date(previewDoc.uploadedAt), 'dd MMM yyyy')}</strong></span>
+              {previewDoc.expiryDate && <span className="inline-flex items-center gap-1.5"><Clock size={13} /> Expires: <strong className="text-gray-700">{format(new Date(previewDoc.expiryDate), 'dd MMM yyyy')}</strong></span>}
+              <span className="inline-flex items-center gap-1.5"><Mail size={13} /> {previewDoc.supplierEmail}</span>
             </div>
 
             {/* Preview */}
@@ -545,7 +551,7 @@ export default function DocumentVerificationPage() {
                 if (!resolvedUrl || previewDoc.docUrl === '#') {
                   return (
                     <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-sm">
-                      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 text-2xl">📄</div>
+                      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4"><FileText size={26} className="text-gray-400" /></div>
                       <p className="font-bold text-gray-700">{previewDoc.label}</p>
                       <p className="text-sm text-gray-400 mt-1 mb-5">No document file available for preview</p>
                       <div className="flex gap-2">

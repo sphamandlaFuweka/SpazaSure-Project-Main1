@@ -207,7 +207,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
     if (successCount === validRows.length) {
       toast.success(`All ${successCount} products uploaded successfully!`);
     } else {
-      toast(`${successCount}/${validRows.length} products uploaded`, { icon: '⚠️' });
+      toast(`${successCount}/${validRows.length} products uploaded`, { icon: <AlertCircle size={16} /> });
     }
   };
 
@@ -336,7 +336,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                       <td className="px-3 py-2 text-center">
                         {row.error ? (
                           <span className="text-red-600 font-semibold text-[10px]" title={row.error}>
-                            ⚠ {row.error}
+                            <AlertCircle size={11} className="inline mr-1" />{row.error}
                           </span>
                         ) : (
                           <CheckCircle2 size={14} className="text-emerald-500 mx-auto" />
@@ -431,7 +431,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                           </span>
                         ) : (
                           <span className="text-red-600 font-semibold" title={r.error}>
-                            ⚠ {r.error}
+                            <AlertCircle size={11} className="inline mr-1" />{r.error}
                           </span>
                         )}
                       </td>

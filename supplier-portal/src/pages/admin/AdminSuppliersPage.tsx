@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl } from '../../services/api';
 import { TierBadge, Spinner } from '../../components/ui';
+import { Check as CheckIc, X as XIc } from 'lucide-react';
 
 type MainTab = 'suppliers' | 'spaza-owners';
 type FilterStatus = 'all' | 'verified' | 'pending';
@@ -406,13 +407,13 @@ export default function AdminSuppliersPage() {
                                 </div>
                                 <div className="flex items-center gap-1 flex-wrap justify-center">
                                   {approved > 0 && (
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">{approved} ✓</span>
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">{approved} <CheckIc size={10} className="inline" /></span>
                                   )}
                                   {pending > 0 && (
                                     <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">{pending} ⏳</span>
                                   )}
                                   {rejected > 0 && (
-                                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">{rejected} ✗</span>
+                                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">{rejected} <XIc size={10} className="inline" /></span>
                                   )}
                                   {outstanding > 0 && (
                                     <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">{outstanding} missing</span>
@@ -595,13 +596,13 @@ export default function AdminSuppliersPage() {
                                 </div>
                                 <div className="flex items-center gap-1 flex-wrap justify-center">
                                   {approved > 0 && (
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">{approved} ✓</span>
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">{approved} <CheckIc size={10} className="inline" /></span>
                                   )}
                                   {pending > 0 && (
                                     <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">{pending} ⏳</span>
                                   )}
                                   {rejected > 0 && (
-                                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">{rejected} ✗</span>
+                                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">{rejected} <XIc size={10} className="inline" /></span>
                                   )}
                                   {outstanding > 0 && (
                                     <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">{outstanding} missing</span>

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ArrowRight, Package, TrendingUp, ShieldCheck, Users } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Package, TrendingUp, ShieldCheck, Users, Store, Lock, BadgeCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Spinner } from '../../components/ui';
 import { authApi, profileApi } from '../../services/api';
@@ -186,7 +186,7 @@ export default function LoginPage() {
                     : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                {role === 'supplier' ? '🏪 Supplier' : '🛡️ Admin'}
+                <span className="inline-flex items-center justify-center gap-1.5">{role === 'supplier' ? <Store size={15} /> : <ShieldCheck size={15} />}{role === 'supplier' ? 'Supplier' : 'Admin'}</span>
               </button>
             ))}
           </div>
@@ -303,11 +303,11 @@ export default function LoginPage() {
 
           {/* Trust badges */}
           <div style={stagger(280)} className="flex items-center justify-center gap-4 mt-6 text-[11px] text-gray-400 font-medium">
-            <span className="flex items-center gap-1">🔒 SSL Encrypted</span>
+            <span className="flex items-center gap-1"><Lock size={12} /> SSL Encrypted</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
-            <span className="flex items-center gap-1">🇿🇦 POPIA Compliant</span>
+            <span className="flex items-center gap-1"><ShieldCheck size={12} /> POPIA Compliant</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
-            <span className="flex items-center gap-1">✓ CIPC Verified</span>
+            <span className="flex items-center gap-1"><BadgeCheck size={12} /> CIPC Verified</span>
           </div>
         </div>
       </div>

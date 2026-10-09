@@ -395,7 +395,7 @@ export default function ProfilePage() {
                     <CheckCircle size={20} className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-emerald-800">All documents approved ✓</p>
+                    <p className="text-sm font-bold text-emerald-800">All documents approved</p>
                     <p className="text-xs text-emerald-600 mt-0.5">Your compliance is fully up to date. No action needed.</p>
                   </div>
                 </div>
@@ -547,7 +547,7 @@ export default function ProfilePage() {
             })}
           </div>
           <div className="success-box">
-            <strong>💡 Tip:</strong> Upgrading to Gold saves you 3% commission per order. At your current volume of R48,750/month, Gold would save you approximately <strong>R1,462/month</strong> in commission fees.
+            <strong>Tip:</strong> Upgrading to Gold saves you 3% commission per order. At your current volume of R48,750/month, Gold would save you approximately <strong>R1,462/month</strong> in commission fees.
           </div>
         </div>
       )}

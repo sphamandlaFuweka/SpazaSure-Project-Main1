@@ -237,7 +237,7 @@ export default function AdminAnalyticsPage() {
                     <span className="text-sm font-semibold text-gray-900">{s.companyName}</span>
                     <span className="text-xs text-gray-400">({s.tier ?? 'basic'})</span>
                   </div>
-                  <span className="font-bold text-gray-700 tabular-nums">{s.isVerified ? '✓ Verified' : 'Pending'}</span>
+                  <span className="font-bold text-gray-700 tabular-nums">{s.isVerified ? 'Verified' : 'Pending'}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div

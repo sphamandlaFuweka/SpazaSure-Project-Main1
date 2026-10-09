@@ -10,6 +10,7 @@ import ProductFormModal from './ProductFormModal';
 import BarcodeModal from './BarcodeModal';
 import BulkUploadModal from './BulkUploadModal';
 import { productsApi, profileApi } from '../../services/api';
+import { Star } from 'lucide-react';
 
 const REQUIRED_DOCS = [
   { docType: 'cipc_certificate', label: 'CIPC Certificate' },
@@ -368,7 +369,7 @@ export default function ProductsPage() {
                         <div>
                           <p className="font-semibold text-gray-900">{p.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
-                            {'★'.repeat(Math.round(p.rating))}{'☆'.repeat(5 - Math.round(p.rating))}
+                            {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={12} className={i <= Math.round(p.rating) ? 'fill-accent text-accent' : 'text-gray-300'} />)}
                             <span className="text-[10px] text-gray-400">({p.reviewCount})</span>
                           </div>
                         </div>
