@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import clsx from 'clsx';
 import type { OrderStatus, PaymentStatus } from '../../types';
@@ -169,8 +169,13 @@ export function Modal({ title, children, onClose, size = 'md' }: {
   title: string; children: ReactNode; onClose: () => void; size?: 'sm' | 'md' | 'lg' | 'xl';
 }) {
   const widths = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className={clsx(
         'relative bg-white rounded-2xl shadow-card-lg w-full flex flex-col max-h-[90vh] overflow-hidden',
@@ -179,7 +184,7 @@ export function Modal({ title, children, onClose, size = 'md' }: {
       )}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-base font-bold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="btn-icon"><X size={18} /></button>
+          <button onClick={onClose} className="btn-icon" aria-label="Close dialog"><X size={18} /></button>
         </div>
         <div className="overflow-y-auto flex-1 overscroll-contain">{children}</div>
       </div>

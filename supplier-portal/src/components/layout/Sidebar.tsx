@@ -58,13 +58,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Toggle Button */}
       <button
         onClick={onToggle}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         className="absolute -right-3 top-6 z-10 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-shadow text-gray-500 hover:text-primary"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
       {/* Logo */}
-      <div className={clsx('px-5 py-5 border-b border-white/10', collapsed && 'px-3')}>
+      <div className={clsx('px-5 py-5 compact:py-3 border-b border-white/10', collapsed && 'px-3')}>
         {collapsed ? (
           <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center font-black text-white text-lg">S</div>
         ) : (
@@ -82,7 +83,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Supplier Info */}
       {user && !collapsed && (
-        <div className="px-4 py-4 border-b border-white/10">
+        <div className="px-4 py-4 compact:py-2.5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/20 flex items-center justify-center font-bold text-white text-sm flex-shrink-0">
               {user.logoUrl ? (
@@ -107,7 +108,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
 
       {/* Nav */}
-      <nav className={clsx('flex-1 py-4 space-y-0.5 overflow-y-auto', collapsed ? 'px-2' : 'px-3')}>
+      <nav className={clsx('flex-1 py-4 compact:py-2 space-y-0.5 overflow-y-auto', collapsed ? 'px-2' : 'px-3')}>
         {navItems.map(({ to, icon: Icon, label, badge, highlight }) => {
           const isActive = location.pathname.startsWith(to);
           return (
@@ -117,7 +118,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               title={collapsed ? label : undefined}
               className={clsx(
                 'flex items-center rounded-xl text-sm font-medium transition-all duration-150 relative group',
-                collapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5',
+                collapsed ? 'justify-center p-3 compact:p-2.5' : 'gap-3 px-3.5 py-2.5 compact:py-2',
                 isActive
                   ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/20'
                   : highlight

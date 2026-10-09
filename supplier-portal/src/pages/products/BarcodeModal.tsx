@@ -53,7 +53,7 @@ export default function BarcodeModal({ product, onClose }: Props) {
     <div className="relative bg-white rounded-2xl shadow-card-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2"><QrCode size={16} className="text-indigo-600"/><span className="font-bold text-sm">Product QR & Barcode</span></div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200"><X size={16}/></button>
+        <button onClick={onClose} aria-label="Close barcode dialog" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200"><X size={16}/></button>
       </div>
       <div className="p-5 overflow-y-auto">
         {loading && <div className="py-16 text-center"><Loader2 className="animate-spin mx-auto text-indigo-600"/><p className="mt-3 text-sm text-gray-500">Loading persisted product codes...</p></div>}

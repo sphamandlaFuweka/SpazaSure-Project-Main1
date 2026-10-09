@@ -3,6 +3,10 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      screens: {
+        // Covers 1366x768 and 1280x720 laptop viewports
+        compact: { raw: '(max-width: 1366px) and (max-height: 768px)' },
+      },
       colors: {
         primary: {
           DEFAULT: '#25449A',

@@ -147,7 +147,7 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
             <button onClick={handlePrint} className="btn-icon hover:text-primary hover:bg-primary-50" title="Print">
               <Printer size={18} />
             </button>
-            <button onClick={onClose} className="btn-icon"><X size={18} /></button>
+            <button onClick={onClose} className="btn-icon" aria-label="Close receipt"><X size={18} /></button>
           </div>
         </div>
 

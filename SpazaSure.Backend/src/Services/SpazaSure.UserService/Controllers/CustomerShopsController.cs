@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using System.Security.Claims;
 
 namespace SpazaSureUserService.Controllers;
@@ -17,61 +18,75 @@ namespace SpazaSureUserService.Controllers;
 [ApiController]
 [Route("api/customer/shops")]
 [Authorize]
-public class CustomerShopsController(SpazaSureDbContext db) : ControllerBase
+public class CustomerShopsController(SpazaSureDbContext db, GeocodingService geocoder) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    // Every registered shop appears on the map; only admin-verified ones are "verified".
+    private static readonly string[] HiddenStatuses = ["rejected", "suspended", "deleted"];
+
+    private static object ToDto(SpazaShop s) => new
+    {
+        s.Id,
+        s.ShopName,
+        s.OwnerName,
+        s.Phone,
+        s.Email,
+        s.Address,
+        s.City,
+        s.Province,
+        s.PostalCode,
+        s.Latitude,
+        s.Longitude,
+        s.RatingAvg,
+        s.RatingCount,
+        s.ComplianceStatus,
+        s.Status,
+        IsVerified = s.Status == "verified",
+        RegisteredAt = s.CreatedAt,
+    };
+
     [HttpGet]
     public async Task<IActionResult> GetShops([FromQuery] string? search)
     {
         var query = db.SpazaShops
-            .Where(s => s.Status == "active" || s.Status == "verified")
+            .Where(s => !HiddenStatuses.Contains(s.Status))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(s => s.ShopName.Contains(search) || (s.City != null && s.City.Contains(search)));
 
         var shops = await query
-            .OrderByDescending(s => s.RatingAvg)
-            .Select(s => new
-            {
-                s.Id,
-                s.ShopName,
-                s.Address,
-                s.City,
-                s.Province,
-                s.Latitude,
-                s.Longitude,
-                s.RatingAvg,
-                s.RatingCount,
-                s.ComplianceStatus,
-            })
+            .OrderByDescending(s => s.Status == "verified")
+            .ThenByDescending(s => s.RatingAvg)
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Ok(shops));
+        // Backfill missing map locations a few at a time (Nominatim allows 1 request/second).
+        var missing = shops.Where(s => s.Latitude is null || s.Longitude is null).Take(2).ToList();
+        foreach (var shop in missing)
+        {
+            var point = await geocoder.GeocodeAsync(shop.Address, shop.City, shop.Province, shop.PostalCode);
+            if (point is { } p)
+            {
+                shop.Latitude = p.Lat;
+                shop.Longitude = p.Lng;
+            }
+            await Task.Delay(1100);
+        }
+        if (missing.Any(s => s.Latitude is not null))
+            await db.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.Ok(shops.Select(ToDto).ToList()));
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var shop = await db.SpazaShops
-            .Where(s => s.Id == id && (s.Status == "active" || s.Status == "verified"))
-            .Select(s => new
-            {
-                s.Id,
-                s.ShopName,
-                s.Address,
-                s.City,
-                s.Province,
-                s.Latitude,
-                s.Longitude,
-                s.RatingAvg,
-                s.RatingCount,
-                s.ComplianceStatus,
-            })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(s => s.Id == id && !HiddenStatuses.Contains(s.Status));
 
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
-        return Ok(ApiResponse<object>.Ok(shop));
+        return Ok(ApiResponse<object>.Ok(ToDto(shop)));
     }
 
     [HttpGet("{id:guid}/reviews")]
@@ -90,7 +105,7 @@ public class CustomerShopsController(SpazaSureDbContext db) : ControllerBase
     {
         if (req.Rating is < 1 or > 5) return BadRequest(ApiResponse.Fail("Rating must be between 1 and 5."));
         if (!await db.SpazaShops.AnyAsync(s =>
-                s.Id == id && (s.Status == "active" || s.Status == "verified")))
+                s.Id == id && !HiddenStatuses.Contains(s.Status)))
             return NotFound(ApiResponse.Fail("Shop not found."));
 
         var review = await db.ShopReviews.FirstOrDefaultAsync(r => r.ShopId == id && r.ReviewerUserId == UserId);

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
@@ -41,18 +42,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: widget.customerMode ? 3 : 2,
-      vsync: this,
-    );
-    _tabController.addListener(() {
-      if (_tabController.index == 0) {
-        _startCamera();
-      } else {
-        _stopCamera();
-      }
-    });
-    _startCamera();
+    _tabController = TabController(length: 2, vsync: this);
+    // Customers have no live camera scan; only retailers do.
+    if (!widget.customerMode) {
+      _tabController.addListener(() {
+        if (_tabController.index == 0) {
+          _startCamera();
+        } else {
+          _stopCamera();
+        }
+      });
+      _startCamera();
+    }
   }
 
   void _startCamera() {
@@ -102,9 +103,24 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final encodedCode = Uri.encodeComponent(code.trim());
-      final route = widget.customerMode
+      final base = widget.customerMode
           ? '/customer/verify/$encodedCode'
           : '/shop/marketplace/scan/$encodedCode';
+      final query = <String, String>{
+        if (widget.customerMode && expiry != null)
+          'expiry': expiry.toIso8601String().substring(0, 10),
+        if (widget.customerMode && batch != null && batch.isNotEmpty)
+          'batch': batch,
+        if (widget.customerMode &&
+            packagingText != null &&
+            packagingText.trim().isNotEmpty)
+          'packagingText': packagingText.length > 1500
+              ? packagingText.substring(0, 1500)
+              : packagingText,
+      };
+      final route = query.isEmpty
+          ? base
+          : '$base?${Uri(queryParameters: query).query}';
       final res = await ApiService.get(route);
       if (!mounted) return;
       final product = res['data'] as Map<String, dynamic>;
@@ -167,10 +183,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           unselectedLabelColor: AppColors.textHint,
           indicatorColor: AppColors.primary,
           tabs: [
-            const Tab(
-              icon: Icon(Icons.camera_alt_rounded, size: 18),
-              text: 'Camera Scan',
-            ),
+            if (!widget.customerMode)
+              const Tab(
+                icon: Icon(Icons.camera_alt_rounded, size: 18),
+                text: 'Camera Scan',
+              ),
             const Tab(
               icon: Icon(Icons.keyboard_rounded, size: 18),
               text: 'Manual Entry',
@@ -187,11 +204,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         children: [
           // Scanner / Manual input area
           Expanded(
-            flex: _product != null || _error != null ? 2 : 3,
+            flex: _product != null || _error != null
+                ? (widget.customerMode ? 1 : 2)
+                : 3,
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildCameraTab(),
+                if (!widget.customerMode) _buildCameraTab(),
                 _buildManualTab(),
                 if (widget.customerMode) _buildPackagingTab(),
               ],
@@ -342,7 +361,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         padding: const EdgeInsets.all(24),
         child: Center(
           child: Text(
-            'Packaging scan reads the barcode, batch and expiry date from a photo. It is available in the SpazaSure mobile app on Android and iOS. Use Camera Scan or Manual Entry here.',
+            'Packaging scan reads the barcode, batch and expiry date from a photo. It is available in the SpazaSure mobile app on Android and iOS. Use Manual Entry here.',
             textAlign: TextAlign.center,
             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
           ),
@@ -466,8 +485,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       var barcode = scan.barcode;
       if (barcode == null) {
         // The digits may be unreadable even when the bars decode fine.
-        final capture = await _cameraController?.analyzeImage(photo.path);
-        barcode = capture?.barcodes.firstOrNull?.rawValue;
+        try {
+          _cameraController ??= MobileScannerController(autoStart: false);
+          final capture = await _cameraController!.analyzeImage(photo.path);
+          barcode = capture?.barcodes.firstOrNull?.rawValue;
+        } catch (_) {
+          // Fall back to the typed barcode field.
+        }
       }
       if (!mounted) return;
       final hasText = scan.rawText.trim().isNotEmpty;
@@ -617,354 +641,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     );
   }
 
-  Widget _buildCustomerResult() {
-    final p = _product!;
-    final source = p['source']?.toString() ?? 'not_registered';
-    final notRecognised = source == 'not_registered';
-    final recalled = p['isRecalled'] == true;
-    final expired =
-        _expiry != null &&
-        _expiry!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
-    final hasConcern = recalled || expired;
-    final level = recalled || expired
-        ? 'warning'
-        : notRecognised
-        ? 'unknown'
-        : 'informational';
-    final color = hasConcern
-        ? AppColors.error
-        : notRecognised
-        ? AppColors.warning
-        : AppColors.success;
-    final title = notRecognised
-        ? 'Product not recognised'
-        : recalled
-        ? 'Recalled product'
-        : expired
-        ? 'Expiry date has passed'
-        : 'Product information found';
-    final message = notRecognised
-        ? (p['message']?.toString() ??
-              "We couldn't find this product in the SpazaSure database.")
-        : recalled
-        ? 'Do not buy or use this product. It has an active recall.'
-        : expired
-        ? 'The expiry date read from the package is in the past. Check the printed date before using this product.'
-        : notRecognised
-        ? "Not found in SpazaSure's registry. This does not mean the product is counterfeit."
-        : 'This product is in the SpazaSure registry. This check is not an authenticity guarantee.';
-    final allergens =
-        (p['allergens'] as List?)?.map((e) => '$e').toList() ?? [];
-    final matched =
-        ((p['allergyWarning'] as Map?)?['matchedAllergens'] as List?) ?? [];
-    final description = p['description']?.toString() ?? '';
-    final batch = p['batchNumber']?.toString();
-    final expiry = p['expiryDate']?.toString();
-
-    return Column(
-      children: [
-        if (_rewardMessage != null)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: (_rewardDuplicate ? AppColors.warning : AppColors.success)
-                  .withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _rewardDuplicate ? Icons.info_outline : Icons.stars_rounded,
-                  color: _rewardDuplicate
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _rewardMessage!,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                notRecognised
-                    ? Icons.help_outline_rounded
-                    : level == 'low'
-                    ? Icons.verified_rounded
-                    : level == 'review'
-                    ? Icons.warning_amber_rounded
-                    : Icons.dangerous_rounded,
-                color: color,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                      ),
-                    ),
-                    Text(
-                      message,
-                      style: AppTextStyles.caption.copyWith(color: color),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (matched.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              'Allergy warning: contains ${matched.join(', ')}',
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.error,
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                p['name']?.toString() ?? 'Unknown product',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              _infoRow(
-                Icons.barcode_reader,
-                'Code',
-                p['code']?.toString() ?? _lastScanned ?? _codeController.text,
-              ),
-              if (batch != null && batch.isNotEmpty)
-                _infoRow(Icons.inventory, 'Batch', batch),
-              if (expiry != null && expiry.isNotEmpty)
-                _infoRow(Icons.event, 'Expiry', expiry),
-              if (allergens.isNotEmpty)
-                _infoRow(
-                  Icons.warning_amber,
-                  'Allergens',
-                  allergens.join(', '),
-                ),
-              if (p['supplierName'] != null)
-                _infoRow(Icons.business, 'Supplier', '${p['supplierName']}'),
-            ],
-          ),
-        ),
-        if (recalled || expired) ...[
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Indicators detected',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (recalled)
-                  _customerIndicator(
-                    'The product or a tracked batch is recalled.',
-                  ),
-                if (expired)
-                  _customerIndicator(
-                    'Expiry date ${_expiry!.toIso8601String().substring(0, 10)} has passed.',
-                  ),
-              ],
-            ),
-          ),
-        ],
-        if (!notRecognised || _expiry != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'What we checked',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _riskCheckRow(
-                  notRecognised
-                      ? 'Barcode not found in SpazaSure registry'
-                      : 'Product barcode found in SpazaSure registry',
-                  notRecognised ? 'unknown' : 'pass',
-                ),
-                _riskCheckRow(
-                  recalled
-                      ? 'Known product recall exists'
-                      : 'No tracked recall found',
-                  recalled ? 'fail' : 'pass',
-                ),
-                if (_expiry != null)
-                  _riskCheckRow(
-                    'Package expiry date checked',
-                    expired ? 'fail' : 'pass',
-                  ),
-                if (_expiry == null) ...[
-                  const SizedBox(height: 4),
-                  OutlinedButton.icon(
-                    onPressed: _loading ? null : _pickExpiry,
-                    icon: const Icon(Icons.event, size: 18),
-                    label: const Text('Check expiry date'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-        ...[
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: ExpansionTile(
-              title: Text(
-                'How to check this product',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              expandedCrossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final tip in [
-                  if (p['name'] != null)
-                    'Check the product name reads "${p['name']}".',
-                  'Compare the logo, colours and print quality with a pack you trust.',
-                  'Look for a clearly printed batch number and expiry or best-before date.',
-                  if (allergens.isNotEmpty)
-                    'Review the listed allergens: ${allergens.join(', ')}.',
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(tip, style: AppTextStyles.bodySmall),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: () => _openReport(level, notRecognised),
-            icon: const Icon(Icons.flag_outlined),
-            label: Text(
-              notRecognised ? 'Submit product for review' : 'Report product',
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '${p['disclaimer'] ?? 'This check does not guarantee authenticity or product safety.'}',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-
-  Widget _customerIndicator(String message) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(
-          Icons.warning_amber_rounded,
-          size: 18,
-          color: AppColors.error,
-        ),
-        const SizedBox(width: 8),
-        Expanded(child: Text(message, style: AppTextStyles.bodySmall)),
-      ],
-    ),
-  );
-
-  Widget _riskCheckRow(String label, String status) {
-    final (icon, color) = switch (status) {
-      'pass' => (Icons.check_circle, AppColors.success),
-      'fail' => (Icons.cancel, AppColors.error),
-      'warn' => (Icons.error_outline, AppColors.warning),
-      _ => (Icons.help_outline, AppColors.textHint),
-    };
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label, style: AppTextStyles.bodySmall)),
-        ],
-      ),
-    );
-  }
-
   Future<void> _pickExpiry() async {
     final code = _verifiedCode;
     if (code == null) return;
@@ -987,14 +663,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     }
   }
 
-  void _openReport(String level, bool notRecognised) {
+  void _openReport() {
     final p = _product!;
     final expiry =
         p['expiryDate']?.toString() ??
         _expiry?.toIso8601String().substring(0, 10);
+    final level = p['riskLevel']?.toString();
+    final indicators =
+        (p['indicators'] as List?)?.map((e) => '- $e').join('\n') ?? '';
     final expired =
         _expiry != null &&
         _expiry!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+    final recalled = p['isRecalled'] == true;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1009,16 +689,32 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           expiryDate: expiry,
           initialType: expired
               ? 'Expired Goods'
-              : (level == 'suspicious' || level == 'high')
+              : (level == 'suspicious' || level == 'high' || recalled)
               ? 'Fake / Counterfeit Product'
               : 'Other',
+          initialDescription: indicators.isEmpty
+              ? null
+              : 'Flagged by SpazaSure verification:\n$indicators',
         ),
       ),
     );
   }
 
   Widget _buildProductResult() {
-    if (widget.customerMode) return _buildCustomerResult();
+    if (widget.customerMode) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: CustomerVerificationResult(
+          product: _product!,
+          fallbackCode: _verifiedCode ?? '',
+          enteredExpiry: _expiry,
+          rewardMessage: _rewardMessage,
+          rewardDuplicate: _rewardDuplicate,
+          onCheckExpiry: _loading ? null : _pickExpiry,
+          onReport: _openReport,
+        ),
+      );
+    }
     final p = _product!;
     final isVerified = p['isVerified'] == true;
     final supplierVerified = p['supplierVerified'] == true;
@@ -1101,7 +797,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isVerified ? '✓ Verified Product' : '⚠ Unverified',
+                      isVerified ? 'âœ“ Verified Product' : 'âš  Unverified',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w800,
                         color: isVerified
@@ -1112,7 +808,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                     Text(
                       isVerified
                           ? 'Approved by admin, verified supplier'
-                          : 'Not fully verified — exercise caution',
+                          : 'Not fully verified â€” exercise caution',
                       style: AppTextStyles.caption.copyWith(
                         color: isVerified
                             ? AppColors.success
@@ -1150,12 +846,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               children: [
                 Text(
                   isRecalled
-                      ? '⚠ Recalled Product Code'
+                      ? 'âš  Recalled Product Code'
                       : isExpired
-                      ? '⚠ Expired Product Code'
+                      ? 'âš  Expired Product Code'
                       : repeatScan
-                      ? '⚠ Previously Scanned QR'
-                      : '✓ First Registered QR Scan',
+                      ? 'âš  Previously Scanned QR'
+                      : 'âœ“ First Registered QR Scan',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w800,
                     color: isRecalled || isExpired
@@ -1405,13 +1101,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String _tierLabel(String tier) {
     switch (tier) {
       case 'gold':
-        return '🥇 Gold';
+        return 'ðŸ¥‡ Gold';
       case 'silver':
-        return '🥈 Silver';
+        return 'ðŸ¥ˆ Silver';
       case 'bronze':
-        return '🥉 Bronze';
+        return 'ðŸ¥‰ Bronze';
       default:
-        return '✓ Basic';
+        return 'âœ“ Basic';
     }
   }
 }

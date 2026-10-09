@@ -11,6 +11,13 @@ class CustomerShop {
   final double rating;
   final int ratingCount;
   final String complianceStatus;
+  final String ownerName;
+  final String phone;
+  final String email;
+  final String postalCode;
+  final String status;
+  final bool isVerified;
+  final DateTime? registeredAt;
 
   const CustomerShop({
     required this.id,
@@ -23,6 +30,13 @@ class CustomerShop {
     required this.rating,
     required this.ratingCount,
     required this.complianceStatus,
+    this.ownerName = '',
+    this.phone = '',
+    this.email = '',
+    this.postalCode = '',
+    this.status = 'pending',
+    this.isVerified = false,
+    this.registeredAt,
   });
 
   factory CustomerShop.fromJson(Map<String, dynamic> json) => CustomerShop(
@@ -36,6 +50,13 @@ class CustomerShop {
     rating: (json['ratingAvg'] as num?)?.toDouble() ?? 0,
     ratingCount: (json['ratingCount'] as num?)?.toInt() ?? 0,
     complianceStatus: json['complianceStatus']?.toString() ?? 'pending',
+    ownerName: json['ownerName']?.toString() ?? '',
+    phone: json['phone']?.toString() ?? '',
+    email: json['email']?.toString() ?? '',
+    postalCode: json['postalCode']?.toString() ?? '',
+    status: json['status']?.toString() ?? 'pending',
+    isVerified: json['isVerified'] == true || json['status'] == 'verified',
+    registeredAt: DateTime.tryParse(json['registeredAt']?.toString() ?? ''),
   );
 }
 

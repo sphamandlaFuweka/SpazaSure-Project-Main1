@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneFocus = FocusNode();
   bool _isLoading = false;
   bool _customerLogin = false;
+  String? _phoneError;
 
   @override
   void dispose() {
@@ -28,10 +30,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleSignIn() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
+      setState(() => _phoneError = 'Enter your phone number');
       _phoneFocus.requestFocus();
       return;
     }
-    setState(() => _isLoading = true);
+    if (phone.length < 9) {
+      setState(() => _phoneError = 'Phone number looks too short');
+      _phoneFocus.requestFocus();
+      return;
+    }
+    setState(() {
+      _phoneError = null;
+      _isLoading = true;
+    });
     try {
       final auth = context.read<AuthProvider>();
       final otp = _customerLogin
@@ -198,7 +209,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                             selected: {_customerLogin},
                             onSelectionChanged: (selected) {
-                              setState(() => _customerLogin = selected.first);
+                              setState(() {
+                                _customerLogin = selected.first;
+                                _phoneError = null;
+                              });
                             },
                           ),
                           const SizedBox(height: 28),
@@ -221,7 +235,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: const Color(0xFFF5F5F5),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: const Color(0xFFE0E0E0),
+                                color: _phoneError != null
+                                    ? AppColors.error
+                                    : const Color(0xFFE0E0E0),
                               ),
                             ),
                             child: Row(
@@ -260,6 +276,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                     controller: _phoneController,
                                     focusNode: _phoneFocus,
                                     keyboardType: TextInputType.phone,
+                                    textInputAction: TextInputAction.done,
+                                    autofillHints: const [
+                                      AutofillHints.telephoneNumberNational,
+                                    ],
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                    onChanged: (_) {
+                                      if (_phoneError != null) {
+                                        setState(() => _phoneError = null);
+                                      }
+                                    },
                                     style: GoogleFonts.nunito(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -288,20 +317,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 12),
 
+                          if (_phoneError != null) ...[
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 14,
+                                  color: AppColors.error,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _phoneError!,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
                           // Helper text
                           Row(
                             children: [
                               const Icon(
                                 Icons.lock_outline_rounded,
                                 size: 14,
-                                color: Color(0xFF9E9E9E),
+                                color: Color(0xFF757575),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'We\'ll send you a 6-digit code via SMS',
                                 style: GoogleFonts.nunito(
-                                  fontSize: 11,
-                                  color: const Color(0xFF9E9E9E),
+                                  fontSize: 12,
+                                  color: const Color(0xFF757575),
                                 ),
                               ),
                             ],
@@ -371,45 +422,50 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontSize: 14,
                       ),
                     ),
-                    GestureDetector(
+                    InkWell(
                       onTap: () => Navigator.pushNamed(context, '/register'),
-                      child: Text(
-                        'Register',
-                        style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Register',
+                          style: GoogleFonts.nunito(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ).animate().fadeIn(delay: 600.ms),
 
-                const SizedBox(height: 14),
-                GestureDetector(
+                InkWell(
                   onTap: () =>
                       Navigator.pushNamed(context, '/customer-register'),
-                  child: Text(
-                    'I am a customer: create an account',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.nunito(
-                      color: const Color(0xFFFFC107),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'I am a customer: create an account',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                        color: const Color(0xFFFFC107),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ).animate().fadeIn(delay: 700.ms),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 36),
 
                 // ── Footer ──
                 Text(
                   'Empowering Spaza Shops Across South Africa 🇿🇦',
                   style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.65),
                   ),
                   textAlign: TextAlign.center,
                 ).animate().fadeIn(delay: 800.ms),

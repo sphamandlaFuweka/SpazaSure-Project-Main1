@@ -11,6 +11,13 @@ public sealed class OpenFoodFactsProductSnapshot
     public string? Ingredients { get; set; }
     public string? ImageUrl { get; set; }
     public List<string> Allergens { get; set; } = [];
+    public string? Brands { get; set; }
+    public string? Quantity { get; set; }
+    public string? Categories { get; set; }
+    public string? Origins { get; set; }
+    public string? Countries { get; set; }
+    public string? Labels { get; set; }
+    public string? NutriScore { get; set; }
 }
 
 public class OpenFoodFactsService(HttpClient httpClient, ILogger<OpenFoodFactsService> logger)
@@ -64,6 +71,13 @@ public class OpenFoodFactsService(HttpClient httpClient, ILogger<OpenFoodFactsSe
                 Ingredients = ingredients,
                 ImageUrl = imageUrl,
                 Allergens = allergens,
+                Brands = GetString(productEl, "brands"),
+                Quantity = GetString(productEl, "quantity"),
+                Categories = GetString(productEl, "categories"),
+                Origins = GetString(productEl, "manufacturing_places", "origins"),
+                Countries = GetString(productEl, "countries"),
+                Labels = GetString(productEl, "labels"),
+                NutriScore = GetString(productEl, "nutriscore_grade", "nutrition_grades"),
             };
         }
         catch (JsonException)

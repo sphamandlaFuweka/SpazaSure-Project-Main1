@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/geo/south_africa.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'customer_shop_detail_screen.dart';
 
 class CustomerShopsScreen extends StatefulWidget {
@@ -24,8 +25,15 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
   LatLng? _userPosition;
   String _viewLabel = 'South Africa';
   String? _error;
+  String _filter = 'all';
 
-  List<LatLng> get _pins => _shops
+  List<CustomerShop> get _visibleShops => switch (_filter) {
+    'verified' => _shops.where((s) => s.isVerified).toList(),
+    'unverified' => _shops.where((s) => !s.isVerified).toList(),
+    _ => _shops,
+  };
+
+  List<LatLng> get _pins => _visibleShops
       .where((shop) => shop.latitude != null && shop.longitude != null)
       .map((shop) => LatLng(shop.latitude!, shop.longitude!))
       .toList();
@@ -163,9 +171,29 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final (value, label) in const [
+                ('all', 'All'),
+                ('verified', 'Verified'),
+                ('unverified', 'Unverified'),
+              ])
+                ChoiceChip(
+                  label: Text(label),
+                  selected: _filter == value,
+                  onSelected: (_) {
+                    setState(() => _filter = value);
+                    _frameMap();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 280,
+            height: 320,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Stack(
@@ -192,7 +220,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                       ),
                       MarkerLayer(
                         markers: [
-                          for (final shop in _shops)
+                          for (final shop in _visibleShops)
                             if (shop.latitude != null && shop.longitude != null)
                               Marker(
                                 point: LatLng(shop.latitude!, shop.longitude!),
@@ -200,10 +228,12 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                                 height: 48,
                                 child: GestureDetector(
                                   onTap: () => _showShop(shop),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.location_on_rounded,
-                                    color: AppColors.primary,
+                                    color: _pinColor(shop),
                                     size: 42,
+                                    semanticLabel:
+                                        '${shop.name}, ${shop.isVerified ? 'verified' : 'unverified'}',
                                   ),
                                 ),
                               ),
@@ -237,10 +267,18 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          Row(
+            children: [
+              _legendDot(_verifiedColor, 'Verified'),
+              const SizedBox(width: 16),
+              _legendDot(_unverifiedColor, 'Unverified'),
+            ],
+          ),
+          const SizedBox(height: 4),
           Text(
-            _pins.length == _shops.length
+            _pins.length == _visibleShops.length
                 ? 'Showing $_viewLabel \u2022 ${_pins.length} shops on the map'
-                : 'Showing $_viewLabel \u2022 ${_pins.length} of ${_shops.length} shops have a map location',
+                : 'Showing $_viewLabel \u2022 ${_pins.length} of ${_visibleShops.length} shops have a map location',
             style: AppTextStyles.caption.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -261,16 +299,54 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
             const SizedBox(height: 12),
             FilledButton(onPressed: _load, child: const Text('Retry')),
           ],
-          if (!_loading && _error == null && _shops.isEmpty)
+          if (!_loading && _error == null && _visibleShops.isEmpty)
             const Padding(
               padding: EdgeInsets.all(40),
-              child: Center(child: Text('No verified shops found yet.')),
+              child: Center(child: Text('No shops found.')),
             ),
-          ..._shops.map(_shopCard),
+          ..._visibleShops.map(_shopCard),
         ],
       ),
     ),
   );
+
+  static const _verifiedColor = Color(0xFF2E7D32);
+  static const _unverifiedColor = Color(0xFFD32F2F);
+
+  Color _pinColor(CustomerShop shop) =>
+      shop.isVerified ? _verifiedColor : _unverifiedColor;
+
+  Widget _legendDot(Color color, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.location_on_rounded, color: color, size: 18),
+      const SizedBox(width: 4),
+      Text(label, style: AppTextStyles.caption),
+    ],
+  );
+
+  Widget _statusPill(CustomerShop shop) {
+    final color = _pinColor(shop);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        shop.isVerified ? 'Verified' : 'Unverified',
+        style: AppTextStyles.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _call(CustomerShop shop) async {
+    if (shop.phone.isEmpty) return;
+    await launchUrl(Uri(scheme: 'tel', path: shop.phone));
+  }
 
   void _openShop(CustomerShop shop) {
     Navigator.push(
@@ -300,6 +376,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Text(shop.name, style: AppTextStyles.h3)),
+                _statusPill(shop),
               ],
             ),
             const SizedBox(height: 12),
@@ -316,18 +393,29 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                   ? '${shop.rating.toStringAsFixed(1)} stars (${shop.ratingCount} reviews)'
                   : 'No reviews yet',
             ),
-            const SizedBox(height: 8),
-            Chip(label: Text('Compliance: ${shop.complianceStatus}')),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _openShop(shop);
-                },
-                child: const Text('View shop profile'),
-              ),
+            Row(
+              children: [
+                if (shop.phone.isNotEmpty) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _call(shop),
+                      icon: const Icon(Icons.call_rounded),
+                      label: const Text('Call'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _openShop(shop);
+                    },
+                    child: const Text('Full details'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -340,21 +428,17 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
     child: ListTile(
       onTap: () => _openShop(shop),
       leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: .12),
-        child: const Icon(Icons.storefront_rounded, color: AppColors.primary),
+        backgroundColor: _pinColor(shop).withValues(alpha: .12),
+        child: Icon(Icons.storefront_rounded, color: _pinColor(shop)),
       ),
       title: Text(shop.name, style: AppTextStyles.subtitle),
       subtitle: Text(
         [
           if (shop.address.isNotEmpty) shop.address,
           if (shop.city.isNotEmpty) shop.city,
-          if (shop.complianceStatus.isNotEmpty)
-            'Status: ${shop.complianceStatus}',
-        ].join(' • '),
+        ].join(' \u2022 '),
       ),
-      trailing: shop.rating > 0
-          ? Text('${shop.rating.toStringAsFixed(1)} ★')
-          : null,
+      trailing: _statusPill(shop),
     ),
   );
 }

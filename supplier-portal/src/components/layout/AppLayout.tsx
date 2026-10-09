@@ -17,6 +17,8 @@ const breadcrumbMap: Record<string, string> = {
   analytics: 'Analytics',
   notifications: 'Notifications',
   profile: 'Profile',
+  'group-buy': 'Group Buy',
+  subscription: 'Upgrade',
 };
 
 export default function AppLayout() {
@@ -33,7 +35,7 @@ export default function AppLayout() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Header */}
-        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 1px 0 rgba(0,0,0,0.02)' }}>
+        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 compact:py-2 flex items-center justify-between flex-shrink-0 sticky top-0 z-30" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 1px 0 rgba(0,0,0,0.02)' }}>
           {/* Breadcrumb */}
           <div className="flex items-center gap-2.5 text-sm">
             <div className="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-emerald-50 border border-primary-100/60 px-2.5 py-1 rounded-lg">
@@ -57,8 +59,10 @@ export default function AppLayout() {
             <NotificationBell variant="supplier" />
 
             {/* User */}
-            <div
-              className="flex items-center gap-2.5 pl-3 ml-1 border-l border-gray-200/60 cursor-pointer group"
+            <button
+              type="button"
+              aria-label="Open profile"
+              className="flex items-center gap-2.5 pl-3 ml-1 border-l border-gray-200/60 cursor-pointer group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
               onClick={() => navigate('/profile')}
             >
               <Avatar name={user?.companyName ?? 'S'} size="sm" src={user?.logoUrl ? resolveUploadUrl(user.logoUrl) : undefined} />
@@ -66,7 +70,7 @@ export default function AppLayout() {
                 <p className="text-sm font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors">{user?.companyName}</p>
                 <p className="text-[11px] text-gray-400 leading-tight">{user?.email}</p>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 

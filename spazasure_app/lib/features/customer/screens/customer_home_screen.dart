@@ -4,6 +4,8 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
+import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
+import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -16,14 +18,15 @@ class CustomerHomeScreen extends StatelessWidget {
       actions: [
         IconButton(
           tooltip: 'Ask SpazaSure',
-          onPressed: () => _showInfo(
-            context,
-            'Ask SpazaSure',
-            'Ask about product safety, shop verification, or suspicious goods.',
-          ),
+          onPressed: () => showKwaziChat(context),
           icon: const Icon(Icons.chat_bubble_outline_rounded),
         ),
       ],
+    ),
+    floatingActionButton: FloatingActionButton.extended(
+      onPressed: () => showKwaziChat(context),
+      icon: const Icon(Icons.smart_toy_rounded),
+      label: const Text('Ask SpazaSure'),
     ),
     body: ListView(
       padding: const EdgeInsets.all(20),
@@ -80,12 +83,14 @@ class CustomerHomeScreen extends StatelessWidget {
           Icons.school_rounded,
           'Safety basics',
           'Learn how to spot suspicious packaging and unsafe products.',
+          const SafetyBasicsScreen(),
         ),
         _infoCard(
           context,
           Icons.smart_toy_rounded,
           'Kwazi authenticity guide',
-          'Answer a few questions when a product does not look right.',
+          'Chat with Kwazi when a product does not look right.',
+          null,
         ),
         const SizedBox(height: 16),
         Text('Recent activity', style: AppTextStyles.h3),
@@ -142,27 +147,19 @@ class CustomerHomeScreen extends StatelessWidget {
     IconData icon,
     String title,
     String text,
+    Widget? destination,
   ) => Card(
     child: ListTile(
       leading: Icon(icon, color: AppColors.secondary),
       title: Text(title, style: AppTextStyles.subtitle),
       subtitle: Text(text),
-      onTap: () => _showInfo(context, title, text),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: () => destination == null
+          ? showKwaziChat(context)
+          : _open(context, destination),
     ),
   );
 
-  void _showInfo(BuildContext context, String title, String text) =>
-      showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(title),
-          content: Text(text),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      );
+  void _open(BuildContext context, Widget screen) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
 }

@@ -14,6 +14,7 @@ class ReportScreen extends StatefulWidget {
   final String? batchNumber;
   final String? expiryDate;
   final String? initialType;
+  final String? initialDescription;
 
   const ReportScreen({
     super.key,
@@ -23,6 +24,7 @@ class ReportScreen extends StatefulWidget {
     this.batchNumber,
     this.expiryDate,
     this.initialType,
+    this.initialDescription,
   });
 
   @override
@@ -68,6 +70,7 @@ class _ReportScreenState extends State<ReportScreen> {
     super.initState();
     _selectedType = widget.initialType;
     _productController.text = widget.productName ?? '';
+    _descriptionController.text = widget.initialDescription ?? '';
   }
 
   @override
