@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart,
-  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag,
+  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -32,6 +32,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
     { to: '/admin/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/suppliers',     icon: Users,           label: 'Suppliers & Spaza Owner', badge: pendingSuppliers > 0 ? pendingSuppliers : undefined },
     { to: '/admin/documents',     icon: ShieldCheck,     label: 'Documents',    badge: pendingDocuments > 0 ? pendingDocuments : undefined },
+    { to: '/admin/shops-map',     icon: MapPin,          label: 'Shops Map' },
     { to: '/admin/products',      icon: Package,         label: 'Products' },
     { to: '/admin/orders',        icon: ShoppingCart,    label: 'Orders' },
     { to: '/admin/reports',       icon: Flag,            label: 'Reports',      badge: pendingReports > 0 ? pendingReports : undefined },

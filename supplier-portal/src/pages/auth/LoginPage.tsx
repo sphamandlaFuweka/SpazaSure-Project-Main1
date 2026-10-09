@@ -147,7 +147,7 @@ export default function LoginPage() {
 
         <div style={stagger(150)} className="relative z-10 flex-1 flex items-end justify-center mt-6">
           <img
-            src="/login-hero.png"
+            src="/studioshot_square_plain.png"
             alt="Shop owner juggling groceries"
             className="max-h-[420px] w-auto object-contain object-bottom"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}

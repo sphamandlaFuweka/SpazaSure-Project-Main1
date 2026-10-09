@@ -10,6 +10,7 @@ import NotificationBell from '../ui/NotificationBell';
 const breadcrumbMap: Record<string, string> = {
   dashboard:     'Dashboard',
   suppliers:     'Suppliers',
+  'shops-map':   'Shops Map',
   documents:     'Document Verification',
   products:      'Products',
   orders:        'Orders',

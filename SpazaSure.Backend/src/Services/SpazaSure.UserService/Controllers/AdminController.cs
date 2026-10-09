@@ -126,6 +126,8 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
                 Address = s.Address ?? "",
                 City = s.City ?? "",
                 Province = s.Province ?? "",
+                s.Latitude,
+                s.Longitude,
                 IsVerified = s.Status == "verified",
                 s.Status,
                 s.ComplianceStatus,

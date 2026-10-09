@@ -31,11 +31,54 @@ class CustomerHomeScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text('Shop smarter. Stay safe.', style: AppTextStyles.h1),
-        const SizedBox(height: 8),
-        Text(
-          'Verify products and find trusted shops in your community.',
-          style: AppTextStyles.body,
+        Container(
+          height: 210,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, Color(0xFF3F5DB0)],
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -10,
+                bottom: 0,
+                top: 8,
+                width: 170,
+                child: Image.asset(
+                  'assets/images/customer_hero.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.bottomCenter,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 150, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Shop smarter. Stay safe.',
+                      style: AppTextStyles.h1.copyWith(
+                        color: Colors.white,
+                        fontSize: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Verify products and find trusted shops in your community.',
+                      style: AppTextStyles.body.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         _action(
