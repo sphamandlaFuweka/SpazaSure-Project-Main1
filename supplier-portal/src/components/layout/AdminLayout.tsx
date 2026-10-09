@@ -27,10 +27,10 @@ export default function AdminLayout() {
   const currentPage = breadcrumbMap[segments[1]] ?? 'Dashboard';
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-[100dvh] bg-slate-50">
       <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Header */}
         <header
           className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30"
@@ -70,7 +70,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <PageTransition>
             <Outlet />
           </PageTransition>

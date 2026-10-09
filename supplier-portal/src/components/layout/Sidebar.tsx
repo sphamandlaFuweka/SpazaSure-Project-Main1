@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        'relative flex flex-col bg-gradient-primary h-screen sticky top-0 transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
+        'relative flex flex-col bg-gradient-primary h-[100dvh] sticky top-0 transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
         collapsed ? 'w-[72px]' : 'w-64'
       )}
       style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.15)' }}

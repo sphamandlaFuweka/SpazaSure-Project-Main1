@@ -128,12 +128,12 @@ export default function LoginPage() {
       : { opacity: 0, transform: 'translateY(24px)' };
 
   return (
-    <div className="login-page h-screen w-screen flex overflow-hidden">
+    <div className="login-page min-h-[100dvh] w-full flex flex-col lg:flex-row overflow-x-hidden bg-[#F8FAF9]">
 
       {/* ═══════════════════════════════════════════════════════
           LEFT PANEL — Dark luxury brand showcase (55% desktop)
           ═══════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex lg:w-[55%] relative flex-col bg-gradient-to-br from-[#0A1A0F] via-[#1B4332] to-[#0D2E1A] overflow-hidden">
+      <div className="hidden lg:flex lg:w-[55%] lg:min-h-[100dvh] relative flex-col bg-gradient-to-br from-[#0A1A0F] via-[#1B4332] to-[#0D2E1A] overflow-hidden">
 
         {/* Gradient orb decorations */}
         <div className="absolute top-[-80px] left-[-60px] w-[400px] h-[400px] rounded-full bg-[#4CAF50]/8 blur-[100px] login-orb-1" />
@@ -163,7 +163,7 @@ export default function LoginPage() {
         ))}
 
         {/* Content container */}
-        <div className="relative z-10 flex flex-col justify-between h-full px-12 py-10">
+        <div className="relative z-10 flex flex-col justify-between h-full px-12 py-10 overflow-y-auto">
 
           {/* Logo header */}
           <div style={stagger(0)} className="flex items-center gap-3">
@@ -269,13 +269,13 @@ export default function LoginPage() {
       {/* ═══════════════════════════════════════════════════════
           RIGHT PANEL — Login form (45% desktop, full mobile)
           ═══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex items-center justify-center bg-[#F8FAF9] relative overflow-y-auto">
+      <div className="flex-1 flex items-start lg:items-center justify-center bg-[#F8FAF9] relative py-8 lg:py-0">
 
         {/* Subtle background decoration */}
         <div className="absolute top-0 right-0 w-[300px] h-[300px] rounded-full bg-[#4CAF50]/[0.03] blur-[80px]" />
         <div className="absolute bottom-0 left-0 w-[250px] h-[250px] rounded-full bg-[#1B4332]/[0.04] blur-[60px]" />
 
-        <div className="w-full max-w-[400px] px-6 py-10 lg:py-0">
+        <div className="w-full max-w-[420px] px-6 py-4 sm:py-6 lg:py-0">
 
           {/* Mobile logo (hidden on desktop) */}
           <div style={stagger(0)} className="lg:hidden flex flex-col items-center mb-8">

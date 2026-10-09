@@ -42,7 +42,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
   return (
     <aside
       className={clsx(
-        'relative flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
+        'relative flex flex-col h-[100dvh] sticky top-0 transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
         collapsed ? 'w-[72px]' : 'w-64'
       )}
       style={{ background: 'linear-gradient(160deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)', boxShadow: '4px 0 24px rgba(0,0,0,0.20)' }}

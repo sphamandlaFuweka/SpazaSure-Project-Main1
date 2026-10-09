@@ -28,10 +28,10 @@ export default function AppLayout() {
   const currentPage = breadcrumbMap[segments[0]] ?? 'Dashboard';
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="flex min-h-[100dvh] bg-surface">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Header */}
         <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 1px 0 rgba(0,0,0,0.02)' }}>
           {/* Breadcrumb */}
@@ -71,7 +71,7 @@ export default function AppLayout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <PageTransition>
             <Outlet />
           </PageTransition>
