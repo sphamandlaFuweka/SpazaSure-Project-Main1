@@ -463,7 +463,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                       style: AppTextStyles.bodySmall,
                     ),
                     const SizedBox(height: 12),
-                    ...group.products.map(
+                    ...joinableProducts.map(
                       (product) => Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
@@ -545,7 +545,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
       }
       return;
     }
-    final items = group.products
+    final items = joinableProducts
         .where((product) => selected[product.id] == true)
         .map(
           (product) => <String, dynamic>{

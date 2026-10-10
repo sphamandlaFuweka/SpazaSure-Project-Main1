@@ -182,8 +182,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 final age = int.tryParse(v.trim());
-                if (age == null || age < 0 || age > 130)
+                if (age == null || age < 0 || age > 130) {
                   return 'Enter a valid age';
+                }
                 return null;
               },
             ),

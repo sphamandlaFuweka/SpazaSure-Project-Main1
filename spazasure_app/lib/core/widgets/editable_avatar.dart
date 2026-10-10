@@ -70,8 +70,9 @@ class _EditableAvatarState extends State<EditableAvatar> {
         fileName: name,
       );
       final url = (res['data'] as Map?)?['profilePhotoUrl']?.toString();
-      if (url == null || url.isEmpty)
+      if (url == null || url.isEmpty) {
         throw ApiException('No picture URL returned.', 0);
+      }
       if (!mounted) return;
       widget.onUploaded(url);
       _toast('Profile picture updated', AppColors.success);

@@ -8,7 +8,6 @@ import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
 import 'package:spazasure_app/features/compliance/screens/compliance_screen.dart';
 import 'package:spazasure_app/features/profile/screens/profile_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
-import 'package:spazasure_app/providers/product_provider.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
