@@ -194,7 +194,7 @@
 
 /* Page entrance — stagger children */
 .animate-in > * {
-  animation: staggerPageIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: staggerPageIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 .animate-in > *:nth-child(1) { animation-delay: 0.02s; }
 .animate-in > *:nth-child(2) { animation-delay: 0.06s; }
@@ -246,7 +246,7 @@
 
 /* Smooth page transitions for route changes */
 .animate-in {
-  animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes pageEnter {
@@ -267,7 +267,7 @@
 
 /* Stats number counter animation */
 .kpi-value {
-  animation: kpiPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+  animation: kpiPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
 }
 
 @keyframes kpiPop {
@@ -784,7 +784,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .animate-pipeline-bar {
-  animation: pipelineGrow 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+  animation: pipelineGrow 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s backwards;
 }
 
 /* Chart line draw animation */
@@ -800,7 +800,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .animate-chart-reveal {
-  animation: chartReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  animation: chartReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards;
 }
 
 /* Glow pulse for pending items */
@@ -821,7 +821,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .animate-number-pop {
-  animation: numberPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: numberPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
 /* Hover shine effect for cards */
@@ -872,7 +872,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .animate-table-row {
-  animation: tableRowSlide 0.4s ease-out both;
+  animation: tableRowSlide 0.4s ease-out backwards;
 }
 .animate-table-row:nth-child(1) { animation-delay: 0.1s; }
 .animate-table-row:nth-child(2) { animation-delay: 0.15s; }

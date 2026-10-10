@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
@@ -137,10 +136,8 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         itemCount: groups.length,
-        itemBuilder: (context, index) => _buildGroupCard(
-          groups[index],
-          showJoin: showJoin,
-        ).animate().fadeIn(delay: (index * 80).ms).slideY(begin: 0.05),
+        itemBuilder: (context, index) =>
+            _buildGroupCard(groups[index], showJoin: showJoin),
       ),
     );
   }

@@ -499,7 +499,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.05, end: 0);
+    );
   }
 
   void _showTopUpSheet() {

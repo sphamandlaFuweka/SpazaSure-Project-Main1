@@ -122,9 +122,9 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
     public async Task<IActionResult> SupplierProducts(Guid supplierId)
     {
         var products = await db.Products.AsNoTracking()
-            .Where(p => p.SupplierId == supplierId && p.IsApproved && p.IsAvailable)
-            .OrderBy(p => p.Name)
-            .Select(p => new { p.Id, p.Name, p.Price, p.StockQty, p.MinOrderQty })
+            .Where(p => p.SupplierId == supplierId)
+            .OrderByDescending(p => p.IsApproved && p.IsAvailable).ThenBy(p => p.Name)
+            .Select(p => new { p.Id, p.Name, p.Price, p.StockQty, p.MinOrderQty, p.IsApproved, p.IsAvailable })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(products));
     }

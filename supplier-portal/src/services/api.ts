@@ -245,7 +245,7 @@ export const groupBuyApi = {
     api.post(`/supplier/group-buy/${id}/cancel`).then((r) => r.data),
 };
 
-export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number }
+export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number; isApproved?: boolean; isAvailable?: boolean }
 
 // Admin group buys: create for any supplier, approve or reject supplier proposals, monitor, cancel
 export const adminGroupBuyApi = {

@@ -3,9 +3,10 @@ import toast from 'react-hot-toast';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import {
-  adminGroupBuyApi, adminSuppliersApi, groupBuyApi, productsApi,
+  adminGroupBuyApi, adminProductsApi, adminSuppliersApi, groupBuyApi, productsApi,
   type SupplierProductOption,
 } from '../../services/api';
+import type { Product } from '../../types';
 
 interface Props {
   mode: 'supplier' | 'admin';
@@ -36,17 +37,35 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
   useEffect(() => {
     setLines([{ productId: '', targetQty: 50, discountPct: 10 }]);
     if (mode === 'supplier') {
-      productsApi.list({ pageSize: 200, status: 'active' })
-        .then((r) => setProducts(r.data.map((p: { id: string; name: string; price: number; stockQuantity: number; minOrderQty?: number }) => ({
+      productsApi.list({ pageSize: 200 })
+        .then((r) => setProducts(r.data.map((p: Product) => ({
           id: p.id, name: p.name, price: p.price, stockQty: p.stockQuantity, minOrderQty: p.minOrderQty ?? 1,
+          isApproved: p.status === 'active', isAvailable: p.isAvailable,
         }))))
         .catch(() => toast.error('Could not load your products'));
     } else if (supplierId) {
-      adminGroupBuyApi.supplierProducts(supplierId).then(setProducts).catch(() => toast.error('Could not load products'));
+      const supplierName = suppliers.find((s) => s.id === supplierId)?.companyName;
+      // Fallback to the admin products list (the same data as the Products page) when the dedicated endpoint returns nothing.
+      const fromProductsPage = () => adminProductsApi.list({ pageSize: 500, search: supplierName })
+        .then((r) => r.data
+          .filter((p: Product) => p.supplierId === supplierId)
+          .map((p: Product) => ({
+            id: p.id, name: p.name, price: p.price, stockQty: p.stockQuantity, minOrderQty: p.minOrderQty ?? 1,
+            isApproved: p.status === 'active', isAvailable: p.isAvailable,
+          })));
+      adminGroupBuyApi.supplierProducts(supplierId)
+        .then((list) => (list.length > 0 ? list : fromProductsPage()))
+        .catch(() => fromProductsPage())
+        .then(setProducts)
+        .catch(() => toast.error('Could not load products'));
     } else {
       setProducts([]);
     }
   }, [mode, supplierId]);
+
+  const isEligible = (p: SupplierProductOption) => p.isApproved !== false && p.isAvailable !== false;
+  const eligibility = (p: SupplierProductOption) =>
+    p.isApproved === false ? ' - awaiting approval' : p.isAvailable === false ? ' - unavailable' : '';
 
   const update = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -111,6 +130,14 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
 
         <div className="space-y-2">
           <p className="label">Products</p>
+          {mode === 'admin' && !supplierId && <p className="text-xs text-gray-500">Choose a supplier to see their products.</p>}
+          {(mode === 'supplier' || supplierId) && !products.some(isEligible) && (
+            <p className="text-xs text-amber-600">
+              {products.length === 0
+                ? 'No products found for this supplier.'
+                : 'None of these products can be used yet. Only approved, available products can join a group buy.'}
+            </p>
+          )}
           {lines.map((line, i) => {
             const chosen = products.find((p) => p.id === line.productId);
             const price = chosen ? chosen.price * (1 - line.discountPct / 100) : null;
@@ -120,8 +147,8 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
                   <select className="input" value={line.productId} onChange={(e) => update(i, { productId: e.target.value })}>
                     <option value="">Select product</option>
                     {products.map((p) => (
-                      <option key={p.id} value={p.id} disabled={lines.some((l, idx) => idx !== i && l.productId === p.id)}>
-                        {p.name} (R{p.price})
+                      <option key={p.id} value={p.id} disabled={!isEligible(p) || lines.some((l, idx) => idx !== i && l.productId === p.id)}>
+                        {p.name} (R{p.price}){eligibility(p)}
                       </option>
                     ))}
                   </select>
