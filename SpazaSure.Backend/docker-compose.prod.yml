@@ -42,7 +42,7 @@ services:
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: spazasure
-      RABBITMQ_DEFAULT_PASS: ${PROD_RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_PASS: ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
     volumes:
       - prod_rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -52,9 +52,7 @@ services:
       retries: 5
 
   auth-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.AuthService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-auth:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-auth
     restart: always
     environment:
@@ -63,7 +61,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Jwt__AccessExpiryMinutes:             "30"
       Jwt__RefreshExpiryDays:               "14"
@@ -80,9 +78,7 @@ services:
         condition: service_healthy
 
   product-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.ProductService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-product:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-product
     restart: always
     environment:
@@ -91,7 +87,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
     depends_on:
       postgres:
@@ -102,9 +98,7 @@ services:
         condition: service_healthy
 
   order-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.OrderService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-order:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-order
     restart: always
     environment:
@@ -113,7 +107,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
     depends_on:
       postgres:
@@ -124,9 +118,7 @@ services:
         condition: service_healthy
 
   user-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.UserService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-user:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-user
     restart: always
     volumes:
@@ -137,7 +129,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       PayFast__MerchantId:                  ${PROD_PAYFAST_MERCHANT_ID}
       PayFast__MerchantKey:                 ${PROD_PAYFAST_MERCHANT_KEY}
@@ -173,9 +165,7 @@ services:
         condition: service_healthy
 
   notification-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.NotificationService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-notification:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-notification
     restart: always
     environment:
@@ -184,7 +174,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
     depends_on:
       postgres:
@@ -195,9 +185,7 @@ services:
         condition: service_healthy
 
   analytics-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.AnalyticsService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-analytics:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-analytics
     restart: always
     environment:
@@ -206,7 +194,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
     depends_on:
       postgres:
@@ -217,9 +205,7 @@ services:
         condition: service_healthy
 
   compliance-service:
-    build:
-      context: .
-      dockerfile: src/Services/SpazaSure.ComplianceService/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-compliance:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-compliance
     restart: always
     volumes:
@@ -230,7 +216,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
-      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD}
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       # Report evidence photos — same S3 bucket as UserService's uploads.
       Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
@@ -251,9 +237,7 @@ services:
         condition: service_healthy
 
   gateway:
-    build:
-      context: .
-      dockerfile: src/Gateway/SpazaSure.Gateway/Dockerfile
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-gateway:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-gateway
     restart: always
     ports:

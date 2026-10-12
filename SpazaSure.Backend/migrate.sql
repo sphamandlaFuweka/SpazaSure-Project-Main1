@@ -664,6 +664,56 @@ ALTER TABLE orders ALTER COLUMN payment_method SET NOT NULL;
 ALTER TABLE orders ALTER COLUMN payment_status SET DEFAULT 'pending';
 ALTER TABLE orders ALTER COLUMN payment_status SET NOT NULL;
 
+-- Apply the schema additions from migrations newer than the original baseline.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url text;
+
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS device_id text;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS latitude double precision;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS longitude double precision;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS purchase_price numeric;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS reporter_ip text;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS scratch_panel_intact boolean;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS seal_tampered boolean;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS serial_code text;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS shop_address text;
+
+ALTER TABLE customer_scan_events ADD COLUMN IF NOT EXISTS device_id text;
+ALTER TABLE customer_scan_events ADD COLUMN IF NOT EXISTS ip_address text;
+ALTER TABLE customer_scan_events ADD COLUMN IF NOT EXISTS latitude double precision;
+ALTER TABLE customer_scan_events ADD COLUMN IF NOT EXISTS longitude double precision;
+
+CREATE TABLE IF NOT EXISTS product_unit_codes (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    product_id uuid NOT NULL,
+    code text NOT NULL,
+    pin_hash text NOT NULL,
+    batch_number text NOT NULL,
+    expiry_date date,
+    status text NOT NULL,
+    failed_pin_attempts integer NOT NULL,
+    consumed_at timestamp with time zone,
+    consumed_by_user_id uuid,
+    consumed_latitude double precision,
+    consumed_longitude double precision,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone,
+    CONSTRAINT pk_product_unit_codes PRIMARY KEY (id),
+    CONSTRAINT fk_product_unit_codes_products_product_id
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_product_unit_codes_code
+    ON product_unit_codes(code);
+CREATE INDEX IF NOT EXISTS ix_product_unit_codes_product_id_batch_number
+    ON product_unit_codes(product_id, batch_number);
+
+ALTER TABLE group_buys ALTER COLUMN created_by_shop_id DROP NOT NULL;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS approved_by_user_id uuid;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS created_by_role text NOT NULL DEFAULT '';
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS created_by_user_id uuid;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS rejection_note text;
+UPDATE group_buys SET created_by_role = 'shop' WHERE created_by_role = '';
+
 -- Temporarily remove known application/migration unique indexes so reference
 -- consolidation cannot fail when two duplicate parents already have child rows.
 DROP INDEX IF EXISTS "UX_GroupBuyProducts_GroupBuyId_ProductId";
@@ -1197,10 +1247,16 @@ BEGIN
     END LOOP;
 END $$;
 
--- Record the snake_case baseline applied by this script. The checked-in EF migration
--- predates the naming convention, so QA uses this idempotent SQL as its schema owner.
+-- Record the EF migrations represented by this idempotent snake_case schema script.
+-- The original EF baseline predates the naming convention and cannot be applied directly.
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-VALUES ('20260505033156_InitialCreate', '8.0.0')
+VALUES
+    ('20260505033156_InitialCreate', '8.0.0'),
+    ('20260917134807_AddCustomerProfileFields', '8.0.0'),
+    ('20261009210702_AddReportEvidenceAndScanLocation', '8.0.0'),
+    ('20261009211627_AddProductUnitCodes', '8.0.0'),
+    ('20261009213411_GroupBuyAdminApproval', '8.0.0'),
+    ('20261009222048_AddUserProfilePhoto', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.

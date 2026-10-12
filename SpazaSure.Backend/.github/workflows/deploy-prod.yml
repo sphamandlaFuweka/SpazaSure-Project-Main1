@@ -1,6 +1,7 @@
 ﻿# Triggers on a version tag push (e.g. git tag v1.2.3 && git push --tags)
 # Required GitHub Secrets: PROD_HOST, PROD_SSH_USER, PROD_SSH_KEY,
-#   PROD_DB_PASSWORD, PROD_JWT_SECRET, PROD_AT_USERNAME, PROD_AT_API_KEY
+#   PROD_DB_PASSWORD, PROD_RABBITMQ_PASSWORD, PROD_JWT_SECRET,
+#   PROD_AT_USERNAME, PROD_AT_API_KEY
 
 name: Deploy to Production
 
@@ -65,11 +66,38 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: src/Services/SpazaSure.ProductService/Dockerfile
+          file: src/Services/SpazaSure.OrderService/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/spazasure-order:${{ steps.tag.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/spazasure-order:latest
+      - name: Build and push notification-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.NotificationService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-notification:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-notification:latest
+      - name: Build and push analytics-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.AnalyticsService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-analytics:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-analytics:latest
+      - name: Build and push compliance-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.ComplianceService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-compliance:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-compliance:latest
       - name: Build and push user-service
         uses: docker/build-push-action@v5
         with:
@@ -94,26 +122,59 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: production
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
-      - name: Copy compose file to prod server
+      - name: Copy production deployment files
         uses: appleboy/scp-action@v0.1.7
         with:
           host:     ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
-          source:   docker-compose.prod.yml
+          source:   docker-compose.prod.yml,migrate.sql
           target:   /opt/spazasure/
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          PROD_RABBITMQ_PASSWORD: ${{ secrets.PROD_RABBITMQ_PASSWORD }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          PROD_AT_USERNAME: ${{ secrets.PROD_AT_USERNAME }}
+          PROD_AT_API_KEY: ${{ secrets.PROD_AT_API_KEY }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
         with:
           host:     ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,GHCR_USERNAME,GHCR_TOKEN
           script: |
+            set -eu
             cd /opt/spazasure
-            printf "PROD_DB_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
-              "${{ secrets.PROD_DB_PASSWORD }}" "${{ secrets.PROD_JWT_SECRET }}" "${{ secrets.PROD_AT_USERNAME }}" "${{ secrets.PROD_AT_API_KEY }}" > .env.prod
-            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
-            rm -f .env.prod
+            umask 077
+            trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
+              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" > .env.prod
+            compose='docker compose -f docker-compose.prod.yml --env-file .env.prod'
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+            $compose pull
+            docker logout ghcr.io >/dev/null
+            $compose up -d postgres rabbitmq
+            database_ready=false
+            for attempt in $(seq 1 30); do
+              if $compose exec -T postgres pg_isready -U spazasure_prod_user -d spazasure >/dev/null 2>&1; then
+                database_ready=true
+                break
+              fi
+              sleep 2
+            done
+            if [ "$database_ready" != true ]; then
+              echo 'PostgreSQL did not become ready.'
+              $compose ps
+              exit 1
+            fi
+            $compose rm -f db-init
+            $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
+            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway

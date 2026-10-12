@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A2E0C), Color(0xFF144417), Color(0xFF1B5E20)],
+            colors: [AppColors.primaryDark, AppColors.primary],
           ),
         ),
         child: SafeArea(
@@ -104,9 +104,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(
-                              0xFF4CAF50,
-                            ).withValues(alpha: 0.3),
+                            color: AppColors.primaryLight.withValues(
+                              alpha: 0.3,
+                            ),
                             blurRadius: 40,
                             spreadRadius: 8,
                           ),
@@ -146,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Trusted Supply Chain',
                   style: GoogleFonts.nunito(
                     fontSize: 13,
-                    color: const Color(0xFF81C784),
+                    color: Colors.white.withValues(alpha: 0.8),
                     letterSpacing: 1.5,
                   ),
                 ).animate().fadeIn(delay: 300.ms),
@@ -179,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: GoogleFonts.nunito(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A1A1A),
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -189,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : 'Enter your shop phone number to continue',
                             style: GoogleFonts.nunito(
                               fontSize: 13,
-                              color: const Color(0xFF757575),
+                              color: AppColors.textSecondary,
                             ),
                           ),
 
@@ -223,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF424242),
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -232,12 +232,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           Container(
                             height: 56,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F5),
+                              color: AppColors.background,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: _phoneError != null
                                     ? AppColors.error
-                                    : const Color(0xFFE0E0E0),
+                                    : AppColors.divider,
                               ),
                             ),
                             child: Row(
@@ -259,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         style: GoogleFonts.nunito(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF1A1A1A),
+                                          color: AppColors.textPrimary,
                                         ),
                                       ),
                                     ],
@@ -268,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Container(
                                   width: 1,
                                   height: 28,
-                                  color: const Color(0xFFE0E0E0),
+                                  color: AppColors.divider,
                                 ),
                                 // Text field
                                 Expanded(
@@ -292,14 +292,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     style: GoogleFonts.nunito(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF1A1A1A),
+                                      color: AppColors.textPrimary,
                                     ),
                                     cursorColor: AppColors.primary,
                                     onSubmitted: (_) => _handleSignIn(),
                                     decoration: InputDecoration(
                                       hintText: '81 234 5678',
                                       hintStyle: GoogleFonts.nunito(
-                                        color: const Color(0xFFBDBDBD),
+                                        color: AppColors.textHint,
                                         fontSize: 15,
                                       ),
                                       border: InputBorder.none,
@@ -345,14 +345,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               const Icon(
                                 Icons.lock_outline_rounded,
                                 size: 14,
-                                color: Color(0xFF757575),
+                                color: AppColors.textSecondary,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 'We\'ll send you a 6-digit code via SMS',
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
-                                  color: const Color(0xFF757575),
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -418,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       "Don't have an account? ",
                       style: GoogleFonts.nunito(
-                        color: const Color(0xFFA5D6A7),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 14,
                       ),
                     ),
@@ -450,7 +450,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'I am a customer: create an account',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.nunito(
-                        color: const Color(0xFFFFC107),
+                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -465,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Empowering Spaza Shops Across South Africa 🇿🇦',
                   style: GoogleFonts.nunito(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.65),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ).animate().fadeIn(delay: 800.ms),
