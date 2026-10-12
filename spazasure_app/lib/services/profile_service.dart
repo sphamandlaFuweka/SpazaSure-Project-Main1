@@ -76,16 +76,6 @@ class ProfileService {
     await ApiService.patch('/shop/profile', updates);
   }
 
-  static Future<OnboardingCheckout> initiateOnboardingPayment() async {
-    final response = await ApiService.post(
-      '/shop/profile/onboarding-fee/initiate',
-      const {},
-    );
-    return OnboardingCheckout.fromJson(
-      response['data'] as Map<String, dynamic>,
-    );
-  }
-
   static Future<String?> initiateStripeOnboardingPayment() async {
     final response = await ApiService.post(
       '/shop/profile/onboarding-fee/stripe/checkout-session',
@@ -99,39 +89,6 @@ class ProfileService {
     final response = await ApiService.get('/shop/profile/onboarding-fee');
     return OnboardingPaymentStatus.fromJson(
       response['data'] as Map<String, dynamic>,
-    );
-  }
-}
-
-class OnboardingCheckout {
-  final bool paid;
-  final String? paymentId;
-  final double amount;
-  final String? actionUrl;
-  final Map<String, String> fields;
-  final String? returnUrl;
-  final String? cancelUrl;
-
-  const OnboardingCheckout({
-    required this.paid,
-    required this.paymentId,
-    required this.amount,
-    required this.actionUrl,
-    required this.fields,
-    required this.returnUrl,
-    required this.cancelUrl,
-  });
-
-  factory OnboardingCheckout.fromJson(Map<String, dynamic> json) {
-    final rawFields = json['fields'] as Map<String, dynamic>? ?? const {};
-    return OnboardingCheckout(
-      paid: json['paid'] == true,
-      paymentId: json['paymentId']?.toString(),
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
-      actionUrl: json['actionUrl']?.toString(),
-      fields: rawFields.map((key, value) => MapEntry(key, value.toString())),
-      returnUrl: json['returnUrl']?.toString(),
-      cancelUrl: json['cancelUrl']?.toString(),
     );
   }
 }

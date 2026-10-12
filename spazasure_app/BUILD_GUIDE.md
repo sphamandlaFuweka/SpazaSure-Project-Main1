@@ -77,6 +77,7 @@ iOS apps can't be built on Windows/Linux directly.
 - **Bundle ID**: com.spazasure.spazasure_app
 - **Min Android**: SDK 21 (Android 5.0)
 - **Min iOS**: 12.0
-- **Backend**: configurable at build/run time via `--dart-define=API_URL=...`
+- **Backend**: release builds default to `https://api.spazasure.co.za/api`;
+  local development can override it with `--dart-define=API_URL=...`
   (see `lib/services/api_service.dart`); defaults to `localhost`/`10.0.2.2`
   for local development rather than any specific deployed server.

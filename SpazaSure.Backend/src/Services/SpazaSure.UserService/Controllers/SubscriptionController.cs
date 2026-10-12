@@ -113,7 +113,7 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
 
         // For basic (free) tier  activate immediately, no payment needed
         var status = plan.MonthlyPrice == 0m ? "active" : "pending";
-        var paymentMethod = plan.MonthlyPrice == 0m ? "free" : (req.PaymentMethod ?? "eft");
+        var paymentMethod = plan.MonthlyPrice == 0m ? "free" : "stripe";
 
         var sub = new SupplierSubscription
         {
@@ -125,13 +125,12 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
             NextBillingDate = plan.MonthlyPrice == 0m ? null : nextBilling,
             AmountPaid = plan.MonthlyPrice == 0m ? 0m : amount,
             PaymentMethod = paymentMethod,
-            PaymentReference = req.PaymentReference
+            PaymentReference = null
         };
 
         db.SupplierSubscriptions.Add(sub);
 
-        // Update supplier tier and commission immediately (for free tier or on payment confirmation)
-        if (plan.MonthlyPrice == 0m || req.ConfirmPayment == true)
+        if (plan.MonthlyPrice == 0m)
         {
             supplier.Tier = plan.Tier;
             supplier.CommissionRate = plan.CommissionRate;
@@ -150,35 +149,6 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
             nextBillingDate = sub.NextBillingDate,
             amountDue = amount,
             paymentMethod
-        }));
-    }
-
-    //  POST confirm payment (after EFT / PayFast callback) 
-    [HttpPost("{subscriptionId:guid}/confirm-payment")]
-    public async Task<IActionResult> ConfirmPayment(Guid subscriptionId, [FromBody] ConfirmPaymentRequest req)
-    {
-        var sub = await db.SupplierSubscriptions
-            .Include(s => s.Supplier)
-            .Include(s => s.Plan)
-            .FirstOrDefaultAsync(s => s.Id == subscriptionId);
-
-        if (sub is null) return NotFound(ApiResponse.Fail("Subscription not found."));
-        if (sub.Supplier.UserId != UserId) return Forbid();
-
-        sub.Status = "active";
-        sub.PaymentReference = req.PaymentReference ?? sub.PaymentReference;
-        sub.Supplier.Tier = sub.Plan.Tier;
-        sub.Supplier.CommissionRate = sub.Plan.CommissionRate;
-
-        await db.SaveChangesAsync();
-
-        return Ok(ApiResponse<object>.Ok(new
-        {
-            subscriptionId = sub.Id,
-            tier = sub.Supplier.Tier,
-            commissionRate = sub.Supplier.CommissionRate,
-            status = sub.Status,
-            paymentReference = sub.PaymentReference
         }));
     }
 
@@ -236,11 +206,7 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
 //  Request DTOs 
 public record SubscribeRequest(
     string Tier,
-    string? BillingCycle,
-    string? PaymentMethod,
-    string? PaymentReference,
-    bool? ConfirmPayment
+    string? BillingCycle
 );
 
-public record ConfirmPaymentRequest(string? PaymentReference);
 public record CancelSubscriptionRequest(string? Reason);

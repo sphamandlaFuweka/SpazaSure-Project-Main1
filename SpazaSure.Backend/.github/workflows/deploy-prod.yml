@@ -1,7 +1,8 @@
 ﻿# Triggers on a version tag push (e.g. git tag v1.2.3 && git push --tags)
 # Required GitHub Secrets: PROD_HOST, PROD_SSH_USER, PROD_SSH_KEY,
 #   PROD_DB_PASSWORD, PROD_RABBITMQ_PASSWORD, PROD_JWT_SECRET,
-#   PROD_AT_USERNAME, PROD_AT_API_KEY
+#   PROD_AT_USERNAME, PROD_AT_API_KEY, PROD_STRIPE_SECRET_KEY,
+#   PROD_STRIPE_WEBHOOK_SECRET
 
 name: Deploy to Production
 
@@ -133,7 +134,7 @@ jobs:
           host:     ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
-          source:   docker-compose.prod.yml,migrate.sql
+          source:   docker-compose.prod.yml,migrate.sql,backup-postgres.sh,DATABASE_BACKUPS.md,nginx-spazasure.conf
           target:   /opt/spazasure/
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1.0.3
@@ -143,20 +144,24 @@ jobs:
           PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
           PROD_AT_USERNAME: ${{ secrets.PROD_AT_USERNAME }}
           PROD_AT_API_KEY: ${{ secrets.PROD_AT_API_KEY }}
+          PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
+          PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ github.token }}
         with:
           host:     ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
-          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,GHCR_USERNAME,GHCR_TOKEN
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -eu
             cd /opt/spazasure
             umask 077
+            mkdir -p backups
+            chmod 700 backups
             trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
-              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" > .env.prod
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
+              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" > .env.prod
             compose='docker compose -f docker-compose.prod.yml --env-file .env.prod'
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             $compose pull
@@ -177,4 +182,4 @@ jobs:
             fi
             $compose rm -f db-init
             $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
-            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway
+            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway postgres-backup

@@ -325,8 +325,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(p => p.Amount).HasPrecision(10, 2);
             e.HasIndex(p => p.ShopId).IsUnique()
                 .HasFilter("status = 'pending'");
-            e.HasIndex(p => p.PayFastPaymentId).IsUnique()
-                .HasFilter("pay_fast_payment_id IS NOT NULL");
+            e.HasIndex(p => p.ProviderPaymentId).IsUnique()
+                .HasFilter("provider_payment_id IS NOT NULL");
             e.HasIndex(p => p.Status);
             e.HasOne(p => p.Shop).WithMany(s => s.OnboardingPayments)
                 .HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Restrict);

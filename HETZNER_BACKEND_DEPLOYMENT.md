@@ -40,11 +40,62 @@ ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__DefaultConnection=<Hetzner PostgreSQL connection string>
 Jwt__Secret=<random secret of at least 32 characters>
 Cors__AllowedOrigins__0=https://app.spazasure.co.za
+Cors__AllowedOrigins__1=https://portal.spazasure.co.za
 ```
 
-The gateway must expose port `5181` behind Nginx. Set the portal's
-`VITE_API_URL` and Flutter's `API_URL` to `https://api.spazasure.co.za/api`.
+## Domains and Nginx
+
+Use these hostnames:
+
+- `portal.spazasure.co.za` serves the Supplier Portal from
+  `/var/www/spazasure-supplier`.
+- `api.spazasure.co.za` proxies API requests to the Gateway on local port 5181.
+- `app.spazasure.co.za` remains the main app origin and serves its current web
+  files from `/var/www/spazasure`.
+
+Create DNS A records for `portal` and `api` pointing to the Hetzner server's
+public IPv4 address. Keep `app` pointed at its current host. If you use AAAA
+records, they must point to a working IPv6 endpoint as well.
+
+The deployment uploads `SpazaSure.Backend/nginx-spazasure.conf` to
+`/opt/spazasure`. It contains only the new API and portal hosts, so it can be
+enabled without replacing the existing `app` site's TLS configuration. On the
+server, install it and validate Nginx:
+
+```sh
+sudo install -m 0644 /opt/spazasure/nginx-spazasure.conf /etc/nginx/sites-available/spazasure-domains
+sudo ln -sfn /etc/nginx/sites-available/spazasure-domains /etc/nginx/sites-enabled/spazasure-domains
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+After `api` and `portal` DNS resolve to this server, provision HTTPS certificates
+for those two hostnames (Certbot's Nginx plugin will add their TLS listeners
+and HTTP redirects). The existing `app` host's TLS setup is left unchanged:
+
+```sh
+sudo certbot --nginx --redirect -d api.spazasure.co.za -d portal.spazasure.co.za
+```
+
+The production Compose file binds port 5181 to loopback; Nginx is the public
+entry point. The portal's `VITE_API_URL` is set to
+`https://api.spazasure.co.za/api`; Flutter release builds use that URL by
+default (development builds can override it with `--dart-define=API_URL=...`).
+
+## Stripe
+
+Add these as GitHub Actions secrets in the **production** environment:
+
+- `PROD_STRIPE_SECRET_KEY` (Stripe live secret key)
+- `PROD_STRIPE_WEBHOOK_SECRET` (signing secret for the webhook below)
+
+In Stripe, register the webhook URL
+`https://api.spazasure.co.za/api/supplier/payment/stripe/webhook` and enable
+`checkout.session.completed`. The checkout success/cancel URLs default to the
+portal and app domains listed above.
 
 The production workflows use `PROD_HOST`, `PROD_SSH_USER`, and `PROD_SSH_KEY`
 GitHub secrets to deploy the backend and portal to `/opt/spazasure` and
-`/var/www/spazasure-supplier`.
+`/var/www/spazasure-supplier`. This repository change cannot create DNS records
+or issue certificates; complete those server/provider steps before expecting
+the HTTPS domains to resolve.

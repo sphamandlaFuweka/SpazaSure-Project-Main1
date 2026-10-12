@@ -595,7 +595,7 @@ CREATE TABLE IF NOT EXISTS shop_onboarding_payments (
     shop_id uuid NOT NULL,
     amount numeric(10,2) NOT NULL,
     status text NOT NULL DEFAULT 'pending',
-    pay_fast_payment_id text,
+    provider_payment_id text,
     expires_at timestamp with time zone NOT NULL,
     completed_at timestamp with time zone,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
@@ -604,6 +604,46 @@ CREATE TABLE IF NOT EXISTS shop_onboarding_payments (
     CONSTRAINT "FK_ShopOnboardingPayments_SpazaShops_ShopId"
         FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE RESTRICT
 );
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'shop_onboarding_payments'
+          AND column_name = 'pay_fast_payment_id'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'shop_onboarding_payments'
+          AND column_name = 'provider_payment_id'
+    ) THEN
+        ALTER TABLE shop_onboarding_payments
+            RENAME COLUMN pay_fast_payment_id TO provider_payment_id;
+    ELSIF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'shop_onboarding_payments'
+          AND column_name = 'pay_fast_payment_id'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'shop_onboarding_payments'
+          AND column_name = 'provider_payment_id'
+    ) THEN
+        UPDATE shop_onboarding_payments
+        SET provider_payment_id = COALESCE(provider_payment_id, pay_fast_payment_id);
+        ALTER TABLE shop_onboarding_payments DROP COLUMN pay_fast_payment_id;
+    ELSIF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'shop_onboarding_payments'
+          AND column_name = 'provider_payment_id'
+    ) THEN
+        ALTER TABLE shop_onboarding_payments
+            ADD COLUMN provider_payment_id text;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS notifications (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -1226,8 +1266,10 @@ CREATE INDEX IF NOT EXISTS "IX_ShopOnboardingPayments_ShopId" ON shop_onboarding
 CREATE INDEX IF NOT EXISTS "IX_ShopOnboardingPayments_Status" ON shop_onboarding_payments(status);
 CREATE UNIQUE INDEX IF NOT EXISTS "UX_ShopOnboardingPayments_PendingShop"
     ON shop_onboarding_payments(shop_id) WHERE status = 'pending';
-CREATE UNIQUE INDEX IF NOT EXISTS "UX_ShopOnboardingPayments_PayFastPaymentId"
-    ON shop_onboarding_payments(pay_fast_payment_id) WHERE pay_fast_payment_id IS NOT NULL;
+DROP INDEX IF EXISTS "UX_ShopOnboardingPayments_PayFastPaymentId";
+DROP INDEX IF EXISTS ix_shop_onboarding_payments_pay_fast_payment_id;
+CREATE UNIQUE INDEX IF NOT EXISTS ix_shop_onboarding_payments_provider_payment_id
+    ON shop_onboarding_payments(provider_payment_id) WHERE provider_payment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_Notifications_SupplierId" ON notifications(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_Notifications_SupplierId_IsRead" ON notifications(supplier_id, is_read);
 
@@ -1256,7 +1298,8 @@ VALUES
     ('20261009210702_AddReportEvidenceAndScanLocation', '8.0.0'),
     ('20261009211627_AddProductUnitCodes', '8.0.0'),
     ('20261009213411_GroupBuyAdminApproval', '8.0.0'),
-    ('20261009222048_AddUserProfilePhoto', '8.0.0')
+    ('20261009222048_AddUserProfilePhoto', '8.0.0'),
+    ('20261012215024_RenameOnboardingPaymentProviderReference', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.

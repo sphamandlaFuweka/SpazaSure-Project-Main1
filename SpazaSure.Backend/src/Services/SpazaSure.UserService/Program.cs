@@ -37,9 +37,6 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<SpazaSureDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), o => o.MigrationsHistoryTable("__EFMigrationsHistory")).UseSnakeCaseNamingConvention());
-builder.Services.AddHttpClient(nameof(OnboardingPayFastService), client =>
-    client.Timeout = TimeSpan.FromSeconds(15));
-builder.Services.AddScoped<OnboardingPayFastService>();
 builder.Services.AddHttpClient<GeocodingService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(8);
@@ -123,4 +120,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

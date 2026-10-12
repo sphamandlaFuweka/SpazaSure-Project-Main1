@@ -1469,9 +1469,9 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
-                    b.Property<string>("PayFastPaymentId")
+                    b.Property<string>("ProviderPaymentId")
                         .HasColumnType("text")
-                        .HasColumnName("pay_fast_payment_id");
+                        .HasColumnName("provider_payment_id");
 
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid")
@@ -1489,10 +1489,10 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_shop_onboarding_payments");
 
-                    b.HasIndex("PayFastPaymentId")
+                    b.HasIndex("ProviderPaymentId")
                         .IsUnique()
-                        .HasDatabaseName("ix_shop_onboarding_payments_pay_fast_payment_id")
-                        .HasFilter("pay_fast_payment_id IS NOT NULL");
+                        .HasDatabaseName("ix_shop_onboarding_payments_provider_payment_id")
+                        .HasFilter("provider_payment_id IS NOT NULL");
 
                     b.HasIndex("ShopId")
                         .IsUnique()

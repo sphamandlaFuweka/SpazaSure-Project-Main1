@@ -5,7 +5,7 @@ import {
   Headphones, Code2, Palette, ArrowRight, Crown,
   ChevronDown, ChevronUp, Receipt, AlertTriangle,
   CheckCircle, Clock, Loader2, ExternalLink, Sparkles,
-  TrendingUp, Trophy, Lightbulb, CreditCard, Landmark, Smartphone, RefreshCw,
+  TrendingUp, Trophy, Lightbulb,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -87,7 +87,7 @@ const DEFAULT_FAQS = [
   },
   {
     q: 'What payment methods are accepted?',
-    a: 'We accept EFT (bank transfer) and will be adding PayFast soon. After payment, email your proof of payment to billing@spazasure.co.za with your subscription ID as the reference.',
+    a: 'Paid supplier plans are processed through secure Stripe Checkout. Available payment methods are shown during checkout.',
   },
   {
     q: 'Is there a free trial?',
@@ -120,7 +120,7 @@ export default function SubscriptionPage() {
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'cancelled' | null>(null);
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>(DEFAULT_FAQS);
 
-  // Handle PayFast return URL query params
+  // Handle Stripe Checkout return URL query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
@@ -184,8 +184,6 @@ export default function SubscriptionPage() {
       const res = await subscriptionApi.subscribe({
         tier: selectedPlan.tier,
         billingCycle,
-        paymentMethod: selectedPlan.monthlyPrice === 0 ? 'free' : 'stripe',
-        confirmPayment: selectedPlan.monthlyPrice === 0,
       });
       const d = res?.data ?? res;
 
@@ -776,27 +774,13 @@ export default function SubscriptionPage() {
                     <Shield size={14} className="text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-bold text-blue-900 text-sm">Secure payment via PayFast</p>
+                    <p className="font-bold text-blue-900 text-sm">Secure checkout via Stripe</p>
                     <p className="mt-1.5 text-xs text-blue-700 leading-relaxed">
-                      You'll be redirected to <strong>PayFast</strong> — South Africa's trusted payment gateway — to complete your payment of{' '}
+                      You'll be redirected to <strong>Stripe Checkout</strong> to complete your payment of{' '}
                       <strong>R{billingCycle === 'annual' ? selectedPlan.annualPrice.toLocaleString() : selectedPlan.monthlyPrice.toLocaleString()}</strong>.
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {[
-                        { label: 'Credit/Debit Card', Icon: CreditCard },
-                        { label: 'EFT/Bank Transfer', Icon: Landmark },
-                        { label: 'SnapScan', Icon: Smartphone },
-                        { label: 'Mobicred', Icon: RefreshCw },
-                      ].map(({ label, Icon }) => (
-                        <span key={label} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/80 border border-blue-200 px-2.5 py-1 rounded-full text-blue-700">
-                          <Icon size={11} /> {label}
-                        </span>
-                      ))}
-                    </div>
                     <p className="mt-3 text-[10px] text-blue-500 flex items-center gap-3 flex-wrap">
-                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> 256-bit SSL</span>
-                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> PCI DSS Level 1</span>
-                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> Recurring billing</span>
+                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> Payment is confirmed securely by Stripe</span>
                     </p>
                   </div>
                 </div>
@@ -847,7 +831,7 @@ export default function SubscriptionPage() {
                   'hover:shadow-lg active:scale-[0.97]'
                 )}
               >
-                {subscribing ? <><Loader2 size={14} className="animate-spin" /> Processing…</> : <>Pay with PayFast <ArrowRight size={14} /></>}
+                {subscribing ? <><Loader2 size={14} className="animate-spin" /> Processing…</> : <>Continue to Stripe <ArrowRight size={14} /></>}
               </button>
             </div>
           </div>

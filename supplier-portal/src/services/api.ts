@@ -425,9 +425,6 @@ export const subscriptionApi = {
   subscribe: (data: SubscribeRequest) =>
     api.post('/supplier/subscription/subscribe', data).then((r) => r.data),
 
-  confirmPayment: (subscriptionId: string, paymentReference?: string) =>
-    api.post(`/supplier/subscription/${subscriptionId}/confirm-payment`, { paymentReference }).then((r) => r.data),
-
   cancel: (data: { reason?: string }) =>
     api.post('/supplier/subscription/cancel', data).then((r) => r.data),
 
@@ -439,10 +436,6 @@ export const subscriptionApi = {
 export const paymentApi = {
   stripeCheckout: (subscriptionId: string) =>
     api.post('/supplier/payment/stripe/checkout-session', { subscriptionId }).then((r) => r.data),
-
-  /** Initiate a PayFast payment — returns form data + PayFast URL to redirect to */
-  initiate: (subscriptionId: string) =>
-    api.post('/supplier/payment/initiate', { subscriptionId }).then((r) => r.data),
 
   /** Check payment/subscription status after redirect */
   getStatus: (subscriptionId: string) =>

@@ -1,6 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart'
-    show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
+    show
+        debugPrint,
+        kIsWeb,
+        kReleaseMode,
+        defaultTargetPlatform,
+        TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +19,7 @@ class ApiService {
 
   static String get baseUrl {
     if (_override.isNotEmpty) return _override;
+    if (kReleaseMode) return 'https://api.spazasure.co.za/api';
     if (kIsWeb) return 'http://localhost:5181/api';
     // Android emulator can't reach the host machine via localhost — 10.0.2.2
     // is the special alias Android's emulator provides for that. Uses

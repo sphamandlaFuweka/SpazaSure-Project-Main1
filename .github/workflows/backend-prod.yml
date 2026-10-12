@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'SpazaSure.Backend/**'
+      - '.github/workflows/backend-prod.yml'
       - '!SpazaSure.Backend/**.md'
 
 concurrency:
@@ -33,6 +34,8 @@ jobs:
     name: Build & Push Production Images
     runs-on: ubuntu-latest
     needs: test
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
     permissions:
       contents: read
       packages: write
@@ -46,7 +49,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Get short SHA
         id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: |
+          sha_short=$(git rev-parse --short HEAD)
+          echo "sha_short=$sha_short" >> "$GITHUB_OUTPUT"
+          echo "image_tag=prod-$sha_short" >> "$GITHUB_OUTPUT"
       - name: Build and push auth-service
         uses: docker/build-push-action@v5
         with:
@@ -120,3 +126,72 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/spazasure-gateway:prod-${{ steps.vars.outputs.sha_short }}
             ghcr.io/${{ github.repository_owner }}/spazasure-gateway:latest
 
+  deploy:
+    name: Deploy backend to production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy production deployment files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "SpazaSure.Backend/docker-compose.prod.yml,SpazaSure.Backend/migrate.sql,SpazaSure.Backend/backup-postgres.sh,SpazaSure.Backend/DATABASE_BACKUPS.md,SpazaSure.Backend/nginx-spazasure.conf"
+          target: /opt/spazasure/
+          strip_components: 1
+          overwrite: true
+      - name: Deploy containers
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          PROD_RABBITMQ_PASSWORD: ${{ secrets.PROD_RABBITMQ_PASSWORD }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          PROD_AT_USERNAME: ${{ secrets.PROD_AT_USERNAME }}
+          PROD_AT_API_KEY: ${{ secrets.PROD_AT_API_KEY }}
+          PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
+          PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          command_timeout: 20m
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
+          script: |
+            set -eu
+            cd /opt/spazasure
+            umask 077
+            mkdir -p backups
+            chmod 700 backups
+            trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=%s\n" \
+              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" "$IMAGE_TAG" > .env.prod
+            compose='docker compose -f docker-compose.prod.yml --env-file .env.prod'
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+            $compose pull
+            docker logout ghcr.io >/dev/null
+            $compose up -d postgres rabbitmq
+            database_ready=false
+            for attempt in $(seq 1 30); do
+              if $compose exec -T postgres pg_isready -U spazasure_prod_user -d spazasure >/dev/null 2>&1; then
+                database_ready=true
+                break
+              fi
+              sleep 2
+            done
+            if [ "$database_ready" != true ]; then
+              echo 'PostgreSQL did not become ready.'
+              $compose ps
+              exit 1
+            fi
+            $compose rm -f db-init
+            $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
+            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway postgres-backup

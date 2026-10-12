@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:spazasure_app/services/profile_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class OnboardingFeeCheckoutScreen extends StatefulWidget {
-  final OnboardingCheckout? checkout;
-  final String? stripeUrl;
+  final String stripeUrl;
 
-  const OnboardingFeeCheckoutScreen({this.checkout, this.stripeUrl, super.key});
+  const OnboardingFeeCheckoutScreen({required this.stripeUrl, super.key});
 
   @override
   State<OnboardingFeeCheckoutScreen> createState() =>
@@ -32,28 +30,15 @@ class _OnboardingFeeCheckoutScreenState
             final paymentResult = Uri.tryParse(
               request.url,
             )?.queryParameters['payment'];
-            if (widget.stripeUrl != null &&
-                (paymentResult == 'success' || paymentResult == 'cancelled')) {
+            if (paymentResult == 'success' || paymentResult == 'cancelled') {
               Navigator.pop(context, paymentResult == 'success');
-              return NavigationDecision.prevent;
-            }
-            if (widget.checkout?.returnUrl != null &&
-                request.url == widget.checkout!.returnUrl) {
-              Navigator.pop(context, true);
-              return NavigationDecision.prevent;
-            }
-            if (widget.checkout?.cancelUrl != null &&
-                request.url == widget.checkout!.cancelUrl) {
-              Navigator.pop(context, false);
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
           },
         ),
       )
-      ..loadRequest(
-        Uri.parse(widget.stripeUrl ?? widget.checkout?.actionUrl ?? ''),
-      );
+      ..loadRequest(Uri.parse(widget.stripeUrl));
   }
 
   @override

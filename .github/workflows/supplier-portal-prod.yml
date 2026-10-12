@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supplier-portal/**'
+      - '.github/workflows/supplier-portal-prod.yml'
       - '!supplier-portal/**.md'
 
 concurrency:
@@ -45,3 +46,35 @@ jobs:
           name: supplier-portal-prod-build
           path: supplier-portal/dist/
           retention-days: 30
+
+  deploy:
+    name: Deploy supplier portal to production
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: supplier-portal-prod-build
+          path: dist/
+
+      - name: Deploy static site
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "dist/*"
+          target: /var/www/spazasure-supplier
+          strip_components: 1
+          overwrite: true
+          rm: true
+
+      - name: Verify deployed portal files
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: test -s /var/www/spazasure-supplier/index.html

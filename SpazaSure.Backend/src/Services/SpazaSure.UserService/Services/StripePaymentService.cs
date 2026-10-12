@@ -1,5 +1,6 @@
 using Stripe;
 using Stripe.Checkout;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace SpazaSure.UserService.Services;
 
@@ -9,6 +10,8 @@ public sealed class StripePaymentService(IConfiguration config)
     private readonly string _webhookSecret = config["Stripe:WebhookSecret"] ?? string.Empty;
     private readonly string _successUrl = config["Stripe:SuccessUrl"] ?? string.Empty;
     private readonly string _cancelUrl = config["Stripe:CancelUrl"] ?? string.Empty;
+    private readonly string _onboardingSuccessUrl = config["Stripe:OnboardingSuccessUrl"] ?? string.Empty;
+    private readonly string _onboardingCancelUrl = config["Stripe:OnboardingCancelUrl"] ?? string.Empty;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_secretKey) &&
                                 !string.IsNullOrWhiteSpace(_successUrl) &&
@@ -25,13 +28,18 @@ public sealed class StripePaymentService(IConfiguration config)
     {
         EnsureConfigured();
         StripeConfiguration.ApiKey = _secretKey;
+        var (successUrl, cancelUrl) = paymentType == "shop_onboarding"
+            ? (_onboardingSuccessUrl, _onboardingCancelUrl)
+            : (_successUrl, _cancelUrl);
+        if (string.IsNullOrWhiteSpace(successUrl) || string.IsNullOrWhiteSpace(cancelUrl))
+            throw new InvalidOperationException($"Stripe return URLs are not configured for {paymentType}.");
 
         var options = new SessionCreateOptions
         {
             Mode = "payment",
             CustomerEmail = string.IsNullOrWhiteSpace(customerEmail) ? null : customerEmail,
-            SuccessUrl = $"{_successUrl}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
-            CancelUrl = $"{_cancelUrl}?payment=cancelled",
+            SuccessUrl = $"{successUrl}{(successUrl.Contains('?') ? '&' : '?')}payment=success&session_id={{CHECKOUT_SESSION_ID}}",
+            CancelUrl = QueryHelpers.AddQueryString(cancelUrl, "payment", "cancelled"),
             Metadata = new Dictionary<string, string>
             {
                 ["payment_type"] = paymentType,

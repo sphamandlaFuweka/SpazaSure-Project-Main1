@@ -36,6 +36,28 @@ services:
       postgres:
         condition: service_healthy
 
+  postgres-backup:
+    image: postgres:16-alpine
+    container_name: spazasure-prod-db-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: spazasure
+      PGUSER: spazasure_prod_user
+      PGPASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD must be set in .env.prod}
+      BACKUP_RETENTION_DAYS: ${PROD_BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_SECONDS: ${PROD_BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./backups:/backups
+      - ./backup-postgres.sh:/scripts/backup-postgres.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/backup-postgres.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: spazasure-prod-rabbitmq
@@ -131,17 +153,12 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
-      PayFast__MerchantId:                  ${PROD_PAYFAST_MERCHANT_ID}
-      PayFast__MerchantKey:                 ${PROD_PAYFAST_MERCHANT_KEY}
-      PayFast__Passphrase:                  ${PROD_PAYFAST_PASSPHRASE}
-      PayFast__Sandbox:                     "false"
-      PayFast__OnboardingReturnUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/return
-      PayFast__OnboardingCancelUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/cancel
-      PayFast__OnboardingNotifyUrl:         ${PROD_PUBLIC_URL}/api/shop/profile/onboarding-fee/notify
-      Stripe__SecretKey:                    ${PROD_STRIPE_SECRET_KEY:-}
-      Stripe__WebhookSecret:                ${PROD_STRIPE_WEBHOOK_SECRET:-}
-      Stripe__SuccessUrl:                   ${PROD_STRIPE_SUCCESS_URL:-http://2.29.35.144:5181}
-      Stripe__CancelUrl:                    ${PROD_STRIPE_CANCEL_URL:-http://2.29.35.144:5181}
+      Stripe__SecretKey:                    ${PROD_STRIPE_SECRET_KEY:?PROD_STRIPE_SECRET_KEY must be set}
+      Stripe__WebhookSecret:                ${PROD_STRIPE_WEBHOOK_SECRET:?PROD_STRIPE_WEBHOOK_SECRET must be set}
+      Stripe__SuccessUrl:                   ${PROD_STRIPE_SUCCESS_URL:-https://portal.spazasure.co.za/subscription}
+      Stripe__CancelUrl:                    ${PROD_STRIPE_CANCEL_URL:-https://portal.spazasure.co.za/subscription}
+      Stripe__OnboardingSuccessUrl:         ${PROD_STRIPE_ONBOARDING_SUCCESS_URL:-https://app.spazasure.co.za/}
+      Stripe__OnboardingCancelUrl:          ${PROD_STRIPE_ONBOARDING_CANCEL_URL:-https://app.spazasure.co.za/}
       # Object storage — see appsettings.Production.json for the defaults
       # these override. The `prod_uploads` volume above becomes an unused
       # fallback once this is set; it's kept only so Storage__Provider can
@@ -241,17 +258,13 @@ services:
     container_name: spazasure-prod-gateway
     restart: always
     ports:
-      - "5181:5181"
+      - "127.0.0.1:5181:5181"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5181
       # Overrides the AllowedOrigins list baked into appsettings.Production.json —
-      # set this in .env.prod to your real frontend domain(s), e.g.
-      # PROD_FRONTEND_URL=https://app.spazasure.co.za
-      # Keep a working temporary origin until DNS is configured. An empty
-      # environment value would otherwise replace the configured list with a
-      # blank origin and break every browser preflight request.
-      Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL:-http://sfx7k1da9c6rutxhmfjaubnf.2.29.35.144.sslip.io}
+      Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL:-https://app.spazasure.co.za}
+      Cors__AllowedOrigins__1: ${PROD_SUPPLIER_PORTAL_URL:-https://portal.spazasure.co.za}
     depends_on:
       - auth-service
       - product-service
