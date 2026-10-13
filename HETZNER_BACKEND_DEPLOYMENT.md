@@ -47,6 +47,9 @@ Cors__AllowedOrigins__1=https://portal.spazasure.co.za
 
 The production auth service also needs Africa's Talking credentials
 (`PROD_AT_USERNAME` and `PROD_AT_API_KEY`) with `AfricasTalking__Sandbox=false`.
+Leave `PROD_AT_SENDER_ID` unset unless the sender ID is approved for this
+Africa's Talking account; without it, the service uses the account's default
+sender route.
 OTP verification is required for shop-owner and customer sign-ins through the
 mobile app. Supplier/admin sign-ins to the web portal continue to use the
 existing email/password flow. Do not configure an OTP bypass for app logins;
