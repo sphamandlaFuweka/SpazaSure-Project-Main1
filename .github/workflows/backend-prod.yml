@@ -36,6 +36,7 @@ jobs:
     needs: test
     outputs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
+      registry_owner: ${{ steps.vars.outputs.registry_owner }}
     permissions:
       contents: read
       packages: write
@@ -51,8 +52,10 @@ jobs:
         id: vars
         run: |
           sha_short=$(git rev-parse --short HEAD)
+          registry_owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "sha_short=$sha_short" >> "$GITHUB_OUTPUT"
           echo "image_tag=prod-$sha_short" >> "$GITHUB_OUTPUT"
+          echo "registry_owner=$registry_owner" >> "$GITHUB_OUTPUT"
       - name: Build and push auth-service
         uses: docker/build-push-action@v5
         with:
@@ -60,8 +63,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.AuthService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-auth:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-auth:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-auth:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-auth:latest
       - name: Build and push product-service
         uses: docker/build-push-action@v5
         with:
@@ -69,8 +72,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.ProductService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-product:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-product:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-product:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-product:latest
       - name: Build and push order-service
         uses: docker/build-push-action@v5
         with:
@@ -78,8 +81,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.OrderService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-order:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-order:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-order:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-order:latest
       - name: Build and push user-service
         uses: docker/build-push-action@v5
         with:
@@ -87,8 +90,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.UserService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-user:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-user:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-user:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-user:latest
       - name: Build and push notification-service
         uses: docker/build-push-action@v5
         with:
@@ -96,8 +99,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.NotificationService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-notification:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-notification:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-notification:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-notification:latest
       - name: Build and push analytics-service
         uses: docker/build-push-action@v5
         with:
@@ -105,8 +108,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.AnalyticsService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-analytics:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-analytics:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-analytics:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-analytics:latest
       - name: Build and push compliance-service
         uses: docker/build-push-action@v5
         with:
@@ -114,8 +117,8 @@ jobs:
           file: SpazaSure.Backend/src/Services/SpazaSure.ComplianceService/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-compliance:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-compliance:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-compliance:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-compliance:latest
       - name: Build and push gateway
         uses: docker/build-push-action@v5
         with:
@@ -123,8 +126,8 @@ jobs:
           file: SpazaSure.Backend/src/Gateway/SpazaSure.Gateway/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/spazasure-gateway:prod-${{ steps.vars.outputs.sha_short }}
-            ghcr.io/${{ github.repository_owner }}/spazasure-gateway:latest
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-gateway:prod-${{ steps.vars.outputs.sha_short }}
+            ghcr.io/${{ steps.vars.outputs.registry_owner }}/spazasure-gateway:latest
 
   deploy:
     name: Deploy backend to production
@@ -172,7 +175,7 @@ jobs:
             mkdir -p backups
             chmod 700 backups
             trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=%s\n" \
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ needs.build-and-push.outputs.registry_owner }}\nIMAGE_TAG=%s\n" \
               "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" "$IMAGE_TAG" > .env.prod
             compose='docker compose -f docker-compose.prod.yml --env-file .env.prod'
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
