@@ -177,11 +177,26 @@ jobs:
             trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ needs.build-and-push.outputs.registry_owner }}\nIMAGE_TAG=%s\n" \
               "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" "$IMAGE_TAG" > .env.prod
-            compose='docker compose -f docker-compose.prod.yml --env-file .env.prod'
+            compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-db 2>/dev/null || true)
+            [ -n "$compose_project" ] || compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-rabbitmq 2>/dev/null || true)
+            [ -n "$compose_project" ] || compose_project='spazasure'
+            compose="docker compose -p $compose_project -f docker-compose.prod.yml --env-file .env.prod"
+            echo "Using Compose project: $compose_project"
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             $compose pull
             docker logout ghcr.io >/dev/null
-            $compose up -d postgres rabbitmq
+            if docker container inspect spazasure-prod-rabbitmq >/dev/null 2>&1; then
+              existing_rabbit_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-rabbitmq 2>/dev/null || true)
+              if [ "$existing_rabbit_project" != "$compose_project" ]; then
+                echo "Removing conflicting rabbitmq container from project '$existing_rabbit_project' (current: '$compose_project')"
+                docker rm -f spazasure-prod-rabbitmq
+              fi
+            fi
+            if ! $compose up -d postgres rabbitmq; then
+              echo "Retrying infrastructure startup after removing conflicting rabbitmq container..."
+              docker rm -f spazasure-prod-rabbitmq 2>/dev/null || true
+              $compose up -d postgres rabbitmq
+            fi
             database_ready=false
             for attempt in $(seq 1 30); do
               if $compose exec -T postgres pg_isready -U spazasure_prod_user -d spazasure >/dev/null 2>&1; then
@@ -193,8 +208,10 @@ jobs:
             if [ "$database_ready" != true ]; then
               echo 'PostgreSQL did not become ready.'
               $compose ps
+              $compose logs --tail=150 postgres rabbitmq || true
               exit 1
             fi
-            $compose rm -f db-init
+            $compose rm -f db-init >/dev/null 2>&1 || true
+            docker rm -f spazasure-prod-db-init 2>/dev/null || true
             $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
             $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway postgres-backup
