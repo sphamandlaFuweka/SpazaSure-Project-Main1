@@ -98,9 +98,27 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
           textInputAction: TextInputAction.search,
           keyboardType: TextInputType.streetAddress,
           maxLines: null,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+          cursorColor: AppColors.primary,
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hint,
+            labelStyle: const TextStyle(color: AppColors.textPrimary),
+            floatingLabelStyle: const TextStyle(color: AppColors.primary),
+            hintStyle: const TextStyle(color: AppColors.textSecondary),
+            fillColor: AppColors.surface,
+            filled: true,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
+            ),
             prefixIcon: const Icon(Icons.location_on_outlined),
             suffixIcon: _loading
                 ? const Padding(

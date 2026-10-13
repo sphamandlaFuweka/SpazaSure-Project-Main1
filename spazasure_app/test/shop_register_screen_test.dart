@@ -21,6 +21,18 @@ void main() {
     expect(find.text('First name *'), findsOneWidget);
     expect(find.text('Mobile number *'), findsOneWidget);
     expect(find.text('Confirm password *'), findsOneWidget);
+
+    final firstField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(firstField.style?.color, const Color(0xFF17244F));
+
+    final continueButton = tester.widget<ElevatedButton>(
+      find.byType(ElevatedButton),
+    );
+    expect(continueButton.style?.foregroundColor?.resolve({}), Colors.white);
+    expect(
+      continueButton.style?.backgroundColor?.resolve({}),
+      const Color(0xFF25449A),
+    );
   });
 
   testWidgets('shop registration validates required representative data', (

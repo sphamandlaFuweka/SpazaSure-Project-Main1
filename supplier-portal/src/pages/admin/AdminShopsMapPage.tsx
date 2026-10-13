@@ -186,8 +186,8 @@ export default function AdminShopsMapPage() {
         <div className="shops-map relative overflow-hidden rounded-2xl border border-primary-100 bg-primary-50 shadow-card xl:col-span-2 h-[560px] compact:h-[440px]">
           <MapContainer center={SOUTH_AFRICA_CENTER} zoom={5} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapViewport points={points} province={selectedProvince} selectedShop={selected} />
             {pinned.map((s) => (

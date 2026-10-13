@@ -16,6 +16,9 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  static const _fieldTextColor = Color(0xFF17244F);
+  static const _fieldHintColor = Color(0xFF667085);
+  static const _fieldFillColor = Color(0xFFF7F8FC);
   static const _stepLabels = [
     'Representative',
     'Shop',
@@ -390,8 +393,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.primary
+                                .withValues(alpha: 0.55),
+                            disabledForegroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
+                            ),
+                            textStyle: GoogleFonts.nunito(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                           child: _isLoading
@@ -825,12 +836,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           : keyName == 'confirmPassword'
           ? _obscureConfirmPassword
           : false,
+      style: const TextStyle(color: _fieldTextColor, fontSize: 16),
+      cursorColor: AppColors.primary,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         prefixText: prefixText,
         filled: true,
-        fillColor: const Color(0xFFF7F8F7),
+        fillColor: _fieldFillColor,
+        labelStyle: const TextStyle(color: _fieldTextColor),
+        floatingLabelStyle: const TextStyle(color: AppColors.primary),
+        hintStyle: const TextStyle(color: _fieldHintColor),
+        prefixStyle: const TextStyle(color: _fieldTextColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -852,17 +869,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) => TextField(
     controller: _controller(keyName),
     obscureText: obscure,
+    style: const TextStyle(color: _fieldTextColor, fontSize: 16),
+    cursorColor: AppColors.primary,
     decoration: InputDecoration(
       labelText: label,
+      labelStyle: const TextStyle(color: _fieldTextColor),
+      floatingLabelStyle: const TextStyle(color: AppColors.primary),
       prefixIcon: const Icon(Icons.lock_outline),
       suffixIcon: IconButton(
         onPressed: onToggle,
         icon: Icon(
           obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          color: _fieldHintColor,
         ),
       ),
       filled: true,
-      fillColor: const Color(0xFFF7F8F7),
+      fillColor: _fieldFillColor,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD6DCE8)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
@@ -876,14 +906,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
+      style: const TextStyle(color: _fieldTextColor, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: const TextStyle(color: _fieldTextColor),
+        floatingLabelStyle: const TextStyle(color: AppColors.primary),
         filled: true,
-        fillColor: const Color(0xFFF7F8F7),
+        fillColor: _fieldFillColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFD6DCE8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       items: options
-          .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+          .map(
+            (option) => DropdownMenuItem(
+              value: option,
+              child: Text(
+                option,
+                style: const TextStyle(color: _fieldTextColor),
+              ),
+            ),
+          )
           .toList(),
       onChanged: onChanged,
     );
@@ -909,6 +958,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   selected: selected.contains(option),
                   selectedColor: const Color(0xFFDFF1E2),
                   checkmarkColor: AppColors.primary,
+                  labelStyle: const TextStyle(color: _fieldTextColor),
+                  selectedShadowColor: Colors.transparent,
                   onSelected: (checked) => setState(() {
                     if (checked) {
                       selected.add(option);
