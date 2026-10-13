@@ -22,6 +22,8 @@ public class Order : BaseEntity
     public decimal TotalAmount { get; set; }
     public string PaymentMethod { get; set; } = "invoice";
     public string PaymentStatus { get; set; } = "pending";
+    public Guid? StripeCheckoutId { get; set; }
+    public string? StripeCheckoutSessionId { get; set; }
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
 

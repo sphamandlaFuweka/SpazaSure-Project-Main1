@@ -308,6 +308,8 @@ CREATE TABLE IF NOT EXISTS orders (
     total_amount numeric(10,2) NOT NULL DEFAULT 0,
     payment_method text NOT NULL DEFAULT 'invoice',
     payment_status text NOT NULL DEFAULT 'pending',
+    stripe_checkout_id uuid,
+    stripe_checkout_session_id text,
     rejection_reason text,
     notes text,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
@@ -399,6 +401,24 @@ UPDATE customer_profiles SET first_name = '' WHERE first_name IS NULL;
 UPDATE customer_profiles SET last_name = '' WHERE last_name IS NULL;
 ALTER TABLE customer_profiles ALTER COLUMN first_name SET NOT NULL;
 ALTER TABLE customer_profiles ALTER COLUMN last_name SET NOT NULL;
+
+CREATE TABLE IF NOT EXISTS customer_subscriptions (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    customer_user_id uuid NOT NULL,
+    plan_key text NOT NULL DEFAULT 'free',
+    status text NOT NULL DEFAULT 'pending',
+    stripe_customer_id text,
+    stripe_subscription_id text,
+    stripe_checkout_session_id text,
+    payment_reference text,
+    current_period_end timestamp with time zone,
+    cancel_at_period_end boolean NOT NULL DEFAULT false,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_CustomerSubscriptions" PRIMARY KEY (id),
+    CONSTRAINT "FK_CustomerSubscriptions_Users" FOREIGN KEY (customer_user_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS customer_scan_events (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -509,12 +529,20 @@ CREATE TABLE IF NOT EXISTS supplier_subscriptions (
     payment_reference text,
     payment_method text,
     cancelled_reason text,
+    stripe_customer_id text,
+    stripe_subscription_id text,
+    stripe_checkout_session_id text,
+    cancel_at_period_end boolean NOT NULL DEFAULT false,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW(),
     CONSTRAINT "PK_SupplierSubscriptions" PRIMARY KEY (id),
     CONSTRAINT "FK_SupplierSubscriptions_Suppliers_SupplierId" FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
     CONSTRAINT "FK_SupplierSubscriptions_SubscriptionPlans_PlanId" FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
 );
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_subscription_id text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS group_buys (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -670,6 +698,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_longitude double precision;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_distance_km numeric(10,2);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'invoice';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_checkout_id uuid;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS original_unit_price numeric(10,2);
 UPDATE order_items SET original_unit_price = unit_price WHERE original_unit_price IS NULL;
 ALTER TABLE order_items ALTER COLUMN original_unit_price TYPE numeric(10,2)
@@ -1198,6 +1228,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_Products_SupplierId_Sku" ON products(suppl
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_Orders_OrderNumber" ON orders(order_number);
 CREATE INDEX IF NOT EXISTS "IX_Orders_ShopId" ON orders(shop_id);
 CREATE INDEX IF NOT EXISTS "IX_Orders_SupplierId" ON orders(supplier_id);
+CREATE INDEX IF NOT EXISTS "IX_Orders_StripeCheckoutId" ON orders(stripe_checkout_id);
+CREATE INDEX IF NOT EXISTS "IX_Orders_StripeCheckoutSessionId" ON orders(stripe_checkout_session_id);
 CREATE INDEX IF NOT EXISTS "IX_Orders_GroupBuyId" ON orders(group_buy_id);
 CREATE UNIQUE INDEX IF NOT EXISTS "UX_Orders_GroupBuyParticipantId"
     ON orders(group_buy_participant_id) WHERE group_buy_participant_id IS NOT NULL;
@@ -1205,6 +1237,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS "UX_Orders_GroupBuyId_ShopId"
     ON orders(group_buy_id, shop_id) WHERE group_buy_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_OrderItems_OrderId" ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS "IX_OrderItems_ProductId" ON order_items(product_id);
+CREATE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_CustomerUserId_CreatedAt"
+    ON customer_subscriptions(customer_user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_CustomerUserId"
+    ON customer_subscriptions(customer_user_id)
+    WHERE status IN ('pending', 'active', 'past_due', 'unpaid', 'incomplete', 'trialing', 'paused');
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_StripeCheckoutSessionId"
+    ON customer_subscriptions(stripe_checkout_session_id)
+    WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_StripeSubscriptionId"
+    ON customer_subscriptions(stripe_subscription_id)
+    WHERE stripe_subscription_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_ProductQrCodes_ProductId" ON product_qr_codes(product_id);
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProductQrCodes_QrCode" ON product_qr_codes(qr_code);
 
@@ -1240,6 +1283,12 @@ WHERE NOT EXISTS (
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_SubscriptionPlans_Tier" ON subscription_plans(tier);
 CREATE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_SupplierId" ON supplier_subscriptions(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_PlanId" ON supplier_subscriptions(plan_id);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_StripeSubscriptionId"
+    ON supplier_subscriptions(stripe_subscription_id)
+    WHERE stripe_subscription_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_StripeCheckoutSessionId"
+    ON supplier_subscriptions(stripe_checkout_session_id)
+    WHERE stripe_checkout_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_ProductId" ON group_buys(product_id);
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_SupplierId" ON group_buys(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_CreatedByShopId" ON group_buys(created_by_shop_id);
@@ -1299,7 +1348,10 @@ VALUES
     ('20261009211627_AddProductUnitCodes', '8.0.0'),
     ('20261009213411_GroupBuyAdminApproval', '8.0.0'),
     ('20261009222048_AddUserProfilePhoto', '8.0.0'),
-    ('20261012215024_RenameOnboardingPaymentProviderReference', '8.0.0')
+    ('20261012215024_RenameOnboardingPaymentProviderReference', '8.0.0'),
+    ('20261012230011_AddStripeCheckoutToShopOrders', '8.0.0'),
+    ('20261012232837_AddCustomerSubscriptions', '8.0.0'),
+    ('20261012234836_AddSupplierStripeSubscriptions', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.

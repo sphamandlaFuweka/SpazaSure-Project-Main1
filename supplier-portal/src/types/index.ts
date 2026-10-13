@@ -278,10 +278,11 @@ export interface SubscriptionPlan {
 export interface SubscriptionRecord {
   id: string;
   billingCycle: 'monthly' | 'annual';
-  status: 'active' | 'cancelled' | 'expired' | 'pending';
+  status: 'active' | 'past_due' | 'unpaid' | 'cancelled' | 'expired' | 'pending';
   startDate: string;
   endDate?: string;
   nextBillingDate?: string;
+  cancelAtPeriodEnd?: boolean;
   amountPaid: number;
   paymentMethod?: string;
   paymentReference?: string;

@@ -61,6 +61,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
                 CategoryId = p.CategoryId, CategoryName = p.Category != null ? p.Category.Name : null,
                 SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
                 SupplierTier = p.Supplier.Tier, SupplierLogo = p.Supplier.LogoUrl,
+                SupplierCommissionRate = p.Supplier.CommissionRate,
                 SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
                 IsNearby = (p.Supplier.City != null && p.Supplier.City.ToLower() == shopCity) ||
                            (p.Supplier.Province != null && p.Supplier.Province.ToLower() == shopProvince),
@@ -80,6 +81,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
             SupplierTier = p.Supplier.Tier,
+            SupplierCommissionRate = p.Supplier.CommissionRate,
             SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
         }));
     }

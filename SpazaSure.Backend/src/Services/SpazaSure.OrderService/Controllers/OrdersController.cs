@@ -195,6 +195,9 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
 
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id && o.SupplierId == supplier.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.PaymentMethod == "stripe" && order.PaymentStatus != "paid" &&
+            req.Status is "processing" or "dispatched" or "delivered")
+            return BadRequest(ApiResponse.Fail("The customer payment has not been confirmed yet."));
 
         var allowed = new Dictionary<string, string[]>
         {

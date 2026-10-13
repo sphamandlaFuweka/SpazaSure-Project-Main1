@@ -1,16 +1,21 @@
 import 'api_service.dart';
 import '../models/models.dart';
 
+class OrderCheckout {
+  final String orderNumber;
+  final String checkoutUrl;
+
+  const OrderCheckout({required this.orderNumber, required this.checkoutUrl});
+}
+
 class OrderService {
-  static Future<String> placeOrder({
+  static Future<OrderCheckout> placeOrder({
     required List<CartItem> items,
     required String deliveryOption,
-    required String paymentMethod,
     required String deliveryAddress,
   }) async {
     final res = await ApiService.post('/shop/orders', {
       'deliveryType': deliveryOption,
-      'paymentMethod': paymentMethod,
       'deliveryAddress': deliveryAddress,
       'items': items
           .map(
@@ -23,7 +28,14 @@ class OrderService {
           .toList(),
     });
     final data = res['data'] as Map<String, dynamic>;
-    return data['orderNumber'] as String;
+    final checkoutUrl = data['checkoutUrl']?.toString();
+    if (checkoutUrl == null || checkoutUrl.isEmpty) {
+      throw StateError('Stripe checkout was not returned for this order.');
+    }
+    return OrderCheckout(
+      orderNumber: data['orderNumber']?.toString() ?? '',
+      checkoutUrl: checkoutUrl,
+    );
   }
 
   static Future<List<Order>> getOrders({String? status}) async {

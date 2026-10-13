@@ -3,8 +3,13 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 class OnboardingFeeCheckoutScreen extends StatefulWidget {
   final String stripeUrl;
+  final String title;
 
-  const OnboardingFeeCheckoutScreen({required this.stripeUrl, super.key});
+  const OnboardingFeeCheckoutScreen({
+    required this.stripeUrl,
+    this.title = 'Complete payment',
+    super.key,
+  });
 
   @override
   State<OnboardingFeeCheckoutScreen> createState() =>
@@ -44,7 +49,7 @@ class _OnboardingFeeCheckoutScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pay onboarding fee')),
+      appBar: AppBar(title: Text(widget.title)),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),

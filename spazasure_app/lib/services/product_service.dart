@@ -131,6 +131,8 @@ class ProductService {
       isAvailable: i['isAvailable'] ?? true,
       isNearby: i['isNearby'] ?? false,
       supplierCity: i['supplierCity'] as String?,
+      supplierCommissionRate:
+          (i['supplierCommissionRate'] as num?)?.toDouble() ?? 5,
     );
   }
 

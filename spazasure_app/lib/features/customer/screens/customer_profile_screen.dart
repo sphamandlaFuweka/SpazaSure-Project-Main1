@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/editable_avatar.dart';
 import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_scan_history_screen.dart';
+import 'package:spazasure_app/features/customer/screens/customer_subscription_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/customer_profile_service.dart';
 
@@ -382,6 +383,21 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     return _sectionCard(
       title: 'Activity',
       children: [
+        ListTile(
+          leading: const Icon(
+            Icons.workspace_premium_rounded,
+            color: AppColors.primary,
+          ),
+          title: const Text('SpazaSure membership'),
+          subtitle: const Text('Manage Free and Plus plans'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CustomerSubscriptionScreen(),
+            ),
+          ),
+        ),
         ListTile(
           leading: const Icon(Icons.history_rounded, color: AppColors.primary),
           title: const Text('Scan history'),

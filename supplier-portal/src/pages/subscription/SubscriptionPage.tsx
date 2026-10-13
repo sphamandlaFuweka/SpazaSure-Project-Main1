@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import {
   Zap, Check, X, Star, Shield, BarChart2, Package,
   Headphones, Code2, Palette, ArrowRight, Crown,
@@ -91,7 +92,7 @@ const DEFAULT_FAQS = [
   },
   {
     q: 'Is there a free trial?',
-    a: 'All paid plans include a 14-day free trial. No credit card required. Your tier upgrades immediately and billing only starts after the trial.',
+    a: 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Stripe Checkout and renews each billing period until you cancel.',
   },
   {
     q: 'Can I pay annually?',
@@ -206,8 +207,11 @@ export default function SubscriptionPage() {
           setShowConfirm(false);
         }
       }
-    } catch {
-      toast.error('Failed to process subscription. Please try again.');
+    } catch (error: unknown) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      toast.error(message ?? 'Failed to process subscription. Please try again.');
     } finally {
       setSubscribing(false);
     }
@@ -217,13 +221,21 @@ export default function SubscriptionPage() {
     setCancelling(true);
     try {
       await subscriptionApi.cancel({ reason: 'User requested cancellation' });
-      toast.success('Subscription cancelled. You will revert to Basic at the end of your billing period.');
       setShowCancel(false);
-      if (user) setUser({ ...user, tier: 'basic' });
       const refreshed = await subscriptionApi.getCurrent();
-      setCurrent(refreshed?.data ?? refreshed);
-    } catch {
-      toast.error('Failed to cancel subscription. Please try again.');
+      const refreshedCurrent = refreshed?.data ?? refreshed;
+      setCurrent(refreshedCurrent);
+      if (user && refreshedCurrent?.currentTier) {
+        setUser({ ...user, tier: refreshedCurrent.currentTier });
+      }
+      toast.success(refreshedCurrent?.subscription?.cancelAtPeriodEnd
+        ? 'Auto-renewal cancelled. Your plan remains active until the end of this billing period.'
+        : 'Subscription cancelled and your plan has been updated.');
+    } catch (error: unknown) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      toast.error(message ?? 'Failed to cancel subscription. Please try again.');
     } finally {
       setCancelling(false);
     }
@@ -335,7 +347,9 @@ export default function SubscriptionPage() {
                       <Clock size={14} className="text-primary-200" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-primary-200/80 font-bold uppercase tracking-[0.15em]">Next Bill</p>
+                      <p className="text-[9px] text-primary-200/80 font-bold uppercase tracking-[0.15em]">
+                        {current.subscription.cancelAtPeriodEnd ? 'Plan Ends' : 'Next Bill'}
+                      </p>
                       <p className="text-base font-black text-white">
                         {format(new Date(current.subscription.nextBillingDate), 'dd MMM')}
                       </p>
@@ -355,7 +369,7 @@ export default function SubscriptionPage() {
                 {historyLoading ? <Loader2 size={15} className="animate-spin" /> : <Receipt size={15} className="group-hover:scale-110 transition-transform" />}
                 Billing History
               </button>
-              {hasActivePaidSub && (
+              {hasActivePaidSub && !current?.subscription?.cancelAtPeriodEnd && (
                 <button
                   onClick={() => setShowCancel(true)}
                   className="group flex items-center gap-2.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-400/40 text-white/60 hover:text-red-300 text-sm font-semibold px-5 py-3 rounded-2xl transition-all duration-300"
@@ -428,7 +442,12 @@ export default function SubscriptionPage() {
         {billingCycle === 'annual' && (
           <p className="text-xs text-gray-400 font-medium animate-fade-in flex items-center gap-1.5">
             <Sparkles size={12} className="text-accent" />
-            Annual billing saves you 2 months — billed once per year
+            Annual billing saves you 2 months — billed once per year and renews automatically until cancelled
+          </p>
+        )}
+        {billingCycle === 'monthly' && (
+          <p className="text-xs text-gray-400 font-medium animate-fade-in">
+            Monthly plans renew automatically until cancelled
           </p>
         )}
       </div>
@@ -779,6 +798,9 @@ export default function SubscriptionPage() {
                       You'll be redirected to <strong>Stripe Checkout</strong> to complete your payment of{' '}
                       <strong>R{billingCycle === 'annual' ? selectedPlan.annualPrice.toLocaleString() : selectedPlan.monthlyPrice.toLocaleString()}</strong>.
                     </p>
+                    <p className="mt-2 text-xs text-blue-700 leading-relaxed">
+                      This plan renews automatically every {billingCycle === 'annual' ? 'year' : 'month'} at the amount shown until you cancel. Your plan stays active through the paid period after cancellation.
+                    </p>
                     <p className="mt-3 text-[10px] text-blue-500 flex items-center gap-3 flex-wrap">
                       <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> Payment is confirmed securely by Stripe</span>
                     </p>
@@ -850,7 +872,7 @@ export default function SubscriptionPage() {
                 <div>
                   <p className="font-bold text-red-900 text-sm">Are you sure?</p>
                   <p className="text-xs text-red-700 mt-1.5 leading-relaxed">
-                    Your {currentTier} plan stays active until the end of your billing period, then reverts to Basic (5% commission, 10 products).
+                    This stops automatic renewal. Your {currentTier} plan stays active until the end of the current paid period, then reverts to Basic (5% commission, 10 products).
                   </p>
                 </div>
               </div>

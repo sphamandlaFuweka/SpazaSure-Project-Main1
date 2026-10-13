@@ -14,6 +14,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<DeliveryPricingOptions>(
     builder.Configuration.GetSection("DeliveryPricing"));
 builder.Services.AddScoped<DeliveryPricingService>();
+builder.Services.AddSingleton<OrderStripePaymentService>();
 
 // RabbitMQ Event Publisher for notifications
 builder.Services.AddSingleton(sp =>

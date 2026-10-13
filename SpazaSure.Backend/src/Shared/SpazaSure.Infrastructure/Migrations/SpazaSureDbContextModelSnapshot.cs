@@ -262,6 +262,83 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("customer_scan_events", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.CustomerSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cancel_at_period_end");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("CurrentPeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("current_period_end");
+
+                    b.Property<Guid>("CustomerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_user_id");
+
+                    b.Property<string>("PaymentReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<string>("PlanKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("plan_key");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StripeCheckoutSessionId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_checkout_session_id");
+
+                    b.Property<string>("StripeCustomerId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_customer_id");
+
+                    b.Property<string>("StripeSubscriptionId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_subscription_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_subscriptions");
+
+                    b.HasIndex("CustomerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_subscriptions_customer_user_id")
+                        .HasFilter("\"status\" IN ('pending', 'active', 'past_due', 'unpaid', 'incomplete', 'trialing', 'paused')");
+
+                    b.HasIndex("StripeCheckoutSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_subscriptions_stripe_checkout_session_id")
+                        .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
+
+                    b.HasIndex("StripeSubscriptionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_subscriptions_stripe_subscription_id")
+                        .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
+
+                    b.HasIndex("CustomerUserId", "CreatedAt")
+                        .HasDatabaseName("ix_customer_subscriptions_customer_user_id_created_at");
+
+                    b.ToTable("customer_subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.CustomerVoucher", b =>
                 {
                     b.Property<Guid>("Id")
@@ -673,6 +750,14 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("StripeCheckoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stripe_checkout_id");
+
+                    b.Property<string>("StripeCheckoutSessionId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_checkout_session_id");
+
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -705,6 +790,12 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_orders_shop_id");
+
+                    b.HasIndex("StripeCheckoutId")
+                        .HasDatabaseName("ix_orders_stripe_checkout_id");
+
+                    b.HasIndex("StripeCheckoutSessionId")
+                        .HasDatabaseName("ix_orders_stripe_checkout_session_id");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_orders_supplier_id");
@@ -1995,6 +2086,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("billing_cycle");
 
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cancel_at_period_end");
+
                     b.Property<string>("CancelledReason")
                         .HasColumnType("text")
                         .HasColumnName("cancelled_reason");
@@ -2032,6 +2127,18 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<string>("StripeCheckoutSessionId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_checkout_session_id");
+
+                    b.Property<string>("StripeCustomerId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_customer_id");
+
+                    b.Property<string>("StripeSubscriptionId")
+                        .HasColumnType("text")
+                        .HasColumnName("stripe_subscription_id");
+
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
@@ -2045,6 +2152,16 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("PlanId")
                         .HasDatabaseName("ix_supplier_subscriptions_plan_id");
+
+                    b.HasIndex("StripeCheckoutSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_subscriptions_stripe_checkout_session_id")
+                        .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
+
+                    b.HasIndex("StripeSubscriptionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_subscriptions_stripe_subscription_id")
+                        .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_supplier_subscriptions_supplier_id");
@@ -2181,6 +2298,16 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Customer");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.CustomerSubscription", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_subscriptions_users_customer_user_id");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.CustomerVoucher", b =>

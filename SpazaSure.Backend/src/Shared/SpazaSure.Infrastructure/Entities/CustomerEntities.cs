@@ -15,6 +15,19 @@ public class CustomerProfile : BaseEntity
     public User User { get; set; } = null!;
 }
 
+public class CustomerSubscription : BaseEntity
+{
+    public Guid CustomerUserId { get; set; }
+    public string PlanKey { get; set; } = "free";
+    public string Status { get; set; } = "pending";
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
+    public string? StripeCheckoutSessionId { get; set; }
+    public string? PaymentReference { get; set; }
+    public DateTime? CurrentPeriodEnd { get; set; }
+    public bool CancelAtPeriodEnd { get; set; }
+}
+
 /// <summary>
 /// A suspicious-product report filed by a customer (or retailer) — the
 /// starting point for the admin escalation-to-health-authority flow.

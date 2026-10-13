@@ -43,6 +43,14 @@ builder.Services.AddHttpClient<GeocodingService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (support@spazasure.co.za)");
 });
 builder.Services.AddSingleton<StripePaymentService>();
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new SpazaSure.Shared.Helpers.EventPublisher(
+        host: config["RabbitMQ:Host"] ?? "localhost",
+        username: config["RabbitMQ:Username"] ?? "spazasure",
+        password: config["RabbitMQ:Password"] ?? "guest");
+});
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -4,14 +4,18 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using System.Security.Claims;
+using Stripe;
 
 namespace SpazaSure.UserService.Controllers;
 
 [ApiController]
 [Route("api/supplier/subscription")]
 [Authorize]
-public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
+public class SubscriptionController(
+    SpazaSureDbContext db,
+    StripePaymentService stripe) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -61,7 +65,8 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
             {
                 sub.Id, sub.BillingCycle, sub.Status,
                 sub.StartDate, sub.EndDate, sub.NextBillingDate,
-                sub.AmountPaid, sub.PaymentMethod, sub.PaymentReference
+                sub.AmountPaid, sub.PaymentMethod, sub.PaymentReference,
+                sub.CancelAtPeriodEnd
             },
             plan = plan is null ? null : new
             {
@@ -96,7 +101,61 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
             .FirstOrDefaultAsync(p => p.Tier == req.Tier.ToLower() && p.IsActive);
         if (plan is null) return NotFound(ApiResponse.Fail("Plan not found."));
 
-        // Cancel existing active subscriptions
+        var pending = await db.SupplierSubscriptions
+            .Where(s => s.SupplierId == supplier.Id && s.Status == "pending")
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefaultAsync();
+        if (pending is not null)
+        {
+            if (pending.PlanId == plan.Id && pending.BillingCycle == billingCycle)
+            {
+                var pendingAmount = billingCycle == "annual" ? plan.AnnualPrice : plan.MonthlyPrice;
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    subscriptionId = pending.Id,
+                    tier = supplier.Tier,
+                    commissionRate = supplier.CommissionRate,
+                    status = pending.Status,
+                    billingCycle,
+                    nextBillingDate = pending.NextBillingDate,
+                    amountDue = pendingAmount,
+                    paymentMethod = "stripe"
+                }));
+            }
+
+            if (!string.IsNullOrWhiteSpace(pending.StripeCheckoutSessionId))
+            {
+                var pendingSession = await stripe.GetCheckoutSessionAsync(
+                    pending.StripeCheckoutSessionId);
+                if (pendingSession.Status is "open" or "complete")
+                    return Conflict(ApiResponse.Fail(
+                        "Finish or wait for your existing plan checkout before choosing another plan."));
+            }
+            else if (pending.CreatedAt > DateTime.UtcNow.AddMinutes(-5))
+            {
+                return Conflict(ApiResponse.Fail(
+                    "A plan checkout is being prepared. Please retry shortly."));
+            }
+
+            pending.Status = "cancelled";
+            pending.EndDate = DateTime.UtcNow;
+            pending.CancelledReason = "Unpaid checkout expired or was abandoned.";
+            await db.SaveChangesAsync();
+        }
+
+        var currentStripeSubscription = await db.SupplierSubscriptions
+            .Where(s => s.SupplierId == supplier.Id &&
+                        s.StripeSubscriptionId != null &&
+                        (s.Status == "active" || s.Status == "past_due" ||
+                         s.Status == "unpaid" || s.Status == "incomplete" ||
+                         s.Status == "trialing"))
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefaultAsync();
+        if (currentStripeSubscription is not null)
+            return Conflict(ApiResponse.Fail(
+                "Cancel your current auto-renewing plan and wait until its billing period ends before changing tiers."));
+
+        // Retire legacy non-recurring subscriptions before activating or paying for a new tier.
         var existing = await db.SupplierSubscriptions
             .Where(s => s.SupplierId == supplier.Id && s.Status == "active")
             .ToListAsync();
@@ -122,8 +181,8 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
             BillingCycle = billingCycle,
             Status = status,
             StartDate = now,
-            NextBillingDate = plan.MonthlyPrice == 0m ? null : nextBilling,
-            AmountPaid = plan.MonthlyPrice == 0m ? 0m : amount,
+            NextBillingDate = null,
+            AmountPaid = 0m,
             PaymentMethod = paymentMethod,
             PaymentReference = null
         };
@@ -160,11 +219,37 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
         var sub = await db.SupplierSubscriptions
-            .Where(s => s.SupplierId == supplier.Id && s.Status == "active")
+            .Where(s => s.SupplierId == supplier.Id &&
+                        (s.Status == "active" || s.Status == "past_due" || s.Status == "unpaid"))
             .OrderByDescending(s => s.StartDate)
             .FirstOrDefaultAsync();
 
         if (sub is null) return NotFound(ApiResponse.Fail("No active subscription found."));
+
+        if (!string.IsNullOrWhiteSpace(sub.StripeSubscriptionId))
+        {
+            if (sub.CancelAtPeriodEnd)
+                return Ok(ApiResponse.Ok(
+                    $"Your plan will end on {sub.NextBillingDate:yyyy-MM-dd}."));
+
+            try
+            {
+                var updated = await stripe.CancelSubscriptionAtPeriodEndAsync(
+                    sub.StripeSubscriptionId);
+                sub.CancelAtPeriodEnd = updated.CancelAtPeriodEnd;
+                sub.NextBillingDate = updated.Items.Data.FirstOrDefault()?.CurrentPeriodEnd;
+                sub.CancelledReason = req.Reason ?? "User cancelled";
+                await db.SaveChangesAsync();
+            }
+            catch (StripeException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway,
+                    ApiResponse.Fail("Stripe could not update your subscription. Please try again."));
+            }
+
+            return Ok(ApiResponse.Ok(
+                "Your subscription will stay active until the current billing period ends."));
+        }
 
         sub.Status = "cancelled";
         sub.EndDate = sub.NextBillingDate ?? DateTime.UtcNow;
@@ -194,7 +279,7 @@ public class SubscriptionController(SpazaSureDbContext db) : ControllerBase
                 s.Id, s.BillingCycle, s.Status,
                 s.StartDate, s.EndDate, s.NextBillingDate,
                 s.AmountPaid, s.PaymentMethod, s.PaymentReference,
-                s.CancelledReason,
+                s.CancelledReason, s.CancelAtPeriodEnd,
                 plan = new { s.Plan.Tier, s.Plan.Name, s.Plan.MonthlyPrice }
             })
             .ToListAsync();

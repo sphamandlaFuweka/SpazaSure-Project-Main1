@@ -91,11 +91,19 @@ Add these as GitHub Actions secrets in the **production** environment:
 
 In Stripe, register the webhook URL
 `https://api.spazasure.co.za/api/supplier/payment/stripe/webhook` and enable
-`checkout.session.completed`. The checkout success/cancel URLs default to the
-portal and app domains listed above.
+`checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`customer.subscription.updated`, and `customer.subscription.deleted`. These
+events confirm shop order payments,
+supplier plan renewals, and customer subscription lifecycle changes. Supplier
+monthly and annual plans now auto-renew through Stripe; cancellation takes
+effect at the end of the paid period. Customer Plus checkout is a recurring
+R19.99 ZAR monthly Stripe subscription. The Family plan is listed as coming
+soon and cannot be purchased yet. The checkout success/cancel URLs default to
+the portal and app domains listed above.
 
-The production workflows use `PROD_HOST`, `PROD_SSH_USER`, and `PROD_SSH_KEY`
-GitHub secrets to deploy the backend and portal to `/opt/spazasure` and
+Pushes to `main` run the production backend and portal deployments after their
+build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and
+`PROD_SSH_KEY` GitHub secrets to deploy to `/opt/spazasure` and
 `/var/www/spazasure-supplier`. This repository change cannot create DNS records
 or issue certificates; complete those server/provider steps before expecting
 the HTTPS domains to resolve.

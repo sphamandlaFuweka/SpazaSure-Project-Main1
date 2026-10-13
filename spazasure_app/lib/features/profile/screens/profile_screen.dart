@@ -893,7 +893,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => OnboardingFeeCheckoutScreen(stripeUrl: stripeUrl),
+          builder: (_) => OnboardingFeeCheckoutScreen(
+            stripeUrl: stripeUrl,
+            title: 'Pay onboarding fee',
+          ),
         ),
       );
       final status = await ProfileService.getOnboardingPaymentStatus();

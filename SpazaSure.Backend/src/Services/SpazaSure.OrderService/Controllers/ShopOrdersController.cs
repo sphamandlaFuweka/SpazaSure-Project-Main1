@@ -5,6 +5,7 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
+using SpazaSure.OrderService.Services;
 using System.Security.Claims;
 
 namespace SpazaSure.OrderService.Controllers;
@@ -12,7 +13,9 @@ namespace SpazaSure.OrderService.Controllers;
 [ApiController]
 [Route("api/shop/orders")]
 [Authorize(Roles = "spaza_owner")]
-public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+public class ShopOrdersController(
+    SpazaSureDbContext db,
+    OrderStripePaymentService stripePayments) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -28,19 +31,6 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
         if (req.Items is null || req.Items.Count == 0)
             return BadRequest(ApiResponse.Fail("Order must have at least one item."));
 
-        // Wallet top-ups are not implemented yet. Never create an order while
-        // the shop has no available wallet balance.
-        var credits = await db.ShopWalletTransactions
-            .Where(t => t.ShopId == shop.Id && t.Type == "top_up" && t.Status == "approved")
-            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-        var spent = await db.Orders
-            .Where(o => o.ShopId == shop.Id && (o.Status == "delivered" || o.Status == "confirmed" || o.Status == "dispatched"))
-            .SumAsync(o => (decimal?)o.TotalAmount) ?? 0m;
-        var walletBalance = credits - spent;
-        if (walletBalance <= 0m)
-            return BadRequest(ApiResponse.Fail(
-                "Your wallet balance is R0.00. Add funds before placing an order."));
-
         // Load products and validate
         var productIds = req.Items.Select(i => i.ProductId).ToList();
         var products = await db.Products
@@ -53,7 +43,9 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
 
         // Group items by supplier (one order per supplier)
         var grouped = req.Items.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
-        var createdOrders = new List<object>();
+        var createdOrders = new List<Order>();
+        var checkoutId = Guid.NewGuid();
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         foreach (var group in grouped)
         {
@@ -67,7 +59,7 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
                 if (item.Quantity < product.MinOrderQty)
                     return BadRequest(ApiResponse.Fail($"Minimum order for '{product.Name}' is {product.MinOrderQty}."));
 
-                var unitPrice = item.UnitPrice > 0 ? item.UnitPrice : product.Price;
+                var unitPrice = product.Price;
                 var lineTotal = unitPrice * item.Quantity;
                 subtotal += lineTotal;
 
@@ -78,12 +70,18 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
                     OriginalUnitPrice = unitPrice,
                     UnitPrice = unitPrice,
                     DiscountPct = 0m,
-                    LineTotal = lineTotal
+                    LineTotal = lineTotal,
+                    Product = product
                 });
             }
 
             // Calculate fees
-            var deliveryFee = req.DeliveryType == "express" ? 200m : 150m;
+            var deliveryFee = req.DeliveryType?.ToLowerInvariant() switch
+            {
+                "express" => 250m,
+                "pickup" => 0m,
+                _ => 150m
+            };
             var platformCommission = Math.Round(subtotal * (supplier.CommissionRate / 100m), 2);
             var totalAmount = subtotal + deliveryFee + platformCommission;
 
@@ -103,41 +101,41 @@ public class ShopOrdersController(SpazaSureDbContext db, EventPublisher events) 
                 DeliveryFee = deliveryFee,
                 PlatformCommission = platformCommission,
                 TotalAmount = totalAmount,
-                PaymentMethod = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "invoice" : req.PaymentMethod,
+                PaymentMethod = "stripe",
                 PaymentStatus = "pending",
+                StripeCheckoutId = checkoutId,
+                Supplier = supplier,
                 Items = orderItems
             };
 
             db.Orders.Add(order);
             await db.SaveChangesAsync();
+            createdOrders.Add(order);
+        }
 
-            // Notify the supplier about the new order
-            events.PublishNotification(
-                supplierId: supplier.UserId.ToString(),
-                type: "order",
-                title: "New Order Received",
-                message: $"{shop.ShopName} placed order {orderNumber} for R{totalAmount:F2}",
-                priority: totalAmount > 1000 ? "high" : "normal",
-                referenceId: order.Id.ToString(),
-                routingKey: "order.placed"
-            );
+        var checkout = await stripePayments.CreateCheckoutSessionAsync(
+            createdOrders,
+            checkoutId,
+            shop.Email ?? string.Empty,
+            HttpContext.RequestAborted);
+        foreach (var order in createdOrders)
+            order.StripeCheckoutSessionId = checkout.Id;
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-            createdOrders.Add(new
+        var firstOrder = createdOrders[0];
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            orders = createdOrders.Select(order => new
             {
                 order.Id,
                 order.OrderNumber,
                 order.Status,
                 order.TotalAmount,
-                supplierName = supplier.CompanyName
-            });
-        }
-
-        // Return the first order number (for single-supplier orders this is the only one)
-        var firstOrder = createdOrders.First();
-        return Ok(ApiResponse<object>.Ok(new
-        {
-            orders = createdOrders,
-            orderNumber = (firstOrder as dynamic).OrderNumber
+                supplierName = order.Supplier.CompanyName
+            }),
+            orderNumber = firstOrder.OrderNumber,
+            checkoutUrl = checkout.Url
         }));
     }
 

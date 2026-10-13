@@ -50,6 +50,7 @@ class Product {
   final bool isAvailable;
   final bool isNearby;
   final String? supplierCity;
+  final double supplierCommissionRate;
 
   const Product({
     required this.id,
@@ -72,6 +73,7 @@ class Product {
     this.isAvailable = true,
     this.isNearby = false,
     this.supplierCity,
+    this.supplierCommissionRate = 5,
   });
 }
 

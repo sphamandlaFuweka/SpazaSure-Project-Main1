@@ -10,14 +10,36 @@ class CartProvider extends ChangeNotifier {
 
   double get subtotal => _items.fold(0, (s, i) => s + i.total);
 
-  double deliveryFee(String option) =>
-      option == 'express' ? 250.0 : option == 'standard' ? 150.0 : 0.0;
+  double deliveryFee(String option) {
+    final perSupplier = switch (option) {
+      'express' => 250.0,
+      'pickup' => 0.0,
+      _ => 150.0,
+    };
+    return perSupplier * _items.map((item) => item.product.supplierId).toSet().length;
+  }
 
-  double platformFee(double sub) => sub * 0.05;
+  double platformFee() {
+    final subtotals = <String, double>{};
+    final rates = <String, double>{};
+    for (final item in _items) {
+      final supplierId = item.product.supplierId;
+      subtotals.update(
+        supplierId,
+        (value) => value + item.total,
+        ifAbsent: () => item.total,
+      );
+      rates[supplierId] = item.product.supplierCommissionRate;
+    }
+    return subtotals.entries.fold(0, (sum, entry) {
+      final fee = entry.value * (rates[entry.key] ?? 5) / 100;
+      return sum + double.parse(fee.toStringAsFixed(2));
+    });
+  }
 
   double total(String option) {
     final sub = subtotal;
-    return sub + deliveryFee(option) + platformFee(sub);
+    return sub + deliveryFee(option) + platformFee();
   }
 
   void add(Product product, int quantity) {
