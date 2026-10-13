@@ -45,15 +45,15 @@ Cors__AllowedOrigins__0=https://app.spazasure.co.za
 Cors__AllowedOrigins__1=https://portal.spazasure.co.za
 ```
 
-The production auth service also needs Africa's Talking credentials
-(`PROD_AT_USERNAME` and `PROD_AT_API_KEY`) with `AfricasTalking__Sandbox=false`.
-Leave `PROD_AT_SENDER_ID` unset unless the sender ID is approved for this
-Africa's Talking account; without it, the service uses the account's default
-sender route.
-OTP verification is required for shop-owner and customer sign-ins through the
-mobile app. Supplier/admin sign-ins to the web portal continue to use the
-existing email/password flow. Do not configure an OTP bypass for app logins;
-production responses never include the OTP value.
+Mobile app accounts for shop owners and customers use a phone number and
+password. Passwords are stored as BCrypt hashes; five consecutive failed
+password attempts lock the account for 15 minutes. There is no email or SMS
+dependency for app sign-in. Forgotten mobile passwords must be handled by
+support after manual account verification; do not reset an account based only
+on an unverified phone-number claim. Supplier/admin sign-ins to the web portal
+remain on the existing email/password flow.
+Shop accounts created under the earlier OTP-only flow may have no password
+hash; support must set a password for those accounts before their next sign-in.
 
 ## Domains and Nginx
 

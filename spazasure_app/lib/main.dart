@@ -8,7 +8,6 @@ import 'providers/product_provider.dart';
 import 'features/onboarding/screens/splash_screen.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'features/auth/screens/otp_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/customer_register_screen.dart';
 import 'features/main_shell.dart';
@@ -65,7 +64,6 @@ class SpazaSureApp extends StatelessWidget {
           '/splash': () => const SplashScreen(),
           '/onboarding': () => const OnboardingScreen(),
           '/login': () => const LoginScreen(),
-          '/otp': () => const OtpScreen(),
           '/register': () => const RegisterScreen(),
           '/customer-register': () => const CustomerRegisterScreen(),
           '/home': () => const MainShell(),

@@ -87,10 +87,6 @@ services:
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Jwt__AccessExpiryMinutes:             "30"
       Jwt__RefreshExpiryDays:               "14"
-      AfricasTalking__Username:             ${PROD_AT_USERNAME}
-      AfricasTalking__ApiKey:               ${PROD_AT_API_KEY}
-      AfricasTalking__SenderId:             ${PROD_AT_SENDER_ID:-}
-      AfricasTalking__Sandbox: "false"
     depends_on:
       postgres:
         condition: service_healthy

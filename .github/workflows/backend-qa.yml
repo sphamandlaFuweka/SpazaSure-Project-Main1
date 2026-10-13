@@ -69,7 +69,6 @@ jobs:
               echo 'STAGE: repairing protected QA configuration'
               auth_env=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' spazasure-qa-auth 2>/dev/null || true)
               rabbit_env=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' spazasure-qa-rabbitmq 2>/dev/null || true)
-              at_api_key=$(printf '%s\n' "$auth_env" | sed -n 's/^AfricasTalking__ApiKey=//p' | head -n 1)
               rabbit_password=$(printf '%s\n' "$rabbit_env" | sed -n 's/^RABBITMQ_DEFAULT_PASS=//p' | head -n 1)
               [ -n "$rabbit_password" ] || rabbit_password='SpazaRabbitQA2026'
               db_password=$(openssl rand -hex 32)
@@ -84,7 +83,6 @@ jobs:
               {
                 printf 'QA_DB_PASSWORD=%s\n' "$db_password"
                 printf 'QA_JWT_SECRET=%s\n' "$jwt_secret"
-                printf 'QA_AT_API_KEY=%s\n' "$at_api_key"
                 printf 'QA_RABBITMQ_PASSWORD=%s\n' "$rabbit_password"
               } > .env.qa
               cp .env.qa ../.env.qa

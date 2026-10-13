@@ -1,7 +1,7 @@
 ﻿# Triggers on a version tag push (e.g. git tag v1.2.3 && git push --tags)
 # Required GitHub Secrets: PROD_HOST, PROD_SSH_USER, PROD_SSH_KEY,
 #   PROD_DB_PASSWORD, PROD_RABBITMQ_PASSWORD, PROD_JWT_SECRET,
-#   PROD_AT_USERNAME, PROD_AT_API_KEY, PROD_STRIPE_SECRET_KEY,
+#   PROD_STRIPE_SECRET_KEY,
 #   PROD_STRIPE_WEBHOOK_SECRET
 
 name: Deploy to Production
@@ -142,8 +142,6 @@ jobs:
           PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           PROD_RABBITMQ_PASSWORD: ${{ secrets.PROD_RABBITMQ_PASSWORD }}
           PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
-          PROD_AT_USERNAME: ${{ secrets.PROD_AT_USERNAME }}
-          PROD_AT_API_KEY: ${{ secrets.PROD_AT_API_KEY }}
           PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
           PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
           GHCR_USERNAME: ${{ github.actor }}
@@ -152,7 +150,7 @@ jobs:
           host:     ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
-          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,GHCR_USERNAME,GHCR_TOKEN
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -eu
             cd /opt/spazasure
@@ -160,8 +158,8 @@ jobs:
             mkdir -p backups
             chmod 700 backups
             trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
-              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" > .env.prod
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ github.repository_owner }}\nIMAGE_TAG=${{ github.ref_name }}\n" \
+              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" > .env.prod
             compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-db 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-rabbitmq 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project='spazasure'

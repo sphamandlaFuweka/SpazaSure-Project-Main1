@@ -34,13 +34,12 @@ jobs:
         env:
           QA_DB_PASSWORD: ${{ secrets.QA_DB_PASSWORD }}
           QA_JWT_SECRET: ${{ secrets.QA_JWT_SECRET }}
-          QA_AT_API_KEY: ${{ secrets.QA_AT_API_KEY }}
           QA_RABBITMQ_PASSWORD: ${{ secrets.QA_RABBITMQ_PASSWORD }}
         with:
           host: ${{ secrets.QA_HOST }}
           username: ${{ secrets.QA_SSH_USER }}
           key: ${{ secrets.QA_SSH_KEY }}
-          envs: QA_DB_PASSWORD,QA_JWT_SECRET,QA_AT_API_KEY,QA_RABBITMQ_PASSWORD
+          envs: QA_DB_PASSWORD,QA_JWT_SECRET,QA_RABBITMQ_PASSWORD
           script: |
             set -eu
             cd /opt/spazasure/SpazaSure.Backend
@@ -52,7 +51,6 @@ jobs:
             {
               printf 'QA_DB_PASSWORD=%s\n' "$QA_DB_PASSWORD"
               printf 'QA_JWT_SECRET=%s\n' "$QA_JWT_SECRET"
-              printf 'QA_AT_API_KEY=%s\n' "$QA_AT_API_KEY"
               printf 'QA_RABBITMQ_PASSWORD=%s\n' "$QA_RABBITMQ_PASSWORD"
             } > .env.qa
 

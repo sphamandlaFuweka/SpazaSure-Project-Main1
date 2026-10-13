@@ -23,8 +23,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _idController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _shopNameController = TextEditingController();
   final _addressController = TextEditingController();
+  bool _obscurePassword = true;
   AddressSuggestion? _address;
 
   // Document uploads - key is docType, value is the picked file
@@ -36,6 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameController.dispose();
     _idController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
     _shopNameController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -75,34 +78,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _submit() async {
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty) return;
+    final password = _passwordController.text;
+    if (phone.isEmpty || password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a phone number and password of at least 8 characters.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
-      // Send OTP and get it back (auto-fill in QA/dev)
-      final otp = await context.read<AuthProvider>().sendRegisterOtp(phone);
+      await context.read<AuthProvider>().registerShop(
+        phone: phone,
+        password: password,
+        fullName: _nameController.text.trim(),
+        shopName: _shopNameController.text.trim(),
+        address: _addressController.text.trim(),
+        city: _address?.city,
+        province: _address?.province,
+        postalCode: _address?.postalCode,
+        latitude: _address?.latitude,
+        longitude: _address?.longitude,
+        idNumber: _idController.text.trim(),
+        documents: _pickedDocs,
+      );
 
       if (!mounted) return;
-      Navigator.pushNamed(
+      Navigator.pushNamedAndRemoveUntil(
         context,
-        '/otp',
-        arguments: {
-          'phone': phone,
-          'purpose': 'registration',
-          'fullName': _nameController.text.trim(),
-          'shopName': _shopNameController.text.trim(),
-          'address': _addressController.text.trim(),
-          if (_address != null) ...{
-            'city': _address!.city,
-            'province': _address!.province,
-            'postalCode': _address!.postalCode,
-            'latitude': _address!.latitude,
-            'longitude': _address!.longitude,
-          },
-          'idNumber': _idController.text.trim(),
-          if (otp != null) 'otp': otp,
-          'documents': _pickedDocs,
-        },
+        '/home',
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
@@ -294,6 +301,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Phone Number
                     _PhoneField(controller: _phoneController),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: 'Password (at least 8 characters)',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               )

@@ -14,7 +14,6 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
@@ -38,7 +37,6 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _ageController.dispose();
@@ -51,26 +49,21 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     final phone = _phoneController.text.trim();
     setState(() => _loading = true);
     try {
-      final otp = await context.read<AuthProvider>().sendCustomerOtp(
-        phone,
-        purpose: 'registration',
+      await context.read<AuthProvider>().registerCustomer(
+        phone: phone,
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        password: _passwordController.text,
+        age: _ageController.text.trim().isEmpty
+            ? null
+            : int.tryParse(_ageController.text.trim()),
+        allergies: _selectedAllergies.toList(),
       );
       if (!mounted) return;
-      Navigator.pushNamed(
+      Navigator.pushNamedAndRemoveUntil(
         context,
-        '/otp',
-        arguments: {
-          'phone': phone,
-          'purpose': 'customer_registration',
-          'firstName': _firstNameController.text.trim(),
-          'lastName': _lastNameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'password': _passwordController.text,
-          if (_ageController.text.trim().isNotEmpty)
-            'age': int.tryParse(_ageController.text.trim()),
-          'allergies': _selectedAllergies.toList(),
-          if (otp != null) 'otp': otp,
-        },
+        '/customer-home',
+        (route) => false,
       );
     } catch (error) {
       if (!mounted) return;
@@ -126,21 +119,6 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'Email address'),
-              validator: (v) {
-                final value = v?.trim() ?? '';
-                if (value.isEmpty) return 'Required';
-                if (!value.contains('@') || !value.contains('.')) {
-                  return 'Enter a valid email address';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -221,7 +199,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
             FilledButton(
               onPressed: _loading ? null : _continue,
               child: Text(
-                _loading ? 'Sending code...' : 'Continue with SMS code',
+                _loading ? 'Creating account...' : 'Create account',
               ),
             ),
           ],

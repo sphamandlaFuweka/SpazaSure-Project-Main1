@@ -45,10 +45,6 @@ public static class ConfigHelper
             ["Jwt:Secret"]               = "TestSecret_SpazaSure_32Characters!",
             ["Jwt:AccessExpiryMinutes"]  = "60",
             ["Jwt:RefreshExpiryDays"]    = "30",
-            ["AfricasTalking:Username"]  = "sandbox",
-            ["AfricasTalking:ApiKey"]    = "test-api-key",
-            ["AfricasTalking:SenderId"]  = "SpazaSure",
-            ["AfricasTalking:Sandbox"]   = "true"
         };
 
         if (overrides is not null)

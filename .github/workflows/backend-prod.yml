@@ -155,9 +155,6 @@ jobs:
           PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           PROD_RABBITMQ_PASSWORD: ${{ secrets.PROD_RABBITMQ_PASSWORD }}
           PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
-          PROD_AT_USERNAME: ${{ secrets.PROD_AT_USERNAME }}
-          PROD_AT_API_KEY: ${{ secrets.PROD_AT_API_KEY }}
-          PROD_AT_SENDER_ID: ${{ secrets.PROD_AT_SENDER_ID }}
           PROD_STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
           PROD_STRIPE_WEBHOOK_SECRET: ${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
@@ -168,20 +165,16 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           command_timeout: 20m
-          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_AT_USERNAME,PROD_AT_API_KEY,PROD_AT_SENDER_ID,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_STRIPE_SECRET_KEY,PROD_STRIPE_WEBHOOK_SECRET,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -eu
-            if [ -z "$PROD_AT_USERNAME" ] || [ -z "$PROD_AT_API_KEY" ]; then
-              echo "Africa's Talking production credentials are missing. Set PROD_AT_USERNAME and PROD_AT_API_KEY in the production environment."
-              exit 1
-            fi
             cd /opt/spazasure
             umask 077
             mkdir -p backups
             chmod 700 backups
             trap 'rm -f .env.prod; docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_AT_USERNAME=%s\nPROD_AT_API_KEY=%s\nPROD_AT_SENDER_ID=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ needs.build-and-push.outputs.registry_owner }}\nIMAGE_TAG=%s\n" \
-              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_AT_USERNAME" "$PROD_AT_API_KEY" "$PROD_AT_SENDER_ID" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" "$IMAGE_TAG" > .env.prod
+            printf "PROD_DB_PASSWORD=%s\nPROD_RABBITMQ_PASSWORD=%s\nPROD_JWT_SECRET=%s\nPROD_STRIPE_SECRET_KEY=%s\nPROD_STRIPE_WEBHOOK_SECRET=%s\nREGISTRY=ghcr.io/${{ needs.build-and-push.outputs.registry_owner }}\nIMAGE_TAG=%s\n" \
+              "$PROD_DB_PASSWORD" "$PROD_RABBITMQ_PASSWORD" "$PROD_JWT_SECRET" "$PROD_STRIPE_SECRET_KEY" "$PROD_STRIPE_WEBHOOK_SECRET" "$IMAGE_TAG" > .env.prod
             compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-db 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-rabbitmq 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project='spazasure'

@@ -24,50 +24,28 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Step 1 — send OTP (login flow)
-  Future<String?> sendLoginOtp(String phone) async {
-    return await AuthService.sendOtp(phone, purpose: 'login');
-  }
-
-  // Step 1 — send OTP (registration flow)
-  Future<String?> sendRegisterOtp(String phone) async {
-    return await AuthService.sendOtp(phone, purpose: 'registration');
-  }
-
-  Future<String?> sendCustomerOtp(
-    String phone, {
-    String purpose = 'login',
-  }) async {
-    return await AuthService.sendCustomerOtp(phone, purpose: purpose);
-  }
-
-  // Step 2 — verify OTP + login
-  Future<void> verifyLogin(String phone, String otp) async {
-    _session = await AuthService.verifyLogin(phone, otp);
+  Future<void> loginShop(String phone, String password) async {
+    _session = await AuthService.loginShop(phone, password);
     notifyListeners();
   }
 
-  Future<void> verifyCustomerLogin(String phone, String otp) async {
-    _session = await AuthService.verifyCustomerLogin(phone, otp);
+  Future<void> loginCustomer(String phone, String password) async {
+    _session = await AuthService.loginCustomer(phone, password);
     notifyListeners();
   }
 
-  Future<void> verifyCustomerRegister({
+  Future<void> registerCustomer({
     required String phone,
-    required String otp,
     required String firstName,
     required String lastName,
-    required String email,
     required String password,
     int? age,
     List<String>? allergies,
   }) async {
-    _session = await AuthService.verifyCustomerRegister(
+    _session = await AuthService.registerCustomer(
       phone: phone,
-      otp: otp,
       firstName: firstName,
       lastName: lastName,
-      email: email,
       password: password,
       age: age,
       allergies: allergies,
@@ -75,10 +53,9 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Step 2 — verify OTP + register
-  Future<void> verifyRegister({
+  Future<void> registerShop({
     required String phone,
-    required String otp,
+    required String password,
     required String fullName,
     required String shopName,
     required String address,
@@ -90,9 +67,9 @@ class AuthProvider extends ChangeNotifier {
     String? idNumber,
     Map<String, dynamic>? documents,
   }) async {
-    _session = await AuthService.verifyRegister(
+    _session = await AuthService.registerShop(
       phone: phone,
-      otp: otp,
+      password: password,
       fullName: fullName,
       shopName: shopName,
       address: address,

@@ -44,73 +44,38 @@ class AuthService {
   static const _ageKey = 'age';
   static const _allergiesKey = 'allergies';
 
-  // ── Step 1: Request OTP ───────────────────────────────────────────────────
-  static Future<String?> sendOtp(
-    String phone, {
-    String purpose = 'login',
-  }) async {
-    final formatted = _formatPhone(phone);
-    final res = await ApiService.post('/shop/auth/send-otp?purpose=$purpose', {
-      'phone': formatted,
-    }, auth: false);
-    // In QA/dev, backend returns the OTP for auto-fill
-    final data = res['data'];
-    if (data is Map<String, dynamic> && data.containsKey('otp')) {
-      return data['otp'] as String;
-    }
-    return null;
-  }
-
-  // ── Step 2a: Verify OTP + Login ───────────────────────────────────────────
-  static Future<AuthSession> verifyLogin(String phone, String otp) async {
+  static Future<AuthSession> loginShop(String phone, String password) async {
     final formatted = _formatPhone(phone);
     final res = await ApiService.post('/shop/auth/login', {
       'phone': formatted,
-      'otp': otp,
+      'password': password,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);
   }
 
-  static Future<String?> sendCustomerOtp(
-    String phone, {
-    String purpose = 'login',
-  }) async {
-    final res = await ApiService.post(
-      '/customer/auth/send-otp?purpose=$purpose',
-      {'phone': _formatPhone(phone)},
-      auth: false,
-    );
-    final data = res['data'];
-    return data is Map<String, dynamic> ? data['otp']?.toString() : null;
-  }
-
-  static Future<AuthSession> verifyCustomerLogin(
+  static Future<AuthSession> loginCustomer(
     String phone,
-    String otp,
+    String password,
   ) async {
     final res = await ApiService.post('/customer/auth/login', {
       'phone': _formatPhone(phone),
-      'otp': otp,
+      'password': password,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
 
-  static Future<AuthSession> verifyCustomerRegister({
+  static Future<AuthSession> registerCustomer({
     required String phone,
-    required String otp,
     required String firstName,
     required String lastName,
-    required String email,
     required String password,
     int? age,
     List<String>? allergies,
   }) async {
     final res = await ApiService.post('/customer/auth/register', {
       'phone': _formatPhone(phone),
-      'otp': otp,
       'firstName': firstName,
       'lastName': lastName,
-      'email': email,
       'password': password,
       if (age != null) 'age': age,
       'allergies': allergies ?? const <String>[],
@@ -118,10 +83,9 @@ class AuthService {
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
 
-  // ── Step 2b: Verify OTP + Register ───────────────────────────────────────
-  static Future<AuthSession> verifyRegister({
+  static Future<AuthSession> registerShop({
     required String phone,
-    required String otp,
+    required String password,
     required String fullName,
     required String shopName,
     required String address,
@@ -135,7 +99,7 @@ class AuthService {
     final formatted = _formatPhone(phone);
     final res = await ApiService.post('/shop/auth/register', {
       'phone': formatted,
-      'otp': otp,
+      'password': password,
       'fullName': fullName,
       'shopName': shopName,
       'address': address,

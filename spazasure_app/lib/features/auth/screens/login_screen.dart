@@ -16,19 +16,23 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _phoneFocus = FocusNode();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _customerLogin = false;
+  bool _obscurePassword = true;
   String? _phoneError;
 
   @override
   void dispose() {
     _phoneController.dispose();
     _phoneFocus.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSignIn() async {
     final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
     if (phone.isEmpty) {
       setState(() => _phoneError = 'Enter your phone number');
       _phoneFocus.requestFocus();
@@ -39,24 +43,28 @@ class _LoginScreenState extends State<LoginScreen> {
       _phoneFocus.requestFocus();
       return;
     }
+    if (password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 8 characters')),
+      );
+      return;
+    }
     setState(() {
       _phoneError = null;
       _isLoading = true;
     });
     try {
       final auth = context.read<AuthProvider>();
-      final otp = _customerLogin
-          ? await auth.sendCustomerOtp(phone, purpose: 'login')
-          : await auth.sendLoginOtp(phone);
+      if (_customerLogin) {
+        await auth.loginCustomer(phone, password);
+      } else {
+        await auth.loginShop(phone, password);
+      }
       if (!mounted) return;
-      Navigator.pushNamed(
+      Navigator.pushNamedAndRemoveUntil(
         context,
-        '/otp',
-        arguments: {
-          'phone': phone,
-          'purpose': _customerLogin ? 'customer_login' : 'login',
-          if (otp != null) 'otp': otp,
-        },
+        _customerLogin ? '/customer-home' : '/home',
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
@@ -186,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(
                             _customerLogin
                                 ? 'Sign in to verify products and track reports'
-                                : 'Enter your shop phone number to continue',
+                                : 'Enter your shop phone number and password',
                             style: GoogleFonts.nunito(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -339,23 +347,34 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 8),
                           ],
 
-                          // Helper text
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.lock_outline_rounded,
-                                size: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'We\'ll send you a 6-digit code via SMS',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _handleSignIn(),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Forgot your password? Contact SpazaSure support.',
+                            style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
 
                           const SizedBox(height: 24),
@@ -389,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : Text(
-                                      'Continue',
+                                      'Sign In',
                                       style: GoogleFonts.nunito(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

@@ -4,74 +4,27 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Helpers;
 using System.Text.Json;
-using System.Security.Cryptography;
 
 namespace SpazaSure.AuthService.Services;
 
 /// <summary>
-/// Mirrors ShopAuthService's phone+OTP flow exactly, for the "customer"
-/// role instead of "spaza_owner". Reuses the same OtpCodes table and
-/// SmsService — there's nothing shop-specific about sending/verifying an
-/// OTP, only what happens after it's verified differs.
+/// Handles phone/password authentication for customer app accounts.
 /// </summary>
-public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, ILogger<CustomerAuthService> logger, ISmsService sms)
+public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
 {
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
     private readonly int _refreshExpiry = int.Parse(config["Jwt:RefreshExpiryDays"] ?? "30");
-    public async Task<(bool Success, string? Error, string? DevOtp)> SendOtpAsync(string phone, string purpose)
-    {
-        var resendCutoff = DateTime.UtcNow.AddSeconds(-60);
-        if (await db.OtpCodes.AnyAsync(o =>
-                o.Phone == phone && o.Purpose == purpose && o.CreatedAt > resendCutoff))
-            return (false, "Please wait 60 seconds before requesting another verification code.", null);
-
-        var existing = await db.OtpCodes
-            .Where(o => o.Phone == phone && o.Purpose == purpose && o.UsedAt == null)
-            .ToListAsync();
-        db.OtpCodes.RemoveRange(existing);
-
-        var rawOtp = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
-        var hashed = JwtHelper.HashToken(rawOtp);
-
-        var otpCode = new OtpCode
-        {
-            Phone = phone,
-            Code = hashed,
-            Purpose = purpose,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
-        };
-        db.OtpCodes.Add(otpCode);
-        await db.SaveChangesAsync();
-
-        var sent = await sms.SendOtpAsync(phone, rawOtp);
-        if (!sent)
-        {
-            logger.LogWarning("SMS delivery failed for {Phone} — removing unusable OTP", phone);
-            db.OtpCodes.Remove(otpCode);
-            await db.SaveChangesAsync();
-            return (false, "We could not send the verification SMS. Please check the phone number or try again later.", null);
-        }
-
-        var env = config["ASPNETCORE_ENVIRONMENT"] ?? "Production";
-        var returnOtp = !string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase)
-            ? rawOtp
-            : null;
-
-        return (true, null, returnOtp);
-    }
 
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> RegisterAsync(
         CustomerRegisterRequest req, string ipAddress)
     {
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "registration");
-        if (otpError != null) return (false, otpError, null);
+        var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
 
-        if (await db.Users.AnyAsync(u => u.Phone == req.Phone))
+        if (await db.Users.AnyAsync(u =>
+                u.Phone == req.Phone ||
+                (email != null && u.Email != null && u.Email.ToLower() == email.ToLower())))
             return (false, "Phone number already registered.", null);
-
-        if (await db.Users.AnyAsync(u => u.Email == req.Email))
-            return (false, "Email address already registered.", null);
 
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == "customer" && r.IsActive);
         if (role is null) return (false, "Role configuration error.", null);
@@ -79,7 +32,7 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         var user = new User
         {
             Phone = req.Phone,
-            Email = req.Email,
+            Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             RoleId = role.Id,
             Status = "active"
@@ -113,16 +66,22 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> LoginAsync(
         CustomerLoginRequest req, string ipAddress)
     {
-        var otpError = await VerifyOtpAsync(req.Phone, req.Otp, "login");
-        if (otpError != null) return (false, otpError, null);
-
         var user = await db.Users
             .Include(u => u.Role).ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
             .Include(u => u.CustomerProfile)
             .FirstOrDefaultAsync(u => u.Phone == req.Phone && u.Role.Name == "customer");
 
-        if (user is null) return (false, "No account found for this number.", null);
+        if (user is null) return (false, "Invalid phone number or password.", null);
         if (user.LockedUntil > DateTime.UtcNow) return (false, "Account locked. Please contact support.", null);
+
+        if (user.PasswordHash is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+        {
+            user.FailedAttempts++;
+            if (user.FailedAttempts >= 5)
+                user.LockedUntil = DateTime.UtcNow.AddMinutes(15);
+            await db.SaveChangesAsync();
+            return (false, "Invalid phone number or password.", null);
+        }
 
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
@@ -136,28 +95,6 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config, I
         await db.SaveChangesAsync();
 
         return (true, null, await IssueTokensAsync(user, user.Role, user.CustomerProfile, ipAddress));
-    }
-
-    private async Task<string?> VerifyOtpAsync(string phone, string rawOtp, string purpose)
-    {
-        var otp = await db.OtpCodes.FirstOrDefaultAsync(o =>
-            o.Phone == phone && o.Purpose == purpose &&
-            o.UsedAt == null && o.ExpiresAt > DateTime.UtcNow);
-
-        if (otp is null || otp.FailedAttempts >= 5) return "Invalid or expired OTP.";
-        var suppliedHash = JwtHelper.HashToken(rawOtp);
-        if (!CryptographicOperations.FixedTimeEquals(
-                System.Text.Encoding.UTF8.GetBytes(otp.Code),
-                System.Text.Encoding.UTF8.GetBytes(suppliedHash)))
-        {
-            otp.FailedAttempts++;
-            if (otp.FailedAttempts >= 5) otp.UsedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync();
-            return "Invalid or expired OTP.";
-        }
-
-        otp.UsedAt = DateTime.UtcNow;
-        return null;
     }
 
     private async Task<CustomerAuthResponse> IssueTokensAsync(

@@ -70,9 +70,6 @@ services:
       Jwt__Secret:                          ${QA_JWT_SECRET}
       Jwt__AccessExpiryMinutes:             "60"
       Jwt__RefreshExpiryDays:               "30"
-      AfricasTalking__Username:             sandbox
-      AfricasTalking__ApiKey:               ${QA_AT_API_KEY}
-      AfricasTalking__Sandbox:              "true"
     depends_on:
       postgres:
         condition: service_healthy

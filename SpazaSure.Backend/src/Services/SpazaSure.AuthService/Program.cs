@@ -40,8 +40,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddHttpClient("AfricasTalking");
-
 builder.Services.AddCors(opt => opt.AddPolicy("Portal", p =>
     p.SetIsOriginAllowed(SpazaSure.Shared.Helpers.CorsHelper.BuildOriginPredicate(builder.Configuration))
      .AllowAnyHeader()
@@ -68,7 +66,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<ShopAuthService>();
 builder.Services.AddScoped<CustomerAuthService>();

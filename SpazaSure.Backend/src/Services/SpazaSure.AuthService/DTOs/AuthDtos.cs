@@ -45,16 +45,14 @@ public record AuthResponse(
 
 // ── Shop Auth DTOs ──────────────────────────────────────────────────────────
 
-public record SendOtpRequest([Required, Phone] string Phone);
-
 public record ShopLoginRequest(
     [Required, Phone] string Phone,
-    [Required, Length(6, 6)] string Otp
+    [Required, MinLength(8)] string Password
 );
 
 public record ShopRegisterRequest(
     [Required, Phone] string Phone,
-    [Required, Length(6, 6)] string Otp,
+    [Required, MinLength(8)] string Password,
     [Required] string FullName,
     [Required] string ShopName,
     [Required] string Address,
@@ -79,18 +77,17 @@ public record ShopAuthResponse(
 
 public record CustomerLoginRequest(
     [Required, Phone] string Phone,
-    [Required, Length(6, 6)] string Otp
+    [Required, MinLength(8)] string Password
 );
 
 public record CustomerRegisterRequest(
     [Required, Phone] string Phone,
-    [Required, Length(6, 6)] string Otp,
     [Required] string FirstName,
     [Required] string LastName,
-    [Required, EmailAddress] string Email,
     [Required, MinLength(8)] string Password,
     int? Age,
-    List<string>? Allergies
+    List<string>? Allergies,
+    [EmailAddress] string? Email = null
 );
 
 public record CustomerAuthResponse(

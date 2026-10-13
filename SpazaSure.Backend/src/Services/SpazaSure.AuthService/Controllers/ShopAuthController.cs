@@ -12,26 +12,7 @@ public class ShopAuthController(ShopAuthService shopAuth) : ControllerBase
     private string IpAddress => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     /// <summary>
-    /// Step 1 — Send OTP to phone number (works for both login and registration)
-    /// </summary>
-    [HttpPost("send-otp")]
-    public async Task<IActionResult> SendOtp(SendOtpRequest req, [FromQuery] string purpose = "login")
-    {
-        if (purpose != "login" && purpose != "registration")
-            return BadRequest(ApiResponse.Fail("Purpose must be 'login' or 'registration'."));
-
-        var (success, error, devOtp) = await shopAuth.SendOtpAsync(req.Phone, purpose);
-        if (!success) return BadRequest(ApiResponse.Fail(error!));
-
-        // In non-production, include OTP in response for auto-fill
-        if (devOtp != null)
-            return Ok(ApiResponse<object>.Ok(new { otp = devOtp }, "OTP sent successfully."));
-
-        return Ok(ApiResponse.Ok("OTP sent successfully."));
-    }
-
-    /// <summary>
-    /// Step 2a — Register new spaza shop (verifies OTP + creates account)
+    /// Register a new spaza shop using a phone number and password.
     /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register(ShopRegisterRequest req)
@@ -42,7 +23,7 @@ public class ShopAuthController(ShopAuthService shopAuth) : ControllerBase
     }
 
     /// <summary>
-    /// Step 2b — Login existing spaza shop (verifies OTP)
+    /// Sign in to an existing spaza shop using a phone number and password.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(ShopLoginRequest req)
