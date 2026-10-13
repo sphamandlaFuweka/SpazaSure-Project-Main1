@@ -28,37 +28,42 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Cart (${cart.count})'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Your cart'),
+            Text(
+              '${cart.count} ${cart.count == 1 ? 'item' : 'items'}',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppColors.surface,
         actions: [
           if (!cart.isEmpty)
-            TextButton(
+            IconButton(
+              tooltip: 'Clear cart',
               onPressed: () => cart.clear(),
-              child: Text(
-                'Clear',
-                style: AppTextStyles.body.copyWith(color: AppColors.error),
-              ),
+              icon: const Icon(Icons.delete_outline),
+              color: AppColors.textSecondary,
             ),
         ],
       ),
       body: cart.isEmpty
           ? _buildEmptyCart()
           : SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 8),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _buildBasketHeading(cart),
                   ...cart.items.map((item) => _buildCartItem(cart, item)),
                   const SizedBox(height: 12),
-                  _buildSection('Delivery Option', _buildDeliveryOptions()),
+                  _buildSection('Delivery option', _buildDeliveryOptions(cart)),
                   const SizedBox(height: 12),
-                  _buildSection(
-                    'Secure payment',
-                    Text(
-                      'Pay the full order total securely through Stripe. Supplier-specific platform fees are included in the total.',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
+                  _buildSecurePaymentCard(),
                   const SizedBox(height: 12),
                   _buildOrderSummary(cart),
                   const SizedBox(height: 100),
@@ -80,13 +85,43 @@ class _CartScreenState extends State<CartScreen> {
                 ],
               ),
               child: SafeArea(
-                child: CustomButton(
-                  text: _placing
-                      ? 'Opening secure checkout...'
-                      : _pendingCheckoutUrl != null
-                      ? 'Continue to Payment'
-                      : 'Pay with Stripe  •  R${cart.total(_deliveryOption).toStringAsFixed(2)}',
-                  onPressed: _placing ? () {} : () => _placeOrder(cart),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'R${cart.total(_deliveryOption).toStringAsFixed(2)}',
+                            style: AppTextStyles.subtitle.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: CustomButton(
+                        text: _placing
+                            ? 'Opening checkout...'
+                            : _pendingCheckoutUrl != null
+                            ? 'Continue to payment'
+                            : 'Pay securely with Stripe',
+                        onPressed: _placing ? () {} : () => _placeOrder(cart),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -97,24 +132,80 @@ class _CartScreenState extends State<CartScreen> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.shopping_cart_outlined,
-            size: 80,
-            color: AppColors.textHint,
-          ),
-          const SizedBox(height: 16),
-          Text('Your cart is empty', style: AppTextStyles.h3),
-          const SizedBox(height: 8),
-          Text(
-            'Browse the marketplace to add products',
-            style: AppTextStyles.bodySmall,
+          Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.07),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              size: 48,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 24),
+          Text('Your cart is empty', style: AppTextStyles.h3),
+          const SizedBox(height: 10),
+          Text(
+            'Find products in the marketplace and add them here.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 28),
           CustomButton(
-            text: 'Browse Products',
-            width: 200,
+            text: 'Browse marketplace',
+            width: 230,
             onPressed: () => Navigator.pushNamed(context, '/marketplace'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasketHeading(CartProvider cart) {
+    final supplierCount = cart.items
+        .map((item) => item.product.supplierId)
+        .toSet()
+        .length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Review your order', style: AppTextStyles.h3),
+                const SizedBox(height: 4),
+                Text(
+                  'Items from $supplierCount ${supplierCount == 1 ? 'supplier' : 'suppliers'}',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Text(
+              '${cart.count} ${cart.count == 1 ? 'item' : 'items'}',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -123,27 +214,41 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildCartItem(CartProvider cart, item) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.7)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textPrimary.withValues(alpha: 0.035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 76,
+            height: 76,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              Icons.inventory_2_outlined,
-              color: AppColors.primary.withValues(alpha: 0.4),
-            ),
+            child: item.product.imageUrl.trim().isEmpty
+                ? _buildProductPlaceholder()
+                : Image.network(
+                    item.product.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildProductPlaceholder(),
+                  ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,15 +256,20 @@ class _CartScreenState extends State<CartScreen> {
                 Text(
                   item.product.name,
                   style: AppTextStyles.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(item.product.supplierName, style: AppTextStyles.caption),
-                const SizedBox(height: 6),
+                Text(
+                  item.product.supplierName,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -167,46 +277,64 @@ class _CartScreenState extends State<CartScreen> {
                       'R${item.total.toStringAsFixed(2)}',
                       style: AppTextStyles.priceSmall,
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          _miniButton(
-                            Icons.remove,
-                            () => cart.updateQuantity(
-                              item.product.id,
-                              item.quantity - 1,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              '${item.quantity}',
-                              style: AppTextStyles.subtitle,
-                            ),
-                          ),
-                          _miniButton(
-                            Icons.add,
-                            () => cart.updateQuantity(
-                              item.product.id,
-                              item.quantity + 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildQuantityControl(cart, item),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () => cart.remove(item.product.id),
-            child: const Icon(Icons.close, size: 18, color: AppColors.textHint),
+          const SizedBox(width: 2),
+          IconButton(
+            tooltip: 'Remove ${item.product.name}',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: EdgeInsets.zero,
+            onPressed: () => cart.remove(item.product.id),
+            icon: const Icon(Icons.close, size: 18),
+            color: AppColors.textHint,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductPlaceholder() {
+    return const Center(
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: AppColors.primary,
+        size: 30,
+      ),
+    );
+  }
+
+  Widget _buildQuantityControl(CartProvider cart, item) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _miniButton(
+            Icons.remove,
+            () => cart.updateQuantity(item.product.id, item.quantity - 1),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              '${item.quantity}',
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          _miniButton(
+            Icons.add,
+            () => cart.updateQuantity(item.product.id, item.quantity + 1),
           ),
         ],
       ),
@@ -214,17 +342,12 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _miniButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, size: 16, color: AppColors.primary),
-      ),
+    return IconButton(
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 34, minHeight: 36),
+      padding: EdgeInsets.zero,
+      icon: Icon(icon, size: 17, color: AppColors.primary),
     );
   }
 
@@ -234,7 +357,8 @@ class _CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,76 +371,110 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildDeliveryOptions() {
+  Widget _buildDeliveryOptions(CartProvider cart) {
     final options = [
       {
         'id': 'standard',
-        'title': 'Standard (2-3 days)',
-        'price': 'R150.00',
+        'title': 'Standard delivery',
+        'detail': '2–3 business days · R150 per supplier',
+        'fee': 150.0,
         'icon': Icons.local_shipping_outlined,
       },
       {
         'id': 'express',
-        'title': 'Express (Same day)',
-        'price': 'R250.00',
+        'title': 'Express delivery',
+        'detail': 'Same day · R250 per supplier',
+        'fee': 250.0,
         'icon': Icons.bolt,
       },
       {
         'id': 'pickup',
         'title': 'Pickup',
-        'price': 'Free',
+        'detail': 'Collect from your suppliers',
+        'fee': 0.0,
         'icon': Icons.store_outlined,
       },
     ];
     return Column(
       children: options.map((opt) {
         final isSelected = _deliveryOption == opt['id'];
-        return GestureDetector(
-          onTap: () => setState(() => _deliveryOption = opt['id'] as String),
+        final optionId = opt['id'] as String;
+        final fee = cart.deliveryFee(optionId);
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => setState(() => _deliveryOption = optionId),
           child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.primary.withValues(alpha: 0.05)
-                  : AppColors.background,
-              borderRadius: BorderRadius.circular(10),
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected ? AppColors.primary : AppColors.divider,
               ),
             ),
             child: Row(
               children: [
-                Icon(
-                  opt['icon'] as IconData,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  size: 22,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    opt['icon'] as IconData,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    opt['title'] as String,
-                    style: AppTextStyles.body,
-                  ),
-                ),
-                Text(
-                  opt['price'] as String,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textPrimary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        opt['title'] as String,
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        opt['detail'] as String,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(
-                  isSelected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                  color: isSelected ? AppColors.primary : AppColors.textHint,
-                  size: 20,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      fee == 0 ? 'Free' : 'R${fee.toStringAsFixed(2)}',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'for order',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -335,12 +493,13 @@ class _CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Order Summary', style: AppTextStyles.subtitle),
+          Text('Order summary', style: AppTextStyles.subtitle),
           const SizedBox(height: 12),
           _summaryRow('Subtotal', 'R${sub.toStringAsFixed(2)}'),
           _summaryRow('Delivery Fee', 'R${del.toStringAsFixed(2)}'),
@@ -355,12 +514,69 @@ class _CartScreenState extends State<CartScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total', style: AppTextStyles.h3),
+              Text(
+                'Total',
+                style: AppTextStyles.subtitle.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
               Text(
                 'R${cart.total(_deliveryOption).toStringAsFixed(2)}',
                 style: AppTextStyles.price,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurePaymentCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.lock_outline,
+              color: AppColors.primary,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Secure payment',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pay the full order total through Stripe. Supplier platform fees are included in your total.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
