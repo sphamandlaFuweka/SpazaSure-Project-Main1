@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { CheckCircle, Clock, XCircle, Upload, AlertTriangle, Zap, Shield, Building2, CreditCard, Camera, Loader2, Eye, FileText, X, Download, ExternalLink, MapPin } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, Upload, AlertTriangle, Zap, Shield, Building2, CreditCard, Camera, Loader2, Eye, FileText, X, Download, ExternalLink, MapPin, Landmark, LockKeyhole, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>('company');
   const [previewDoc, setPreviewDoc] = useState<ComplianceDoc & { label: string } | null>(null);
+  const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
   const { register, handleSubmit, reset, setValue, watch } = useForm<SupplierProfile>({ values: profile || undefined });
   const addressText = watch('address') ?? '';
   const addressConfirmed = watch('latitude') != null && watch('longitude') != null;
@@ -145,6 +146,9 @@ export default function ProfilePage() {
 
   if (loading) return <PageLoader variant="cards" />;
   if (!profile) return null;
+
+  const bankAccount = watch('bankAccount') ?? '';
+  const bankName = watch('bankName') ?? '';
 
   const getExpiryInfo = (expiryDate?: string) => {
     if (!expiryDate) return null;
@@ -342,36 +346,108 @@ export default function ProfilePage() {
 
       {/* Banking Tab */}
       {activeTab === 'banking' && (
-        <div className="card p-6 animate-in">
-          <div className="flex items-center gap-2 mb-5">
-            <h2 className="font-bold text-gray-900">Banking Details</h2>
-            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">Secure</span>
+        <div className="space-y-5 animate-in">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary mb-1">Payments &amp; payouts</p>
+            <h2 className="text-xl font-black text-gray-900">Banking details</h2>
+            <p className="text-sm text-gray-500 mt-1">Choose where your supplier order payouts should be sent.</p>
           </div>
-          <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
-            <span className="text-blue-500 mt-0.5">ℹ️</span>
-            <p className="text-sm text-blue-800">
-              Your banking details are used for order payouts. Changes require admin verification and may take 2–3 business days.
-            </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-5 items-stretch">
+            <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-primary-900 p-6 text-white shadow-card-lg">
+              <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full border border-white/10" />
+              <div className="absolute -right-2 -top-6 h-28 w-28 rounded-full border border-white/10" />
+              <div className="relative flex h-full min-h-[210px] flex-col justify-between">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+                      <Landmark size={21} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Payout account</p>
+                      <p className="text-xs text-white/60">Supplier settlement details</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-300/20">
+                    <ShieldCheck size={13} />
+                    Protected
+                  </span>
+                </div>
+
+                <div className="mt-8">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Account number</p>
+                  <p className="mt-2 font-mono text-xl tracking-[0.16em]">
+                    {bankAccount
+                      ? `•••• •••• ${bankAccount.slice(-4)}`
+                      : '•••• •••• ••••'}
+                  </p>
+                </div>
+
+                <div className="mt-6 flex items-end justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Supplier</p>
+                    <p className="mt-1 truncate text-sm font-semibold">{profile.companyName || 'Your company'}</p>
+                  </div>
+                  <p className="max-w-[45%] truncate text-right text-sm font-semibold text-white/80">
+                    {bankName || 'Bank name'}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="card p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary">
+                  <LockKeyhole size={19} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Your details stay secure</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                    Bank information is used only to process payouts. Any changes are reviewed by our team before taking effect.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3">
+                <Clock size={17} className="flex-shrink-0 text-amber-600" />
+                <p className="text-xs leading-relaxed text-amber-900">
+                  Verification can take 2–3 business days. Bank detail changes require review before taking effect.
+                </p>
+              </div>
+            </section>
           </div>
-          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="label">Bank Name</label>
-              <input {...register('bankName')} placeholder="e.g. FNB" className="input" />
+
+          <section className="card p-5 sm:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                <CreditCard size={19} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Payout account information</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Enter the account details exactly as registered with your bank.</p>
+              </div>
             </div>
-            <div>
-              <label className="label">Account Number</label>
-              <input {...register('bankAccount')} placeholder="e.g. 62000000000" className="input font-mono" />
-            </div>
-            <div>
-              <label className="label">Branch Code</label>
-              <input {...register('bankBranchCode')} placeholder="e.g. 250655" className="input font-mono" />
-            </div>
-            <div className="col-span-3 flex justify-end pt-2">
-              <button type="submit" disabled={saving} className="btn-primary min-w-[140px]">
-                {saving ? 'Saving...' : 'Update Banking'}
-              </button>
-            </div>
-          </form>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="bankName">Bank name</label>
+                <input id="bankName" {...register('bankName')} placeholder="e.g. FNB" autoComplete="organization" className="input" />
+              </div>
+              <div>
+                <label className="label" htmlFor="bankBranchCode">Branch code</label>
+                <input id="bankBranchCode" {...register('bankBranchCode')} placeholder="e.g. 250655" inputMode="numeric" autoComplete="off" className="input font-mono" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="label" htmlFor="bankAccount">Account number</label>
+                <input id="bankAccount" {...register('bankAccount')} placeholder="Enter your bank account number" inputMode="numeric" autoComplete="off" className="input font-mono tracking-wide" />
+                <p className="mt-1.5 text-xs text-gray-400">The account number is masked in the summary above for your privacy.</p>
+              </div>
+              <div className="md:col-span-2 flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-gray-400">Changes are submitted securely for verification.</p>
+                <button type="submit" disabled={saving} className="btn-primary inline-flex min-h-11 items-center justify-center gap-2 px-5 sm:min-w-[180px]">
+                  {saving ? <><Loader2 size={16} className="animate-spin" /> Saving details...</> : <><ShieldCheck size={16} /> Save payout details</>}
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
       )}
 
@@ -490,9 +566,12 @@ export default function ProfilePage() {
                         {doc.status}
                       </span>
                     )}
-                    {doc && (doc.status === 'approved' || doc.status === 'rejected') && (
+                    {doc?.docUrl && (
                       <button
-                        onClick={() => setPreviewDoc({ ...doc, label: docLabels[docType] })}
+                        onClick={() => {
+                          setPreviewLoadFailed(false);
+                          setPreviewDoc({ ...doc, label: docLabels[docType] });
+                        }}
                         className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 border border-blue-200 bg-blue-50 px-3 py-2 rounded-xl hover:bg-blue-100 transition-colors"
                         title="Preview document"
                       >
@@ -555,8 +634,10 @@ export default function ProfilePage() {
       {/* Document Preview Modal */}
       {previewDoc && (() => {
         const resolvedUrl = resolveUploadUrl(previewDoc.docUrl);
-        const isPdf = resolvedUrl?.match(/\.(pdf)$/i);
-        const isImage = resolvedUrl?.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+        const filePath = resolvedUrl ? new URL(resolvedUrl, window.location.origin).pathname : '';
+        const extension = filePath.split('.').pop()?.toLowerCase();
+        const isPdf = extension === 'pdf';
+        const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension ?? '');
         const statusBadge = {
           approved: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle size={13} />, label: 'Approved' },
           rejected: { className: 'bg-red-50 text-red-700 border-red-200',             icon: <XCircle size={13} />,     label: 'Rejected' },
@@ -615,23 +696,31 @@ export default function ProfilePage() {
 
               {/* Preview Area */}
               <div className="flex-1 overflow-auto p-6 min-h-0">
-                {!resolvedUrl ? (
+                {!resolvedUrl || previewLoadFailed ? (
                   <div className="h-full min-h-[360px] flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-200">
                     <FileText size={32} className="text-slate-400 mb-3" />
                     <p className="font-bold text-gray-600 text-sm">Document not available for preview</p>
-                    <p className="text-xs text-gray-400 mt-1">The file may not have been uploaded yet</p>
+                    <p className="text-xs text-gray-400 mt-1">The file could not be loaded. Try opening or downloading it instead.</p>
+                    {resolvedUrl && (
+                      <a href={resolvedUrl} target="_blank" rel="noreferrer"
+                        className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-600 border border-blue-200 bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors">
+                        <ExternalLink size={13} /> Open Document
+                      </a>
+                    )}
                   </div>
                 ) : isPdf ? (
                   <iframe
                     src={resolvedUrl}
                     className="w-full h-full min-h-[500px] rounded-xl border border-gray-200"
                     title={previewDoc.label}
+                    onError={() => setPreviewLoadFailed(true)}
                   />
                 ) : isImage ? (
                   <img
                     src={resolvedUrl}
                     alt={previewDoc.label}
                     className="max-w-full mx-auto rounded-xl border border-gray-200 shadow-sm"
+                    onError={() => setPreviewLoadFailed(true)}
                   />
                 ) : (
                   <div className="h-full min-h-[360px] flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-200">
