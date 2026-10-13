@@ -98,7 +98,7 @@ class _OtpScreenState extends State<OtpScreen> {
     final args = _args(context);
     final phone = args['phone'] as String? ?? '';
     final purpose = args['purpose'] as String? ?? 'login';
-    print('[OTP] Verifying: phone=$phone, purpose=$purpose, otp=$otpToVerify');
+
 
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

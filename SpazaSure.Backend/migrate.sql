@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS otp_codes (
     CONSTRAINT "PK_OtpCodes" PRIMARY KEY (id),
     CONSTRAINT "FK_OtpCodes_Users_UserId" FOREIGN KEY (user_id) REFERENCES users(id)
 );
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS failed_attempts integer NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id uuid NOT NULL DEFAULT gen_random_uuid(),

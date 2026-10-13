@@ -3,7 +3,12 @@ using System.Text.Json;
 
 namespace SpazaSure.AuthService.Services;
 
-public class SmsService(IConfiguration config, ILogger<SmsService> logger, IHttpClientFactory httpFactory)
+public interface ISmsService
+{
+    Task<bool> SendOtpAsync(string phone, string otp);
+}
+
+public class SmsService(IConfiguration config, ILogger<SmsService> logger, IHttpClientFactory httpFactory) : ISmsService
 {
     private readonly string _username = config["AfricasTalking:Username"]!;
     private readonly string _apiKey   = config["AfricasTalking:ApiKey"]!;

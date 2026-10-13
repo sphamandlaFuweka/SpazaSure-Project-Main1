@@ -80,6 +80,58 @@ public class PaymentController(
         try
         {
             var stripeEvent = stripe.ConstructWebhookEvent(payload, Request.Headers["Stripe-Signature"].ToString());
+            if (stripeEvent.Data.Object is Stripe.Checkout.Session walletSession &&
+                walletSession.Metadata.TryGetValue("payment_type", out var walletPaymentType) &&
+                walletPaymentType == "wallet_top_up" &&
+                walletSession.Metadata.TryGetValue("payment_id", out var walletRawId) &&
+                Guid.TryParse(walletRawId, out var walletTransactionId))
+            {
+                var walletTransaction = await db.ShopWalletTransactions
+                    .FirstOrDefaultAsync(t => t.Id == walletTransactionId);
+                if (walletTransaction is null) return StatusCode(StatusCodes.Status500InternalServerError);
+                if (walletTransaction.Method != "stripe" ||
+                    !string.Equals(walletTransaction.Reference, walletSession.Id, StringComparison.Ordinal))
+                    return Conflict();
+
+                if (stripeEvent.Type == "checkout.session.expired" ||
+                    stripeEvent.Type == "checkout.session.async_payment_failed")
+                {
+                    if (walletTransaction.Status == "pending")
+                    {
+                        walletTransaction.Status = stripeEvent.Type == "checkout.session.expired"
+                            ? "cancelled"
+                            : "failed";
+                        await db.SaveChangesAsync();
+                    }
+                    return Ok();
+                }
+
+                if (stripeEvent.Type != Stripe.EventTypes.CheckoutSessionCompleted &&
+                    stripeEvent.Type != "checkout.session.async_payment_succeeded")
+                    return Ok();
+
+                var expectedWalletAmount = decimal.ToInt64(decimal.Round(
+                    walletTransaction.Amount * 100m, 0, MidpointRounding.AwayFromZero));
+                if (walletSession.Mode != "payment" ||
+                    walletSession.Currency != "zar" ||
+                    walletSession.AmountTotal != expectedWalletAmount)
+                    return BadRequest();
+
+                if (walletSession.PaymentStatus != "paid")
+                    return Ok();
+
+                if (walletTransaction.Status == "approved")
+                    return Ok();
+                if (walletTransaction.Status != "pending")
+                    return Conflict();
+
+                walletTransaction.Status = "approved";
+                walletTransaction.ApprovedAt = DateTime.UtcNow;
+                walletTransaction.Notes = "Payment confirmed by Stripe webhook.";
+                await db.SaveChangesAsync();
+                return Ok();
+            }
+
             if ((stripeEvent.Type == Stripe.EventTypes.CheckoutSessionCompleted ||
                  stripeEvent.Type == "checkout.session.async_payment_succeeded") &&
                 stripeEvent.Data.Object is Stripe.Checkout.Session session)

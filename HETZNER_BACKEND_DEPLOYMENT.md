@@ -23,7 +23,9 @@ only the Gateway publicly.
 
 - PostgreSQL on Hetzner or a managed PostgreSQL provider. Run
   `SpazaSure.Backend/migrate.sql` once, then run `seed_data.sql` only when demo
-  data is wanted.
+  data is wanted. Before deploying the app OTP changes, rerun the idempotent
+  migration so `otp_codes.failed_attempts` exists; the production `db-init`
+  service runs this migration before the application services start.
 - A hosted RabbitMQ instance, such as CloudAMQP. Set `RabbitMQ:Host`,
   `RabbitMQ:Username`, and `RabbitMQ:Password` on the services that publish or
   consume events.
@@ -42,6 +44,13 @@ Jwt__Secret=<random secret of at least 32 characters>
 Cors__AllowedOrigins__0=https://app.spazasure.co.za
 Cors__AllowedOrigins__1=https://portal.spazasure.co.za
 ```
+
+The production auth service also needs Africa's Talking credentials
+(`PROD_AT_USERNAME` and `PROD_AT_API_KEY`) with `AfricasTalking__Sandbox=false`.
+OTP verification is required for shop-owner and customer sign-ins through the
+mobile app. Supplier/admin sign-ins to the web portal continue to use the
+existing email/password flow. Do not configure an OTP bypass for app logins;
+production responses never include the OTP value.
 
 ## Domains and Nginx
 
@@ -86,20 +95,25 @@ default (development builds can override it with `--dart-define=API_URL=...`).
 
 Add these as GitHub Actions secrets in the **production** environment:
 
-- `PROD_STRIPE_SECRET_KEY` (Stripe live secret key)
+- `PROD_STRIPE_SECRET_KEY` (use a Stripe test key for testing; a live key
+  processes real payments)
 - `PROD_STRIPE_WEBHOOK_SECRET` (signing secret for the webhook below)
 
 In Stripe, register the webhook URL
 `https://api.spazasure.co.za/api/supplier/payment/stripe/webhook` and enable
 `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`checkout.session.expired`, `checkout.session.async_payment_failed`,
 `customer.subscription.updated`, and `customer.subscription.deleted`. These
 events confirm shop order payments,
 supplier plan renewals, and customer subscription lifecycle changes. Supplier
 monthly and annual plans now auto-renew through Stripe; cancellation takes
 effect at the end of the paid period. Customer Plus checkout is a recurring
 R19.99 ZAR monthly Stripe subscription. The Family plan is listed as coming
-soon and cannot be purchased yet. The checkout success/cancel URLs default to
-the portal and app domains listed above.
+soon and cannot be purchased yet. Shop owners can top up their wallet through
+Stripe Checkout for R50–R2,000 per transaction. Top-ups are credited only after
+the signed Stripe webhook confirms a paid session. Wallet checkout returns to
+the API hostname; supplier subscriptions and customer payments use the portal
+and app URLs above.
 
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and

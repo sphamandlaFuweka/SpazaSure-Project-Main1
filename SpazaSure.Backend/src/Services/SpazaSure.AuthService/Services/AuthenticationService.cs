@@ -107,7 +107,6 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
 
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
-
         db.AuthAuditLogs.Add(new AuthAuditLog { UserId = user.Id, Event = "login", IpAddress = ipAddress });
         await db.SaveChangesAsync();
 

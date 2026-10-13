@@ -68,8 +68,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<AuthenticationService>();
-builder.Services.AddScoped<SmsService>();
 builder.Services.AddScoped<ShopAuthService>();
 builder.Services.AddScoped<CustomerAuthService>();
 
@@ -121,6 +121,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-
-

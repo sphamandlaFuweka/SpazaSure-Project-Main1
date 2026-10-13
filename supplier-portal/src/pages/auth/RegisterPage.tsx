@@ -83,7 +83,7 @@ export default function RegisterPage() {
         return;
       }
 
-      const { accessToken, refreshToken, expiresAt, role, userId } = res.data;
+      const { accessToken, refreshToken, expiresAt, userId } = res.data;
       setUser({
         id: userId,
         email: data.email,

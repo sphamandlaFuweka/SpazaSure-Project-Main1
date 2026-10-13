@@ -20,6 +20,10 @@ public sealed class StripePaymentService(IConfiguration config)
                                                   config["Stripe:OnboardingSuccessUrl"] ?? string.Empty;
     private readonly string _customerCancelUrl = config["Stripe:CustomerCancelUrl"] ??
                                                 config["Stripe:OnboardingCancelUrl"] ?? string.Empty;
+    private readonly string _walletSuccessUrl = config["Stripe:WalletSuccessUrl"] ??
+                                                "https://api.spazasure.co.za/";
+    private readonly string _walletCancelUrl = config["Stripe:WalletCancelUrl"] ??
+                                               "https://api.spazasure.co.za/";
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_secretKey) &&
                                 !string.IsNullOrWhiteSpace(_successUrl) &&
@@ -187,6 +191,58 @@ public sealed class StripePaymentService(IConfiguration config)
                 }
             },
             new RequestOptions { IdempotencyKey = idempotencyKey },
+            cancellationToken);
+    }
+
+    public Task<Session> CreateWalletTopUpCheckoutSessionAsync(
+        decimal amount,
+        Guid transactionId,
+        string customerEmail,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_secretKey))
+            throw new InvalidOperationException("Stripe payment configuration is missing.");
+        if (string.IsNullOrWhiteSpace(_walletSuccessUrl) ||
+            string.IsNullOrWhiteSpace(_walletCancelUrl))
+            throw new InvalidOperationException("Stripe wallet return URLs are not configured.");
+
+        StripeConfiguration.ApiKey = _secretKey;
+        var metadata = new Dictionary<string, string>
+        {
+            ["payment_type"] = "wallet_top_up",
+            ["payment_id"] = transactionId.ToString()
+        };
+        var successUrl =
+            $"{_walletSuccessUrl}{(_walletSuccessUrl.Contains('?') ? '&' : '?')}payment=success&session_id={{CHECKOUT_SESSION_ID}}";
+        var cancelUrl = QueryHelpers.AddQueryString(_walletCancelUrl, "payment", "cancelled");
+
+        return new SessionService().CreateAsync(
+            new SessionCreateOptions
+            {
+                Mode = "payment",
+                CustomerEmail = string.IsNullOrWhiteSpace(customerEmail) ? null : customerEmail,
+                SuccessUrl = successUrl,
+                CancelUrl = cancelUrl,
+                Metadata = metadata,
+                LineItems =
+                [
+                    new SessionLineItemOptions
+                    {
+                        Quantity = 1,
+                        PriceData = new SessionLineItemPriceDataOptions
+                        {
+                            Currency = "zar",
+                            UnitAmount = decimal.ToInt64(decimal.Round(
+                                amount * 100m, 0, MidpointRounding.AwayFromZero)),
+                            ProductData = new SessionLineItemPriceDataProductDataOptions
+                            {
+                                Name = "SpazaSure wallet top-up"
+                            }
+                        }
+                    }
+                ]
+            },
+            new RequestOptions { IdempotencyKey = $"wallet-top-up:{transactionId}" },
             cancellationToken);
     }
 

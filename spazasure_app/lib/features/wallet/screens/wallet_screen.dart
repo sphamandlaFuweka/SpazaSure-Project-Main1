@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -202,7 +203,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Top-up coming soon',
+                          'Stripe top-ups are available',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -375,7 +376,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Your order history will appear here',
+            'Your wallet activity will appear here',
             style: AppTextStyles.caption,
           ),
         ],
@@ -409,6 +410,18 @@ class _WalletScreenState extends State<WalletScreen> {
       case 'pending':
         statusColor = AppColors.textHint;
         statusLabel = 'Pending';
+        break;
+      case 'approved':
+        statusColor = AppColors.success;
+        statusLabel = 'Paid';
+        break;
+      case 'failed':
+        statusColor = AppColors.error;
+        statusLabel = 'Failed';
+        break;
+      case 'cancelled':
+        statusColor = AppColors.textHint;
+        statusLabel = 'Cancelled';
         break;
       default:
         statusColor = AppColors.textHint;
@@ -654,8 +667,62 @@ class _WalletScreenState extends State<WalletScreen> {
                               );
                               return;
                             }
+                            if (method == 'stripe' &&
+                                (amount < 50 || amount > 2000)) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Stripe top-ups must be between R50 and R2,000.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
                             setSheetState(() => submitting = true);
+                            final navigator = Navigator.of(ctx);
+                            final messenger = ScaffoldMessenger.of(ctx);
                             try {
+                              if (method == 'stripe') {
+                                final response = await ApiService.post(
+                                  '/shop/wallet/top-ups/stripe/checkout-session',
+                                  {'amount': amount},
+                                );
+                                final data =
+                                    response['data'] as Map<String, dynamic>;
+                                final checkoutUrl =
+                                    data['checkoutUrl'] as String?;
+                                if (checkoutUrl == null ||
+                                    checkoutUrl.isEmpty) {
+                                  throw StateError(
+                                    'Stripe checkout was not returned.',
+                                  );
+                                }
+                                if (!ctx.mounted) return;
+                                navigator.pop();
+                                final paid = await navigator.push<bool>(
+                                  MaterialPageRoute(
+                                    builder: (_) => OnboardingFeeCheckoutScreen(
+                                      stripeUrl: checkoutUrl,
+                                      title: 'Top up wallet',
+                                    ),
+                                  ),
+                                );
+                                if (!mounted) return;
+                                await _loadWallet();
+                                if (!mounted) return;
+                                if (paid == true) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Checkout completed. Your balance updates when Stripe confirms the payment.',
+                                      ),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
                               await ApiService.post('/shop/wallet/top-ups', {
                                 'amount': amount,
                                 'method': method,
@@ -664,8 +731,8 @@ class _WalletScreenState extends State<WalletScreen> {
                                     : referenceCtrl.text.trim(),
                               });
                               if (!ctx.mounted) return;
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              navigator.pop();
+                              messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
                                     'Top-up request submitted for admin approval.',
@@ -694,7 +761,11 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
                     child: Text(
-                      submitting ? 'Submitting...' : 'Submit Top-up Request',
+                      submitting
+                          ? 'Submitting...'
+                          : method == 'stripe'
+                          ? 'Continue to Stripe'
+                          : 'Submit Top-up Request',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),

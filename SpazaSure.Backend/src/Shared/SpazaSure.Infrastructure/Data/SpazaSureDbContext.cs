@@ -83,6 +83,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         model.Entity<OtpCode>(e =>
         {
             e.ToTable("otp_codes");
+            e.Property(code => code.FailedAttempts).HasDefaultValue(0);
         });
 
         // AuthAuditLog  long PK, no BaseEntity

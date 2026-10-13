@@ -26,6 +26,7 @@ public class OtpCode : BaseEntity
     public string Purpose { get; set; } = string.Empty;   // registration, login, password_reset
     public DateTime ExpiresAt { get; set; }
     public DateTime? UsedAt { get; set; }
+    public int FailedAttempts { get; set; }
 
     public User? User { get; set; }
 }
