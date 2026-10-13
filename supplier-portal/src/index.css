@@ -188,6 +188,41 @@
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
+.shops-map .leaflet-container {
+  font-family: 'Nunito', sans-serif;
+  background: #f0fdf4;
+}
+.shops-map .leaflet-bar {
+  border: 1px solid rgba(21, 128, 61, 0.14);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+.shops-map .leaflet-bar a {
+  width: 36px;
+  height: 36px;
+  line-height: 34px;
+  border-bottom-color: rgba(21, 128, 61, 0.12);
+  color: #166534;
+  background: rgba(255, 255, 255, 0.96);
+}
+.shops-map .leaflet-bar a:hover {
+  color: #14532d;
+  background: #f0fdf4;
+}
+.shops-map .leaflet-control-attribution {
+  border-radius: 8px 0 0;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.88);
+}
+.shops-map .leaflet-control-attribution a {
+  color: #15803d;
+}
+.shops-map .shop-pin {
+  background: transparent;
+  border: 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PREMIUM PAGE ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */

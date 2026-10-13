@@ -7,10 +7,21 @@ public class CustomerProfile : BaseEntity
     public Guid UserId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public string? PreferredName { get; set; }
     public int? Age { get; set; }
+    public string PreferredLanguage { get; set; } = "English";
+    public string? Province { get; set; }
+    public string? City { get; set; }
+    public string? Suburb { get; set; }
+    public bool NearbyRecommendationsEnabled { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     /// <summary>JSON array of declared allergies, e.g. ["peanuts","dairy"].</summary>
     public string Allergies { get; set; } = "[]";
+    public string Interests { get; set; } = "[]";
+    public string NotificationPreferences { get; set; } = "[]";
+    public bool MarketingOptIn { get; set; }
 
     public User User { get; set; } = null!;
 }

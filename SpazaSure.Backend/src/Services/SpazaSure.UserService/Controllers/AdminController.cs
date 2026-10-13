@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
+using System.Text.Json;
 
 namespace SpazaSure.UserService.Controllers;
 
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "admin")]
-public class AdminController(SpazaSureDbContext db) : ControllerBase
+public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) : ControllerBase
 {
     //  SUPPLIERS 
 
@@ -92,7 +94,10 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var query = db.SpazaShops.AsQueryable();
+        var query = db.SpazaShops
+            .Include(s => s.User)
+            .Include(s => s.Documents)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -116,35 +121,64 @@ public class AdminController(SpazaSureDbContext db) : ControllerBase
             .OrderByDescending(s => s.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(s => new
-            {
-                s.Id,
-                s.ShopName,
-                s.OwnerName,
-                Email = s.Email != null ? s.Email : (s.User != null ? s.User.Email ?? "" : ""),
-                s.Phone,
-                Address = s.Address ?? "",
-                City = s.City ?? "",
-                Province = s.Province ?? "",
-                s.Latitude,
-                s.Longitude,
-                IsVerified = s.Status == "verified",
-                s.Status,
-                s.ComplianceStatus,
-                JoinedAt = s.CreatedAt,
-                Documents = s.Documents.Select(d => new
-                {
-                    d.Id,
-                    d.DocType,
-                    d.DocUrl,
-                    d.Status,
-                    d.ExpiryDate,
-                    d.RejectionNote
-                })
-            })
             .ToListAsync();
 
-        return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
+        var missingLocations = items
+            .Where(s =>
+                (s.Latitude is null || s.Longitude is null) &&
+                (!string.IsNullOrWhiteSpace(s.Address) ||
+                 !string.IsNullOrWhiteSpace(s.City) ||
+                 !string.IsNullOrWhiteSpace(s.Province) ||
+                 !string.IsNullOrWhiteSpace(s.PostalCode)))
+            .Take(2)
+            .ToList();
+        foreach (var shop in missingLocations)
+        {
+            var point = await geocoder.GeocodeAsync(
+                shop.Address, shop.City, shop.Province, shop.PostalCode, HttpContext.RequestAborted);
+            if (point is { } location)
+            {
+                shop.Latitude = location.Lat;
+                shop.Longitude = location.Lng;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(1100), HttpContext.RequestAborted);
+        }
+
+        if (missingLocations.Any(s => s.Latitude is not null && s.Longitude is not null))
+            await db.SaveChangesAsync(HttpContext.RequestAborted);
+
+        var result = items.Select(s => new
+        {
+            s.Id,
+            s.ShopName,
+            s.OwnerName,
+            Email = s.Email != null ? s.Email : (s.User != null ? s.User.Email ?? "" : ""),
+            s.Phone,
+            Address = s.Address ?? "",
+            City = s.City ?? "",
+            Province = s.Province ?? "",
+            s.Latitude,
+            s.Longitude,
+            IsVerified = s.Status == "verified",
+            s.Status,
+            s.ComplianceStatus,
+            RegistrationDetails = s.RegistrationDetails is null
+                ? null
+                : JsonSerializer.Deserialize<JsonElement>(s.RegistrationDetails),
+            JoinedAt = s.CreatedAt,
+            Documents = s.Documents.Select(d => new
+            {
+                d.Id,
+                d.DocType,
+                d.DocUrl,
+                d.Status,
+                d.ExpiryDate,
+                d.RejectionNote
+            })
+        });
+
+        return Ok(ApiResponse<object>.Ok(new { items = result, total, page, pageSize }));
     }
 
     [HttpPatch("spaza-owners/{id}/verify")]

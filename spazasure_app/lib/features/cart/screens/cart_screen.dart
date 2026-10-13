@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/custom_button.dart';
+import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
@@ -321,33 +322,96 @@ class _CartScreenState extends State<CartScreen> {
           _miniButton(
             Icons.remove,
             () => cart.updateQuantity(item.product.id, item.quantity - 1),
+            enabled: item.quantity > 1,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              '${item.quantity}',
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+          InkWell(
+            onTap: () => _editQuantity(cart, item),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                '${item.quantity}',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ),
           _miniButton(
             Icons.add,
             () => cart.updateQuantity(item.product.id, item.quantity + 1),
+            enabled: item.quantity < item.product.stockQuantity,
           ),
         ],
       ),
     );
   }
 
-  Widget _miniButton(IconData icon, VoidCallback onTap) {
+  Future<void> _editQuantity(CartProvider cart, CartItem item) async {
+    final controller = TextEditingController(text: '${item.quantity}');
+    final formKey = GlobalKey<FormState>();
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item.product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Quantity',
+              helperText: '${item.product.stockQuantity} units available',
+            ),
+            validator: (value) {
+              final selected = int.tryParse((value ?? '').trim());
+              if (selected == null || selected < 1) {
+                return 'Enter at least 1 unit';
+              }
+              if (selected > item.product.stockQuantity) {
+                return 'Only ${item.product.stockQuantity} available';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, int.parse(controller.text.trim()));
+              }
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (quantity != null) cart.updateQuantity(item.product.id, quantity);
+  }
+
+  Widget _miniButton(
+    IconData icon,
+    VoidCallback onTap, {
+    bool enabled = true,
+  }) {
     return IconButton(
-      onPressed: onTap,
+      onPressed: enabled ? onTap : null,
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints(minWidth: 34, minHeight: 36),
       padding: EdgeInsets.zero,
-      icon: Icon(icon, size: 17, color: AppColors.primary),
+      icon: Icon(
+        icon,
+        size: 17,
+        color: enabled ? AppColors.primary : AppColors.disabled,
+      ),
     );
   }
 

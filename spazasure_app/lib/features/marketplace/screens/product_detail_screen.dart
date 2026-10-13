@@ -18,6 +18,55 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   int _currentImageIndex = 0;
 
+  Future<void> _editQuantity(Product product) async {
+    final controller = TextEditingController(text: '$_quantity');
+    final formKey = GlobalKey<FormState>();
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Choose quantity'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Units',
+              helperText: '${product.stockQuantity} available',
+            ),
+            validator: (value) {
+              final selected = int.tryParse((value ?? '').trim());
+              if (selected == null || selected < 1) {
+                return 'Enter at least 1 unit';
+              }
+              if (selected > product.stockQuantity) {
+                return 'Only ${product.stockQuantity} available';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, int.parse(controller.text.trim()));
+              }
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (quantity != null && mounted) setState(() => _quantity = quantity);
+  }
+
   Widget _buildProductImage(String url) {
     if (url.isEmpty) return _imagePlaceholder();
     // Handle base64 data URIs
@@ -27,31 +76,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         if (dataIndex == -1) return _imagePlaceholder();
         final base64Str = url.substring(dataIndex + 1);
         final bytes = base64Decode(base64Str);
-        return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          errorBuilder: (_, __, ___) => _imagePlaceholder());
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+        );
       } catch (_) {
         return _imagePlaceholder();
       }
     }
     // Handle HTTP/HTTPS URLs
     if (url.startsWith('http')) {
-      return Image.network(url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-        errorBuilder: (_, __, ___) => _imagePlaceholder());
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _imagePlaceholder(),
+      );
     }
     return _imagePlaceholder();
   }
 
   Widget _imagePlaceholder() {
     return Center(
-      child: Icon(Icons.inventory_2_outlined, size: 100, color: AppColors.primary.withValues(alpha: 0.3)),
+      child: Icon(
+        Icons.inventory_2_outlined,
+        size: 100,
+        color: AppColors.primary.withValues(alpha: 0.3),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final product = ModalRoute.of(context)!.settings.arguments as Product;
-    if (_quantity < product.minOrderQty) _quantity = product.minOrderQty;
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: CustomScrollView(
@@ -69,8 +130,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         children: [
                           PageView.builder(
                             itemCount: product.images.length,
-                            onPageChanged: (i) => setState(() => _currentImageIndex = i),
-                            itemBuilder: (ctx, i) => _buildProductImage(product.images[i]),
+                            onPageChanged: (i) =>
+                                setState(() => _currentImageIndex = i),
+                            itemBuilder: (ctx, i) =>
+                                _buildProductImage(product.images[i]),
                           ),
                           // Image indicators
                           if (product.images.length > 1)
@@ -85,9 +148,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   (i) => Container(
                                     width: _currentImageIndex == i ? 20 : 8,
                                     height: 8,
-                                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: _currentImageIndex == i ? AppColors.primary : Colors.white54,
+                                      color: _currentImageIndex == i
+                                          ? AppColors.primary
+                                          : Colors.white54,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                   ),
@@ -97,8 +164,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ],
                       )
                     : (product.imageUrl.isNotEmpty
-                        ? _buildProductImage(product.imageUrl)
-                        : _imagePlaceholder()),
+                          ? _buildProductImage(product.imageUrl)
+                          : _imagePlaceholder()),
               ),
             ),
           ),
@@ -112,7 +179,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -120,19 +190,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.verified, size: 14, color: AppColors.primary),
+                            const Icon(
+                              Icons.verified,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 4),
-                            Text(product.supplierName, style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                            Text(
+                              product.supplierName,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const Spacer(),
                       Row(
                         children: [
-                          const Icon(Icons.star, size: 18, color: AppColors.warning),
+                          const Icon(
+                            Icons.star,
+                            size: 18,
+                            color: AppColors.warning,
+                          ),
                           const SizedBox(width: 4),
-                          Text('${product.rating}', style: AppTextStyles.subtitle),
-                          Text(' (${product.reviewCount} reviews)', style: AppTextStyles.bodySmall),
+                          Text(
+                            '${product.rating}',
+                            style: AppTextStyles.subtitle,
+                          ),
+                          Text(
+                            ' (${product.reviewCount} reviews)',
+                            style: AppTextStyles.bodySmall,
+                          ),
                         ],
                       ),
                     ],
@@ -171,34 +261,53 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: product.stockQuantity > 20 ? AppColors.success : AppColors.warning,
+                          color: product.stockQuantity > 20
+                              ? AppColors.success
+                              : product.stockQuantity > 0
+                              ? AppColors.warning
+                              : AppColors.error,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        product.stockQuantity > 20 ? 'In Stock (${product.stockQuantity} available)' : 'Low Stock (${product.stockQuantity} left)',
+                        product.stockQuantity > 20
+                            ? 'In Stock (${product.stockQuantity} available)'
+                            : product.stockQuantity > 0
+                            ? 'Low Stock (${product.stockQuantity} left)'
+                            : 'Out of Stock',
                         style: AppTextStyles.bodySmall.copyWith(
-                          color: product.stockQuantity > 20 ? AppColors.success : AppColors.warning,
+                          color: product.stockQuantity > 20
+                              ? AppColors.success
+                              : product.stockQuantity > 0
+                              ? AppColors.warning
+                              : AppColors.error,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text('Min. order: ${product.minOrderQty} units', style: AppTextStyles.bodySmall),
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 16),
                   // Description
                   Text('Description', style: AppTextStyles.h3),
                   const SizedBox(height: 8),
-                  Text(product.description, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary, height: 1.5)),
+                  Text(
+                    product.description,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   // Quantity selector
                   Text('Quantity', style: AppTextStyles.h3),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(12),
@@ -206,16 +315,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _quantityButton(Icons.remove, () {
-                          if (_quantity > product.minOrderQty) setState(() => _quantity--);
-                        }),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text('$_quantity', style: AppTextStyles.h3),
+                        _quantityButton(
+                          Icons.remove,
+                          () => setState(() => _quantity--),
+                          enabled: _quantity > 1,
                         ),
-                        _quantityButton(Icons.add, () {
-                          if (_quantity < product.stockQuantity) setState(() => _quantity++);
-                        }),
+                        InkWell(
+                          onTap: product.stockQuantity > 0
+                              ? () => _editQuantity(product)
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text(
+                              product.stockQuantity > 0 ? '$_quantity' : '—',
+                              style: AppTextStyles.h3,
+                            ),
+                          ),
+                        ),
+                        _quantityButton(
+                          Icons.add,
+                          () => setState(() => _quantity++),
+                          enabled: _quantity < product.stockQuantity,
+                        ),
                       ],
                     ),
                   ),
@@ -231,7 +353,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, -4))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
         ),
         child: SafeArea(
           child: Row(
@@ -250,25 +378,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(width: 20),
               Expanded(
                 child: CustomButton(
-                  text: 'Add to Cart',
+                  text: product.stockQuantity > 0
+                      ? 'Add to Cart'
+                      : 'Out of Stock',
                   icon: Icons.shopping_cart_outlined,
-                  onPressed: () {
-                    context.read<CartProvider>().add(product, _quantity);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('$_quantity × ${product.name} added to cart'),
-                        backgroundColor: AppColors.primary,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        action: SnackBarAction(
-                          label: 'VIEW CART',
-                          textColor: Colors.white,
-                          onPressed: () => Navigator.pushNamed(context, '/cart'),
-                        ),
-                      ),
-                    );
-                    Navigator.pop(context);
-                  },
+                  onPressed: product.stockQuantity > 0
+                      ? () {
+                          final added = context.read<CartProvider>().add(
+                            product,
+                            _quantity,
+                          );
+                          if (!added) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'There is not enough stock for that quantity.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(context);
+                          final quantity = _quantity;
+                          final productName = product.name;
+                          navigator.pop(true);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '$quantity × $productName added to cart',
+                              ),
+                              backgroundColor: AppColors.primary,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              action: SnackBarAction(
+                                label: 'VIEW CART',
+                                textColor: Colors.white,
+                                onPressed: () => navigator.pushNamed('/cart'),
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
                 ),
               ),
             ],
@@ -278,20 +431,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _quantityButton(IconData icon, VoidCallback onTap) {
+  Widget _quantityButton(
+    IconData icon,
+    VoidCallback onTap, {
+    bool enabled = true,
+  }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+            ),
+          ],
         ),
-        child: Icon(icon, color: AppColors.primary),
+        child: Icon(
+          icon,
+          color: enabled ? AppColors.primary : AppColors.disabled,
+        ),
       ),
     );
   }
 }
-

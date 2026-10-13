@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace SpazaSure.AuthService.DTOs;
 
@@ -61,7 +62,9 @@ public record ShopRegisterRequest(
     string? Province = null,
     string? PostalCode = null,
     double? Latitude = null,
-    double? Longitude = null
+    double? Longitude = null,
+    string? Email = null,
+    JsonElement? RegistrationDetails = null
 );
 
 public record ShopAuthResponse(
@@ -85,9 +88,20 @@ public record CustomerRegisterRequest(
     [Required] string FirstName,
     [Required] string LastName,
     [Required, MinLength(8)] string Password,
-    int? Age,
+    [Range(18, 130)] int? Age,
     List<string>? Allergies,
-    [EmailAddress] string? Email = null
+    [EmailAddress] string? Email = null,
+    string? PreferredName = null,
+    string? PreferredLanguage = null,
+    string? Province = null,
+    string? City = null,
+    string? Suburb = null,
+    bool NearbyRecommendationsEnabled = false,
+    [Range(-90, 90)] double? Latitude = null,
+    [Range(-180, 180)] double? Longitude = null,
+    List<string>? Interests = null,
+    List<string>? NotificationPreferences = null,
+    bool MarketingOptIn = false
 );
 
 public record CustomerAuthResponse(
@@ -101,5 +115,16 @@ public record CustomerAuthResponse(
     string Email,
     string Phone,
     int? Age,
-    List<string> Allergies
+    List<string> Allergies,
+    string? PreferredName = null,
+    string PreferredLanguage = "English",
+    string? Province = null,
+    string? City = null,
+    string? Suburb = null,
+    bool NearbyRecommendationsEnabled = false,
+    double? Latitude = null,
+    double? Longitude = null,
+    List<string>? Interests = null,
+    List<string>? NotificationPreferences = null,
+    bool MarketingOptIn = false
 );

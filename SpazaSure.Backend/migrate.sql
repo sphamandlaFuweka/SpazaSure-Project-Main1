@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS spaza_shops (
     CONSTRAINT "PK_SpazaShops" PRIMARY KEY (id),
     CONSTRAINT "FK_SpazaShops_Users_UserId" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS registration_details text;
 
 CREATE TABLE IF NOT EXISTS shop_wallet_transactions (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -402,6 +403,17 @@ UPDATE customer_profiles SET first_name = '' WHERE first_name IS NULL;
 UPDATE customer_profiles SET last_name = '' WHERE last_name IS NULL;
 ALTER TABLE customer_profiles ALTER COLUMN first_name SET NOT NULL;
 ALTER TABLE customer_profiles ALTER COLUMN last_name SET NOT NULL;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS preferred_name text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS preferred_language text NOT NULL DEFAULT 'English';
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS province text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS city text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS suburb text;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS nearby_recommendations_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS latitude double precision;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS longitude double precision;
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS interests text NOT NULL DEFAULT '[]';
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS notification_preferences text NOT NULL DEFAULT '[]';
+ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS marketing_opt_in boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS customer_subscriptions (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -1352,7 +1364,9 @@ VALUES
     ('20261012215024_RenameOnboardingPaymentProviderReference', '8.0.0'),
     ('20261012230011_AddStripeCheckoutToShopOrders', '8.0.0'),
     ('20261012232837_AddCustomerSubscriptions', '8.0.0'),
-    ('20261012234836_AddSupplierStripeSubscriptions', '8.0.0')
+    ('20261012234836_AddSupplierStripeSubscriptions', '8.0.0'),
+    ('20261013130000_AddCustomerRegistrationPreferences', '8.0.0'),
+    ('20261014120000_AddShopRegistrationDetails', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.

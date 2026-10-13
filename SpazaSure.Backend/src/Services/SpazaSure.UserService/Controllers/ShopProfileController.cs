@@ -6,6 +6,7 @@ using SpazaSure.Shared.Models;
 using SpazaSure.Shared.Storage;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace SpazaSure.UserService.Controllers;
 
@@ -55,6 +56,9 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             ProfilePhotoUrl = shop.User?.ProfilePhotoUrl,
             shop.Status,
             shop.ComplianceStatus,
+            RegistrationDetails = shop.RegistrationDetails is null
+                ? null
+                : JsonSerializer.Deserialize<JsonElement>(shop.RegistrationDetails),
             shop.OnboardingFeePaid,
             OnboardingFeeAmount = onboardingFeeAmount,
             shop.RatingAvg,

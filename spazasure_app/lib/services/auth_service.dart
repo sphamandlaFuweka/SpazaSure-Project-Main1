@@ -11,6 +11,17 @@ class AuthSession {
   final String email;
   final int? age;
   final List<String> allergies;
+  final String? preferredName;
+  final String preferredLanguage;
+  final String? province;
+  final String? city;
+  final String? suburb;
+  final bool nearbyRecommendationsEnabled;
+  final double? latitude;
+  final double? longitude;
+  final List<String> interests;
+  final List<String> notificationPreferences;
+  final bool marketingOptIn;
   final String token;
   final String refreshToken;
   final String role;
@@ -25,6 +36,17 @@ class AuthSession {
     this.email = '',
     this.age,
     this.allergies = const [],
+    this.preferredName,
+    this.preferredLanguage = 'English',
+    this.province,
+    this.city,
+    this.suburb,
+    this.nearbyRecommendationsEnabled = false,
+    this.latitude,
+    this.longitude,
+    this.interests = const [],
+    this.notificationPreferences = const [],
+    this.marketingOptIn = false,
     required this.token,
     required this.refreshToken,
     this.role = 'spaza_owner',
@@ -43,6 +65,18 @@ class AuthService {
   static const _emailKey = 'email';
   static const _ageKey = 'age';
   static const _allergiesKey = 'allergies';
+  static const _preferredNameKey = 'customer_preferred_name';
+  static const _preferredLanguageKey = 'customer_preferred_language';
+  static const _provinceKey = 'customer_province';
+  static const _cityKey = 'customer_city';
+  static const _suburbKey = 'customer_suburb';
+  static const _nearbyRecommendationsKey = 'customer_nearby_recommendations';
+  static const _latitudeKey = 'customer_latitude';
+  static const _longitudeKey = 'customer_longitude';
+  static const _interestsKey = 'customer_interests';
+  static const _notificationPreferencesKey =
+      'customer_notification_preferences';
+  static const _marketingOptInKey = 'customer_marketing_opt_in';
 
   static Future<AuthSession> loginShop(String phone, String password) async {
     final formatted = _formatPhone(phone);
@@ -71,6 +105,18 @@ class AuthService {
     required String password,
     int? age,
     List<String>? allergies,
+    String? email,
+    String? preferredName,
+    String? preferredLanguage,
+    String? province,
+    String? city,
+    String? suburb,
+    bool nearbyRecommendationsEnabled = false,
+    double? latitude,
+    double? longitude,
+    List<String>? interests,
+    List<String>? notificationPreferences,
+    bool marketingOptIn = false,
   }) async {
     final res = await ApiService.post('/customer/auth/register', {
       'phone': _formatPhone(phone),
@@ -78,7 +124,22 @@ class AuthService {
       'lastName': lastName,
       'password': password,
       if (age != null) 'age': age,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (preferredName != null && preferredName.isNotEmpty)
+        'preferredName': preferredName,
+      if (preferredLanguage != null) 'preferredLanguage': preferredLanguage,
+      if (province != null) 'province': province,
+      if (city != null) 'city': city,
+      if (suburb != null) 'suburb': suburb,
+      'nearbyRecommendationsEnabled': nearbyRecommendationsEnabled,
+      if (latitude != null && longitude != null) ...{
+        'latitude': latitude,
+        'longitude': longitude,
+      },
       'allergies': allergies ?? const <String>[],
+      'interests': interests ?? const <String>[],
+      'notificationPreferences': notificationPreferences ?? const <String>[],
+      'marketingOptIn': marketingOptIn,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
@@ -95,6 +156,8 @@ class AuthService {
     double? latitude,
     double? longitude,
     String? idNumber,
+    String? email,
+    Map<String, dynamic>? registrationDetails,
   }) async {
     final formatted = _formatPhone(phone);
     final res = await ApiService.post('/shop/auth/register', {
@@ -111,6 +174,9 @@ class AuthService {
         'longitude': longitude,
       },
       if (idNumber != null && idNumber.isNotEmpty) 'idNumber': idNumber,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (registrationDetails != null)
+        'registrationDetails': registrationDetails,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);
   }
@@ -130,6 +196,19 @@ class AuthService {
       email: prefs.getString(_emailKey) ?? '',
       age: prefs.getInt(_ageKey),
       allergies: prefs.getStringList(_allergiesKey) ?? const [],
+      preferredName: prefs.getString(_preferredNameKey),
+      preferredLanguage: prefs.getString(_preferredLanguageKey) ?? 'English',
+      province: prefs.getString(_provinceKey),
+      city: prefs.getString(_cityKey),
+      suburb: prefs.getString(_suburbKey),
+      nearbyRecommendationsEnabled:
+          prefs.getBool(_nearbyRecommendationsKey) ?? false,
+      latitude: prefs.getDouble(_latitudeKey),
+      longitude: prefs.getDouble(_longitudeKey),
+      interests: prefs.getStringList(_interestsKey) ?? const [],
+      notificationPreferences:
+          prefs.getStringList(_notificationPreferencesKey) ?? const [],
+      marketingOptIn: prefs.getBool(_marketingOptInKey) ?? false,
       token: token,
       refreshToken: prefs.getString(_refreshKey) ?? '',
       role: prefs.getString('user_role') ?? 'spaza_owner',
@@ -152,6 +231,17 @@ class AuthService {
     await prefs.remove(_emailKey);
     await prefs.remove(_ageKey);
     await prefs.remove(_allergiesKey);
+    await prefs.remove(_preferredNameKey);
+    await prefs.remove(_preferredLanguageKey);
+    await prefs.remove(_provinceKey);
+    await prefs.remove(_cityKey);
+    await prefs.remove(_suburbKey);
+    await prefs.remove(_nearbyRecommendationsKey);
+    await prefs.remove(_latitudeKey);
+    await prefs.remove(_longitudeKey);
+    await prefs.remove(_interestsKey);
+    await prefs.remove(_notificationPreferencesKey);
+    await prefs.remove(_marketingOptInKey);
   }
 
   static Future<bool> isLoggedIn() async {
@@ -183,6 +273,24 @@ class AuthService {
       allergies:
           (data['allergies'] as List?)?.map((a) => a.toString()).toList() ??
           const [],
+      preferredName: data['preferredName']?.toString(),
+      preferredLanguage: data['preferredLanguage']?.toString() ?? 'English',
+      province: data['province']?.toString(),
+      city: data['city']?.toString(),
+      suburb: data['suburb']?.toString(),
+      nearbyRecommendationsEnabled:
+          data['nearbyRecommendationsEnabled'] == true,
+      latitude: (data['latitude'] as num?)?.toDouble(),
+      longitude: (data['longitude'] as num?)?.toDouble(),
+      interests:
+          (data['interests'] as List?)?.map((v) => v.toString()).toList() ??
+          const [],
+      notificationPreferences:
+          (data['notificationPreferences'] as List?)
+              ?.map((v) => v.toString())
+              .toList() ??
+          const [],
+      marketingOptIn: data['marketingOptIn'] == true,
       token: data['accessToken'],
       refreshToken: data['refreshToken'],
       role: role,
@@ -199,6 +307,27 @@ class AuthService {
     await prefs.setString(_emailKey, session.email);
     if (session.age != null) await prefs.setInt(_ageKey, session.age!);
     await prefs.setStringList(_allergiesKey, session.allergies);
+    await prefs.setString(_preferredNameKey, session.preferredName ?? '');
+    await prefs.setString(_preferredLanguageKey, session.preferredLanguage);
+    await prefs.setString(_provinceKey, session.province ?? '');
+    await prefs.setString(_cityKey, session.city ?? '');
+    await prefs.setString(_suburbKey, session.suburb ?? '');
+    await prefs.setBool(
+      _nearbyRecommendationsKey,
+      session.nearbyRecommendationsEnabled,
+    );
+    if (session.latitude != null) {
+      await prefs.setDouble(_latitudeKey, session.latitude!);
+    }
+    if (session.longitude != null) {
+      await prefs.setDouble(_longitudeKey, session.longitude!);
+    }
+    await prefs.setStringList(_interestsKey, session.interests);
+    await prefs.setStringList(
+      _notificationPreferencesKey,
+      session.notificationPreferences,
+    );
+    await prefs.setBool(_marketingOptInKey, session.marketingOptIn);
     await prefs.setString('user_role', session.role);
     return session;
   }

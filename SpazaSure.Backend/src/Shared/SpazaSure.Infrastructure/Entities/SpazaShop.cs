@@ -16,6 +16,7 @@ public class SpazaShop : BaseEntity
     public string? PostalCode { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+    public string? RegistrationDetails { get; set; }
     public string Status { get; set; } = "pending";
     public string ComplianceStatus { get; set; } = "incomplete";  // green, orange, red
     public bool OnboardingFeePaid { get; set; } = false;

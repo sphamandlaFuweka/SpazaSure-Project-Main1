@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,113 +16,286 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  static const _stepLabels = [
+    'Representative',
+    'Shop',
+    'Location',
+    'Operations',
+    'Review',
+  ];
+  static const _provinces = [
+    'KwaZulu-Natal',
+    'Gauteng',
+    'Eastern Cape',
+    'Western Cape',
+    'Limpopo',
+    'Mpumalanga',
+    'Free State',
+    'North West',
+    'Northern Cape',
+  ];
+  static const _shopTypes = [
+    'Spaza shop',
+    'Convenience store',
+    'Mini-market',
+    'Informal trader',
+    'Other',
+  ];
+  static const _languages = [
+    'English',
+    'isiZulu',
+    'isiXhosa',
+    'Sesotho',
+    'Setswana',
+    'Sepedi',
+    'Xitsonga',
+    'Tshivenda',
+    'siSwati',
+    'isiNdebele',
+    'Afrikaans',
+    'Other',
+  ];
+  static const _productCategories = [
+    'Groceries',
+    'Fresh produce',
+    'Beverages',
+    'Personal care',
+    'Household',
+    'Baby products',
+    'Snacks and confectionery',
+    'Other',
+  ];
+  static const _stockSources = [
+    'Wholesalers',
+    'Direct from suppliers',
+    'Local markets',
+    'Cash-and-carry',
+    'Other',
+  ];
+  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _interests = [
+    'Wholesale ordering',
+    'Supplier deals',
+    'Digital payments',
+    'Product safety updates',
+    'Business advice',
+    'Promotions and rewards',
+  ];
+  static const _communications = [
+    'Account and service updates',
+    'Product safety notices',
+    'Order and delivery updates',
+    'Business support',
+  ];
+  static const _docTypes = <String, String>{
+    'shop_photo': 'Shopfront or shop interior photo',
+    'business_permit': 'Business permit or trading licence',
+    'health_cert': 'Health certificate (if applicable)',
+    'lease': 'Lease or proof of premises (optional)',
+    'id_document': 'Representative identity document',
+  };
+
   final _pageController = PageController();
+  final _formControllers = <String, TextEditingController>{
+    for (final field in [
+      'firstName',
+      'surname',
+      'email',
+      'phone',
+      'alternatePhone',
+      'password',
+      'confirmPassword',
+      'shopName',
+      'tradingName',
+      'companyRegistrationNumber',
+      'address',
+      'province',
+      'municipality',
+      'city',
+      'suburbTownship',
+      'standNumber',
+      'postalCode',
+      'openingTime',
+      'closingTime',
+      'deliveryRadiusKm',
+      'storageNotes',
+      'averageDailyCustomers',
+    ])
+      field: TextEditingController(),
+  };
+  final _pickedDocs = <String, PlatformFile>{};
+  final _selected = <String, Set<String>>{
+    'operatingDays': {},
+    'productCategories': {},
+    'stockSources': {},
+    'interests': {},
+    'communicationPreferences': {},
+  };
+
   int _currentStep = 0;
   bool _isLoading = false;
-
-  final _nameController = TextEditingController();
-  final _idController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _shopNameController = TextEditingController();
-  final _addressController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _deliveryAvailable = false;
+  bool _refrigerationAvailable = false;
+  bool _registrationDeclaredAccurate = false;
+  bool _marketingOptIn = false;
+  String? _preferredLanguage;
+  String? _shopType;
+  String? _registrationStatus;
+  String? _monthlyStockBudget;
   AddressSuggestion? _address;
 
-  // Document uploads - key is docType, value is the picked file
-  final Map<String, PlatformFile> _pickedDocs = {};
+  TextEditingController _controller(String key) => _formControllers[key]!;
 
   @override
   void dispose() {
     _pageController.dispose();
-    _nameController.dispose();
-    _idController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    _shopNameController.dispose();
-    _addressController.dispose();
+    for (final controller in _formControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
-  void _nextStep() {
-    if (_currentStep == 1 && _address == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Pick your shop address from the suggestions to confirm it.',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      return;
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  bool _validateCurrentStep() {
+    String value(String key) => _controller(key).text.trim();
+    String? error;
+    switch (_currentStep) {
+      case 0:
+        if (value('firstName').isEmpty || value('surname').isEmpty) {
+          error = 'Enter the representative’s first name and surname.';
+        } else if (value('phone').isEmpty) {
+          error = 'Enter the representative’s mobile number.';
+        } else if (_controller('password').text.length < 8) {
+          error = 'Create a password with at least 8 characters.';
+        } else if (_controller('password').text !=
+            _controller('confirmPassword').text) {
+          error = 'The passwords do not match.';
+        } else if (value('email').isNotEmpty &&
+            !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value('email'))) {
+          error = 'Enter a valid email address or leave it blank.';
+        }
+        break;
+      case 1:
+        if (value('shopName').isEmpty) {
+          error = 'Enter the name customers know your shop by.';
+        } else if (_shopType == null) {
+          error = 'Choose the type of business.';
+        } else if (_registrationStatus == null) {
+          error = 'Choose the business registration status.';
+        }
+        break;
+      case 2:
+        if (value('address').isEmpty) {
+          error = 'Enter your shop’s street address or select a suggestion.';
+        } else if (value('city').isEmpty || value('province').isEmpty) {
+          error = 'Enter the town or city and province for the shop.';
+        }
+        break;
+      case 4:
+        if (!_registrationDeclaredAccurate) {
+          error = 'Confirm that the information provided is accurate.';
+        }
+        break;
     }
-    if (_currentStep < 2) {
+    if (error != null) {
+      _showMessage(error);
+      return false;
+    }
+    return true;
+  }
+
+  void _nextStep() {
+    if (!_validateCurrentStep()) return;
+    if (_currentStep < _stepLabels.length - 1) {
       setState(() => _currentStep++);
-      _pageController.nextPage(duration: 500.ms, curve: Curves.easeOutCubic);
+      _pageController.nextPage(duration: 300.ms, curve: Curves.easeOutCubic);
+    } else {
+      _submit();
     }
   }
 
   void _prevStep() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
-      _pageController.previousPage(
-        duration: 500.ms,
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
-
-  void _submit() async {
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text;
-    if (phone.isEmpty || password.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a phone number and password of at least 8 characters.'),
-        ),
-      );
+    if (_currentStep == 0) {
+      Navigator.pop(context);
       return;
     }
+    setState(() => _currentStep--);
+    _pageController.previousPage(duration: 300.ms, curve: Curves.easeOutCubic);
+  }
+
+  Map<String, dynamic> _registrationDetails() => {
+    'representativeFirstName': _controller('firstName').text.trim(),
+    'representativeSurname': _controller('surname').text.trim(),
+    'representativeRole': _representativeRole,
+    'alternatePhone': _controller('alternatePhone').text.trim(),
+    'preferredLanguage': _preferredLanguage,
+    'tradingName': _controller('tradingName').text.trim(),
+    'shopType': _shopType,
+    'businessRegistrationStatus': _registrationStatus,
+    'companyRegistrationNumber': _controller(
+      'companyRegistrationNumber',
+    ).text.trim(),
+    'municipality': _controller('municipality').text.trim(),
+    'suburbOrTownship': _controller('suburbTownship').text.trim(),
+    'standOrUnitNumber': _controller('standNumber').text.trim(),
+    'operatingDays': _selected['operatingDays']!.toList()..sort(),
+    'openingTime': _controller('openingTime').text.trim(),
+    'closingTime': _controller('closingTime').text.trim(),
+    'deliveryAvailable': _deliveryAvailable,
+    'deliveryRadiusKm': _controller('deliveryRadiusKm').text.trim(),
+    'refrigerationAvailable': _refrigerationAvailable,
+    'storageNotes': _controller('storageNotes').text.trim(),
+    'averageDailyCustomers': _controller('averageDailyCustomers').text.trim(),
+    'monthlyStockBudget': _monthlyStockBudget,
+    'productCategories': _selected['productCategories']!.toList()..sort(),
+    'stockSources': _selected['stockSources']!.toList()..sort(),
+    'interests': _selected['interests']!.toList()..sort(),
+    'communicationPreferences': _selected['communicationPreferences']!.toList()
+      ..sort(),
+    'marketingOptIn': _marketingOptIn,
+    'accuracyDeclaration': _registrationDeclaredAccurate,
+  };
+
+  Future<void> _submit() async {
+    if (_isLoading || !_validateCurrentStep()) return;
+    final fullName =
+        '${_controller('firstName').text.trim()} ${_controller('surname').text.trim()}';
 
     setState(() => _isLoading = true);
     try {
-      await context.read<AuthProvider>().registerShop(
-        phone: phone,
-        password: password,
-        fullName: _nameController.text.trim(),
-        shopName: _shopNameController.text.trim(),
-        address: _addressController.text.trim(),
-        city: _address?.city,
-        province: _address?.province,
-        postalCode: _address?.postalCode,
+      final failedDocuments = await context.read<AuthProvider>().registerShop(
+        phone: _controller('phone').text.trim(),
+        password: _controller('password').text,
+        fullName: fullName,
+        shopName: _controller('shopName').text.trim(),
+        address: _controller('address').text.trim(),
+        city: _controller('city').text.trim(),
+        province: _controller('province').text.trim(),
+        postalCode: _controller('postalCode').text.trim(),
         latitude: _address?.latitude,
         longitude: _address?.longitude,
-        idNumber: _idController.text.trim(),
+        email: _controller('email').text.trim(),
+        registrationDetails: _registrationDetails(),
         documents: _pickedDocs,
       );
 
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-        (route) => false,
-      );
+      if (failedDocuments.isNotEmpty) {
+        _showMessage(
+          '${failedDocuments.length} document(s) could not be uploaded. You can retry from your profile.',
+        );
+      }
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      _showMessage(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -130,10 +303,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      _buildRepresentative(),
+      _buildShopDetails(),
+      _buildLocation(),
+      _buildOperations(),
+      _buildReviewAndDocuments(),
+    ];
+
     return Scaffold(
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -144,7 +323,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -152,60 +330,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => _currentStep > 0
-                          ? _prevStep()
-                          : Navigator.pop(context),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_rounded,
+                    IconButton(
+                      onPressed: _prevStep,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: Colors.white,
+                      tooltip: 'Go back',
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Shop owner application',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.nunito(
                           color: Colors.white,
-                          size: 20,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      'Create Account',
-                      style: GoogleFonts.nunito(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    const SizedBox(width: 44),
+                    const SizedBox(width: 48),
                   ],
                 ),
-              ).animate().fadeIn(duration: 400.ms),
-
-              // Progress indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 12,
-                ),
-                child: _StepIndicator(currentStep: _currentStep),
               ),
-
-              // Form pages
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
+                child: _StepIndicator(
+                  currentStep: _currentStep,
+                  labels: _stepLabels,
+                ),
+              ),
               Expanded(
                 child: PageView(
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
+                  children: pages,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 18),
+                child: Row(
                   children: [
-                    _buildOwnerDetails(),
-                    _buildShopDetails(),
-                    _buildDocumentUpload(),
+                    if (_currentStep > 0)
+                      OutlinedButton(
+                        onPressed: _isLoading ? null : _prevStep,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.65),
+                          ),
+                          minimumSize: const Size(100, 52),
+                        ),
+                        child: const Text('Back'),
+                      ),
+                    if (_currentStep > 0) const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _nextStep,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _currentStep == _stepLabels.length - 1
+                                      ? 'Submit application'
+                                      : 'Continue',
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -216,572 +425,605 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildOwnerDetails() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
+  Widget _buildRepresentative() => _page(
+    title: 'Representative details',
+    subtitle: 'Who is responsible for this shop application?',
+    icon: Icons.person_outline_rounded,
+    children: [
+      _field('firstName', 'First name *', 'Enter first name'),
+      _field('surname', 'Surname *', 'Enter surname'),
+      _dropdown(
+        label: 'Your role in the business',
+        value: _representativeRole,
+        options: const [
+          'Owner',
+          'Co-owner',
+          'Manager',
+          'Authorised representative',
+        ],
+        onChanged: (value) => setState(() => _representativeRole = value),
+      ),
+      _field(
+        'phone',
+        'Mobile number *',
+        'e.g. 082 123 4567',
+        keyboardType: TextInputType.phone,
+        prefixText: '+27  ',
+      ),
+      _field(
+        'alternatePhone',
+        'Alternative contact number',
+        'Optional',
+        keyboardType: TextInputType.phone,
+      ),
+      _field(
+        'email',
+        'Email address',
+        'Optional, recommended for account recovery',
+        keyboardType: TextInputType.emailAddress,
+      ),
+      _dropdown(
+        label: 'Preferred language',
+        value: _preferredLanguage,
+        options: _languages,
+        onChanged: (value) => setState(() => _preferredLanguage = value),
+      ),
+      _passwordField(
+        keyName: 'password',
+        label: 'Create password *',
+        obscure: _obscurePassword,
+        onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+      ),
+      _passwordField(
+        keyName: 'confirmPassword',
+        label: 'Confirm password *',
+        obscure: _obscureConfirmPassword,
+        onToggle: () =>
+            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+      ),
+      _hint(
+        'Your mobile number and password are used to sign in. We are not sending SMS verification codes during signup.',
+        Icons.lock_outline,
+      ),
+    ],
+  );
+
+  String? _representativeRole;
+  String? _province;
+
+  Widget _buildShopDetails() => _page(
+    title: 'Shop identity',
+    subtitle: 'Tell us about the business you want to register.',
+    icon: Icons.storefront_outlined,
+    children: [
+      _field('shopName', 'Shop name *', 'Name customers know'),
+      _field('tradingName', 'Trading name', 'If different from shop name'),
+      _dropdown(
+        label: 'Business type *',
+        value: _shopType,
+        options: _shopTypes,
+        onChanged: (value) => setState(() => _shopType = value),
+      ),
+      _dropdown(
+        label: 'Business registration status *',
+        value: _registrationStatus,
+        options: const [
+          'Registered business',
+          'Registration in progress',
+          'Not registered',
+          'Not sure',
+        ],
+        onChanged: (value) => setState(() => _registrationStatus = value),
+      ),
+      if (_registrationStatus == 'Registered business' ||
+          _registrationStatus == 'Registration in progress')
+        _field(
+          'companyRegistrationNumber',
+          'Company registration number',
+          'Enter if available',
+        ),
+      _hint(
+        'You can submit the application if you are still gathering supporting documents. Missing documents can be added later.',
+        Icons.info_outline,
+      ),
+    ],
+  );
+
+  Widget _buildLocation() => _page(
+    title: 'Shop location',
+    subtitle:
+        'Add the physical location so customers and suppliers can find you.',
+    icon: Icons.location_on_outlined,
+    children: [
+      AddressAutocompleteField(
+        controller: _controller('address'),
+        confirmed: _address != null,
+        onSelected: (suggestion) {
+          setState(() {
+            _address = suggestion;
+            if (suggestion.city.isNotEmpty) {
+              _controller('city').text = suggestion.city;
+              _controller('municipality').text = suggestion.city;
+            }
+            if (suggestion.province.isNotEmpty) {
+              _province = _provinces.cast<String?>().firstWhere(
+                (province) =>
+                    province?.toLowerCase() ==
+                    suggestion.province.toLowerCase(),
+                orElse: () => null,
+              );
+              _controller('province').text = _province ?? '';
+            }
+            if (suggestion.postalCode.isNotEmpty) {
+              _controller('postalCode').text = suggestion.postalCode;
+            }
+            if (suggestion.suburb.isNotEmpty) {
+              _controller('suburbTownship').text = suggestion.suburb;
+            }
+          });
+        },
+        onEdited: () {
+          if (_address != null) setState(() => _address = null);
+        },
+      ),
+      const SizedBox(height: 14),
+      _field('municipality', 'Municipality', 'e.g. eThekwini'),
+      _field('city', 'Town or city *', 'Enter town or city'),
+      _field('suburbTownship', 'Suburb or township', 'Optional'),
+      _field('standNumber', 'Street, stand or unit number', 'Optional'),
+      _dropdown(
+        label: 'Province *',
+        value: _province,
+        options: _provinces,
+        onChanged: (value) {
+          setState(() {
+            _province = value;
+            _controller('province').text = value ?? '';
+          });
+        },
+      ),
+      _field(
+        'postalCode',
+        'Postal code',
+        'Optional',
+        keyboardType: TextInputType.number,
+      ),
+      _hint(
+        'You can select an address suggestion or enter the address manually. Precise map coordinates are saved only when a suggestion is selected.',
+        Icons.map_outlined,
+      ),
+    ],
+  );
+
+  Widget _buildOperations() => _page(
+    title: 'Shop operations',
+    subtitle: 'Help us tailor ordering, delivery and support to your business.',
+    icon: Icons.inventory_2_outlined,
+    children: [
+      _multiSelect(
+        title: 'Products you sell',
+        options: _productCategories,
+        selected: _selected['productCategories']!,
+      ),
+      _dropdown(
+        label: 'Approximate monthly stock budget',
+        value: _monthlyStockBudget,
+        options: const [
+          'Under R2,000',
+          'R2,000–R5,000',
+          'R5,001–R10,000',
+          'R10,001–R25,000',
+          'Above R25,000',
+          'Prefer not to say',
+        ],
+        onChanged: (value) => setState(() => _monthlyStockBudget = value),
+      ),
+      _multiSelect(
+        title: 'Where do you currently source stock?',
+        options: _stockSources,
+        selected: _selected['stockSources']!,
+      ),
+      _field(
+        'averageDailyCustomers',
+        'Approximate customers per day',
+        'Optional',
+        keyboardType: TextInputType.number,
+      ),
+      _multiSelect(
+        title: 'Usual operating days',
+        options: _days,
+        selected: _selected['operatingDays']!,
+      ),
+      Row(
         children: [
-          // White card with form
-          Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Section header
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primary,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Owner Details',
-                              style: GoogleFonts.nunito(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1A1A1A),
-                              ),
-                            ),
-                            Text(
-                              'Tell us about yourself',
-                              style: GoogleFonts.nunito(
-                                fontSize: 12,
-                                color: const Color(0xFF757575),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Full Name
-                    _FormField(
-                      controller: _nameController,
-                      label: 'Full Name',
-                      hint: 'Enter your full name',
-                      icon: Icons.person_outline_rounded,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ID Number
-                    _FormField(
-                      controller: _idController,
-                      label: 'ID Number',
-                      hint: 'Enter your SA ID number',
-                      icon: Icons.badge_outlined,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Phone Number
-                    _PhoneField(controller: _phoneController),
-                    const SizedBox(height: 16),
-
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: 'Password (at least 8 characters)',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-              .animate()
-              .fadeIn(delay: 200.ms, duration: 500.ms)
-              .slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 500.ms),
-
-          const SizedBox(height: 24),
-
-          // Continue button
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _nextStep,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Continue',
-                    style: GoogleFonts.nunito(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 20),
-                ],
-              ),
+          Expanded(
+            child: _field(
+              'openingTime',
+              'Opening time',
+              'e.g. 07:00',
+              keyboardType: TextInputType.datetime,
             ),
-          ).animate().fadeIn(delay: 400.ms),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _field(
+              'closingTime',
+              'Closing time',
+              'e.g. 19:00',
+              keyboardType: TextInputType.datetime,
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildShopDetails() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        children: [
-          Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.store_rounded,
-                            color: AppColors.primary,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Shop Details',
-                              style: GoogleFonts.nunito(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1A1A1A),
-                              ),
-                            ),
-                            Text(
-                              'Tell us about your shop',
-                              style: GoogleFonts.nunito(
-                                fontSize: 12,
-                                color: const Color(0xFF757575),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    _FormField(
-                      controller: _shopNameController,
-                      label: 'Shop Name',
-                      hint: 'Enter your shop name',
-                      icon: Icons.store_outlined,
-                    ),
-                    const SizedBox(height: 16),
-
-                    AddressAutocompleteField(
-                      controller: _addressController,
-                      confirmed: _address != null,
-                      onSelected: (s) => setState(() => _address = s),
-                      onEdited: () {
-                        if (_address != null) setState(() => _address = null);
-                      },
-                    ),
-                  ],
-                ),
-              )
-              .animate()
-              .fadeIn(delay: 200.ms, duration: 500.ms)
-              .slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 500.ms),
-
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _nextStep,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Continue',
-                    style: GoogleFonts.nunito(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 20),
-                ],
-              ),
-            ),
-          ).animate().fadeIn(delay: 400.ms),
-        ],
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Do you offer local delivery?'),
+        value: _deliveryAvailable,
+        activeTrackColor: AppColors.primary,
+        onChanged: (value) => setState(() => _deliveryAvailable = value),
       ),
-    );
-  }
+      if (_deliveryAvailable)
+        _field(
+          'deliveryRadiusKm',
+          'Delivery area (km)',
+          'Approximate radius',
+          keyboardType: TextInputType.number,
+        ),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Do you have refrigeration or cold storage?'),
+        value: _refrigerationAvailable,
+        activeTrackColor: AppColors.primary,
+        onChanged: (value) => setState(() => _refrigerationAvailable = value),
+      ),
+      _field(
+        'storageNotes',
+        'Storage or operating notes',
+        'Optional details such as freezer or storeroom availability',
+        maxLines: 3,
+      ),
+    ],
+  );
 
-  Widget _buildDocumentUpload() {
-    final docs = [
-      {
-        'title': 'Business Permit',
-        'docType': 'business_permit',
-        'icon': Icons.description_outlined,
-        'required': true,
-        'color': const Color(0xFF4CAF50),
-      },
-      {
-        'title': 'Health Certificate',
-        'docType': 'health_cert',
-        'icon': Icons.health_and_safety_outlined,
-        'required': true,
-        'color': const Color(0xFF2196F3),
-      },
-      {
-        'title': 'Lease Agreement',
-        'docType': 'lease',
-        'icon': Icons.home_work_outlined,
-        'required': false,
-        'color': const Color(0xFFFF9800),
-      },
-      {
-        'title': 'ID Document',
-        'docType': 'id_document',
-        'icon': Icons.badge_outlined,
-        'required': true,
-        'color': const Color(0xFF9C27B0),
-      },
-    ];
+  Widget _buildReviewAndDocuments() => _page(
+    title: 'Review and submit',
+    subtitle:
+        'Upload any available documents and choose what updates you want.',
+    icon: Icons.fact_check_outlined,
+    children: [
+      _hint(
+        'Applications are submitted as pending review. You can use the dashboard while the application is reviewed and upload missing documents later.',
+        Icons.pending_actions_outlined,
+      ),
+      const SizedBox(height: 8),
+      ..._docTypes.entries.map(
+        (entry) => _documentTile(entry.key, entry.value),
+      ),
+      const SizedBox(height: 8),
+      _multiSelect(
+        title: 'What would you like to use SpazaSure for?',
+        options: _interests,
+        selected: _selected['interests']!,
+      ),
+      _multiSelect(
+        title: 'Service and notification updates',
+        options: _communications,
+        selected: _selected['communicationPreferences']!,
+      ),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Send me optional offers and promotions'),
+        subtitle: const Text(
+          'Separate from important service and safety updates',
+        ),
+        value: _marketingOptIn,
+        activeTrackColor: AppColors.primary,
+        onChanged: (value) => setState(() => _marketingOptIn = value),
+      ),
+      CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: const Text('I confirm the information provided is accurate. *'),
+        value: _registrationDeclaredAccurate,
+        activeColor: AppColors.primary,
+        onChanged: (value) =>
+            setState(() => _registrationDeclaredAccurate = value ?? false),
+      ),
+      _hint(
+        'Terms and Privacy acknowledgements will be added when the finalized policy documents and links are available.',
+        Icons.policy_outlined,
+      ),
+      const SizedBox(height: 8),
+      _reviewSummary(),
+    ],
+  );
 
+  Widget _page({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        children: [
-          Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.folder_rounded,
-                            color: AppColors.primary,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Documents',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF1A1A1A),
-                                ),
-                              ),
-                              Text(
-                                'Upload for verification (PDF, JPG, PNG)',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  color: const Color(0xFF757575),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    ...docs.asMap().entries.map((e) {
-                      final docType = e.value['docType'] as String;
-                      final picked = _pickedDocs[docType];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child:
-                            _buildDocTile(
-                                  title: e.value['title'] as String,
-                                  docType: docType,
-                                  icon: e.value['icon'] as IconData,
-                                  isRequired: e.value['required'] as bool,
-                                  color: e.value['color'] as Color,
-                                  pickedFile: picked,
-                                )
-                                .animate(delay: (100 * e.key).ms)
-                                .fadeIn()
-                                .slideX(begin: 0.05, end: 0),
-                      );
-                    }),
-                  ],
-                ),
-              )
-              .animate()
-              .fadeIn(delay: 200.ms, duration: 500.ms)
-              .slideY(begin: 0.1, end: 0, delay: 200.ms, duration: 500.ms),
-
-          const SizedBox(height: 16),
-
-          // Info notice
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FD),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF90CAF9)),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
             ),
-            child: Row(
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: Color(0xFF1565C0),
-                  size: 20,
+                CircleAvatar(
+                  backgroundColor: const Color(0xFFE8F5E9),
+                  foregroundColor: AppColors.primary,
+                  child: Icon(icon),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Documents can also be uploaded later from your profile. You can skip this step.',
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      color: const Color(0xFF1565C0),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ).animate().fadeIn(delay: 300.ms),
-
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Submit Registration',
-                          style: GoogleFonts.nunito(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.check_circle_rounded, size: 20),
-                      ],
-                    ),
-            ),
-          ).animate().fadeIn(delay: 400.ms),
-
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDocTile({
-    required String title,
-    required String docType,
-    required IconData icon,
-    required bool isRequired,
-    required Color color,
-    PlatformFile? pickedFile,
-  }) {
-    final isPicked = pickedFile != null;
-    return GestureDetector(
-      onTap: () => _pickDocument(docType),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isPicked
-              ? color.withValues(alpha: 0.08)
-              : color.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isPicked
-                ? color.withValues(alpha: 0.5)
-                : color.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: isPicked ? color : color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                isPicked ? Icons.check_rounded : icon,
-                color: isPicked ? Colors.white : color,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
                         style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
                           color: const Color(0xFF1A1A1A),
                         ),
                       ),
-                      if (isRequired)
-                        Text(
-                          ' *',
-                          style: GoogleFonts.nunito(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error,
-                          ),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          color: const Color(0xFF6B7280),
                         ),
+                      ),
                     ],
                   ),
-                  Text(
-                    isPicked ? pickedFile.name : 'Tap to upload',
-                    style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      color: isPicked ? color : const Color(0xFF757575),
-                      fontWeight: isPicked ? FontWeight.w500 : FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isPicked
-                    ? color.withValues(alpha: 0.15)
-                    : color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                isPicked
-                    ? Icons.swap_horiz_rounded
-                    : Icons.cloud_upload_outlined,
-                color: color,
-                size: 18,
+            const SizedBox(height: 22),
+            ...children.map(
+              (child) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: child,
               ),
             ),
           ],
         ),
+      ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.03, end: 0),
+    );
+  }
+
+  Widget _field(
+    String keyName,
+    String label,
+    String hint, {
+    TextInputType? keyboardType,
+    String? prefixText,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: _controller(keyName),
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      obscureText: keyName == 'password'
+          ? _obscurePassword
+          : keyName == 'confirmPassword'
+          ? _obscureConfirmPassword
+          : false,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixText: prefixText,
+        filled: true,
+        fillColor: const Color(0xFFF7F8F7),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E6E2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _passwordField({
+    required String keyName,
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggle,
+  }) => TextField(
+    controller: _controller(keyName),
+    obscureText: obscure,
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: const Icon(Icons.lock_outline),
+      suffixIcon: IconButton(
+        onPressed: onToggle,
+        icon: Icon(
+          obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+        ),
+      ),
+      filled: true,
+      fillColor: const Color(0xFFF7F8F7),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+
+  Widget _dropdown({
+    required String label,
+    required String? value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: const Color(0xFFF7F8F7),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      items: options
+          .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _multiSelect({
+    required String title,
+    required List<String> options,
+    required Set<String> selected,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 7,
+          runSpacing: 2,
+          children: options
+              .map(
+                (option) => FilterChip(
+                  label: Text(option),
+                  selected: selected.contains(option),
+                  selectedColor: const Color(0xFFDFF1E2),
+                  checkmarkColor: AppColors.primary,
+                  onSelected: (checked) => setState(() {
+                    if (checked) {
+                      selected.add(option);
+                    } else {
+                      selected.remove(option);
+                    }
+                  }),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _hint(String text, IconData icon) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF0F7F1),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.primary, size: 19),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(text, style: const TextStyle(fontSize: 12, height: 1.4)),
+        ),
+      ],
+    ),
+  );
+
+  Widget _documentTile(String docType, String title) {
+    final file = _pickedDocs[docType];
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _pickDocument(docType),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: file == null
+                ? const Color(0xFFE0E5E0)
+                : AppColors.primary.withValues(alpha: 0.5),
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              file == null ? Icons.upload_file_outlined : Icons.check_circle,
+              color: file == null ? Colors.blueGrey : AppColors.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    file?.name ?? 'Optional — upload now or later',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.blueGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reviewSummary() {
+    final shop = _controller('shopName').text.trim();
+    final location = [
+      _controller('suburbTownship').text.trim(),
+      _controller('city').text.trim(),
+      _controller('province').text.trim(),
+    ].where((part) => part.isNotEmpty).join(', ');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8F7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Application summary',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text('Shop: ${shop.isEmpty ? 'Not entered' : shop}'),
+          Text(
+            'Representative: ${_controller('firstName').text} ${_controller('surname').text}',
+          ),
+          Text('Location: ${location.isEmpty ? 'Not entered' : location}'),
+          Text('Documents attached: ${_pickedDocs.length}'),
+          const SizedBox(height: 6),
+          const Text(
+            'After submission your application will show as pending review. Your account remains available while review is in progress.',
+            style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+          ),
+        ],
       ),
     );
   }
@@ -794,267 +1036,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
         withData: true,
       );
       if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          _pickedDocs[docType] = result.files.first;
-        });
+        setState(() => _pickedDocs[docType] = result.files.first);
       }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not pick file: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+    } catch (error) {
+      if (mounted) _showMessage('Could not select the document: $error');
     }
   }
 }
 
-// ── Step Indicator ──
 class _StepIndicator extends StatelessWidget {
+  const _StepIndicator({required this.currentStep, required this.labels});
+
   final int currentStep;
-  const _StepIndicator({required this.currentStep});
+  final List<String> labels;
 
   @override
-  Widget build(BuildContext context) {
-    final labels = ['Owner', 'Shop', 'Docs'];
-    return Row(
-      children: List.generate(3, (i) {
-        final isActive = i <= currentStep;
-        final isCompleted = i < currentStep;
-        return Expanded(
-          child: Row(
+  Widget build(BuildContext context) => Row(
+    children: List.generate(labels.length, (index) {
+      final active = index <= currentStep;
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Column(
             children: [
-              if (i > 0)
-                Expanded(
-                  child: Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFF4CAF50)
-                          : Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              Column(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFF4CAF50)
-                          : Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isActive
-                            ? Colors.transparent
-                            : Colors.white.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: isCompleted
-                          ? const Icon(
-                              Icons.check_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            )
-                          : Text(
-                              '${i + 1}',
-                              style: GoogleFonts.nunito(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    labels[i],
-                    style: GoogleFonts.nunito(
-                      fontSize: 10,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-              if (i < 2)
-                Expanded(
-                  child: Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: i < currentStep
-                          ? const Color(0xFF4CAF50)
-                          : Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-}
-
-// ── Form Field (white card, dark readable text) ──
-class _FormField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final IconData icon;
-  final TextInputType? keyboardType;
-
-  const _FormField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.nunito(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF424242),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            style: GoogleFonts.nunito(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF1A1A1A),
-            ),
-            cursorColor: AppColors.primary,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.nunito(
-                color: const Color(0xFFBDBDBD),
-                fontSize: 14,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 15,
-              ),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 8),
-                child: Icon(icon, color: const Color(0xFF9E9E9E), size: 22),
-              ),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 0,
-                minHeight: 0,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Phone Field with country code ──
-class _PhoneField extends StatelessWidget {
-  final TextEditingController controller;
-  const _PhoneField({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Phone Number',
-          style: GoogleFonts.nunito(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF424242),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    const Text('🇿🇦', style: TextStyle(fontSize: 20)),
-                    const SizedBox(width: 6),
-                    Text(
-                      '+27',
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1A1A1A),
-                      ),
-                    ),
-                  ],
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: LinearProgressIndicator(
+                  value: active ? 1 : 0,
+                  minHeight: 4,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  color: const Color(0xFF69C46D),
                 ),
               ),
-              Container(width: 1, height: 28, color: const Color(0xFFE0E0E0)),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  keyboardType: TextInputType.phone,
-                  style: GoogleFonts.nunito(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                  cursorColor: AppColors.primary,
-                  decoration: InputDecoration(
-                    hintText: '81 234 5678',
-                    hintStyle: GoogleFonts.nunito(
-                      color: const Color(0xFFBDBDBD),
-                      fontSize: 14,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 15,
-                    ),
-                  ),
+              const SizedBox(height: 5),
+              Text(
+                labels[index],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: active ? Colors.white : Colors.white60,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
+      );
+    }),
+  );
 }

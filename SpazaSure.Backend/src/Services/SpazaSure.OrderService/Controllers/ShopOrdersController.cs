@@ -56,8 +56,10 @@ public class ShopOrdersController(
             foreach (var item in group)
             {
                 var product = products.First(p => p.Id == item.ProductId);
-                if (item.Quantity < product.MinOrderQty)
-                    return BadRequest(ApiResponse.Fail($"Minimum order for '{product.Name}' is {product.MinOrderQty}."));
+                if (item.Quantity < 1)
+                    return BadRequest(ApiResponse.Fail($"Choose at least one unit of '{product.Name}'."));
+                if (item.Quantity > product.StockQty)
+                    return BadRequest(ApiResponse.Fail($"Only {product.StockQty} units of '{product.Name}' are available."));
 
                 var unitPrice = product.Price;
                 var lineTotal = unitPrice * item.Quantity;

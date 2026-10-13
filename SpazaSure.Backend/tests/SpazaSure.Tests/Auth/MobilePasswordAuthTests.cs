@@ -86,12 +86,41 @@ public class MobilePasswordAuthTests
 
         var registration = await service.RegisterAsync(
             new CustomerRegisterRequest(
-                phone, "First", "Last", password, null, []),
+                phone,
+                "First",
+                "Last",
+                password,
+                null,
+                [],
+                PreferredName: "F",
+                PreferredLanguage: "isiZulu",
+                Province: "Gauteng",
+                City: "Johannesburg",
+                Suburb: "Soweto",
+                NearbyRecommendationsEnabled: true,
+                Latitude: -26.2485,
+                Longitude: 27.8540,
+                Interests: ["Scan products"],
+                NotificationPreferences: ["Product safety"],
+                MarketingOptIn: false),
             "127.0.0.1");
 
         Assert.True(registration.Success);
         Assert.Equal(string.Empty, registration.Data?.Email);
+        Assert.Equal("F", registration.Data?.PreferredName);
+        Assert.Equal("isiZulu", registration.Data?.PreferredLanguage);
+        Assert.Equal("Gauteng", registration.Data?.Province);
+        Assert.Equal("Johannesburg", registration.Data?.City);
+        Assert.Equal("Soweto", registration.Data?.Suburb);
+        Assert.True(registration.Data?.NearbyRecommendationsEnabled);
+        Assert.Equal(-26.2485, registration.Data?.Latitude);
+        Assert.Equal(["Scan products"], registration.Data?.Interests);
+        Assert.Equal(["Product safety"], registration.Data?.NotificationPreferences);
         var user = Assert.Single(db.Users);
+        var profile = Assert.Single(db.CustomerProfiles);
+        Assert.False(profile.MarketingOptIn);
+        Assert.Equal("[\"Scan products\"]", profile.Interests);
+        Assert.Equal("[\"Product safety\"]", profile.NotificationPreferences);
         Assert.True(BCrypt.Net.BCrypt.Verify(password, user.PasswordHash));
         Assert.Null(user.Email);
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
-import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned } from 'lucide-react';
 import clsx from 'clsx';
 import 'leaflet/dist/leaflet.css';
 import { adminSpazaOwnersApi } from '../../services/api';
@@ -26,9 +26,30 @@ interface Shop {
 }
 
 type Filter = 'all' | 'verified' | 'unverified';
+type Province = {
+  name: string;
+  center: [number, number];
+};
 
-const GREEN = '#16a34a';
-const RED = '#dc2626';
+const GREEN = '#15803d';
+const RED = '#e0523c';
+const SOUTH_AFRICA_CENTER: [number, number] = [-29.0, 24.0];
+const PROVINCES: Province[] = [
+  { name: 'Eastern Cape', center: [-32.0, 26.5] },
+  { name: 'Free State', center: [-28.5, 26.5] },
+  { name: 'Gauteng', center: [-26.0, 28.1] },
+  { name: 'KwaZulu-Natal', center: [-28.8, 30.5] },
+  { name: 'Limpopo', center: [-23.7, 29.5] },
+  { name: 'Mpumalanga', center: [-25.6, 30.8] },
+  { name: 'Northern Cape', center: [-29.5, 22.5] },
+  { name: 'North West', center: [-26.7, 25.5] },
+  { name: 'Western Cape', center: [-33.4, 20.0] },
+];
+
+function normalizeProvince(value?: string | null) {
+  const normalized = value?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
+  return normalized === 'kwazulunatal' ? 'kwazulunatal' : normalized;
+}
 
 function pinIcon(color: string, selected: boolean) {
   const size = selected ? 44 : 34;
@@ -45,21 +66,27 @@ function whatsAppNumber(phone: string) {
   return digits.startsWith('0') ? `27${digits.slice(1)}` : digits;
 }
 
-function FlyTo({ shop }: { shop?: Shop }) {
+function MapViewport({
+  points,
+  province,
+  selectedShop,
+}: {
+  points: [number, number][];
+  province?: Province;
+  selectedShop?: Shop;
+}) {
   const map = useMap();
   useEffect(() => {
-    if (shop?.latitude != null && shop.longitude != null) {
-      map.flyTo([shop.latitude, shop.longitude], Math.max(map.getZoom(), 13), { duration: 0.6 });
+    if (selectedShop?.latitude != null && selectedShop.longitude != null) {
+      map.flyTo([selectedShop.latitude, selectedShop.longitude], Math.max(map.getZoom(), 13), { duration: 0.6 });
+    } else if (points.length > 0) {
+      map.flyToBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: province ? 11 : 8, duration: 0.7 });
+    } else if (province) {
+      map.flyTo(province.center, 7, { duration: 0.7 });
+    } else {
+      map.flyTo(SOUTH_AFRICA_CENTER, 5, { duration: 0.7 });
     }
-  }, [map, shop]);
-  return null;
-}
-
-function FitAll({ points }: { points: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (points.length > 0) map.fitBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 14 });
-  }, [map, points]);
+  }, [map, points, province, selectedShop]);
   return null;
 }
 
@@ -67,6 +94,7 @@ export default function AdminShopsMapPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const [provinceName, setProvinceName] = useState('');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -85,18 +113,17 @@ export default function AdminShopsMapPage() {
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const selectedProvince = normalizeProvince(provinceName);
     return shops.filter((s) =>
       (filter === 'all' || (filter === 'verified' ? s.isVerified : !s.isVerified)) &&
-      (!term || [s.shopName, s.ownerName, s.city, s.address].some((v) => v?.toLowerCase().includes(term))));
-  }, [shops, filter, search]);
+      (!selectedProvince || normalizeProvince(s.province) === selectedProvince) &&
+      (!term || [s.shopName, s.ownerName, s.city, s.address, s.province].some((v) => v?.toLowerCase().includes(term))));
+  }, [shops, filter, provinceName, search]);
 
   const pinned = visible.filter((s) => s.latitude != null && s.longitude != null);
   const points = useMemo(() => pinned.map((s) => [s.latitude!, s.longitude!] as [number, number]), [pinned]);
-  const selected = shops.find((s) => s.id === selectedId);
-  const counts = {
-    verified: shops.filter((s) => s.isVerified).length,
-    unverified: shops.filter((s) => !s.isVerified).length,
-  };
+  const selected = visible.find((s) => s.id === selectedId);
+  const selectedProvince = PROVINCES.find((p) => p.name === provinceName);
 
   const verify = async (shop: Shop) => {
     try {
@@ -112,38 +139,57 @@ export default function AdminShopsMapPage() {
 
   return (
     <div className="p-6 compact:p-4 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Shops Map</h1>
           <p className="text-sm text-gray-500">
-            {counts.verified} verified, {counts.unverified} unverified. Green pins are verified, red pins are not.
+            Explore registered shops by province. Green pins are verified; coral pins need verification.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {(['all', 'verified', 'unverified'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={clsx(
-                'px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors capitalize',
-                filter === f ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-              )}
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-gray-400">Province</span>
+            <select
+              value={provinceName}
+              onChange={(e) => {
+                setProvinceName(e.target.value);
+                setSelectedId(null);
+              }}
+              className="select min-w-[190px] py-2.5"
+              aria-label="Filter shops by province"
             >
-              {f}
-            </button>
-          ))}
+              <option value="">All South Africa</option>
+              {PROVINCES.map((province) => <option key={province.name} value={province.name}>{province.name}</option>)}
+            </select>
+          </label>
+          <div className="flex items-center gap-1 rounded-xl border border-gray-100 bg-white p-1 shadow-sm">
+            {(['all', 'verified', 'unverified'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => {
+                  setFilter(f);
+                  setSelectedId(null);
+                }}
+                className={clsx(
+                  'rounded-lg px-3 py-2 text-xs font-bold capitalize transition-colors',
+                  filter === f ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:bg-primary-50 hover:text-primary'
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 card overflow-hidden h-[560px] compact:h-[440px]">
-          <MapContainer center={[-28.5, 24.7]} zoom={5} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="shops-map relative overflow-hidden rounded-2xl border border-primary-100 bg-primary-50 shadow-card xl:col-span-2 h-[560px] compact:h-[440px]">
+          <MapContainer center={SOUTH_AFRICA_CENTER} zoom={5} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
-            <FitAll points={points} />
-            <FlyTo shop={selected} />
+            <MapViewport points={points} province={selectedProvince} selectedShop={selected} />
             {pinned.map((s) => (
               <Marker
                 key={s.id}
@@ -153,9 +199,22 @@ export default function AdminShopsMapPage() {
               />
             ))}
           </MapContainer>
+          <div className="pointer-events-none absolute left-4 top-4 z-[400] flex items-center gap-3 rounded-xl border border-white/80 bg-white/95 px-3.5 py-2.5 shadow-lg shadow-slate-900/10 backdrop-blur">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary">
+              <MapPinned size={18} />
+            </span>
+            <div>
+              <p className="text-xs font-extrabold text-gray-900">{provinceName || 'South Africa'}</p>
+              <p className="text-[10px] font-semibold text-gray-400">{pinned.length} mapped · {visible.length} shops</p>
+            </div>
+          </div>
+          <div className="pointer-events-none absolute bottom-4 left-4 z-[400] flex items-center gap-4 rounded-xl border border-white/80 bg-white/95 px-3.5 py-2.5 shadow-lg shadow-slate-900/10 backdrop-blur">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600"><i className="h-2.5 w-2.5 rounded-full bg-primary" /> Verified</span>
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600"><i className="h-2.5 w-2.5 rounded-full bg-[#e0523c]" /> Unverified</span>
+          </div>
         </div>
 
-        <div className="card flex flex-col h-[560px] compact:h-[440px] overflow-hidden">
+        <div className="card flex h-[560px] compact:h-[440px] flex-col overflow-hidden">
           {selected ? (
             <div className="p-5 overflow-y-auto space-y-3">
               <button onClick={() => setSelectedId(null)} className="text-xs font-semibold text-primary hover:underline">
@@ -202,7 +261,7 @@ export default function AdminShopsMapPage() {
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-gray-100">
+              <div className="border-b border-gray-100 bg-gradient-to-r from-primary-50/70 to-white p-3">
                 <div className="relative">
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input

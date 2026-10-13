@@ -19,6 +19,9 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> RegisterAsync(
         CustomerRegisterRequest req, string ipAddress)
     {
+        if (req.Latitude.HasValue != req.Longitude.HasValue)
+            return (false, "Location coordinates must be provided together.", null);
+
         var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
 
         if (await db.Users.AnyAsync(u =>
@@ -44,8 +47,24 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
             UserId = user.Id,
             FirstName = req.FirstName.Trim(),
             LastName = req.LastName.Trim(),
+            PreferredName = string.IsNullOrWhiteSpace(req.PreferredName)
+                ? null
+                : req.PreferredName.Trim(),
             Age = req.Age,
-            Allergies = JsonSerializer.Serialize(req.Allergies ?? [])
+            PreferredLanguage = string.IsNullOrWhiteSpace(req.PreferredLanguage)
+                ? "English"
+                : req.PreferredLanguage.Trim(),
+            Province = NormalizeOptional(req.Province),
+            City = NormalizeOptional(req.City),
+            Suburb = NormalizeOptional(req.Suburb),
+            NearbyRecommendationsEnabled = req.NearbyRecommendationsEnabled,
+            Latitude = req.Latitude,
+            Longitude = req.Longitude,
+            Allergies = JsonSerializer.Serialize(req.Allergies ?? []),
+            Interests = JsonSerializer.Serialize(req.Interests ?? []),
+            NotificationPreferences = JsonSerializer.Serialize(
+                req.NotificationPreferences ?? []),
+            MarketingOptIn = req.MarketingOptIn
         };
         db.CustomerProfiles.Add(profile);
 
@@ -62,6 +81,9 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
 
         return (true, null, await IssueTokensAsync(user, role, profile, ipAddress));
     }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public async Task<(bool Success, string? Error, CustomerAuthResponse? Data)> LoginAsync(
         CustomerLoginRequest req, string ipAddress)
@@ -123,6 +145,16 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
         List<string> allergies;
         try { allergies = JsonSerializer.Deserialize<List<string>>(profile?.Allergies ?? "[]") ?? []; }
         catch (JsonException) { allergies = []; }
+        List<string> interests;
+        try { interests = JsonSerializer.Deserialize<List<string>>(profile?.Interests ?? "[]") ?? []; }
+        catch (JsonException) { interests = []; }
+        List<string> notificationPreferences;
+        try
+        {
+            notificationPreferences = JsonSerializer.Deserialize<List<string>>(
+                profile?.NotificationPreferences ?? "[]") ?? [];
+        }
+        catch (JsonException) { notificationPreferences = []; }
 
         var firstName = profile?.FirstName ?? string.Empty;
         var lastName = profile?.LastName ?? string.Empty;
@@ -138,7 +170,18 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
             user.Email ?? string.Empty,
             user.Phone ?? string.Empty,
             profile?.Age,
-            allergies
+            allergies,
+            profile?.PreferredName,
+            profile?.PreferredLanguage ?? "English",
+            profile?.Province,
+            profile?.City,
+            profile?.Suburb,
+            profile?.NearbyRecommendationsEnabled ?? false,
+            profile?.Latitude,
+            profile?.Longitude,
+            interests,
+            notificationPreferences,
+            profile?.MarketingOptIn ?? false
         );
     }
 }

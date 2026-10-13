@@ -8,6 +8,18 @@ namespace SpazaSure.AuthService.Services;
 
 public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
 {
+    private static readonly HashSet<string> RegistrationDetailKeys =
+    [
+        "representativeFirstName", "representativeSurname", "representativeRole",
+        "alternatePhone", "preferredLanguage", "tradingName", "shopType",
+        "businessRegistrationStatus", "companyRegistrationNumber", "municipality",
+        "suburbOrTownship", "standOrUnitNumber", "operatingDays", "openingTime",
+        "closingTime", "deliveryAvailable", "deliveryRadiusKm",
+        "refrigerationAvailable", "storageNotes", "averageDailyCustomers",
+        "monthlyStockBudget", "productCategories", "stockSources", "interests",
+        "communicationPreferences", "marketingOptIn", "accuracyDeclaration"
+    ];
+
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
     private readonly int _refreshExpiry = int.Parse(config["Jwt:RefreshExpiryDays"] ?? "30");
@@ -16,6 +28,28 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
     public async Task<(bool Success, string? Error, ShopAuthResponse? Data)> RegisterAsync(
         ShopRegisterRequest req, string ipAddress)
     {
+        string? registrationDetails = null;
+        if (req.RegistrationDetails is { } submittedDetails)
+        {
+            if (submittedDetails.ValueKind != System.Text.Json.JsonValueKind.Object)
+                return (false, "Registration details must be an object.", null);
+
+            if (submittedDetails.GetRawText().Length > 24_000)
+                return (false, "Registration details are too large.", null);
+
+            foreach (var property in submittedDetails.EnumerateObject())
+            {
+                if (!RegistrationDetailKeys.Contains(property.Name))
+                    return (false, $"Unknown registration detail: {property.Name}.", null);
+
+                if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Object ||
+                    property.Value.ValueKind == System.Text.Json.JsonValueKind.Undefined)
+                    return (false, $"Invalid value for {property.Name}.", null);
+            }
+
+            registrationDetails = submittedDetails.GetRawText();
+        }
+
         var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return (false, addressError, null);
 
@@ -39,14 +73,16 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
             UserId = user.Id,
             ShopName = req.ShopName,
             OwnerName = req.FullName,
-            OwnerIdNumber = req.IdNumber,
             Phone = req.Phone,
+            Email = req.Email,
             Address = req.Address,
             City = req.City,
             Province = req.Province,
             PostalCode = req.PostalCode,
             Latitude = req.Latitude,
-            Longitude = req.Longitude
+            Longitude = req.Longitude,
+            RegistrationDetails = registrationDetails,
+            Status = "pending"
         };
         db.SpazaShops.Add(shop);
 

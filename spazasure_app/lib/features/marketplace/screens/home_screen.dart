@@ -171,26 +171,34 @@ class _HomeScreenState extends State<HomeScreen>
                               arguments: product,
                             ),
                             onAddToCart: () {
-                              context.read<CartProvider>().add(
+                              final added = context.read<CartProvider>().add(
                                 product,
-                                product.minOrderQty,
+                                1,
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    '${product.name} added to cart',
+                                    added
+                                        ? '${product.name} added to cart'
+                                        : 'This product is out of stock or has no remaining stock available.',
                                   ),
-                                  backgroundColor: AppColors.primary,
+                                  backgroundColor: added
+                                      ? AppColors.primary
+                                      : AppColors.error,
                                   behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  action: SnackBarAction(
-                                    label: 'VIEW CART',
-                                    textColor: Colors.white,
-                                    onPressed: () =>
-                                        Navigator.pushNamed(context, '/cart'),
-                                  ),
+                                  action: added
+                                      ? SnackBarAction(
+                                          label: 'VIEW CART',
+                                          textColor: Colors.white,
+                                          onPressed: () => Navigator.pushNamed(
+                                            context,
+                                            '/cart',
+                                          ),
+                                        )
+                                      : null,
                                 ),
                               );
                             },

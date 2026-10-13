@@ -42,17 +42,20 @@ class CartProvider extends ChangeNotifier {
     return sub + deliveryFee(option) + platformFee();
   }
 
-  void add(Product product, int quantity) {
-    // Enforce minimum order quantity
-    final minQty = product.minOrderQty > 0 ? product.minOrderQty : 1;
-    final qty = quantity < minQty ? minQty : quantity;
+  bool add(Product product, int quantity) {
+    if (quantity < 1 || product.stockQuantity < quantity) return false;
+
     final idx = _items.indexWhere((i) => i.product.id == product.id);
     if (idx >= 0) {
-      _items[idx].quantity += qty;
+      if (_items[idx].quantity + quantity > product.stockQuantity) {
+        return false;
+      }
+      _items[idx].quantity += quantity;
     } else {
-      _items.add(CartItem(product: product, quantity: qty));
+      _items.add(CartItem(product: product, quantity: quantity));
     }
     notifyListeners();
+    return true;
   }
 
   void updateQuantity(String productId, int quantity) {
@@ -61,9 +64,12 @@ class CartProvider extends ChangeNotifier {
     if (quantity <= 0) {
       _items.removeAt(idx);
     } else {
-      // Don't go below minimum order quantity
-      final minQty = _items[idx].product.minOrderQty > 0 ? _items[idx].product.minOrderQty : 1;
-      _items[idx].quantity = quantity < minQty ? minQty : quantity;
+      final stock = _items[idx].product.stockQuantity;
+      if (stock < 1) {
+        _items.removeAt(idx);
+      } else {
+        _items[idx].quantity = quantity > stock ? stock : quantity;
+      }
     }
     notifyListeners();
   }

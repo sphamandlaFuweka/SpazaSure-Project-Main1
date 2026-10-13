@@ -138,6 +138,53 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("last_name");
 
+                    b.Property<string>("PreferredName")
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_name");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_language");
+
+                    b.Property<string>("Province")
+                        .HasColumnType("text")
+                        .HasColumnName("province");
+
+                    b.Property<string>("City")
+                        .HasColumnType("text")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Suburb")
+                        .HasColumnType("text")
+                        .HasColumnName("suburb");
+
+                    b.Property<bool>("NearbyRecommendationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("nearby_recommendations_enabled");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Interests")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("interests");
+
+                    b.Property<string>("NotificationPreferences")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("notification_preferences");
+
+                    b.Property<bool>("MarketingOptIn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("marketing_opt_in");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -1765,6 +1812,10 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<string>("Province")
                         .HasColumnType("text")
                         .HasColumnName("province");
+
+                    b.Property<string>("RegistrationDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("registration_details");
 
                     b.Property<decimal>("RatingAvg")
                         .HasPrecision(3, 2)

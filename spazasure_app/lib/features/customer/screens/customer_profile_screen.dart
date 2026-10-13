@@ -43,12 +43,21 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   }
 
   Future<void> _showEdit() async {
-    final p = _profile!;
-    final first = TextEditingController(text: p.firstName);
-    final last = TextEditingController(text: p.lastName);
-    final email = TextEditingController(text: p.email);
-    final age = TextEditingController(text: p.age?.toString() ?? '');
-    final allergies = TextEditingController(text: p.allergies.join(', '));
+    final profile = _profile;
+    final auth = context.read<AuthProvider>();
+    final first = TextEditingController(
+      text: profile?.firstName ?? auth.firstName,
+    );
+    final last = TextEditingController(
+      text: profile?.lastName ?? auth.lastName,
+    );
+    final email = TextEditingController(text: profile?.email ?? auth.email);
+    final age = TextEditingController(
+      text: (profile?.age ?? auth.age)?.toString() ?? '',
+    );
+    final allergies = TextEditingController(
+      text: (profile?.allergies ?? auth.allergies).join(', '),
+    );
     final formKey = GlobalKey<FormState>();
     var saving = false;
 
@@ -195,7 +204,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     final firstName = _profile?.firstName ?? auth.firstName;
     final lastName = _profile?.lastName ?? auth.lastName;
     final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
-    final displayName = fullName.isNotEmpty
+    final preferredName = _profile?.preferredName ?? auth.preferredName ?? '';
+    final displayName = preferredName.trim().isNotEmpty
+        ? preferredName.trim()
+        : fullName.isNotEmpty
         ? fullName
         : (auth.fullName.isNotEmpty ? auth.fullName : 'Customer');
     final email = _profile?.email ?? auth.email;
@@ -263,7 +275,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 children: [
                   IconButton(
                     tooltip: 'Edit profile',
-                    onPressed: _profile == null ? null : _showEdit,
+                    onPressed: _showEdit,
                     icon: const Icon(
                       Icons.edit_rounded,
                       color: Colors.white70,
