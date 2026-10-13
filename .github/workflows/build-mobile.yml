@@ -6,6 +6,7 @@ on:
     branches: [qa, main]
     paths:
       - 'spazasure_app/**'
+      - '.github/workflows/build-mobile.yml'
 
 jobs:
   build-android:
@@ -28,14 +29,41 @@ jobs:
         working-directory: spazasure_app
         run: flutter pub get
 
-      - name: Decode Keystore
+      - name: Configure Android signing
         working-directory: spazasure_app/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > spazasure-release.jks
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> key.properties
-          echo "keyAlias=spazasure" >> key.properties
-          echo "storeFile=spazasure-release.jks" >> key.properties
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] && [ -z "$KEYSTORE_PASSWORD" ] && [ -z "$KEY_PASSWORD" ]; then
+            echo "Android release signing secrets are not configured; using the debug-signing fallback for test builds."
+            exit 0
+          fi
+
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Android signing requires ANDROID_KEYSTORE_BASE64, KEYSTORE_PASSWORD, and KEY_PASSWORD together."
+            exit 1
+          fi
+
+          if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > spazasure-release.jks; then
+            rm -f spazasure-release.jks
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not valid Base64."
+            exit 1
+          fi
+
+          if [ ! -s spazasure-release.jks ] || ! keytool -list -keystore spazasure-release.jks -storepass "$KEYSTORE_PASSWORD" -alias spazasure >/dev/null 2>&1; then
+            rm -f spazasure-release.jks
+            echo "::error::The configured keystore is empty, unreadable, or does not contain alias 'spazasure'."
+            exit 1
+          fi
+
+          {
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'keyAlias=spazasure\n'
+            printf 'storeFile=spazasure-release.jks\n'
+          } > key.properties
 
       - name: Build APK
         working-directory: spazasure_app
