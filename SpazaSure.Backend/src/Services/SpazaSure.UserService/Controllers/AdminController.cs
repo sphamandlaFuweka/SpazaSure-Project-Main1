@@ -164,7 +164,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
             s.Status,
             s.ComplianceStatus,
             RegistrationDetails = s.RegistrationDetails is null
-                ? null
+                ? (JsonElement?)null
                 : JsonSerializer.Deserialize<JsonElement>(s.RegistrationDetails),
             JoinedAt = s.CreatedAt,
             Documents = s.Documents.Select(d => new

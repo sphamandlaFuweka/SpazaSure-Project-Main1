@@ -57,7 +57,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             shop.Status,
             shop.ComplianceStatus,
             RegistrationDetails = shop.RegistrationDetails is null
-                ? null
+                ? (JsonElement?)null
                 : JsonSerializer.Deserialize<JsonElement>(shop.RegistrationDetails),
             shop.OnboardingFeePaid,
             OnboardingFeeAmount = onboardingFeeAmount,
