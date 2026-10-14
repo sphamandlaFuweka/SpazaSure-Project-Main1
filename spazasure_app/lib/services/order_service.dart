@@ -6,7 +6,7 @@ import '../models/models.dart';
 class OrderCheckout {
   final String orderNumber;
 
-  /// Paystack page to pay on. Null for cash on delivery (nothing to pay now).
+  /// Paystack page to pay on. Null for wallet and cash on delivery (nothing to pay online).
   final String? checkoutUrl;
   final String paymentMethod;
   final double totalAmount;
@@ -24,6 +24,7 @@ class OrderCheckout {
 class OrderService {
   static const paystack = 'paystack';
   static const cashOnDelivery = 'cash_on_delivery';
+  static const wallet = 'wallet';
 
   static Future<OrderCheckout> placeOrder({
     required List<CartItem> items,
@@ -76,8 +77,10 @@ class OrderService {
     return _mapOrder(res['data'] as Map<String, dynamic>);
   }
 
-  static Future<void> confirmDelivery(String orderId) async {
-    await ApiService.patch('/shop/orders/$orderId/confirm-delivery', {});
+  static Future<void> confirmDelivery(String orderId, {String? code}) async {
+    await ApiService.patch('/shop/orders/$orderId/confirm-delivery', {
+      if (code != null && code.trim().isNotEmpty) 'code': code.trim(),
+    });
   }
 
   /// Product images are stored as a JSON array string, e.g. '["https://..."]'

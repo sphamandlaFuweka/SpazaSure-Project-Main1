@@ -57,15 +57,72 @@ public class CashOnDeliveryTests
         JsonSerializer.SerializeToElement(((OkObjectResult)result).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web))
             .GetProperty("data");
 
+    private static ShopOrdersController CreateShopController(SpazaSureDbContext db)
+    {
+        var shop = db.SpazaShops.First();
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, shop.UserId.ToString())], "Test"))
+        };
+        return new ShopOrdersController(db, null!, new EventPublisher("__nonexistent__", "x", "x"))
+        { ControllerContext = new ControllerContext { HttpContext = http } };
+    }
+
     [Fact]
-    public async Task SupplierCanProcessUnpaidCashOrder_AndDeliveryMarksItPaid()
+    public async Task DispatchingCashOrder_GeneratesDeliveryCodeForSupplier_AndSupplierCannotMarkDelivered()
+    {
+        var (orders, _, _, db, supplier) = Create();
+        var order = AddOrder(db, supplier, Cod, "processing", "pending");
+
+        (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<OkObjectResult>();
+
+        var saved = await db.Orders.FindAsync(order.Id);
+        saved!.DeliveryCode.Should().MatchRegex(@"^\d{6}$");
+        Data(await orders.Get(order.Id)).GetProperty("deliveryCode").GetString().Should().Be(saved.DeliveryCode);
+
+        (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("delivered", null))).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task ShopMustEnterCorrectDeliveryCode_ToConfirmCashOrder()
+    {
+        var (orders, _, _, db, supplier) = Create();
+        var order = AddOrder(db, supplier, Cod, "processing", "pending");
+        await orders.UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null));
+        var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode!;
+        var shop = CreateShopController(db);
+
+        (await shop.ConfirmDelivery(order.Id, null)).Should().BeOfType<BadRequestObjectResult>();
+        (await shop.ConfirmDelivery(order.Id, new ConfirmDeliveryRequest("000000x"))).Should().BeOfType<BadRequestObjectResult>();
+        (await db.Orders.FindAsync(order.Id))!.Status.Should().Be("dispatched");
+
+        (await shop.ConfirmDelivery(order.Id, new ConfirmDeliveryRequest($" {code} "))).Should().BeOfType<OkObjectResult>();
+        var saved = await db.Orders.FindAsync(order.Id);
+        saved!.Status.Should().Be("delivered");
+        saved.PaymentStatus.Should().Be("paid");
+        saved.DeliveredAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task PrepaidOrder_ConfirmsWithoutDeliveryCode()
+    {
+        var (_, _, _, db, supplier) = Create();
+        var order = AddOrder(db, supplier, "paystack", "dispatched", "paid");
+
+        (await CreateShopController(db).ConfirmDelivery(order.Id, null)).Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task SupplierCanProcessUnpaidCashOrder_AndShopConfirmationMarksItPaid()
     {
         var (orders, _, _, db, supplier) = Create();
         var order = AddOrder(db, supplier, Cod, "pending", "pending");
 
         // Unlike Paystack orders, cash orders don't wait for an online payment
-        foreach (var next in new[] { "processing", "dispatched", "delivered" })
+        foreach (var next in new[] { "processing", "dispatched" })
             (await orders.UpdateStatus(order.Id, new UpdateStatusRequest(next, null))).Should().BeOfType<OkObjectResult>();
+        var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode;
+        (await CreateShopController(db).ConfirmDelivery(order.Id, new ConfirmDeliveryRequest(code))).Should().BeOfType<OkObjectResult>();
 
         var saved = await db.Orders.FindAsync(order.Id);
         saved!.PaymentStatus.Should().Be("paid");

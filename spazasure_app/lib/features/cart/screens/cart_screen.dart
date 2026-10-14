@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/widgets/custom_button.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/order_service.dart';
+import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/platform_settings_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
@@ -23,6 +24,8 @@ class _CartScreenState extends State<CartScreen> {
   bool _placing = false;
   String? _pendingCheckoutUrl;
   String? _pendingOrderNumber;
+  /// Shop wallet balance; null until loaded (or if it couldn't be loaded)
+  double? _walletBalance;
 
   @override
   void initState() {
@@ -31,14 +34,30 @@ class _CartScreenState extends State<CartScreen> {
     PlatformSettingsService.fetch().then((settings) {
       if (mounted) context.read<CartProvider>().applySettings(settings);
     });
+    _loadWalletBalance();
   }
+
+  Future<void> _loadWalletBalance() async {
+    try {
+      final res = await ApiService.get('/shop/wallet');
+      final balance = ((res['data'] as Map<String, dynamic>)['balance'] as num?)?.toDouble();
+      if (mounted) setState(() => _walletBalance = balance);
+    } catch (_) {
+      // Paying from the wallet just isn't offered if the balance can't be loaded
+    }
+  }
+
+  /// The wallet can pay only when its balance covers the whole order
+  bool _walletAllowed(CartProvider cart) =>
+      _walletBalance != null && _walletBalance! >= cart.total(_deliveryOption);
 
   /// Cash on delivery only when the admin allows it and the total is within the limit
   bool _codAllowed(CartProvider cart) =>
       cart.settings.cashOnDeliveryAllowedFor(cart.total(_deliveryOption));
 
   String _effectiveMethod(CartProvider cart) =>
-      _paymentMethod == OrderService.cashOnDelivery && !_codAllowed(cart)
+      (_paymentMethod == OrderService.cashOnDelivery && !_codAllowed(cart)) ||
+          (_paymentMethod == OrderService.wallet && !_walletAllowed(cart))
       ? OrderService.paystack
       : _paymentMethod;
 
@@ -136,6 +155,8 @@ class _CartScreenState extends State<CartScreen> {
                       child: CustomButton(
                         text: _effectiveMethod(cart) == OrderService.cashOnDelivery
                             ? (_placing ? 'Placing order...' : 'Place order · pay on delivery')
+                            : _effectiveMethod(cart) == OrderService.wallet
+                            ? (_placing ? 'Paying...' : 'Pay from wallet')
                             : _placing
                             ? 'Opening checkout...'
                             : _pendingCheckoutUrl != null
@@ -633,6 +654,22 @@ class _CartScreenState extends State<CartScreen> {
           detail: 'Card, EFT or instant payment. Your order goes to the supplier once paid.',
           onTap: () => setState(() => _paymentMethod = OrderService.paystack),
         ),
+        if (_walletBalance != null)
+          _paymentTile(
+            selected: method == OrderService.wallet,
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'Pay from my wallet',
+            detail: _walletAllowed(cart)
+                ? 'Balance R${_walletBalance!.toStringAsFixed(2)}. Paid instantly, and your order goes straight to the supplier.'
+                : 'Balance R${_walletBalance!.toStringAsFixed(2)}. Top up your wallet by card or direct deposit to use it.',
+            enabled: _walletAllowed(cart),
+            onTap: () => setState(() {
+              _paymentMethod = OrderService.wallet;
+              // A Paystack checkout started earlier is abandoned when switching to the wallet
+              _pendingCheckoutUrl = null;
+              _pendingOrderNumber = null;
+            }),
+          ),
         _paymentTile(
           selected: method == OrderService.cashOnDelivery,
           icon: Icons.payments_outlined,
@@ -736,6 +773,19 @@ class _CartScreenState extends State<CartScreen> {
       }
 
       final method = _effectiveMethod(cart);
+      if (method == OrderService.wallet) {
+        final placed = await OrderService.placeOrder(
+          items: cart.items.toList(),
+          deliveryOption: _deliveryOption,
+          deliveryAddress: deliveryAddress,
+          paymentMethod: OrderService.wallet,
+        );
+        cart.clear();
+        _loadWalletBalance();
+        if (!mounted) return;
+        _showSuccess(placed.orderNumber, walletPaid: true);
+        return;
+      }
       if (method == OrderService.cashOnDelivery) {
         final total = cart.total(_deliveryOption);
         final placed = await OrderService.placeOrder(
@@ -800,6 +850,7 @@ class _CartScreenState extends State<CartScreen> {
   void _showSuccess(
     String orderNumber, {
     bool cashOnDelivery = false,
+    bool walletPaid = false,
     double cashTotal = 0,
   }) {
     showDialog(
@@ -824,7 +875,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              cashOnDelivery ? 'Order placed' : 'Payment Submitted',
+              cashOnDelivery ? 'Order placed' : walletPaid ? 'Order paid' : 'Payment Submitted',
               style: AppTextStyles.h2,
             ),
             const SizedBox(height: 8),
@@ -836,6 +887,8 @@ class _CartScreenState extends State<CartScreen> {
             Text(
               cashOnDelivery
                   ? 'Your supplier has been notified. Have R${cashTotal.toStringAsFixed(2)} in cash ready when your order arrives, then confirm delivery in Orders to complete it.'
+                  : walletPaid
+                  ? 'Paid from your SpazaSure wallet. Your supplier has been notified and will start preparing your order.'
                   : 'Paystack received your payment. We will confirm it and notify the supplier shortly.',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,

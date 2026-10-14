@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import api from '../services/api';
-import { adminSuppliersApi, adminReportsApi } from '../services/api';
+import { adminSuppliersApi, adminReportsApi, walletTopUpsApi } from '../services/api';
 
 interface AdminBadgeState {
   pendingSuppliers: number;
   pendingDocuments: number;
   pendingReports: number;
+  pendingDeposits: number;
   lastFetched: number;
   fetchBadges: () => Promise<void>;
 }
@@ -14,6 +15,7 @@ export const useAdminBadgeStore = create<AdminBadgeState>((set, get) => ({
   pendingSuppliers: 0,
   pendingDocuments: 0,
   pendingReports: 0,
+  pendingDeposits: 0,
   lastFetched: 0,
 
   fetchBadges: async () => {
@@ -44,7 +46,13 @@ export const useAdminBadgeStore = create<AdminBadgeState>((set, get) => ({
         pendingReports = (await adminReportsApi.list({ status: 'submitted', pageSize: 1 })).total;
       } catch {}
 
-      set({ pendingSuppliers, pendingDocuments, pendingReports, lastFetched: now });
+      // Shop deposits waiting to be matched against the bank account
+      let pendingDeposits = 0;
+      try {
+        pendingDeposits = (await walletTopUpsApi.list('pending')).filter((t) => t.method !== 'paystack').length;
+      } catch {}
+
+      set({ pendingSuppliers, pendingDocuments, pendingReports, pendingDeposits, lastFetched: now });
     } catch {
       // Silently fail
     }

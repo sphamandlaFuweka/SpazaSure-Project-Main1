@@ -88,6 +88,18 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> delete(String path) async {
+    try {
+      final res = await http
+          .delete(Uri.parse('$baseUrl$path'), headers: await _headers())
+          .timeout(const Duration(seconds: 10));
+      return _handle(res);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Unable to connect to server', 0);
+    }
+  }
+
   static Future<Map<String, dynamic>> patch(
     String path,
     Map<String, dynamic> body,

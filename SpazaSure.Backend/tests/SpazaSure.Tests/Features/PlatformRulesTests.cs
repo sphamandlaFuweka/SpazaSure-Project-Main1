@@ -45,13 +45,14 @@ public class PlatformRulesTests
             GroupBuyPerKmRate = 6.5m, ShopServiceFeePercent = 1.5m, PayoutDelayDays = 7,
             MaintenanceMode = true, MaintenanceMessage = "Back at 10:00", RequireSupplierApproval = false,
             AutoApproveVerifiedSupplierProducts = true, CashOnDeliveryEnabled = false, CashOnDeliveryMaxOrderTotal = 2500m,
+            DepositBankName = "FNB Business", DepositAccountHolder = "SpazaSure Holdings", DepositAccountNumber = "62000000001", DepositBranchCode = "250655",
         };
 
         await PlatformSettingsStore.SaveAsync(db, saved);
         await PlatformSettingsStore.SaveAsync(db, saved); // saving twice updates, never duplicates
 
         (await PlatformSettingsStore.LoadAsync(db)).Should().BeEquivalentTo(saved);
-        (await db.PlatformSettings.CountAsync()).Should().Be(12);
+        (await db.PlatformSettings.CountAsync()).Should().Be(16);
     }
 
     [Theory]
@@ -67,6 +68,15 @@ public class PlatformRulesTests
         };
 
         rules.Validate().Should().StartWith(expected);
+    }
+
+    [Theory]
+    [InlineData("1055 1015 752")]
+    [InlineData("12345")]
+    [InlineData("")]
+    public void Validate_RejectsInvalidDepositAccountNumbers(string accountNumber)
+    {
+        new PlatformRules { DepositAccountNumber = accountNumber }.Validate().Should().StartWith("Deposit account number");
     }
 
     // ── Supplier approval on registration ───────────────────────────────────

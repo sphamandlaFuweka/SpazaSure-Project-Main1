@@ -39,6 +39,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             .Select(o => new
             {
                 o.Id,
+                DeliveryCode = o.PaymentMethod == ShopOrdersController.CashOnDelivery && o.Status == "dispatched" ? o.DeliveryCode : null,
                 o.OrderNumber,
                 OrderNo = o.OrderNumber,
                 o.ShopId,
@@ -118,6 +119,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             .Select(o => new
             {
                 o.Id,
+                DeliveryCode = o.PaymentMethod == ShopOrdersController.CashOnDelivery && o.Status == "dispatched" ? o.DeliveryCode : null,
                 o.OrderNumber,
                 OrderNo = o.OrderNumber,
                 o.ShopId,
@@ -210,7 +212,13 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
         if (!allowed.TryGetValue(order.Status, out var next) || !next.Contains(req.Status))
             return BadRequest(ApiResponse.Fail($"Cannot transition from '{order.Status}' to '{req.Status}'."));
 
+        // Cash orders are completed by the shop entering the delivery code, not by the supplier
+        if (req.Status == "delivered" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
+            return BadRequest(ApiResponse.Fail("Cash on delivery orders are confirmed by the shop using the delivery code you hand over with the goods."));
+
         order.Status = req.Status;
+        if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
+            order.DeliveryCode ??= DeliveryCodes.Generate();
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
         if (req.Status == "delivered")
         {
@@ -229,7 +237,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 ["processing"] = $"Your order {order.OrderNumber} is being prepared!",
                 ["dispatched"] = $"Your order {order.OrderNumber} has been dispatched and is on its way!",
                 ["delivered"] = $"Your order {order.OrderNumber} has been delivered.",
-                ["cancelled"] = $"Your order {order.OrderNumber} was cancelled. Reason: {req.Reason ?? "N/A"}",
+                ["cancelled"] = $"Your order {order.OrderNumber} was cancelled. Reason: {req.Reason ?? "N/A"}"
+                    + (order.PaymentMethod == ShopWallet.PaymentMethod ? $" R{order.TotalAmount:F2} is back in your wallet." : ""),
             };
             var msg = statusMessages.GetValueOrDefault(req.Status, $"Your order {order.OrderNumber} status changed to {req.Status}.");
             events.PublishNotification(

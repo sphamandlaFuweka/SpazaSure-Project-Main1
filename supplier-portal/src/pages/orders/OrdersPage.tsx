@@ -73,6 +73,7 @@ function mapOrder(o: any): Order {
     deliveryDistanceKm: o.deliveryDistanceKm == null ? undefined : Number(o.deliveryDistanceKm),
     deliveryLatitude: o.deliveryLatitude == null ? undefined : Number(o.deliveryLatitude),
     deliveryLongitude: o.deliveryLongitude == null ? undefined : Number(o.deliveryLongitude),
+    deliveryCode: o.deliveryCode ?? undefined,
   };
 }
 

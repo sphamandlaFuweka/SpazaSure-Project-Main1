@@ -23,7 +23,8 @@ public static class PayoutRules
 {
     public static IQueryable<Order> Settleable(IQueryable<Order> orders) =>
         orders.Where(o => o.Status != "cancelled" && o.PaymentStatus == "paid"
-            && (o.PaymentMethod == "paystack" || o.PaymentMethod == ShopOrdersController.CashOnDelivery));
+            && (o.PaymentMethod == "paystack" || o.PaymentMethod == ShopWallet.PaymentMethod
+                || o.PaymentMethod == ShopOrdersController.CashOnDelivery));
 
     public static decimal AmountOwed(Order o) => o.Subtotal + o.DeliveryFee;
 

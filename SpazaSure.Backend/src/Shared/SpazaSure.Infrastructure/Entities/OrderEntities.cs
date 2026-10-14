@@ -26,6 +26,8 @@ public class Order : BaseEntity
     public string? PaymentProviderReference { get; set; }
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Cash on delivery only: created at dispatch, handed over by the supplier and entered by the shop to confirm delivery.</summary>
+    public string? DeliveryCode { get; set; }
     /// <summary>When the order reached "delivered"; payouts become available PayoutDelayDays later.</summary>
     public DateTime? DeliveredAt { get; set; }
     /// <summary>When SpazaSure paid the supplier for this order (null = not yet paid out).</summary>

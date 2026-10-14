@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -20,6 +21,10 @@ class _WalletScreenState extends State<WalletScreen> {
   int _totalOrders = 0;
   List<Map<String, dynamic>> _transactions = [];
   String? _error;
+  /// Direct deposits waiting for SpazaSure to confirm the money arrived
+  double _pendingDeposits = 0;
+  /// SpazaSure's bank account for direct deposits (bankName, accountHolder, accountNumber, branchCode)
+  Map<String, dynamic>? _depositAccount;
 
   @override
   void initState() {
@@ -39,6 +44,8 @@ class _WalletScreenState extends State<WalletScreen> {
         _balance = (data['balance'] as num?)?.toDouble() ?? 0;
         _totalSpent = (data['totalSpent'] as num?)?.toDouble() ?? 0;
         _totalOrders = data['totalOrders'] ?? 0;
+        _pendingDeposits = (data['pendingDeposits'] as num?)?.toDouble() ?? 0;
+        _depositAccount = data['depositAccount'] as Map<String, dynamic>?;
         _transactions =
             (data['transactions'] as List?)
                 ?.map((t) => t as Map<String, dynamic>)
@@ -203,7 +210,9 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Paystack top-ups are available',
+                          _pendingDeposits > 0
+                              ? 'R${_pendingDeposits.toStringAsFixed(2)} deposit awaiting confirmation'
+                              : 'Top up by card or direct deposit',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -390,6 +399,8 @@ class _WalletScreenState extends State<WalletScreen> {
     final status = tx['status'] ?? '';
     final date = tx['date'] != null ? DateTime.tryParse(tx['date']) : null;
     final isDebit = tx['type'] == 'debit';
+    final isPendingDeposit = !isDebit && tx['method'] == 'eft' && status == 'pending';
+    final String? statusLabel0 = isPendingDeposit ? 'Awaiting deposit' : null;
 
     Color statusColor;
     String statusLabel;
@@ -422,12 +433,17 @@ class _WalletScreenState extends State<WalletScreen> {
         statusColor = AppColors.textHint;
         statusLabel = 'Cancelled';
         break;
+      case 'rejected':
+        statusColor = AppColors.error;
+        statusLabel = 'Not confirmed';
+        break;
       default:
         statusColor = AppColors.textHint;
         statusLabel = status;
     }
+    if (statusLabel0 != null) statusLabel = statusLabel0;
 
-    return Container(
+    final item = Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -509,8 +525,22 @@ class _WalletScreenState extends State<WalletScreen> {
               color: isDebit ? AppColors.error : AppColors.success,
             ),
           ),
+          if (isPendingDeposit) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.textHint),
+          ],
         ],
       ),
+    );
+    if (!isPendingDeposit) return item;
+    return GestureDetector(
+      onTap: () => _showDepositDetails(
+        id: tx['id']?.toString(),
+        amount: amount,
+        reference: tx['reference']?.toString() ?? '',
+        account: _depositAccount,
+      ),
+      child: item,
     );
   }
 
@@ -630,7 +660,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 8),
                 _paymentOption(
                   Icons.account_balance,
-                  'EFT Bank Transfer',
+                  _depositAccount == null
+                      ? 'Direct deposit / EFT'
+                      : 'Direct deposit · ${_depositAccount!['bankName']}',
                   method == 'eft',
                   () => setSheetState(() => method = 'eft'),
                 ),
@@ -642,12 +674,26 @@ class _WalletScreenState extends State<WalletScreen> {
                   () => setSheetState(() => method = 'cash'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: referenceCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference (optional)',
+                if (method == 'eft')
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Next you get SpazaSure\'s bank details and your own payment reference. '
+                      'Deposit at any bank, ATM or by EFT. Your wallet is credited once we confirm the money has arrived.',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    ),
                   ),
-                ),
+                if (method == 'cash')
+                  TextField(
+                    controller: referenceCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Voucher or slip reference (optional)',
+                    ),
+                  ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -662,6 +708,14 @@ class _WalletScreenState extends State<WalletScreen> {
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
                                   content: Text('Enter a valid amount.'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (method != 'paystack' && amount < 50) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text('The minimum top-up is R50.'),
                                 ),
                               );
                               return;
@@ -722,15 +776,26 @@ class _WalletScreenState extends State<WalletScreen> {
                                 return;
                               }
 
-                              await ApiService.post('/shop/wallet/top-ups', {
+                              final response = await ApiService.post('/shop/wallet/top-ups', {
                                 'amount': amount,
                                 'method': method,
-                                'reference': referenceCtrl.text.trim().isEmpty
+                                'reference': method == 'eft' || referenceCtrl.text.trim().isEmpty
                                     ? null
                                     : referenceCtrl.text.trim(),
                               });
                               if (!ctx.mounted) return;
                               navigator.pop();
+                              if (method == 'eft') {
+                                final data = response['data'] as Map<String, dynamic>;
+                                _loadWallet();
+                                _showDepositDetails(
+                                  id: data['id']?.toString(),
+                                  amount: (data['amount'] as num?)?.toDouble() ?? amount,
+                                  reference: data['reference']?.toString() ?? '',
+                                  account: data['depositAccount'] as Map<String, dynamic>? ?? _depositAccount,
+                                );
+                                return;
+                              }
                               messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
@@ -764,6 +829,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           ? 'Submitting...'
                           : method == 'paystack'
                           ? 'Continue to Paystack'
+                          : method == 'eft'
+                          ? 'Get deposit details'
                           : 'Submit Top-up Request',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
@@ -773,6 +840,198 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// SpazaSure's bank details and the shop's reference for a direct deposit top-up
+  void _showDepositDetails({
+    String? id,
+    required double amount,
+    required String reference,
+    Map<String, dynamic>? account,
+  }) {
+    if (account == null) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.account_balance, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Deposit R${amount.toStringAsFixed(2)}', style: AppTextStyles.h3)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Pay into SpazaSure\'s account at any bank, ATM or by EFT.',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F8F8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Column(
+                    children: [
+                      _depositRow(ctx, 'Bank', '${account['bankName']}'),
+                      _depositRow(ctx, 'Account holder', '${account['accountHolder']}'),
+                      _depositRow(ctx, 'Account number', '${account['accountNumber']}', copy: true),
+                      _depositRow(ctx, 'Branch code', '${account['branchCode']}', copy: true),
+                      _depositRow(ctx, 'Amount', amount.toStringAsFixed(2), copy: true, last: reference.isEmpty),
+                      if (reference.isNotEmpty)
+                        _depositRow(ctx, 'Your reference', reference, copy: true, highlight: true, last: true),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, size: 18, color: AppColors.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Use the reference exactly as shown so we can match your deposit. '
+                          'Your wallet is credited once SpazaSure confirms the money has arrived, and we\'ll notify you.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                if (id != null) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () async {
+                        final navigator = Navigator.of(ctx);
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          await ApiService.delete('/shop/wallet/top-ups/$id');
+                          navigator.pop();
+                          messenger.showSnackBar(const SnackBar(content: Text('Top-up cancelled.')));
+                          _loadWallet();
+                        } catch (error) {
+                          messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+                        }
+                      },
+                      child: Text(
+                        'I won\'t make this deposit, cancel it',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _depositRow(
+    BuildContext ctx,
+    String label,
+    String value, {
+    bool copy = false,
+    bool highlight = false,
+    bool last = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: highlight ? AppColors.primary.withValues(alpha: 0.06) : null,
+        border: last ? null : Border(bottom: BorderSide(color: AppColors.divider.withValues(alpha: 0.6))),
+        borderRadius: last ? const BorderRadius.vertical(bottom: Radius.circular(14)) : null,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: highlight ? AppColors.primary : AppColors.textPrimary,
+                    letterSpacing: copy ? 0.5 : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (copy)
+            IconButton(
+              tooltip: 'Copy ${label.toLowerCase()}',
+              icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primary),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: value));
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text('$label copied'), duration: const Duration(seconds: 1)),
+                );
+              },
+            ),
+        ],
       ),
     );
   }

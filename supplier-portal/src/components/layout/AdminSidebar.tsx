@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
-  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet,
+  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -17,7 +17,7 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose }: AdminSidebarProps) {
   const { user, logout } = useAuthStore();
-  const { pendingSuppliers, pendingDocuments, pendingReports, fetchBadges } = useAdminBadgeStore();
+  const { pendingSuppliers, pendingDocuments, pendingReports, pendingDeposits, fetchBadges } = useAdminBadgeStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -54,6 +54,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         { to: '/admin/orders',     icon: ShoppingCart, label: 'Orders' },
         { to: '/admin/group-buys', icon: UsersRound,   label: 'Group Buys' },
         { to: '/admin/payouts',    icon: Wallet,       label: 'Payouts' },
+        { to: '/admin/deposits',   icon: Landmark,     label: 'Wallet Deposits', badge: pendingDeposits || undefined },
       ],
     },
     {

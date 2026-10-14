@@ -124,6 +124,8 @@ export interface Order {
   deliveryDistanceKm?: number;
   deliveryLatitude?: number;
   deliveryLongitude?: number;
+  /** Cash on delivery, while dispatched: the code the shop enters to confirm delivery. */
+  deliveryCode?: string;
 }
 
 // Group Buy

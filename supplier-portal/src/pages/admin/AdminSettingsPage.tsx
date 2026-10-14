@@ -435,6 +435,30 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setRules({ ...rules, cashOnDeliveryMaxOrderTotal: e.target.value === '' ? 0 : Number(e.target.value) })} />
                 <p className="text-xs text-ink-3 mt-1.5">Largest order total a shop can pay in cash, to limit cash-handling risk. 0 = no limit.</p>
               </div>
+              <div className="rounded-2xl border-2 border-brand-blue-light bg-surface p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Direct deposit account</p>
+                  <p className="text-xs text-ink-2 mt-0.5">
+                    Shops top up their wallet by depositing into this account with their own reference.
+                    Confirm each deposit under Wallet Deposits once it reflects in the bank.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {([
+                    { key: 'depositBankName', label: 'Bank', maxLength: 80, digits: false },
+                    { key: 'depositAccountHolder', label: 'Account holder', maxLength: 120, digits: false },
+                    { key: 'depositAccountNumber', label: 'Account number', maxLength: 16, digits: true },
+                    { key: 'depositBranchCode', label: 'Branch code', maxLength: 8, digits: true },
+                  ] as const).map(({ key, label, maxLength, digits }) => (
+                    <div key={key}>
+                      <label className="label" htmlFor={key}>{label}</label>
+                      <input id={key} className={clsx('input', digits && 'font-mono')} maxLength={maxLength}
+                        inputMode={digits ? 'numeric' : undefined} value={rules[key]}
+                        onChange={(e) => setRules({ ...rules, [key]: digits ? e.target.value.replace(/\D/g, '') : e.target.value })} />
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="label" htmlFor="maintenanceMessage">Maintenance message</label>
                 <textarea id="maintenanceMessage" rows={2} maxLength={300} className="input resize-none"

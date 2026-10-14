@@ -809,6 +809,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("delivery_markup");
 
+                    b.Property<string>("DeliveryCode")
+                        .HasColumnType("text")
+                        .HasColumnName("delivery_code");
+
                     b.Property<string>("DeliveryType")
                         .IsRequired()
                         .HasColumnType("text")

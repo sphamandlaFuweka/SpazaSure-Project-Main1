@@ -127,6 +127,7 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
             order.DeliveryDistanceKm,
             order.PaymentMethod,
             order.PaymentStatus,
+            order.DeliveryCode,
             order.GroupBuyId,
             IsGroupBuy = order.GroupBuyId.HasValue,
             order.RejectionReason,
@@ -170,6 +171,8 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
             return BadRequest(ApiResponse.Fail("This order has already been paid out to the supplier, so its status can't be changed."));
 
         order.Status = req.Status;
+        if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
+            order.DeliveryCode ??= DeliveryCodes.Generate();
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
         // Payouts are timed from delivery; moving an order out of "delivered" clears it
         order.DeliveredAt = req.Status == "delivered" ? order.DeliveredAt ?? DateTime.UtcNow : null;

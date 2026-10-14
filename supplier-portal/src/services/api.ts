@@ -531,6 +531,11 @@ export interface PlatformRules {
   cashOnDeliveryEnabled: boolean;
   /** Largest checkout total (R) allowed as cash on delivery. 0 = no limit. */
   cashOnDeliveryMaxOrderTotal: number;
+  /** SpazaSure's bank account that shops deposit into to top up their wallet */
+  depositBankName: string;
+  depositAccountHolder: string;
+  depositAccountNumber: string;
+  depositBranchCode: string;
 }
 
 export const adminSettingsApi = {
@@ -577,6 +582,30 @@ export const payoutsApi = {
   markPaid: (supplierId: string, reference: string) =>
     api.post(`/admin/payouts/${supplierId}/mark-paid`, { reference })
       .then((r) => (r.data?.data ?? r.data) as { total: number; orders: number; reference: string }),
+};
+
+// Shop wallet top-ups (direct deposits that an admin confirms)
+export type WalletTopUpStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'failed';
+export interface WalletTopUp {
+  id: string;
+  amount: number;
+  method: string;
+  status: WalletTopUpStatus;
+  reference?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  approvedAt?: string | null;
+  shopId: string;
+  shopName: string;
+  ownerName?: string | null;
+  shopPhone?: string | null;
+}
+
+export const walletTopUpsApi = {
+  list: (status: WalletTopUpStatus | '' = 'pending') =>
+    api.get('/admin/wallet-top-ups', { params: { status } }).then((r) => (r.data?.data ?? r.data) as WalletTopUp[]),
+  approve: (id: string) => api.patch(`/admin/wallet-top-ups/${id}/approve`).then((r) => r.data),
+  reject: (id: string, reason: string) => api.patch(`/admin/wallet-top-ups/${id}/reject`, { reason }).then((r) => r.data),
 };
 
 // FAQs (Subscription page — admin-managed)

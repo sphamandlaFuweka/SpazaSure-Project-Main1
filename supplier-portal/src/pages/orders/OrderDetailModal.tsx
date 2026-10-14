@@ -183,6 +183,17 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
           </p>
         </div>
 
+        {/* Cash on delivery: the shop confirms delivery with this code */}
+        {order.status === 'dispatched' && order.paymentMethod === 'cash_on_delivery' && order.deliveryCode && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+            <p className="text-xs font-bold text-amber-700 uppercase mb-1">Delivery code</p>
+            <p className="text-3xl font-black tracking-[0.3em] text-gray-900">{order.deliveryCode}</p>
+            <p className="text-xs text-amber-700 mt-2">
+              Give this code to the shop owner when you hand over the goods. They enter it in the SpazaSure app to confirm delivery and pay the cash.
+            </p>
+          </div>
+        )}
+
         {/* Actions */}
         {(order.status === 'pending' || order.status === 'confirmed') && (
           <div className="flex gap-3 pt-2">

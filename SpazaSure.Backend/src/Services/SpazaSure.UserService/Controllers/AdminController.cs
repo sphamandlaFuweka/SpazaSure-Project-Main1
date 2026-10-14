@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 using System.Text.Json;
@@ -11,7 +12,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "admin")]
-public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) : ControllerBase
+public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, EventPublisher events) : ControllerBase
 {
     //  SUPPLIERS 
 
@@ -227,7 +228,8 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(t => t.Status == status);
         var items = await query.OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new {
             t.Id, t.Amount, t.Method, t.Status, t.Reference, t.Notes,
-            t.CreatedAt, ShopId = t.ShopId, ShopName = t.Shop.ShopName
+            t.CreatedAt, t.ApprovedAt, ShopId = t.ShopId, ShopName = t.Shop.ShopName,
+            OwnerName = t.Shop.OwnerName, ShopPhone = t.Shop.Phone
         }).ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
@@ -238,9 +240,13 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         var transaction = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == "top_up");
         if (transaction is null) return NotFound(ApiResponse.Fail("Top-up request not found."));
         if (transaction.Status != "pending") return BadRequest(ApiResponse.Fail("Top-up request is no longer pending."));
+        if (transaction.Method == "paystack")
+            return BadRequest(ApiResponse.Fail("Paystack top-ups are confirmed automatically by Paystack."));
         transaction.Status = "approved";
         transaction.ApprovedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+        await NotifyShopAsync(transaction.ShopId, "Wallet topped up",
+            $"Your deposit of R{transaction.Amount:F2}{RefSuffix(transaction.Reference)} has been confirmed and added to your wallet.");
         return Ok(ApiResponse.Ok("Wallet top-up approved."));
     }
 
@@ -250,10 +256,25 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         var transaction = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == "top_up");
         if (transaction is null) return NotFound(ApiResponse.Fail("Top-up request not found."));
         if (transaction.Status != "pending") return BadRequest(ApiResponse.Fail("Top-up request is no longer pending."));
+        if (transaction.Method == "paystack")
+            return BadRequest(ApiResponse.Fail("Paystack top-ups are confirmed automatically by Paystack."));
         transaction.Status = "rejected";
-        transaction.Notes = req.Reason;
+        transaction.Notes = string.IsNullOrWhiteSpace(req.Reason) ? null : req.Reason.Trim();
         await db.SaveChangesAsync();
+        await NotifyShopAsync(transaction.ShopId, "Top-up not confirmed",
+            $"We couldn't confirm your deposit of R{transaction.Amount:F2}{RefSuffix(transaction.Reference)}."
+            + (transaction.Notes == null ? " Please contact SpazaSure support." : $" Reason: {transaction.Notes}"));
         return Ok(ApiResponse.Ok("Wallet top-up rejected."));
+    }
+
+    private static string RefSuffix(string? reference) => reference == null ? "" : $" ({reference})";
+
+    private async Task NotifyShopAsync(Guid shopId, string title, string message)
+    {
+        var userId = await db.SpazaShops.Where(s => s.Id == shopId).Select(s => (Guid?)s.UserId).FirstOrDefaultAsync();
+        if (userId is null) return;
+        events.PublishNotification(supplierId: userId.Value.ToString(), type: "wallet", title: title,
+            message: message, referenceId: shopId.ToString(), routingKey: "notification.general");
     }
 
     //  REPORTS / REGULATORY ESCALATIONS

@@ -34,6 +34,7 @@ const AdminGroupBuysPage = lazy(() => import('./pages/admin/AdminGroupBuysPage')
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'));
 const AdminNotificationsPage = lazy(() => import('./pages/admin/AdminNotificationsPage'));
 const AdminPayoutsPage = lazy(() => import('./pages/admin/AdminPayoutsPage'));
+const AdminWalletDepositsPage = lazy(() => import('./pages/admin/AdminWalletDepositsPage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'supplier' | 'admin' }) {
@@ -83,6 +84,7 @@ export default function App() {
         <Route path="analytics"     element={<AdminAnalyticsPage />} />
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="payouts"       element={<AdminPayoutsPage />} />
+        <Route path="deposits"      element={<AdminWalletDepositsPage />} />
         <Route path="settings"      element={<AdminSettingsPage />} />
       </Route>
 

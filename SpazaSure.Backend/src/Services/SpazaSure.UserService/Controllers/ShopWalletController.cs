@@ -16,6 +16,9 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
 {
     private const decimal MinimumPaystackTopUp = 50m;
     private const decimal MaximumPaystackTopUp = 2_000m;
+    private const decimal MinimumDepositTopUp = 50m;
+    private const decimal MaximumDepositTopUp = 100_000m;
+    private const int MaximumPendingDeposits = 5;
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>Get wallet summary: balance and recent transactions.</summary>
@@ -25,13 +28,14 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop == null) return NotFound(ApiResponse.Fail("Shop not found."));
 
-        var credits = await db.ShopWalletTransactions
-            .Where(t => t.ShopId == shop.Id && t.Type == "top_up" && t.Status == "approved")
-            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-        var debits = await db.Orders
+        var balance = await ShopWallet.BalanceAsync(db, shop.Id);
+        var totalSpent = await db.Orders
             .Where(o => o.ShopId == shop.Id && (o.Status == "delivered" || o.Status == "confirmed" || o.Status == "dispatched"))
-            .SumAsync(o => o.TotalAmount);
-        var totalSpent = debits;
+            .SumAsync(o => (decimal?)o.TotalAmount) ?? 0m;
+        var pendingDeposits = await db.ShopWalletTransactions
+            .Where(t => t.ShopId == shop.Id && t.Type == "top_up" && t.Method == ShopWallet.DirectDeposit && t.Status == "pending")
+            .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+        var rules = await PlatformSettingsStore.LoadAsync(db);
 
         var recentTopUps = await db.ShopWalletTransactions
             .Where(t => t.ShopId == shop.Id && t.Type == "top_up")
@@ -40,13 +44,17 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
             .Select(t => new WalletActivity(
                 t.Id,
                 "credit",
-                $"Wallet top-up ({t.Method})",
+                t.Method == ShopWallet.DirectDeposit
+                    ? "Direct deposit" + (t.Reference == null ? "" : " · " + t.Reference)
+                    : t.Method == "paystack" ? "Wallet top-up (Paystack)" : "Wallet top-up (" + t.Method + ")",
                 t.Amount,
                 t.Status,
                 t.CreatedAt,
                 null,
                 null,
-                null))
+                null,
+                t.Method,
+                t.Reference))
             .ToListAsync();
 
         var recentOrders = await db.Orders
@@ -63,14 +71,18 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
                 o.CreatedAt,
                 o.OrderNumber,
                 null,
+                null,
+                o.PaymentMethod,
                 null))
             .ToListAsync();
         var orderCount = await db.Orders.CountAsync(o =>
             o.ShopId == shop.Id && o.Status != "draft" && o.Status != "cancelled");
 
         return Ok(ApiResponse<object>.Ok(new {
-            Balance = credits - debits,
+            Balance = balance,
+            PendingDeposits = pendingDeposits,
             TotalSpent = totalSpent,
+            DepositAccount = DepositAccount(rules),
             TotalOrders = orderCount,
             Currency = "ZAR",
             Transactions = recentOrders.Concat(recentTopUps)
@@ -79,22 +91,71 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
         }));
     }
 
+    /// <summary>
+    /// Request a top-up paid outside the app. For a direct deposit ("eft") SpazaSure generates
+    /// the reference the shop must use, and returns the bank account to pay into. An admin
+    /// approves the request once the money reflects in SpazaSure's account.
+    /// </summary>
     [HttpPost("top-ups")]
     public async Task<IActionResult> RequestTopUp([FromBody] WalletTopUpRequest req)
     {
-        if (req.Amount <= 0) return BadRequest(ApiResponse.Fail("Top-up amount must be greater than zero."));
-        var allowed = new[] { "eft", "cash", "kazang", "shop2shop" };
-        if (!allowed.Contains(req.Method.ToLowerInvariant())) return BadRequest(ApiResponse.Fail("Unsupported top-up method."));
+        var method = (req.Method ?? "").Trim().ToLowerInvariant();
+        var allowed = new[] { ShopWallet.DirectDeposit, "cash", "kazang", "shop2shop" };
+        if (!allowed.Contains(method)) return BadRequest(ApiResponse.Fail("Unsupported top-up method."));
+        if (req.Amount < MinimumDepositTopUp || req.Amount > MaximumDepositTopUp || decimal.Round(req.Amount, 2) != req.Amount)
+            return BadRequest(ApiResponse.Fail(
+                $"Top-ups must be between R{MinimumDepositTopUp:N0} and R{MaximumDepositTopUp:N0} with at most two decimal places."));
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+
+        var pending = await db.ShopWalletTransactions.CountAsync(t =>
+            t.ShopId == shop.Id && t.Type == "top_up" && t.Status == "pending" && t.Method != "paystack");
+        if (pending >= MaximumPendingDeposits)
+            return BadRequest(ApiResponse.Fail("You already have several top-ups waiting for approval. Please wait for those to be confirmed first."));
+
         var transaction = new ShopWalletTransaction {
-            ShopId = shop.Id, Amount = req.Amount, Method = req.Method.ToLowerInvariant(),
-            Reference = req.Reference, Notes = req.Notes, Status = "pending", Type = "top_up"
+            ShopId = shop.Id, Amount = req.Amount, Method = method,
+            Reference = string.IsNullOrWhiteSpace(req.Reference) ? null : req.Reference.Trim(),
+            Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
+            Status = "pending", Type = "top_up"
         };
+        if (method == ShopWallet.DirectDeposit) transaction.Reference = ShopWallet.DepositReference(transaction.Id);
         db.ShopWalletTransactions.Add(transaction);
         await db.SaveChangesAsync();
-        return Ok(ApiResponse<object>.Ok(new { transaction.Id, transaction.Status, transaction.Method, transaction.Amount }, "Top-up request submitted for review."));
+
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            transaction.Id, transaction.Status, transaction.Method, transaction.Amount, transaction.Reference,
+            DepositAccount = method == ShopWallet.DirectDeposit ? DepositAccount(rules) : null,
+        }, method == ShopWallet.DirectDeposit
+            ? "Deposit the amount using your reference. Your wallet is credited once SpazaSure confirms the payment."
+            : "Top-up request submitted for review."));
     }
+
+    /// <summary>Cancel a top-up that hasn't been approved yet (e.g. the shop changed its mind).</summary>
+    [HttpDelete("top-ups/{id:guid}")]
+    public async Task<IActionResult> CancelTopUp(Guid id)
+    {
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var transaction = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.ShopId == shop.Id && t.Type == "top_up");
+        if (transaction is null) return NotFound(ApiResponse.Fail("Top-up not found."));
+        if (transaction.Status != "pending" || transaction.Method == "paystack")
+            return BadRequest(ApiResponse.Fail("Only top-ups waiting for approval can be cancelled."));
+        transaction.Status = "cancelled";
+        transaction.Notes = "Cancelled by the shop.";
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Top-up cancelled."));
+    }
+
+    private static object DepositAccount(PlatformRules rules) => new
+    {
+        bankName = rules.DepositBankName,
+        accountHolder = rules.DepositAccountHolder,
+        accountNumber = rules.DepositAccountNumber,
+        branchCode = rules.DepositBranchCode,
+    };
 
     [HttpPost("top-ups/paystack/checkout-session")]
     public async Task<IActionResult> CreatePaystackTopUpCheckout(
@@ -189,20 +250,26 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
                 o.CreatedAt,
                 o.OrderNumber,
                 o.Supplier.CompanyName,
-                o.Items.Count))
+                o.Items.Count,
+                o.PaymentMethod,
+                null))
             .ToListAsync();
         var topUps = await topUpQuery
             .Take(take)
             .Select(t => new WalletActivity(
                 t.Id,
                 "credit",
-                $"Wallet top-up ({t.Method})",
+                t.Method == ShopWallet.DirectDeposit
+                    ? "Direct deposit" + (t.Reference == null ? "" : " · " + t.Reference)
+                    : t.Method == "paystack" ? "Wallet top-up (Paystack)" : "Wallet top-up (" + t.Method + ")",
                 t.Amount,
                 t.Status,
                 t.CreatedAt,
                 null,
                 null,
-                null))
+                null,
+                t.Method,
+                t.Reference))
             .ToListAsync();
         var items = orders.Concat(topUps)
             .OrderByDescending(t => t.Date)
@@ -219,7 +286,7 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
     }
 }
 
-public record WalletTopUpRequest(decimal Amount, string Method, string? Reference, string? Notes);
+public record WalletTopUpRequest(decimal Amount, string? Method, string? Reference, string? Notes);
 public record PaystackWalletTopUpRequest(decimal Amount);
 public record WalletActivity(
     Guid Id,
@@ -230,4 +297,6 @@ public record WalletActivity(
     DateTime Date,
     string? OrderNumber = null,
     string? SupplierName = null,
-    int? ItemCount = null);
+    int? ItemCount = null,
+    string? Method = null,
+    string? Reference = null);

@@ -190,6 +190,8 @@ class OrderDetailScreen extends StatelessWidget {
                                 : 'Pay R${order.total.toStringAsFixed(2)} in cash on delivery')
                           : order.paymentMethod == OrderService.paystack
                           ? (paid ? 'Paid with Paystack' : 'Awaiting payment')
+                          : order.paymentMethod == OrderService.wallet
+                          ? (paid ? 'Paid from your SpazaSure wallet' : 'Payment pending')
                           : (paid ? 'Payment completed' : 'Payment pending');
                       final color = paid ? AppColors.success : AppColors.warning;
                       return Row(
@@ -413,63 +415,101 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   void _showConfirmDelivery(BuildContext context, Order order) {
+    final isCod = order.paymentMethod == OrderService.cashOnDelivery;
+    final codeController = TextEditingController();
+    String? codeError;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Confirm Delivery', style: AppTextStyles.h3),
-        content: Text(
-          order.paymentMethod == OrderService.cashOnDelivery
-              ? 'Have you received all items in good condition and paid R${order.total.toStringAsFixed(2)} in cash on delivery? Confirming completes the order.'
-              : 'Have you received all items in good condition?',
-          style: AppTextStyles.body,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showReportIssue(context, order);
-            },
-            child: Text(
-              'Report Issue',
-              style: AppTextStyles.body.copyWith(color: AppColors.error),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await OrderService.confirmDelivery(order.id);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      order.paymentMethod == OrderService.cashOnDelivery
-                          ? 'Delivery confirmed. Your cash order is complete.'
-                          : 'Delivery confirmed. Thank you!',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Confirm Delivery', style: AppTextStyles.h3),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isCod
+                    ? 'Have you received all items in good condition and paid R${order.total.toStringAsFixed(2)} in cash on delivery? Enter the delivery code the driver gave you to complete the order.'
+                    : 'Have you received all items in good condition?',
+                style: AppTextStyles.body,
+              ),
+              if (isCod) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: codeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Delivery code',
+                    hintText: '6-digit code',
+                    errorText: codeError,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
                   ),
-                );
-                Navigator.pushReplacementNamed(
-                  context,
-                  '/rate-delivery',
-                  arguments: order,
-                );
-              } catch (e) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(e.toString()),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-            },
-            child: const Text('Confirm'),
+                ),
+              ],
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showReportIssue(context, order);
+              },
+              child: Text(
+                'Report Issue',
+                style: AppTextStyles.body.copyWith(color: AppColors.error),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final code = codeController.text.trim();
+                if (isCod && code.isEmpty) {
+                  setDialogState(
+                    () => codeError = 'Enter the code from the driver',
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                try {
+                  await OrderService.confirmDelivery(
+                    order.id,
+                    code: isCod ? code : null,
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isCod
+                            ? 'Delivery confirmed. Your cash order is complete.'
+                            : 'Delivery confirmed. Thank you!',
+                      ),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/rate-delivery',
+                    arguments: order,
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString()),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
       ),
     );
   }

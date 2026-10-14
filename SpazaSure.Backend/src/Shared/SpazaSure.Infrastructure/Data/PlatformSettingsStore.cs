@@ -32,6 +32,11 @@ public sealed record PlatformRules
     public bool CashOnDeliveryEnabled { get; init; } = true;
     /// <summary>Largest checkout total (R) allowed as cash on delivery, to limit cash-handling risk. 0 = no limit.</summary>
     public decimal CashOnDeliveryMaxOrderTotal { get; init; } = 5000m;
+    /// <summary>SpazaSure's bank account that shops deposit into to top up their wallet.</summary>
+    public string DepositBankName { get; init; } = "Capitec Business";
+    public string DepositAccountHolder { get; init; } = "SpazaSure";
+    public string DepositAccountNumber { get; init; } = "10551015752";
+    public string DepositBranchCode { get; init; } = "450105";
 
     public const string DefaultMaintenanceMessage =
         "SpazaSure is undergoing scheduled maintenance. Please try again shortly.";
@@ -48,8 +53,15 @@ public sealed record PlatformRules
         if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
+        if (string.IsNullOrWhiteSpace(DepositBankName) || DepositBankName.Length > 80) return "Enter the deposit bank name (up to 80 characters).";
+        if (string.IsNullOrWhiteSpace(DepositAccountHolder) || DepositAccountHolder.Length > 120) return "Enter the deposit account holder (up to 120 characters).";
+        if (!IsDigits(DepositAccountNumber, 6, 16)) return "Deposit account number must be 6 to 16 digits.";
+        if (!IsDigits(DepositBranchCode, 4, 8)) return "Deposit branch code must be 4 to 8 digits.";
         return null;
     }
+
+    private static bool IsDigits(string? value, int min, int max) =>
+        value is not null && value.Length >= min && value.Length <= max && value.All(char.IsAsciiDigit);
 }
 
 public static class PlatformSettingsStore
@@ -66,6 +78,10 @@ public static class PlatformSettingsStore
     public const string AutoApproveProductsKey = "auto_approve_verified_supplier_products";
     public const string CashOnDeliveryEnabledKey = "cash_on_delivery_enabled";
     public const string CashOnDeliveryMaxOrderTotalKey = "cash_on_delivery_max_order_total";
+    public const string DepositBankNameKey = "deposit_bank_name";
+    public const string DepositAccountHolderKey = "deposit_account_holder";
+    public const string DepositAccountNumberKey = "deposit_account_number";
+    public const string DepositBranchCodeKey = "deposit_branch_code";
 
     public static async Task<PlatformRules> LoadAsync(SpazaSureDbContext db, CancellationToken ct = default)
     {
@@ -85,6 +101,10 @@ public static class PlatformSettingsStore
             AutoApproveVerifiedSupplierProducts = Bool(values, AutoApproveProductsKey, d.AutoApproveVerifiedSupplierProducts),
             CashOnDeliveryEnabled = Bool(values, CashOnDeliveryEnabledKey, d.CashOnDeliveryEnabled),
             CashOnDeliveryMaxOrderTotal = Dec(values, CashOnDeliveryMaxOrderTotalKey, d.CashOnDeliveryMaxOrderTotal),
+            DepositBankName = Str(values, DepositBankNameKey, d.DepositBankName),
+            DepositAccountHolder = Str(values, DepositAccountHolderKey, d.DepositAccountHolder),
+            DepositAccountNumber = Str(values, DepositAccountNumberKey, d.DepositAccountNumber),
+            DepositBranchCode = Str(values, DepositBranchCodeKey, d.DepositBranchCode),
         };
     }
 
@@ -104,6 +124,10 @@ public static class PlatformSettingsStore
             [AutoApproveProductsKey] = rules.AutoApproveVerifiedSupplierProducts ? "true" : "false",
             [CashOnDeliveryEnabledKey] = rules.CashOnDeliveryEnabled ? "true" : "false",
             [CashOnDeliveryMaxOrderTotalKey] = Fmt(rules.CashOnDeliveryMaxOrderTotal),
+            [DepositBankNameKey] = rules.DepositBankName.Trim(),
+            [DepositAccountHolderKey] = rules.DepositAccountHolder.Trim(),
+            [DepositAccountNumberKey] = rules.DepositAccountNumber.Trim(),
+            [DepositBranchCodeKey] = rules.DepositBranchCode.Trim(),
         };
         var existing = await db.PlatformSettings.Where(s => updates.Keys.Contains(s.Key)).ToListAsync(ct);
         foreach (var (key, value) in updates)
@@ -119,6 +143,9 @@ public static class PlatformSettingsStore
 
     private static decimal Dec(Dictionary<string, string> v, string key, decimal fallback) =>
         v.TryGetValue(key, out var s) && decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) ? d : fallback;
+
+    private static string Str(Dictionary<string, string> v, string key, string fallback) =>
+        v.TryGetValue(key, out var s) && !string.IsNullOrWhiteSpace(s) ? s : fallback;
 
     private static bool Bool(Dictionary<string, string> v, string key, bool fallback) =>
         v.TryGetValue(key, out var s) && bool.TryParse(s, out var b) ? b : fallback;
