@@ -66,6 +66,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<ShopAuthService>();
 builder.Services.AddScoped<CustomerAuthService>();

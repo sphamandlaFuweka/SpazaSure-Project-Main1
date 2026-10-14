@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
       await authApi.forgotPassword(data.email);
       setSentEmail(data.email);
       setStep('reset');
-      toast.success('If that email exists, a reset token has been sent.');
+      toast.success('If that email is registered, we have sent a password reset link.');
     } catch {
       toast.error('Failed to send reset link. Please try again.');
     } finally {
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="text-xl font-black text-gray-900 mb-1">Reset your password</h2>
               <p className="text-sm text-gray-500 mb-6">
-                Enter your email and we'll send you a reset token.
+                Enter your email and we'll send you a link to choose a new password.
               </p>
 
               <form onSubmit={requestForm.handleSubmit(onRequestSubmit)} className="space-y-4">
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
                   className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                   {loading ? <Spinner size="sm" /> : <Mail size={15} />}
-                  {loading ? 'Sending...' : 'Send Reset Token'}
+                  {loading ? 'Sending...' : 'Send Reset Link'}
                 </button>
               </form>
 
@@ -153,7 +153,7 @@ export default function ForgotPasswordPage() {
               <h2 className="text-xl font-black text-gray-900 mb-1">Enter new password</h2>
               <p className="text-sm text-gray-500 mb-6">
                 {sentEmail
-                  ? `We sent a reset token to ${sentEmail}. Paste it below.`
+                  ? `If ${sentEmail} is registered, a reset link is on its way. Open it, or paste the token from the email below.`
                   : 'Enter your email, the reset token, and your new password.'}
               </p>
 

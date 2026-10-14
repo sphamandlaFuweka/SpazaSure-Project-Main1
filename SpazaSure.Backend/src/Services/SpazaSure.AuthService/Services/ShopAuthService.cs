@@ -123,6 +123,9 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
             return (false, "Invalid phone number or password.", null);
         }
 
+        if (user.Status == "suspended" || user.SpazaShop?.Status == "suspended")
+            return (false, AuthenticationService.SuspendedMessage, null);
+
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
 

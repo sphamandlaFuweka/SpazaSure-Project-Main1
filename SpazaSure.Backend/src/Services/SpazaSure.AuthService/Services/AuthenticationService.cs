@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.AuthService.DTOs;
 using SpazaSure.Infrastructure.Data;
@@ -6,7 +7,11 @@ using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.AuthService.Services;
 
-public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
+public class AuthenticationService(
+    SpazaSureDbContext db,
+    IConfiguration config,
+    IEmailSender? emailSender = null,
+    ILogger<AuthenticationService>? logger = null)
 {
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
@@ -105,6 +110,10 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
         if (user.LockedUntil > DateTime.UtcNow)
             return (false, "Account locked. Try again later.", null);
 
+        // Checked only after the password matches, so suspension isn't revealed to guessers
+        if (await IsSuspendedAsync(user))
+            return (false, SuspendedMessage, null);
+
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
         db.AuthAuditLogs.Add(new AuthAuditLog { UserId = user.Id, Event = "login", IpAddress = ipAddress });
@@ -129,6 +138,10 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
         stored.RevokedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
+        // A suspended account can't keep its session alive by refreshing
+        if (await IsSuspendedAsync(stored.User))
+            return (false, SuspendedMessage, null);
+
         return (true, null, await IssueTokensAsync(stored.User, stored.User.Role, ipAddress));
     }
 
@@ -142,6 +155,17 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
             await db.SaveChangesAsync();
         }
     }
+
+    public const string SuspendedMessage = "This account has been suspended. Please contact SpazaSure support.";
+
+    /// <summary>
+    /// Admins suspend the supplier or spaza shop record (not the login), so check both,
+    /// plus the user's own status.
+    /// </summary>
+    private async Task<bool> IsSuspendedAsync(User user) =>
+        user.Status == "suspended" ||
+        await db.Suppliers.AnyAsync(s => s.UserId == user.Id && s.Status == "suspended") ||
+        await db.SpazaShops.AnyAsync(s => s.UserId == user.Id && s.Status == "suspended");
 
     public async Task<bool> ForgotPasswordAsync(string email)
     {
@@ -164,8 +188,67 @@ public class AuthenticationService(SpazaSureDbContext db, IConfiguration config)
         });
 
         await db.SaveChangesAsync();
-        Console.WriteLine($"[DEV] Password reset token for {email}: {rawToken}");
+        await SendPasswordResetEmailAsync(user.Email ?? email, rawToken);
         return true;
+    }
+
+    /// <summary>
+    /// Emails a one-click reset link. Never throws: the caller always gets the same
+    /// response whether or not the account exists, so failures are only logged.
+    /// The raw token is never logged unless Email:LogResetTokens is enabled (local dev only).
+    /// </summary>
+    private async Task SendPasswordResetEmailAsync(string email, string rawToken)
+    {
+        var portalUrl = (config["Email:PortalUrl"] ?? "https://portal.spazasure.co.za").TrimEnd('/');
+        var link = $"{portalUrl}/forgot-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(rawToken)}";
+
+        if (bool.TryParse(config["Email:LogResetTokens"], out var logTokens) && logTokens)
+            logger?.LogInformation("[DEV] Password reset link for {Email}: {Link}", email, link);
+
+        if (emailSender is null || !emailSender.IsConfigured)
+        {
+            logger?.LogWarning("Password reset requested for {Email} but email is not configured (set Email__SmtpHost and Email__FromAddress).", email);
+            return;
+        }
+
+        var safeLink = WebUtility.HtmlEncode(link);
+        var html = $"""
+            <div style="font-family:Nunito,Arial,sans-serif;background:#F5F7FF;padding:32px 16px">
+              <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #E8ECF8">
+                <div style="background:#25449A;padding:28px 32px">
+                  <div style="color:#ffffff;font-size:22px;font-weight:900">SpazaSure</div>
+                </div>
+                <div style="padding:32px">
+                  <h1 style="margin:0 0 12px;font-size:22px;color:#17244F">Reset your password</h1>
+                  <p style="margin:0 0 24px;color:#5A5A7A;font-size:15px;line-height:1.6">
+                    We received a request to reset the password for your SpazaSure account.
+                    This link is valid for 30 minutes and can be used once.
+                  </p>
+                  <a href="{safeLink}" style="display:inline-block;background:#F8B217;color:#25449A;font-weight:800;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:50px">Choose a new password</a>
+                  <p style="margin:24px 0 0;color:#8888AA;font-size:13px;line-height:1.6">
+                    If you didn't ask for this, you can ignore this email. Your password won't change.
+                  </p>
+                </div>
+              </div>
+            </div>
+            """;
+        var text = $"""
+            Reset your SpazaSure password
+
+            Open this link within 30 minutes to choose a new password:
+            {link}
+
+            If you didn't ask for this, you can ignore this email.
+            """;
+
+        try
+        {
+            await emailSender.SendAsync(email, "Reset your SpazaSure password", html, text);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to send password reset email to {Email}", email);
+        }
     }
 
     public async Task<(bool Success, string? Error)> ResetPasswordAsync(ResetPasswordRequest req)

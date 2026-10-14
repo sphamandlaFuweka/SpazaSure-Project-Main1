@@ -85,12 +85,20 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         return Ok(ApiResponse.Ok("Supplier verified successfully."));
     }
 
+    /// <summary>Signs a suspended account out by revoking its refresh tokens.</summary>
+    private async Task RevokeSessionsAsync(Guid userId)
+    {
+        var tokens = await db.RefreshTokens.Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync();
+        foreach (var t in tokens) t.RevokedAt = DateTime.UtcNow;
+    }
+
     [HttpPatch("suppliers/{id}/suspend")]
     public async Task<IActionResult> SuspendSupplier(Guid id)
     {
         var supplier = await db.Suppliers.FindAsync(id);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
         supplier.Status = "suspended";
+        await RevokeSessionsAsync(supplier.UserId);
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Supplier suspended."));
     }
@@ -207,6 +215,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         var shop = await db.SpazaShops.FindAsync(id);
         if (shop is null) return NotFound(ApiResponse.Fail("Spaza shop not found."));
         shop.Status = "suspended";
+        await RevokeSessionsAsync(shop.UserId);
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Spaza owner suspended."));
     }

@@ -76,24 +76,9 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
         }));
     }
 
-    [HttpPatch("tier")]
-    public async Task<IActionResult> UpdateTier([FromBody] UpdateTierRequest req)
-    {
-        var valid = new[] { "basic", "bronze", "silver", "gold" };
-        if (string.IsNullOrWhiteSpace(req.Tier) || !valid.Contains(req.Tier.ToLower()))
-            return BadRequest(ApiResponse.Fail("Invalid tier. Must be basic, bronze, silver or gold."));
-        var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
-        var map = new Dictionary<string, decimal>
-        {
-            ["basic"] = 5m, ["bronze"] = 4m, ["silver"] = 3m, ["gold"] = 2m
-        };
-        supplier.Tier           = req.Tier.ToLower();
-        supplier.CommissionRate = map[supplier.Tier];
-        await db.SaveChangesAsync();
-        return Ok(ApiResponse<object>.Ok(new { tier = supplier.Tier, commissionRate = supplier.CommissionRate }));
-    }
-
+    // Note: tier changes are only made by the Paystack subscription flow (PaymentController).
+    // A self-service "PATCH tier" endpoint used to live here and let any supplier grant
+    // themselves a paid tier and lower commission without paying, so it was removed.
     [HttpPost("documents")]
     public async Task<IActionResult> UploadDocument([FromForm] string docType, IFormFile file)
     {
@@ -154,4 +139,3 @@ public record UpdateProfileRequest(
     double? Latitude = null, double? Longitude = null
 );
 
-public record UpdateTierRequest(string Tier);

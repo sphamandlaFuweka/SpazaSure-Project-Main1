@@ -1,4 +1,7 @@
-﻿using Microsoft.OpenApi.Models;
+﻿using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.OpenApi.Models;
 using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +16,56 @@ builder.Services.AddCors(opt => opt.AddPolicy("Portal", p =>
     p.SetIsOriginAllowed(CorsHelper.BuildOriginPredicate(builder.Configuration))
      .AllowAnyHeader()
      .AllowAnyMethod()));
+
+// The gateway is published on 127.0.0.1 only (see docker-compose.prod.yml), so the
+// host's nginx is the only thing that can reach it. Trust the client IP nginx appends
+// to X-Forwarded-For (ForwardLimit = 1 takes just that last hop, so it can't be spoofed).
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.ForwardLimit = 1;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
+// Rate limiting per client IP. Sign-in endpoints get strict limits against password
+// guessing; password reset is stricter still against email bombing and token guessing.
+static bool IsAuthPath(PathString p, params string[] suffixes) =>
+    (p.StartsWithSegments("/api/supplier/auth") || p.StartsWithSegments("/api/shop/auth") || p.StartsWithSegments("/api/customer/auth"))
+    && suffixes.Any(sfx => p.Value!.EndsWith(sfx, StringComparison.OrdinalIgnoreCase));
+
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+    {
+        var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var path = ctx.Request.Path;
+
+        if (IsAuthPath(path, "/forgot-password", "/reset-password"))
+            return RateLimitPartition.GetFixedWindowLimiter("reset:" + ip, _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });
+
+        if (IsAuthPath(path, "/login", "/register", "/verify-otp", "/send-otp"))
+            return RateLimitPartition.GetFixedWindowLimiter("auth:" + ip, _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+
+        return RateLimitPartition.GetTokenBucketLimiter("all:" + ip, _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 300, TokensPerPeriod = 300, ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+            QueueLimit = 0, AutoReplenishment = true,
+        });
+    });
+    o.OnRejected = async (ctx, ct) =>
+    {
+        var wait = ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry) ? (int)Math.Ceiling(retry.TotalSeconds) : 60;
+        ctx.HttpContext.Response.Headers.RetryAfter = wait.ToString();
+        ctx.HttpContext.Response.ContentType = "application/json";
+        var waitText = wait >= 120 ? $"{(int)Math.Ceiling(wait / 60.0)} minutes" : $"{wait} seconds";
+        await ctx.HttpContext.Response.WriteAsJsonAsync(
+            new { success = false, message = $"Too many attempts. Please wait {waitText} and try again." }, ct);
+    };
+});
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -30,6 +83,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Must run first so rate limits and logs see the real client IP
+app.UseForwardedHeaders();
 
 // When a downstream service is unreachable, times out, or a route doesn't
 // match any endpoint, YARP/Kestrel return a bare status code with an EMPTY
@@ -58,8 +114,15 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseCors("Portal");
+app.UseRateLimiter();
 
-// Single Swagger UI at /swagger  shows all services in one dropdown
+// Single Swagger UI at /swagger  shows all services in one dropdown.
+// Disabled in Production so the public API surface isn't browsable; enable
+// explicitly with Swagger__Enabled=true if ever needed.
+var swaggerEnabled = !app.Environment.IsProduction()
+    || (bool.TryParse(builder.Configuration["Swagger:Enabled"], out var forceSwagger) && forceSwagger);
+if (swaggerEnabled)
+{
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -69,6 +132,7 @@ app.UseSwaggerUI(c =>
     c.DefaultModelsExpandDepth(-1);
     c.DisplayRequestDuration();
 });
+}
 
 app.MapReverseProxy();
 

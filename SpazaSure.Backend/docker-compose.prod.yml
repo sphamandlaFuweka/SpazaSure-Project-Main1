@@ -87,6 +87,15 @@ services:
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Jwt__AccessExpiryMinutes:             "30"
       Jwt__RefreshExpiryDays:               "14"
+      # Password-reset email over SMTP. Optional: when unset, resets are logged as
+      # "email not configured" and no email is sent.
+      Email__SmtpHost:                      ${PROD_SMTP_HOST:-}
+      Email__SmtpPort:                      ${PROD_SMTP_PORT:-587}
+      Email__Username:                      ${PROD_SMTP_USERNAME:-}
+      Email__Password:                      ${PROD_SMTP_PASSWORD:-}
+      Email__FromAddress:                   ${PROD_EMAIL_FROM:-}
+      Email__FromName:                      SpazaSure
+      Email__PortalUrl:                     ${PROD_SUPPLIER_PORTAL_URL:-https://portal.spazasure.co.za}
     depends_on:
       postgres:
         condition: service_healthy
