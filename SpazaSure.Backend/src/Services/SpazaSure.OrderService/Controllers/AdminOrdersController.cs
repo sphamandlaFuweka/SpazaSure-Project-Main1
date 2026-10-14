@@ -165,8 +165,14 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
         if (!validStatuses.Contains(req.Status))
             return BadRequest(ApiResponse.Fail("Invalid status."));
 
+        // Once the supplier has been paid for an order, its status is locked for accounting
+        if (order.PaidOutAt is not null && req.Status != order.Status)
+            return BadRequest(ApiResponse.Fail("This order has already been paid out to the supplier, so its status can't be changed."));
+
         order.Status = req.Status;
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
+        // Payouts are timed from delivery; moving an order out of "delivered" clears it
+        order.DeliveredAt = req.Status == "delivered" ? order.DeliveredAt ?? DateTime.UtcNow : null;
         await db.SaveChangesAsync();
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));

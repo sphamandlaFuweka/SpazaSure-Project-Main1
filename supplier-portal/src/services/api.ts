@@ -114,6 +114,12 @@ const handleError = async (err: any) => {
     return Promise.reject(err);
   }
 
+  // Maintenance mode (set by an admin): one persistent, de-duplicated message
+  if (err.response?.status === 503 && err.response?.data?.maintenance) {
+    toast.error(err.response.data.message ?? 'SpazaSure is under maintenance. Please try again shortly.', { id: 'maintenance', duration: 10000 });
+    return Promise.reject(err);
+  }
+
   // Don't show toast for 401 (handled above) or cancelled requests
   if (err.response?.status && err.response.status !== 401) {
     const msg = err.response?.data?.message
@@ -501,11 +507,64 @@ export const adminSpazaOwnersApi = {
 };
 
 // Platform settings
+/** Admin-configurable platform rules (mirrors PlatformRules in the backend). */
+export interface PlatformRules {
+  standardDeliveryFee: number;
+  expressDeliveryFee: number;
+  groupBuyBaseDeliveryFee: number;
+  groupBuyPerKmRate: number;
+  shopServiceFeePercent: number;
+  payoutDelayDays: number;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  requireSupplierApproval: boolean;
+  autoApproveVerifiedSupplierProducts: boolean;
+}
+
 export const adminSettingsApi = {
+  getPlatform: () =>
+    api.get('/admin/settings/platform').then((r) => (r.data?.data ?? r.data) as PlatformRules),
+  updatePlatform: (rules: PlatformRules) =>
+    api.put('/admin/settings/platform', rules).then((r) => (r.data?.data ?? r.data) as PlatformRules),
   getOnboardingFee: () =>
     api.get('/admin/settings/onboarding-fee').then((r) => r.data?.data ?? r.data),
   updateOnboardingFee: (amount: number) =>
     api.put('/admin/settings/onboarding-fee', { amount }).then((r) => r.data?.data ?? r.data),
+};
+
+// Supplier payouts: SpazaSure pays suppliers products + delivery after the payout delay
+export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'paid_out';
+export interface SupplierPayoutSummary {
+  payoutDelayDays: number;
+  awaitingDelivery: number;
+  pending: number;
+  available: number;
+  paidOut: number;
+  nextAvailableAt: string | null;
+  hasBankDetails: boolean;
+  recent: { id: string; orderNumber: string; amount: number; stage: PayoutStage; deliveredAt: string | null; availableAt: string | null; paidOutAt: string | null; payoutReference: string | null }[];
+}
+export interface AdminPayoutSupplier {
+  supplierId: string;
+  companyName: string;
+  email: string;
+  bankName: string | null;
+  bankAccount: string | null;
+  bankBranchCode: string | null;
+  availableAmount: number;
+  availableOrders: number;
+  pendingAmount: number;
+  pendingOrders: number;
+}
+
+export const payoutsApi = {
+  supplierSummary: () =>
+    api.get('/supplier/payouts').then((r) => (r.data?.data ?? r.data) as SupplierPayoutSummary),
+  adminList: () =>
+    api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as { payoutDelayDays: number; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[] }),
+  markPaid: (supplierId: string, reference: string) =>
+    api.post(`/admin/payouts/${supplierId}/mark-paid`, { reference })
+      .then((r) => (r.data?.data ?? r.data) as { total: number; orders: number; reference: string }),
 };
 
 // FAQs (Subscription page — admin-managed)

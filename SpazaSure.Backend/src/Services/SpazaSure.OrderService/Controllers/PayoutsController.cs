@@ -1,0 +1,184 @@
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SpazaSure.Infrastructure.Data;
+using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
+using SpazaSure.Shared.Models;
+
+namespace SpazaSure.OrderService.Controllers;
+
+/// <summary>
+/// Supplier payout rules:
+///  - Only orders the shop paid through Paystack count (SpazaSure holds that money).
+///  - The supplier is owed Subtotal + DeliveryFee. The shop paid the commission and
+///    service fee on top, and SpazaSure keeps those.
+///  - Money is "pending" from delivery until PayoutDelayDays have passed, then
+///    "available" until an admin records the payout.
+/// </summary>
+public static class PayoutRules
+{
+    public static IQueryable<Order> PaidThroughPlatform(IQueryable<Order> orders) =>
+        orders.Where(o => o.PaymentMethod == "paystack" && o.PaymentStatus == "paid" && o.Status != "cancelled");
+
+    public static decimal AmountOwed(Order o) => o.Subtotal + o.DeliveryFee;
+
+    public static string Stage(Order o, DateTime availableCutoff) =>
+        o.PaidOutAt is not null ? "paid_out"
+        : o.Status != "delivered" || o.DeliveredAt is null ? "awaiting_delivery"
+        : o.DeliveredAt <= availableCutoff ? "available"
+        : "pending";
+}
+
+[ApiController]
+[Route("api/supplier/payouts")]
+[Authorize(Roles = "supplier")]
+public class SupplierPayoutsController(SpazaSureDbContext db) : ControllerBase
+{
+    private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    [HttpGet]
+    public async Task<IActionResult> Summary()
+    {
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var now = DateTime.UtcNow;
+        var cutoff = now.AddDays(-rules.PayoutDelayDays);
+
+        var orders = await PayoutRules.PaidThroughPlatform(db.Orders.AsNoTracking())
+            .Where(o => o.SupplierId == supplier.Id)
+            .OrderByDescending(o => o.DeliveredAt ?? o.CreatedAt)
+            .ToListAsync();
+
+        decimal Sum(string stage) => orders.Where(o => PayoutRules.Stage(o, cutoff) == stage).Sum(PayoutRules.AmountOwed);
+        var nextPending = orders
+            .Where(o => PayoutRules.Stage(o, cutoff) == "pending")
+            .Select(o => o.DeliveredAt!.Value.AddDays(rules.PayoutDelayDays))
+            .OrderBy(d => d)
+            .Cast<DateTime?>()
+            .FirstOrDefault();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            payoutDelayDays = rules.PayoutDelayDays,
+            awaitingDelivery = Sum("awaiting_delivery"),
+            pending = Sum("pending"),
+            available = Sum("available"),
+            paidOut = Sum("paid_out"),
+            nextAvailableAt = nextPending,
+            hasBankDetails = !string.IsNullOrWhiteSpace(supplier.BankAccount),
+            recent = orders.Take(20).Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                amount = PayoutRules.AmountOwed(o),
+                stage = PayoutRules.Stage(o, cutoff),
+                o.DeliveredAt,
+                availableAt = o.DeliveredAt?.AddDays(rules.PayoutDelayDays),
+                o.PaidOutAt,
+                o.PayoutReference,
+            }),
+        }));
+    }
+}
+
+[ApiController]
+[Route("api/admin/payouts")]
+[Authorize(Roles = "admin")]
+public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+{
+    /// <summary>Per supplier: what is available to pay now and what is still pending.</summary>
+    [HttpGet]
+    public async Task<IActionResult> List()
+    {
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
+
+        var orders = await PayoutRules.PaidThroughPlatform(db.Orders.AsNoTracking())
+            .Where(o => o.PaidOutAt == null && o.Status == "delivered" && o.DeliveredAt != null)
+            .Include(o => o.Supplier)
+            .ToListAsync();
+
+        var suppliers = orders
+            .GroupBy(o => o.SupplierId)
+            .Select(g =>
+            {
+                var supplier = g.First().Supplier;
+                var available = g.Where(o => PayoutRules.Stage(o, cutoff) == "available").ToList();
+                var pending = g.Where(o => PayoutRules.Stage(o, cutoff) == "pending").ToList();
+                return new
+                {
+                    supplierId = g.Key,
+                    supplier.CompanyName,
+                    supplier.Email,
+                    supplier.BankName,
+                    supplier.BankAccount,
+                    supplier.BankBranchCode,
+                    availableAmount = available.Sum(PayoutRules.AmountOwed),
+                    availableOrders = available.Count,
+                    pendingAmount = pending.Sum(PayoutRules.AmountOwed),
+                    pendingOrders = pending.Count,
+                };
+            })
+            .Where(s => s.availableOrders > 0 || s.pendingOrders > 0)
+            .OrderByDescending(s => s.availableAmount)
+            .ToList();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            payoutDelayDays = rules.PayoutDelayDays,
+            totalAvailable = suppliers.Sum(s => s.availableAmount),
+            totalPending = suppliers.Sum(s => s.pendingAmount),
+            suppliers,
+        }));
+    }
+
+    /// <summary>
+    /// Records that SpazaSure has paid a supplier everything currently available
+    /// (e.g. after an EFT). Orders that become available later are not included.
+    /// </summary>
+    [HttpPost("{supplierId:guid}/mark-paid")]
+    public async Task<IActionResult> MarkPaid(Guid supplierId, MarkPayoutPaidRequest req)
+    {
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
+
+        var orders = await PayoutRules.PaidThroughPlatform(db.Orders)
+            .Where(o => o.SupplierId == supplierId && o.PaidOutAt == null
+                && o.Status == "delivered" && o.DeliveredAt != null && o.DeliveredAt <= cutoff)
+            .ToListAsync();
+        if (orders.Count == 0)
+            return BadRequest(ApiResponse.Fail("This supplier has nothing available to pay out."));
+
+        var now = DateTime.UtcNow;
+        var reference = req.Reference.Trim();
+        foreach (var o in orders)
+        {
+            o.PaidOutAt = now;
+            o.PayoutReference = reference;
+            o.UpdatedAt = now;
+        }
+        await db.SaveChangesAsync();
+
+        var total = orders.Sum(PayoutRules.AmountOwed);
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == supplierId);
+        if (supplier is not null)
+        {
+            events.PublishNotification(
+                supplierId: supplier.UserId.ToString(),
+                type: "order",
+                title: "Payout sent",
+                message: $"SpazaSure paid you R{total:N2} for {orders.Count} delivered order{(orders.Count == 1 ? "" : "s")}. Reference: {reference}.",
+                referenceId: reference,
+                routingKey: "payout.paid");
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { total, orders = orders.Count, reference }, "Payout recorded."));
+    }
+}
+
+public record MarkPayoutPaidRequest([Required, StringLength(100, MinimumLength = 3)] string Reference);

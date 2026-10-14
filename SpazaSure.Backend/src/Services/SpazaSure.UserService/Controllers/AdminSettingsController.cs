@@ -43,6 +43,22 @@ public class AdminSettingsController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { amount }, "Onboarding fee updated."));
     }
 
+    /// <summary>All admin-configurable platform rules (fees, payouts, operations).</summary>
+    [HttpGet("platform")]
+    public async Task<IActionResult> GetPlatformRules() =>
+        Ok(ApiResponse<PlatformRules>.Ok(await PlatformSettingsStore.LoadAsync(db)));
+
+    [HttpPut("platform")]
+    public async Task<IActionResult> UpdatePlatformRules(PlatformRules rules)
+    {
+        rules = rules with { MaintenanceMessage = rules.MaintenanceMessage?.Trim() ?? PlatformRules.DefaultMaintenanceMessage };
+        var error = rules.Validate();
+        if (error is not null) return BadRequest(ApiResponse.Fail(error));
+
+        await PlatformSettingsStore.SaveAsync(db, rules);
+        return Ok(ApiResponse<PlatformRules>.Ok(rules, "Platform settings saved."));
+    }
+
     private async Task<decimal> ReadAmount()
     {
         var value = await db.PlatformSettings.AsNoTracking()

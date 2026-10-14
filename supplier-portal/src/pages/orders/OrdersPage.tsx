@@ -335,7 +335,7 @@ export default function OrdersPage() {
                 <th className="table-header">Shop</th>
                 <th className="table-header">Items</th>
                 <th className="table-header text-right">Total</th>
-                <th className="table-header text-right">Net Payout</th>
+                <th className="table-header text-right">Your Earnings</th>
                 <th className="table-header text-center">Status</th>
                 <th className="table-header text-center">Payment</th>
                 <th className="table-header">Date</th>
@@ -371,7 +371,7 @@ export default function OrdersPage() {
                     R{order.total.toLocaleString()}
                   </td>
                   <td className="table-cell text-right font-bold text-emerald-700">
-                    R{(order.subtotal - order.platformCommission).toFixed(2)}
+                    R{(order.subtotal + order.deliveryFee).toFixed(2)}
                   </td>
                   <td className="table-cell text-center">
                     <OrderStatusBadge status={order.status} />

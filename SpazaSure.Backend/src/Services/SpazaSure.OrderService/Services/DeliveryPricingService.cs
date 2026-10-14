@@ -28,8 +28,21 @@ public sealed class DeliveryPricingService
         double originLatitude,
         double originLongitude,
         double destinationLatitude,
-        double destinationLongitude)
+        double destinationLongitude) =>
+        Calculate(originLatitude, originLongitude, destinationLatitude, destinationLongitude,
+            _options.BaseFee, _options.PerKmRate);
+
+    /// <summary>Same calculation using explicit rates (e.g. from admin platform settings).</summary>
+    public DeliveryPricingResult Calculate(
+        double originLatitude,
+        double originLongitude,
+        double destinationLatitude,
+        double destinationLongitude,
+        decimal baseFee,
+        decimal perKmRate)
     {
+        if (baseFee < 0 || perKmRate < 0)
+            throw new ArgumentException("Delivery pricing values cannot be negative.");
         ValidateCoordinates(originLatitude, originLongitude);
         ValidateCoordinates(destinationLatitude, destinationLongitude);
 
@@ -42,7 +55,7 @@ public sealed class DeliveryPricingService
             * Math.Pow(Math.Sin(longitudeDelta / 2d), 2d);
         var centralAngle = 2d * Math.Atan2(Math.Sqrt(haversine), Math.Sqrt(Math.Max(0d, 1d - haversine)));
         var distanceKm = (decimal)(EarthRadiusKm * centralAngle);
-        var fee = _options.BaseFee + distanceKm * _options.PerKmRate;
+        var fee = baseFee + distanceKm * perKmRate;
 
         return new DeliveryPricingResult(
             decimal.Round(distanceKm, 2, MidpointRounding.AwayFromZero),

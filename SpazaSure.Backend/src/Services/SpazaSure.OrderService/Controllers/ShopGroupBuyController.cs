@@ -463,6 +463,7 @@ public class SupplierGroupBuyController(
 
         var notifications = new List<(Guid UserId, Guid OrderId, string OrderNumber)>();
         List<Guid> orderIds;
+        PlatformRules? rules = null; // loaded once, on first use
 
         await using (var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable))
         {
@@ -627,9 +628,11 @@ public class SupplierGroupBuyController(
 
                 if (!ordersByParticipant.TryGetValue(entry.Participant.Id, out var order))
                 {
+                    rules ??= await PlatformSettingsStore.LoadAsync(db);
                     var delivery = pricing.Calculate(
                         supplier.Latitude!.Value, supplier.Longitude!.Value,
-                        shop.Latitude!.Value, shop.Longitude!.Value);
+                        shop.Latitude!.Value, shop.Longitude!.Value,
+                        rules.GroupBuyBaseDeliveryFee, rules.GroupBuyPerKmRate);
                     order = new Order
                     {
                         OrderNumber = $"SPZ-GB-{Guid.NewGuid():N}".ToUpperInvariant(),
@@ -661,8 +664,9 @@ public class SupplierGroupBuyController(
                 }
 
                 order.Subtotal = order.Items.Sum(i => i.LineTotal);
+                rules ??= await PlatformSettingsStore.LoadAsync(db);
                 order.PlatformCommission = Math.Round(
-                    order.Subtotal * supplier.CommissionRate / 100m, 2,
+                    order.Subtotal * (supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m, 2,
                     MidpointRounding.AwayFromZero);
                 order.TotalAmount = order.Subtotal + order.DeliveryFee + order.PlatformCommission;
                 notifications.Add((shop.UserId, order.Id, order.OrderNumber));

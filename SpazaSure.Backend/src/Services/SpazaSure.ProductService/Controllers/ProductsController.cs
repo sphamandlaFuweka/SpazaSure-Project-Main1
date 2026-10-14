@@ -71,7 +71,10 @@ public class ProductsController(SpazaSureDbContext db) : ControllerBase
             Description = req.Description, Sku = req.Sku, Barcode = req.Barcode,
             Price = req.Price, MinOrderQty = req.MinOrderQty, StockQty = req.StockQty,
             Unit = req.Unit, Images = req.Images ?? "[]", IsAvailable = req.IsAvailable,
-            IsFoodItem = req.IsFoodItem
+            IsFoodItem = req.IsFoodItem,
+            // Admin setting: verified suppliers' products can skip manual review
+            IsApproved = supplier.Status == "verified"
+                && (await PlatformSettingsStore.LoadAsync(db)).AutoApproveVerifiedSupplierProducts
         };
         db.Products.Add(product);
         await db.SaveChangesAsync();

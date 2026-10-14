@@ -67,6 +67,8 @@ builder.Services.AddRateLimiter(o =>
     };
 });
 
+builder.Services.AddHttpClient("maintenance", c => c.Timeout = TimeSpan.FromSeconds(3));
+
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -115,6 +117,8 @@ app.UseStaticFiles();
 
 app.UseCors("Portal");
 app.UseRateLimiter();
+// Admin-controlled maintenance mode (see MaintenanceModeMiddleware for what stays open)
+app.UseMiddleware<SpazaSure.Gateway.MaintenanceModeMiddleware>();
 
 // Single Swagger UI at /swagger  shows all services in one dropdown.
 // Disabled in Production so the public API surface isn't browsable; enable

@@ -774,6 +774,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
                     b.Property<string>("DeliveryAddress")
                         .HasColumnType("text")
                         .HasColumnName("delivery_address");
@@ -823,6 +827,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("order_number");
 
+                    b.Property<DateTime?>("PaidOutAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_out_at");
+
                     b.Property<Guid?>("PaymentCheckoutId")
                         .HasColumnType("uuid")
                         .HasColumnName("payment_checkout_id");
@@ -840,6 +848,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("payment_status");
+
+                    b.Property<string>("PayoutReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payout_reference");
 
                     b.Property<decimal>("PlatformCommission")
                         .HasPrecision(10, 2)

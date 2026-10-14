@@ -47,8 +47,12 @@ public class AuthenticationService(
 
         if (role.Name == "supplier")
         {
+            // Admin setting: with manual approval on, new suppliers stay hidden
+            // from shops ("pending") until an admin verifies them.
+            var rules = await PlatformSettingsStore.LoadAsync(db);
             db.Suppliers.Add(new Supplier
             {
+                Status = rules.RequireSupplierApproval ? "pending" : "active",
                 UserId = user.Id,
                 CompanyName = req.CompanyName ?? string.Empty,
                 ContactPerson = req.ContactPerson ?? string.Empty,

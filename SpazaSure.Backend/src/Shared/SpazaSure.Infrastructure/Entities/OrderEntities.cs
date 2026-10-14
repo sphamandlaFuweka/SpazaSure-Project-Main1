@@ -26,6 +26,11 @@ public class Order : BaseEntity
     public string? PaymentProviderReference { get; set; }
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
+    /// <summary>When the order reached "delivered"; payouts become available PayoutDelayDays later.</summary>
+    public DateTime? DeliveredAt { get; set; }
+    /// <summary>When SpazaSure paid the supplier for this order (null = not yet paid out).</summary>
+    public DateTime? PaidOutAt { get; set; }
+    public string? PayoutReference { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;

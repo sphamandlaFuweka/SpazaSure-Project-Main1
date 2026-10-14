@@ -18,6 +18,7 @@ const pageTitles: Record<string, string> = {
   reports:       'Reports',
   analytics:     'Analytics',
   notifications: 'Notifications',
+  payouts:       'Payouts',
   settings:      'Settings',
 };
 

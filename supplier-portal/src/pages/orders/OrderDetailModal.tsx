@@ -165,21 +165,21 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
               <span>Delivery Fee</span>
               <span>R{order.deliveryFee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-red-500">
-              <span>Platform Commission</span>
-              <span>-R{order.platformCommission.toFixed(2)}</span>
+            <div className="flex justify-between text-gray-500">
+              <span>Platform fee <span className="text-xs">(paid by the shop)</span></span>
+              <span>R{order.platformCommission.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-black text-base border-t border-gray-200 pt-2.5 mt-1">
               <span>Order Total</span>
               <span>R{order.total.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mt-1">
-              <span>Your Net Payout</span>
-              <span>R{(order.subtotal - order.platformCommission).toFixed(2)}</span>
+              <span>Your earnings <span className="text-xs font-semibold">(products + delivery)</span></span>
+              <span>R{(order.subtotal + order.deliveryFee).toFixed(2)}</span>
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2 text-center">
-            Funds held in escrow · Released after delivery confirmation
+            Paystack orders are paid out to you after delivery, once the payout delay has passed. See Analytics → Your payouts.
           </p>
         </div>
 

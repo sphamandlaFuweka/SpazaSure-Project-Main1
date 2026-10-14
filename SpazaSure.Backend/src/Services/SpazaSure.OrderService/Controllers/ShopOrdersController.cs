@@ -43,6 +43,7 @@ public class ShopOrdersController(
 
         // Group items by supplier (one order per supplier)
         var grouped = req.Items.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
+        var rules = await PlatformSettingsStore.LoadAsync(db);
         var createdOrders = new List<Order>();
         var checkoutId = Guid.NewGuid();
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -77,14 +78,17 @@ public class ShopOrdersController(
                 });
             }
 
-            // Calculate fees
+            // Fees come from admin platform settings (see PlatformRules for defaults).
+            // The shop pays the supplier's tier commission plus any shop service fee on top
+            // of the subtotal; both are SpazaSure revenue, so they're stored together.
             var deliveryFee = req.DeliveryType?.ToLowerInvariant() switch
             {
-                "express" => 250m,
+                "express" => rules.ExpressDeliveryFee,
                 "pickup" => 0m,
-                _ => 150m
+                _ => rules.StandardDeliveryFee
             };
-            var platformCommission = Math.Round(subtotal * (supplier.CommissionRate / 100m), 2);
+            var platformCommission = Math.Round(
+                subtotal * ((supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m), 2);
             var totalAmount = subtotal + deliveryFee + platformCommission;
 
             // Generate order number
@@ -312,6 +316,7 @@ public class ShopOrdersController(
             return BadRequest(ApiResponse.Fail("Only dispatched orders can be confirmed as delivered."));
 
         order.Status = "delivered";
+        order.DeliveredAt ??= DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));

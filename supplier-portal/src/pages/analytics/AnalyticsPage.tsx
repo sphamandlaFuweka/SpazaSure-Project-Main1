@@ -8,6 +8,7 @@ import {
 import clsx from 'clsx';
 import { StatCard, TierIcon } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
+import PayoutsCard from './PayoutsCard';
 import { analyticsApi, ordersApi, subscriptionApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatCurrency } from '../../utils';
@@ -226,10 +227,10 @@ export default function AnalyticsPage() {
       ...topProducts.map((p) => [p.productName, p.totalSold, p.revenue]),
       [],
       ['Orders'],
-      ['Order', 'Shop', 'Status', 'Date', 'Gross', 'Commission', 'Net payout'],
+      ['Order', 'Shop', 'Status', 'Date', 'Order total', 'Platform fee (paid by shop)', 'Your earnings'],
       ...orders.map((o) => [
         o.orderNumber, o.shopName, o.status, new Date(o.createdAt).toLocaleDateString('en-ZA'),
-        o.total.toFixed(2), o.platformCommission.toFixed(2), (o.subtotal - o.platformCommission).toFixed(2),
+        o.total.toFixed(2), o.platformCommission.toFixed(2), (o.subtotal + o.deliveryFee).toFixed(2),
       ]),
     ];
     downloadCsv(`spazasure-analytics-${new Date().toISOString().slice(0, 10)}.csv`, rows);
@@ -256,6 +257,8 @@ export default function AnalyticsPage() {
         <StatCard title="Active Products" value={s?.activeProducts ?? 0} icon={<Package size={20} />} />
         <StatCard title="Avg Order Value" value={s?.avgOrderValue ?? 0} prefix="R " icon={<TrendingUp size={20} />} variant="amber" />
       </div>
+
+      <PayoutsCard />
 
       {/* Subscription Tier Commission Impact (real plans + this month's delivered orders) */}
       {plans.length > 0 && (
@@ -454,8 +457,8 @@ export default function AnalyticsPage() {
                 <tr className="border-b border-gray-50 bg-gray-50/50">
                   <th className="table-header">Order</th>
                   <th className="table-header">Shop</th>
-                  <th className="table-header text-right">Gross</th>
-                  <th className="table-header text-right">Net</th>
+                  <th className="table-header text-right">Order total</th>
+                  <th className="table-header text-right">Your earnings</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,7 +471,7 @@ export default function AnalyticsPage() {
                     <td className="table-cell text-gray-600">{o.shopName}</td>
                     <td className="table-cell text-right font-semibold">{formatCurrency(o.total)}</td>
                     <td className="table-cell text-right font-bold text-emerald-700">
-                      {formatCurrency(o.subtotal - o.platformCommission)}
+                      {formatCurrency(o.subtotal + o.deliveryFee)}
                     </td>
                   </tr>
                 ))}

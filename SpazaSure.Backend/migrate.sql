@@ -1426,8 +1426,17 @@ VALUES
     ('20261013130000_AddCustomerRegistrationPreferences', '8.0.0'),
     ('20261014120000_AddShopRegistrationDetails', '8.0.0'),
     ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0'),
-    ('20261014152615_AddFaqs', '8.0.0')
+    ('20261014152615_AddFaqs', '8.0.0'),
+    ('20261014154448_AddOrderPayoutTracking', '8.0.0')
 ON CONFLICT DO NOTHING;
+
+-- Supplier payout tracking: when an order was delivered and when the supplier was paid for it.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_out_at timestamp with time zone;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_reference text;
+-- Orders delivered before this column existed: use their last update as the delivery time.
+UPDATE orders SET delivered_at = COALESCE(updated_at, created_at)
+WHERE status = 'delivered' AND delivered_at IS NULL;
 
 -- FAQs shown on the supplier Subscription page (managed in Admin > Settings > FAQs).
 CREATE TABLE IF NOT EXISTS faqs (

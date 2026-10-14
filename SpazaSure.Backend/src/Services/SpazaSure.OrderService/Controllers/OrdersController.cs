@@ -212,6 +212,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
 
         order.Status = req.Status;
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
+        if (req.Status == "delivered") order.DeliveredAt ??= DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         // Notify the shop owner about the status change

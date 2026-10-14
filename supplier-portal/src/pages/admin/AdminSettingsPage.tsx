@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { adminSettingsApi, faqApi } from '../../services/api';
-import type { FaqItem } from '../../services/api';
+import { adminSettingsApi, faqApi, subscriptionApi } from '../../services/api';
+import type { FaqItem, PlatformRules } from '../../services/api';
 
 interface TierConfig {
   tier: string;
@@ -48,15 +48,13 @@ const DEFAULT_FAQS: Omit<FaqItem, 'id'>[] = [
 
 export default function AdminSettingsPage() {
   const [tiers, setTiers] = useState<TierConfig[]>(defaultTiers);
-  const [platformFee, setPlatformFee] = useState('3.5');
   const [onboardingFee, setOnboardingFee] = useState('150.00');
   const [settingsLoading, setSettingsLoading] = useState(true);
-  const [deliveryFeeMin, setDeliveryFeeMin] = useState('150');
-  const [deliveryFeeMax, setDeliveryFeeMax] = useState('250');
-  const [payoutDays, setPayoutDays] = useState('3');
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [newSupplierApproval, setNewSupplierApproval] = useState(true);
-  const [autoApproveProducts, setAutoApproveProducts] = useState(false);
+  // Platform rules (fees, payouts, operations) — saved via /admin/settings/platform
+  const [rules, setRules] = useState<PlatformRules | null>(null);
+  const [savedRules, setSavedRules] = useState<PlatformRules | null>(null);
+  const [rulesSaving, setRulesSaving] = useState(false);
+  const maintenanceMode = savedRules?.maintenanceMode ?? false;
   const [saving, setSaving] = useState(false);
 
   // FAQ state
@@ -70,6 +68,37 @@ export default function AdminSettingsPage() {
 
   const updateTier = (tier: string, field: keyof TierConfig, value: string | number) => {
     setTiers((prev) => prev.map((t) => t.tier === tier ? { ...t, [field]: value } : t));
+  };
+
+  useEffect(() => {
+    adminSettingsApi.getPlatform()
+      .then((r) => { setRules(r); setSavedRules(r); })
+      .catch(() => undefined);
+    // Real plans (read-only here: prices are charged through Paystack plans)
+    subscriptionApi.getPlans()
+      .then((res) => {
+        const plans = (res?.data ?? res ?? []) as any[];
+        if (!Array.isArray(plans) || plans.length === 0) return;
+        setTiers(defaultTiers.map((t) => {
+          const p = plans.find((x) => x.tier === t.tier);
+          return p ? { ...t, monthlyFee: Number(p.monthlyPrice), commissionRate: Number(p.commissionRate), maxListings: Number(p.maxListings) } : t;
+        }));
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const saveRules = async (next: PlatformRules) => {
+    setRulesSaving(true);
+    try {
+      const saved = await adminSettingsApi.updatePlatform(next);
+      setRules(saved);
+      setSavedRules(saved);
+      toast.success('Settings saved');
+    } catch {
+      // error toast handled by api interceptor
+    } finally {
+      setRulesSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -214,7 +243,7 @@ export default function AdminSettingsPage() {
       {maintenanceMode && (
         <div className="warning-box flex items-center gap-3">
           <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
-          <p><strong>Maintenance mode is ON.</strong> The platform is currently inaccessible to suppliers and spaza shops.</p>
+          <p><strong>Maintenance mode is ON.</strong> Shops and suppliers are currently blocked. Turn it off under Operations.</p>
         </div>
       )}
 
@@ -237,9 +266,10 @@ export default function AdminSettingsPage() {
       {/* Subscription Tiers */}
       {activeTab === 'Subscription Tiers' && (
         <div className="space-y-4 animate-in">
-          <NotConnectedNote>
-            Plan pricing is read-only here. These values are not saved by the backend yet; supplier plans are configured on the server.
-          </NotConnectedNote>
+          <div className="info-box">
+            These are the live plans. Prices are charged through the matching Paystack plans, so change a price in Paystack first,
+            then update the plan in the database. Editing prices here would make renewals fail.
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tiers.map((t) => (
               <div key={t.tier} className={`card p-5 border-2 ${t.color}`}>
@@ -285,47 +315,63 @@ export default function AdminSettingsPage() {
 
       {/* Platform Fees */}
       {activeTab === 'Platform Fees' && (
-        <div className="card p-6 animate-in space-y-5">
-          <h2 className="font-bold text-gray-900">Fee Configuration</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="space-y-5 animate-in">
+          <div className="card p-6 space-y-5">
             <div>
-              <label className="label">Shop Onboarding Fee (R)</label>
-              <input
-                type="number"
-                min="0"
-                max="100000"
-                step="0.01"
-                value={onboardingFee}
-                disabled={settingsLoading}
-                onChange={(e) => setOnboardingFee(e.target.value)}
-                className="input"
-              />
-              <p className="text-xs text-gray-400 mt-1.5">Once-off amount charged to new shop owners. R0 waives the fee.</p>
-              <button onClick={handleSave} disabled={saving || settingsLoading} className="mt-3 bg-brand-blue hover:bg-brand-blue-dark text-white px-4 py-2 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm">
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {saving ? 'Saving...' : 'Save onboarding fee'}
+              <h2 className="section-title">Shop onboarding fee</h2>
+              <p className="text-xs text-ink-3 mt-1">Once-off amount charged to new shop owners. R0 waives the fee.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3 max-w-md">
+              <div className="flex-1">
+                <label className="label">Amount (R)</label>
+                <input type="number" min="0" max="100000" step="0.01" value={onboardingFee}
+                  disabled={settingsLoading} onChange={(e) => setOnboardingFee(e.target.value)} className="input" />
+              </div>
+              <button onClick={handleSave} disabled={saving || settingsLoading} className="btn-primary">
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save
               </button>
             </div>
-            <div className="sm:col-span-2">
-              <NotConnectedNote>The fields below are shown for reference only and are not saved yet.</NotConnectedNote>
-            </div>
+          </div>
+
+          <div className="card p-6 space-y-5">
             <div>
-              <label className="label">Platform Transaction Fee (%)</label>
-              <input type="number" step="0.1" value={platformFee} onChange={(e) => setPlatformFee(e.target.value)} disabled className="input" />
-              <p className="text-xs text-gray-400 mt-1.5">Applied on top of supplier commission per order</p>
+              <h2 className="section-title">Order fees & payouts</h2>
+              <p className="text-xs text-ink-3 mt-1">Applied to new orders as soon as you save. Existing orders keep the fees they were placed with.</p>
             </div>
-            <div>
-              <label className="label">Supplier Payout Delay (days)</label>
-              <input type="number" min="1" max="30" value={payoutDays} onChange={(e) => setPayoutDays(e.target.value)} disabled className="input" />
-              <p className="text-xs text-gray-400 mt-1.5">Days after delivery before payout is released</p>
-            </div>
-            <div>
-              <label className="label">Min Delivery Fee (R)</label>
-              <input type="number" value={deliveryFeeMin} onChange={(e) => setDeliveryFeeMin(e.target.value)} disabled className="input" />
-            </div>
-            <div>
-              <label className="label">Max Delivery Fee (R)</label>
-              <input type="number" value={deliveryFeeMax} onChange={(e) => setDeliveryFeeMax(e.target.value)} disabled className="input" />
-            </div>
+            {!rules ? (
+              <div className="flex items-center gap-2 text-sm text-ink-3"><Loader2 size={16} className="animate-spin" /> Loading settings...</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {([
+                    { key: 'standardDeliveryFee', label: 'Standard delivery fee (R)', hint: 'Per supplier on each order. Pickup is always free.', step: '1', max: 5000 },
+                    { key: 'expressDeliveryFee', label: 'Express delivery fee (R)', hint: 'Per supplier, same-day delivery.', step: '1', max: 5000 },
+                    { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance × rate.', step: '1', max: 5000 },
+                    { key: 'groupBuyPerKmRate', label: 'Group-buy rate per km (R)', hint: 'Straight-line distance from supplier to shop.', step: '0.5', max: 500 },
+                    { key: 'shopServiceFeePercent', label: 'Shop service fee (%)', hint: 'Extra % of the product subtotal, charged to the shop on top of the supplier\'s tier commission. 0 = off.', step: '0.1', max: 20 },
+                    { key: 'payoutDelayDays', label: 'Supplier payout delay (days)', hint: 'Days after delivery before the supplier\'s money becomes available to pay out.', step: '1', max: 60 },
+                  ] as const).map(({ key, label, hint, step, max }) => (
+                    <div key={key}>
+                      <label className="label" htmlFor={key}>{label}</label>
+                      <input id={key} type="number" min="0" max={max} step={step} className="input"
+                        value={rules[key]}
+                        onChange={(e) => setRules({ ...rules, [key]: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                      <p className="text-xs text-ink-3 mt-1.5">{hint}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="info-box">
+                  <strong>How an order is charged:</strong> products + delivery (R{rules.standardDeliveryFee} standard / R{rules.expressDeliveryFee} express)
+                  + supplier tier commission{rules.shopServiceFeePercent > 0 ? ` + ${rules.shopServiceFeePercent}% service fee` : ''}.
+                  The supplier is paid the products + delivery, {rules.payoutDelayDays} day{rules.payoutDelayDays === 1 ? '' : 's'} after delivery.
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => saveRules(rules)} disabled={rulesSaving} className="btn-primary">
+                    {rulesSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save fees & payouts
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -333,50 +379,73 @@ export default function AdminSettingsPage() {
       {/* Operations */}
       {activeTab === 'Operations' && (
         <div className="card p-6 animate-in space-y-5">
-          <h2 className="font-bold text-gray-900">Platform Operations</h2>
-          <NotConnectedNote>
-            These switches are not connected to the platform yet, so changing them has no effect.
-          </NotConnectedNote>
-          <div className="space-y-4">
-            {[
-              {
-                label: 'Maintenance Mode',
-                description: 'Disables access for all suppliers and spaza shops. Use during deployments.',
-                value: maintenanceMode,
-                onChange: setMaintenanceMode,
-                danger: true,
-              },
-              {
-                label: 'Require Manual Supplier Approval',
-                description: 'New supplier registrations require admin review before they can list products.',
-                value: newSupplierApproval,
-                onChange: setNewSupplierApproval,
-                danger: false,
-              },
-              {
-                label: 'Auto-Approve Products',
-                description: 'Products submitted by verified suppliers are automatically approved without admin review.',
-                value: autoApproveProducts,
-                onChange: setAutoApproveProducts,
-                danger: false,
-              },
-            ].map(({ label, description, value, onChange, danger }) => (
-              <div key={label} className={clsx('flex items-center justify-between p-4 rounded-xl border-2 transition-all',
-                danger && value ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'
-              )}>
-                <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2">
-                    {danger && <Shield size={14} className="text-red-500 flex-shrink-0" />}
-                    <p className="text-sm font-bold text-gray-900">{label}</p>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-                </div>
-                <button disabled aria-disabled="true" title="Not connected yet" onClick={() => onChange(!value)} className={clsx('transition-colors flex-shrink-0 cursor-not-allowed opacity-60', value ? (danger ? 'text-red-500' : 'text-emerald-600') : 'text-gray-300')}>
-                  {value ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+          <div>
+            <h2 className="section-title">Platform operations</h2>
+            <p className="text-xs text-ink-3 mt-1">Switches take effect within about 15 seconds of saving.</p>
+          </div>
+          {!rules ? (
+            <div className="flex items-center gap-2 text-sm text-ink-3"><Loader2 size={16} className="animate-spin" /> Loading settings...</div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {([
+                  {
+                    key: 'maintenanceMode', danger: true, label: 'Maintenance mode',
+                    description: 'Shops and suppliers see the message below instead of using the platform. Admins, sign-in and Paystack payment notifications keep working.',
+                  },
+                  {
+                    key: 'requireSupplierApproval', danger: false, label: 'Require manual supplier approval',
+                    description: 'New suppliers stay hidden from shops until an admin verifies them. When off, they go live immediately as unverified suppliers.',
+                  },
+                  {
+                    key: 'autoApproveVerifiedSupplierProducts', danger: false, label: 'Auto-approve products from verified suppliers',
+                    description: 'New products from verified suppliers go live without admin review. Unverified suppliers\' products always need review.',
+                  },
+                ] as const).map(({ key, danger, label, description }) => {
+                  const value = rules[key];
+                  return (
+                    <div key={key} className={clsx('flex items-center justify-between gap-4 p-4 rounded-2xl border-2 transition-all',
+                      danger && value ? 'bg-red-50 border-red-200' : 'bg-surface border-brand-blue-light')}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {danger && <Shield size={14} className="text-red-500 flex-shrink-0" />}
+                          <p className="text-sm font-bold text-gray-900">{label}</p>
+                        </div>
+                        <p className="text-xs text-ink-2 mt-0.5">{description}</p>
+                      </div>
+                      <button
+                        role="switch" aria-checked={value} aria-label={label}
+                        onClick={() => setRules({ ...rules, [key]: !value })}
+                        className={clsx('transition-colors flex-shrink-0', value ? (danger ? 'text-red-500' : 'text-emerald-600') : 'text-gray-300')}
+                      >
+                        {value ? <ToggleRight size={34} /> : <ToggleLeft size={34} />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div>
+                <label className="label" htmlFor="maintenanceMessage">Maintenance message</label>
+                <textarea id="maintenanceMessage" rows={2} maxLength={300} className="input resize-none"
+                  value={rules.maintenanceMessage}
+                  onChange={(e) => setRules({ ...rules, maintenanceMessage: e.target.value })} />
+                <p className="text-xs text-ink-3 mt-1.5">Shown to shops and suppliers while maintenance mode is on.</p>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    if (rules.maintenanceMode && !savedRules?.maintenanceMode
+                      && !confirm('Turn on maintenance mode? Shops and suppliers will be blocked until you turn it off.')) return;
+                    saveRules(rules);
+                  }}
+                  disabled={rulesSaving}
+                  className="btn-primary"
+                >
+                  {rulesSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save operations
                 </button>
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       )}
 
