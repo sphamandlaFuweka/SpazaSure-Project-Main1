@@ -42,7 +42,7 @@ const DEFAULT_FAQS: Omit<FaqItem, 'id'>[] = [
   { question: 'Can I downgrade my plan?', answer: 'Yes. You can cancel at any time. Cancellation ends your paid plan immediately and reverts to Basic (free).', sortOrder: 1, isActive: true },
   { question: 'How does the commission rate work?', answer: 'SpazaSure takes a percentage of each order total. Higher tiers have lower rates — Gold saves the most for high-volume suppliers.', sortOrder: 2, isActive: true },
   { question: 'What payment methods are accepted?', answer: 'Paid supplier plans are processed securely through Paystack in South African rand. Available payment methods are shown during checkout.', sortOrder: 3, isActive: true },
-  { question: 'Is there a free trial?', answer: 'All paid plans include a 14-day free trial. No credit card required. Your tier upgrades immediately and billing only starts after the trial.', sortOrder: 4, isActive: true },
+  { question: 'Is there a free trial?', answer: 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Paystack checkout and renews each billing period until you cancel.', sortOrder: 4, isActive: true },
   { question: 'Can I pay annually?', answer: 'Yes — annual billing saves you 2 months compared to monthly. The full year is billed upfront at the discounted rate.', sortOrder: 5, isActive: true },
 ];
 
@@ -110,15 +110,12 @@ export default function AdminSettingsPage() {
     try {
       const res = await faqApi.listAll();
       const items = res?.data ?? res ?? [];
-      setFaqsFromApi(Array.isArray(items) && items.length > 0);
-      if (items.length > 0) {
-        setFaqs(items);
-      } else {
-        // Initialize with defaults if no FAQs exist yet
-        setFaqs(DEFAULT_FAQS.map((f, i) => ({ ...f, id: `default-${i}` })));
-      }
+      // The FAQ service answered, so show exactly what it holds (even an empty list)
+      setFaqsFromApi(true);
+      setFaqs(Array.isArray(items) ? items : []);
     } catch {
-      // If API isn't available yet, use defaults
+      // Service unreachable: show the built-in FAQs suppliers fall back to, read-only
+      setFaqsFromApi(false);
       setFaqs(DEFAULT_FAQS.map((f, i) => ({ ...f, id: `default-${i}` })));
     } finally {
       setFaqsLoading(false);

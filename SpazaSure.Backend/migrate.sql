@@ -1425,8 +1425,34 @@ VALUES
     ('20261012234836_AddSupplierStripeSubscriptions', '8.0.0'),
     ('20261013130000_AddCustomerRegistrationPreferences', '8.0.0'),
     ('20261014120000_AddShopRegistrationDetails', '8.0.0'),
-    ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0')
+    ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0'),
+    ('20261014152615_AddFaqs', '8.0.0')
 ON CONFLICT DO NOTHING;
+
+-- FAQs shown on the supplier Subscription page (managed in Admin > Settings > FAQs).
+CREATE TABLE IF NOT EXISTS faqs (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    question text NOT NULL,
+    answer text NOT NULL,
+    sort_order integer NOT NULL DEFAULT 0,
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_faqs PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_faqs_sort_order ON faqs(sort_order);
+
+-- Seed the starter FAQs only once (when the table is empty), so admin edits and deletions stick.
+INSERT INTO faqs (id, question, answer, sort_order, is_active, created_at, updated_at)
+SELECT gen_random_uuid(), seed.question, seed.answer, seed.sort_order, true, NOW(), NOW()
+FROM (VALUES
+  ('Can I downgrade my plan?', 'Yes. You can cancel at any time. Cancellation stops automatic billing immediately and your account returns to Basic (free).', 1),
+  ('How does the commission rate work?', 'SpazaSure takes a percentage of each order total. Higher tiers have lower rates, so Gold saves the most for high-volume suppliers.', 2),
+  ('What payment methods are accepted?', 'Paid supplier plans are processed securely through Paystack in South African rand. Available payment methods are shown during checkout.', 3),
+  ('Is there a free trial?', 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Paystack checkout and renews each billing period until you cancel.', 4),
+  ('Can I pay annually?', 'Yes. Annual billing saves you 2 months compared to monthly. The full year is billed upfront at the discounted rate.', 5)
+) AS seed(question, answer, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM faqs);
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.
 INSERT INTO platform_settings (id, key, value, created_at, updated_at)

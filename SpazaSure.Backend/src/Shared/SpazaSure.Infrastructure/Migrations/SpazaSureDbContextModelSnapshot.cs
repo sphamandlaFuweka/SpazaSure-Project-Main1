@@ -453,6 +453,48 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("customer_vouchers", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Faq", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("answer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("question");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_faqs");
+
+                    b.HasIndex("SortOrder")
+                        .HasDatabaseName("ix_faqs_sort_order");
+
+                    b.ToTable("faqs", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuy", b =>
                 {
                     b.Property<Guid>("Id")

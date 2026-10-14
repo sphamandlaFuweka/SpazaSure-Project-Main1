@@ -29,6 +29,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<GroupBuyParticipant> GroupBuyParticipants => Set<GroupBuyParticipant>();
     public DbSet<GroupBuyParticipantItem> GroupBuyParticipantItems => Set<GroupBuyParticipantItem>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<Faq> Faqs => Set<Faq>();
     public DbSet<ShopOnboardingPayment> ShopOnboardingPayments => Set<ShopOnboardingPayment>();
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
     public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
@@ -343,6 +344,12 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("platform_settings");
             e.HasIndex(s => s.Key).IsUnique();
+        });
+
+        model.Entity<Faq>(e =>
+        {
+            e.ToTable("faqs");
+            e.HasIndex(f => f.SortOrder);
         });
 
         model.Entity<ShopOnboardingPayment>(e =>

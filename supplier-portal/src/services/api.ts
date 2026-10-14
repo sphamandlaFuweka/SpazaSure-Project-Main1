@@ -524,7 +524,7 @@ export const faqApi = {
 
   /** Get all FAQs including inactive (admin) */
   listAll: () =>
-    api.get('/admin/faqs').then((r) => r.data).catch(() => ({ data: [] })),
+    api.get('/admin/faqs').then((r) => r.data),
 
   /** Create a new FAQ */
   create: (data: { question: string; answer: string; sortOrder?: number }) =>
