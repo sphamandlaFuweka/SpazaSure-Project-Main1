@@ -28,7 +28,9 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const segments = location.pathname.split('/').filter(Boolean);
-  const currentPage = breadcrumbMap[segments[0]] ?? 'Dashboard';
+  const currentPage = segments[0] === 'subscription' && user?.tier === 'gold'
+    ? 'Subscription'
+    : breadcrumbMap[segments[0]] ?? 'Dashboard';
 
   return (
     <div className="flex min-h-[100dvh] bg-surface">

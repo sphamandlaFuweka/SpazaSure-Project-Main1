@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ImageIcon, Upload, Link2, X, Barcode, Download, Printer, CheckCircle2, Loader2 } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import type { Product } from '../../types';
 import { Modal } from '../../components/ui';
@@ -13,7 +13,6 @@ const schema = z.object({
   description:   z.string().min(10, 'Min 10 characters'),
   sku:           z.string().min(3, 'Required'),
   price:         z.coerce.number().positive('Must be positive'),
-  discountPrice: z.coerce.number().optional(),
   categoryId:    z.string().optional().default(''),
   categoryName:  z.string().optional().default(''),
   stockQuantity: z.coerce.number().int().min(0),
@@ -21,22 +20,8 @@ const schema = z.object({
   imageUrl:      z.string().url('Must be a valid URL')
                    .or(z.string().startsWith('data:image/', 'Must be a valid image'))
                    .or(z.literal('')),
-  supplierId:    z.string().default('sup-001'),
-  supplierName:  z.string().default('Fresh Foods SA'),
 });
 type FormData = z.infer<typeof schema>;
-
-const categories = [
-  { id: 'c1', name: 'Cooking Oils' },
-  { id: 'c2', name: 'Grains & Cereals' },
-  { id: 'c3', name: 'Sugar & Sweeteners' },
-  { id: 'c4', name: 'Sauces & Condiments' },
-  { id: 'c5', name: 'Beverages' },
-  { id: 'c6', name: 'Dairy' },
-  { id: 'c7', name: 'Snacks' },
-  { id: 'c8', name: 'Personal Care' },
-  { id: 'c9', name: 'Cleaning Products' },
-];
 
 interface BarcodeResult {
   productId:   string;
@@ -57,13 +42,21 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     resolver: zodResolver(schema),
     defaultValues: product ? {
       name: product.name, description: product.description, sku: product.sku,
-      price: product.price, discountPrice: product.discountPrice,
+      price: product.price,
       categoryId: product.categoryId, categoryName: product.categoryName,
       stockQuantity: product.stockQuantity, minOrderQty: product.minOrderQty,
-      imageUrl: product.imageUrl, supplierId: product.supplierId ?? 'sup-001',
-      supplierName: product.supplierName ?? 'Fresh Foods SA',
-    } : { minOrderQty: 1, stockQuantity: 0, imageUrl: '', supplierId: 'sup-001', supplierName: 'Fresh Foods SA' },
+      imageUrl: product.imageUrl,
+    } : { minOrderQty: 1, stockQuantity: 0, imageUrl: '' },
   });
+
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    productsApi.categories()
+      .then((list) => { if (!cancelled) setCategories(list); })
+      .catch(() => { /* category is optional; the dropdown just stays empty */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const [imgTab,    setImgTab]    = useState<'upload' | 'url'>(product?.imageUrl ? 'url' : 'upload');
   const [dragOver,  setDragOver]  = useState(false);
@@ -97,35 +90,22 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     setSaving(true);
     try {
       if (product) {
-        // Editing — update then fetch barcode
+        // Editing — the page saves, shows the toast and closes the modal
         await onSave(saved);
-        try {
-          const res: any = await productsApi.getBarcode(product.id);
-          const d = res.data ?? res;
-          setBarcodeResult(d);
-        } catch {
-          toast.success('Product updated');
-        }
       } else {
         // Creating — call API directly so we get the real product ID back
         const created: any = await productsApi.create(saved as any);
         onSave(created);
         const productId = created?.id ?? created?.data?.id;
-        if (productId) {
-          try {
-            const res: any = await productsApi.getBarcode(productId);
-            const d = res.data ?? res;
-            setBarcodeResult(d);
-            toast.success('Product saved! Barcode generated');
-          } catch {
-            const local = generateLocalBarcode(data.name, data.sku);
-            setBarcodeResult(local);
-            toast.success('Product saved! Barcode generated locally');
-          }
-        } else {
-          const local = generateLocalBarcode(data.name, data.sku);
-          setBarcodeResult(local);
-          toast.success('Product saved');
+        try {
+          if (!productId) throw new Error('No product id returned');
+          const res: any = await productsApi.getBarcode(productId);
+          setBarcodeResult(res.data ?? res);
+          toast.success('Product submitted for approval. Barcode generated.');
+        } catch {
+          // The product is saved; its barcode can be opened later from the product list
+          toast.success('Product submitted for approval');
+          onClose();
         }
       }
     } catch (err: any) {
@@ -138,47 +118,6 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
       setSaving(false);
     }
   };
-
-  function generateLocalBarcode(name: string, sku: string): BarcodeResult {
-    // Deterministic 11-digit seed from sku + timestamp
-    const seed = Math.abs(
-      sku.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 1000 + Date.now() % 10000
-    ) % 100_000_000_000;
-    const d11 = seed.toString().padStart(11, '0').slice(0, 11);
-    const check = calcCheck(d11);
-    const ean13 = d11 + check;
-    return { productId: 'local', productName: name, sku, barcode: ean13, barcodeSvg: buildSvg(ean13) };
-  }
-
-  function calcCheck(d11: string): string {
-    let sum = 0;
-    for (let i = 0; i < 11; i++) sum += parseInt(d11[i]) * (i % 2 === 0 ? 1 : 3);
-    const r = sum % 10;
-    return (r === 0 ? 0 : 10 - r).toString();
-  }
-
-  function buildSvg(ean13: string): string {
-    const L = ['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
-    const G = ['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'];
-    const R = ['1110010','1100110','1101100','1000010','1011100','1001110','1010000','1000100','1001000','1110100'];
-    const P = ['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
-    const first = parseInt(ean13[0]);
-    const par = P[first];
-    let bits = '101';
-    for (let i = 1; i <= 6; i++) { const d = parseInt(ean13[i]); bits += par[i-1] === 'L' ? L[d] : G[d]; }
-    bits += '01010';
-    for (let i = 7; i <= 12; i++) bits += R[parseInt(ean13[i])];
-    bits += '101';
-    const bw = 2, bh = 80, qz = 10, fs = 11, th = 16;
-    const tw = bits.length * bw + qz * 2, totalH = bh + th;
-    let rects = '';
-    for (let i = 0; i < bits.length; i++)
-      if (bits[i] === '1') rects += `<rect x="${qz + i * bw}" y="0" width="${bw}" height="${bh}" fill="#000"/>`;
-    const ty = bh + fs + 2;
-    const lx = qz + (3 + 21) * bw;
-    const rx = qz + (3 + 42 + 5 + 21) * bw;
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${tw}" height="${totalH}" viewBox="0 0 ${tw} ${totalH}"><rect width="${tw}" height="${totalH}" fill="white"/>${rects}<text x="${qz-2}" y="${ty}" font-family="monospace" font-size="${fs}" text-anchor="middle">${ean13[0]}</text><text x="${lx}" y="${ty}" font-family="monospace" font-size="${fs}" text-anchor="middle" letter-spacing="1">${ean13.slice(1,7)}</text><text x="${rx}" y="${ty}" font-family="monospace" font-size="${fs}" text-anchor="middle" letter-spacing="1">${ean13.slice(7)}</text></svg>`;
-  }
 
   // ── Print ────────────────────────────────────────────────────────────────────
   function handlePrint() {
@@ -356,14 +295,6 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
               <input {...register('price')} type="number" step="0.01" className={`input pl-7 ${errors.price ? 'input-error' : ''}`} placeholder="45.99" />
             </div>
             {errors.price && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.price.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">Discount Price <span className="text-gray-400 font-normal text-xs">(optional)</span></label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-2.5 text-gray-400 text-sm font-semibold">R</span>
-              <input {...register('discountPrice')} type="number" step="0.01" className="input pl-7" placeholder="39.99" />
-            </div>
           </div>
 
           <div>

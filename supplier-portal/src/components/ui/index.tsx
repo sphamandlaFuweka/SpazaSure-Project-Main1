@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, X, Zap, Medal, Award, Crown } from 'lucide-react';
 import clsx from 'clsx';
 import type { OrderStatus, PaymentStatus } from '../../types';
@@ -120,6 +120,7 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
 const paymentStatusMap: Record<PaymentStatus, { label: string; className: string }> = {
   initiated: { label: 'Initiated',  className: 'bg-gray-100 text-gray-600 border border-gray-200' },
   pending:   { label: 'Pending',    className: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  paid:      { label: 'Paid',       className: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
   held:      { label: 'In Escrow',  className: 'bg-blue-50 text-blue-700 border border-blue-200' },
   released:  { label: 'Released',   className: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
   failed:    { label: 'Failed',     className: 'bg-red-50 text-red-700 border border-red-200' },
@@ -225,21 +226,12 @@ export function ProgressBar({ value, max, color = 'primary' }: { value: number; 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 export function Avatar({ name, size = 'md', src }: { name: string; size?: 'sm' | 'md' | 'lg'; src?: string }) {
   const sizes = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-base' };
-  if (src) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  if (src && failedSrc !== src) {
     return (
       <div className={clsx('rounded-full overflow-hidden ring-2 ring-primary-100 ring-offset-1 flex-shrink-0', sizes[size])}>
-        <img
-          src={src}
-          alt={name}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            // On image load failure, replace with initials
-            const el = e.currentTarget;
-            el.style.display = 'none';
-            el.parentElement!.classList.add('bg-gradient-card', 'text-white', 'font-bold', 'flex', 'items-center', 'justify-center');
-            el.parentElement!.textContent = name.charAt(0).toUpperCase();
-          }}
-        />
+        {/* On load failure fall back to initials (handled in React state, not by editing the DOM) */}
+        <img src={src} alt={name} className="w-full h-full object-cover" onError={() => setFailedSrc(src)} />
       </div>
     );
   }
@@ -261,8 +253,8 @@ export function SectionHeader({ title, action }: { title: string; action?: React
 }
 
 // ─── Alert Banner ─────────────────────────────────────────────────────────────
-export function AlertBanner({ type, message, onDismiss }: {
-  type: 'info' | 'warning' | 'success' | 'error'; message: string; onDismiss?: () => void;
+export function AlertBanner({ type, message, onDismiss, action }: {
+  type: 'info' | 'warning' | 'success' | 'error'; message: string; onDismiss?: () => void; action?: ReactNode;
 }) {
   const styles = {
     info:    'bg-blue-50 border-blue-200 text-blue-800',
@@ -271,9 +263,12 @@ export function AlertBanner({ type, message, onDismiss }: {
     error:   'bg-red-50 border-red-200 text-red-800',
   };
   return (
-    <div className={clsx('flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium', styles[type])}>
+    <div role={type === 'error' ? 'alert' : 'status'} className={clsx('flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-medium', styles[type])}>
       <span>{message}</span>
-      {onDismiss && <button onClick={onDismiss} className="ml-3 opacity-60 hover:opacity-100"><X size={14} /></button>}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {action}
+        {onDismiss && <button onClick={onDismiss} aria-label="Dismiss" className="opacity-60 hover:opacity-100"><X size={14} /></button>}
+      </div>
     </div>
   );
 }

@@ -44,15 +44,19 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
   const handleLogout = () => { logout(); navigate('/login'); };
 
   // Build nav items with dynamic badge
+  const onTopTier = user?.tier === 'gold';
   const navItems = baseNavItems.map((item) => ({
     ...item,
+    // Gold suppliers have nothing to upgrade to, so show a plain "Subscription" link
+    label: item.to === '/subscription' && onTopTier ? 'Subscription' : item.label,
+    highlight: item.highlight && !onTopTier,
     badge: item.to === '/orders' && pendingCount > 0 ? pendingCount : undefined,
   }));
 
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 overflow-hidden bg-gradient-primary transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
+        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 bg-gradient-primary transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
         mobileOpen ? 'translate-x-0' : '-translate-x-full',
         collapsed ? 'lg:w-[72px]' : 'lg:w-64'
       )}

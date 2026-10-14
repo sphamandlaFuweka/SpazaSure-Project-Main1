@@ -184,7 +184,7 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
         </div>
 
         {/* Actions */}
-        {order.status === 'pending' && (
+        {(order.status === 'pending' || order.status === 'confirmed') && (
           <div className="flex gap-3 pt-2">
             <button
               onClick={() => { onUpdateStatus(order.id, 'processing'); onClose(); }}

@@ -46,15 +46,10 @@ class _WalletScreenState extends State<WalletScreen> {
             [];
       });
     } catch (e) {
-      // Still show wallet UI even if API fails - just with empty data
-      setState(() {
-        _balance = 0;
-        _totalSpent = 0;
-        _totalOrders = 0;
-        _transactions = [];
-      });
+      // Don't show a misleading R 0.00 balance when the wallet failed to load
+      if (mounted) setState(() => _error = 'Unable to load wallet');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -62,8 +57,13 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: !_loading && _error != null
+          ? AppBar(title: const Text('SpazaSure Wallet'))
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? _buildError()
           : RefreshIndicator(
               onRefresh: _loadWallet,
               child: CustomScrollView(
@@ -111,7 +111,7 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Icon(Icons.cloud_off, size: 48, color: AppColors.textHint),
           const SizedBox(height: 12),
-          Text('Unable to load wallet', style: AppTextStyles.body),
+          Text(_error ?? 'Unable to load wallet', style: AppTextStyles.body),
           const SizedBox(height: 8),
           ElevatedButton(onPressed: _loadWallet, child: const Text('Retry')),
         ],
@@ -389,7 +389,6 @@ class _WalletScreenState extends State<WalletScreen> {
     final description = tx['description'] ?? 'Transaction';
     final status = tx['status'] ?? '';
     final date = tx['date'] != null ? DateTime.tryParse(tx['date']) : null;
-    final orderNumber = tx['orderNumber'] ?? '';
     final isDebit = tx['type'] == 'debit';
 
     Color statusColor;
@@ -975,14 +974,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
+                  // Wallet transfers have no backend endpoint yet, so don't
+                  // tell the user money was sent.
                   onPressed: () {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          'Transfer of R${amountCtrl.text.isEmpty ? "0" : amountCtrl.text} to ${phoneCtrl.text} initiated.',
+                        content: const Text(
+                          'Wallet transfers are coming soon. No money was sent.',
                         ),
-                        backgroundColor: AppColors.info,
+                        backgroundColor: AppColors.warning,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -998,7 +999,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Send Transfer',
+                    'Send Transfer (coming soon)',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -1053,14 +1054,10 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(height: 20),
               _statementItem(
-                'June 2026',
+                'All time',
                 'R ${_totalSpent.toStringAsFixed(2)}',
-                '$_totalOrders transactions',
+                '$_totalOrders orders',
               ),
-              const SizedBox(height: 10),
-              _statementItem('May 2026', 'R 0.00', '0 transactions'),
-              const SizedBox(height: 10),
-              _statementItem('April 2026', 'R 0.00', '0 transactions'),
               const SizedBox(height: 20),
               Container(
                 width: double.infinity,

@@ -46,7 +46,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 overflow-hidden transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
+        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
         mobileOpen ? 'translate-x-0' : '-translate-x-full',
         collapsed ? 'lg:w-[72px]' : 'lg:w-64'
       )}

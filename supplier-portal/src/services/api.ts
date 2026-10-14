@@ -46,12 +46,17 @@ function mapProduct(p: any): Product {
     qrCode:        p.barcode ?? '',
     hasQrCode:     p.hasQrCode ?? false,
     isAvailable:   p.isAvailable ?? true,
-    status:        p.isApproved ? 'active' : (p.status ?? 'pending_approval'),
+    unit:          p.unit ?? undefined,
+    isFoodItem:    p.isFoodItem ?? undefined,
+    status:        p.isApproved ? (p.isAvailable === false ? 'archived' : 'active') : (p.status ?? 'pending_approval'),
     rating:        p.rating     ?? 0,
     reviewCount:   p.reviewCount ?? 0,
     createdAt:     p.createdAt  ?? new Date().toISOString(),
   };
 }
+
+const isGuid = (value?: string | null): value is string =>
+  !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
 function tryParseImages(images: any): string[] {
   if (!images) return [];
@@ -116,8 +121,15 @@ const handleError = async (err: any) => {
       ?? err.response?.data?.errors?.join?.(', ')
       ?? `Request failed (${err.response.status})`;
     toast.error(msg);
-  } else if (!err.response && !err.code) {
-    toast.error('Could not reach the API. Check the backend connection.');
+  } else if (!err.response && err.code !== 'ERR_CANCELED') {
+    // Network errors (ERR_NETWORK) and timeouts (ECONNABORTED) have no response.
+    // Dedupe so a page firing several requests shows one toast, not five.
+    toast.error(
+      err.code === 'ECONNABORTED'
+        ? 'The server took too long to respond. Please try again.'
+        : 'Could not reach SpazaSure. Check your internet connection.',
+      { id: 'network-error' },
+    );
   }
 
   return Promise.reject(err);
@@ -158,7 +170,7 @@ export const productsApi = {
       description: data.description || null,
       sku:         data.sku,
       price:       Number(data.price),
-      categoryId:  null,
+      categoryId:  isGuid(data.categoryId) ? data.categoryId : null,
       stockQty:    Number(data.stockQuantity) || 0,
       minOrderQty: Number(data.minOrderQty) || 1,
       unit:        'unit',
@@ -168,21 +180,41 @@ export const productsApi = {
     });
     return mapProduct(res.data?.data ?? res.data);
   },
-  update: async (id: string, data: Partial<ProductFormData>) => {
+  /**
+   * The backend PUT overwrites every field, so anything the form doesn't edit
+   * (availability, unit, food flag, extra images) is carried over from `existing`.
+   */
+  update: async (id: string, data: Partial<ProductFormData>, existing?: Product) => {
+    const otherImages = (existing?.images ?? []).filter((img) => img !== existing?.imageUrl);
     const res = await productApi.put(`/supplier/products/${id}`, {
       name:        data.name,
       description: data.description || null,
       sku:         data.sku,
       price:       Number(data.price),
-      categoryId:  null,
+      categoryId:  isGuid(data.categoryId) ? data.categoryId : (isGuid(existing?.categoryId) ? existing!.categoryId : null),
       stockQty:    Number(data.stockQuantity) || 0,
       minOrderQty: Number(data.minOrderQty) || 1,
-      unit:        'unit',
-      images:      data.imageUrl ? JSON.stringify([data.imageUrl]) : '[]',
-      isAvailable: true,
-      isFoodItem:  false,
+      unit:        existing?.unit ?? 'unit',
+      // null tells the backend to keep the current images
+      images:      data.imageUrl ? JSON.stringify([data.imageUrl, ...otherImages]) : null,
+      isAvailable: existing?.isAvailable ?? true,
+      isFoodItem:  existing?.isFoodItem ?? false,
     });
-    return mapProduct(res.data?.data ?? res.data);
+    const updated = mapProduct(res.data?.data ?? res.data);
+    // The PUT response is the raw entity without the category name or ratings
+    return {
+      ...updated,
+      categoryName: updated.categoryName
+        || (data as { categoryName?: string }).categoryName
+        || (updated.categoryId === existing?.categoryId ? existing?.categoryName ?? '' : ''),
+      rating: existing?.rating ?? updated.rating,
+      reviewCount: existing?.reviewCount ?? updated.reviewCount,
+    };
+  },
+  categories: async (): Promise<{ id: string; name: string }[]> => {
+    const res = await api.get('/shop/marketplace/categories');
+    const d = res.data?.data ?? res.data;
+    return Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name })) : [];
   },
   delete: (id: string) =>
     productApi.delete(`/supplier/products/${id}`).then((r) => r.data),

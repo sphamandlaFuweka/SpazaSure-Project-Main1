@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Package, ShoppingCart, DollarSign, TrendingUp, AlertTriangle,
   CheckCircle, ArrowRight, Clock, Plus, BarChart2, Bell,
   Zap, ArrowUpRight, Activity, Sparkles, Target, Flame,
-  TrendingDown, Eye,
+  TrendingDown, Eye, RefreshCw,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -47,8 +47,17 @@ function useAnimatedCounter(target: number, duration = 1500, delay = 300) {
   return count;
 }
 
+function ChartEmpty({ height, message }: { height: number; message: string }) {
+  return (
+    <div style={{ height }} className="flex flex-col items-center justify-center text-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-6">
+      <BarChart2 size={28} className="text-gray-300 mb-2" />
+      <p className="text-xs text-gray-400 max-w-[220px]">{message}</p>
+    </div>
+  );
+}
+
 const quickActions = [
-  { label: 'Add Product',   icon: Plus,        to: '/products',      color: 'bg-primary-50 text-primary hover:bg-primary-100 border-primary-100' },
+  { label: 'Add Product',   icon: Plus,        to: '/products?new=1', color: 'bg-primary-50 text-primary hover:bg-primary-100 border-primary-100' },
   { label: 'View Orders',   icon: ShoppingCart, to: '/orders',        color: 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100' },
   { label: 'Analytics',     icon: BarChart2,    to: '/analytics',     color: 'bg-violet-50 text-violet-600 hover:bg-violet-100 border-violet-100' },
   { label: 'Notifications', icon: Bell,         to: '/notifications', color: 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-100' },
@@ -56,7 +65,7 @@ const quickActions = [
 
 const PIPELINE_META = [
   { status: 'pending',    label: 'Awaiting Acceptance', color: 'bg-amber-400' },
-  { status: 'processing', label: 'Being Prepared',      color: 'bg-violet-400' },
+  { status: 'processing', label: 'Being Prepared',      color: 'bg-violet-400' }, // includes confirmed
   { status: 'dispatched', label: 'Out for Delivery',    color: 'bg-indigo-400' },
   { status: 'delivered',  label: 'Completed',           color: 'bg-emerald-400' },
 ];
@@ -80,6 +89,10 @@ export default function DashboardPage() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [pipelineCounts, setPipelineCounts] = useState<Record<string, number>>({ pending: 0, processing: 0, dispatched: 0, delivered: 0 });
   const [docs, setDocs] = useState<ComplianceDoc[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => { setLoading(true); setReloadKey((k) => k + 1); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +107,7 @@ export default function DashboardPage() {
         ]);
 
         if (cancelled) return;
+        setLoadFailed([summaryRes, revenueRes, topRes, ordersRes, profileRes].every((r) => r.status === 'rejected'));
 
         if (summaryRes.status === 'fulfilled') {
           const d = (summaryRes.value as any)?.data ?? summaryRes.value;
@@ -156,11 +170,16 @@ export default function DashboardPage() {
           }));
           setRecentOrders(mapped.slice(0, 5));
           const counts = { pending: 0, processing: 0, dispatched: 0, delivered: 0 };
-          mapped.forEach((o) => { if (o.status in counts) (counts as any)[o.status]++; });
+          mapped.forEach((o) => {
+            // "confirmed" orders are accepted but not yet packed, so count them as being prepared
+            const bucket = o.status === 'confirmed' ? 'processing' : o.status;
+            if (bucket in counts) (counts as any)[bucket]++;
+          });
           setPipelineCounts(counts);
         }
 
         if (profileRes.status === 'fulfilled') {
+          setProfileLoaded(true);
           const d = (profileRes.value as any)?.data ?? profileRes.value;
           const rawDocs: any[] = d?.documents ?? [];
           setDocs(rawDocs.map((d: any) => ({
@@ -177,7 +196,7 @@ export default function DashboardPage() {
     };
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   // Animated counters for hero stats (must be called before any conditional returns!)
   const animRevenue = useAnimatedCounter(summary?.totalRevenue ?? 0, 2000, 500);
@@ -190,7 +209,13 @@ export default function DashboardPage() {
   const pendingCount = pipelineCounts.pending;
   const pipelineTotal = Object.values(pipelineCounts).reduce((a, b) => a + b, 0);
   const orderTimeline = PIPELINE_META.map((m) => ({ ...m, count: pipelineCounts[m.status] ?? 0 }));
-  const beePending = docs.some((d) => d.docType === 'bee_certificate' && d.status === 'pending');
+  // Documents that are missing or were rejected block product and order actions
+  const docsNeedingAction = profileLoaded
+    ? DOC_META.filter(({ docType }) => {
+        const doc = docs.find((d) => d.docType === docType);
+        return !doc || doc.status === 'rejected';
+      })
+    : [];
 
   const compact = typeof window !== 'undefined' && window.matchMedia('(max-width: 1366px) and (max-height: 768px)').matches;
 
@@ -234,7 +259,7 @@ export default function DashboardPage() {
             </div>
             <div className="hidden md:flex items-center gap-2.5">
               <button
-                onClick={() => navigate('/products')}
+                onClick={() => navigate('/products?new=1')}
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-300 border border-white/15 backdrop-blur-sm hover:scale-105 hover:shadow-lg"
               >
                 <Plus size={15} /> Add Product
@@ -312,12 +337,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {loadFailed && (
+        <AlertBanner
+          type="error"
+          message="We couldn't load your dashboard data. The numbers below may be out of date."
+          action={
+            <button onClick={reload} className="flex items-center gap-1.5 text-xs font-bold bg-white border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-50">
+              <RefreshCw size={12} /> Try again
+            </button>
+          }
+        />
+      )}
+
       {/* Compliance Alert */}
-      {!alertDismissed && beePending && (
+      {!alertDismissed && docsNeedingAction.length > 0 && (
         <AlertBanner
           type="warning"
-          message="Your BEE Certificate is pending review. Upload it to maintain full compliance and avoid account restrictions."
+          message={`${docsNeedingAction.map((d) => d.label).join(', ')} ${docsNeedingAction.length === 1 ? 'needs' : 'need'} to be uploaded before you can add products or process orders.`}
           onDismiss={() => setAlertDismissed(true)}
+          action={
+            <button onClick={() => navigate('/profile')} className="flex items-center gap-1.5 text-xs font-bold bg-white border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50 whitespace-nowrap">
+              Upload <ArrowRight size={12} />
+            </button>
+          }
         />
       )}
 
@@ -362,6 +404,9 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
+          {revenue.length === 0 ? (
+            <ChartEmpty height={compact ? 170 : 240} message="Revenue will show here once you complete your first orders." />
+          ) : (
           <div className="animate-chart-reveal">
             <ResponsiveContainer width="100%" height={compact ? 170 : 240}>
               <AreaChart data={revenue}>
@@ -382,6 +427,7 @@ export default function DashboardPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          )}
         </div>
 
         {/* Order Pipeline — Enhanced */}
@@ -440,6 +486,9 @@ export default function DashboardPage() {
             <h3 className="font-bold text-gray-900">Top Products</h3>
             <button onClick={() => navigate('/products')} className="text-xs text-primary font-semibold hover:underline">View all</button>
           </div>
+          {topProducts.length === 0 ? (
+            <ChartEmpty height={compact ? 140 : 180} message="Your best sellers will appear here." />
+          ) : (
           <ResponsiveContainer width="100%" height={compact ? 140 : 180}>
             <BarChart data={topProducts} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
@@ -452,6 +501,7 @@ export default function DashboardPage() {
               <Bar dataKey="totalSold" fill="#2E7D52" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         {/* Recent Orders */}
@@ -464,8 +514,15 @@ export default function DashboardPage() {
               </button>
             }
           />
+          {recentOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+              <ShoppingCart size={32} className="text-gray-300 mb-3" />
+              <p className="text-sm font-semibold text-gray-700">No orders yet</p>
+              <p className="text-xs text-gray-400 mt-1 max-w-xs">When spaza shops order your products, the newest ones will show up here.</p>
+            </div>
+          ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/60">
                   <th className="table-header">Order #</th>
@@ -477,7 +534,13 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {recentOrders.map((order, i) => (
-                  <tr key={order.id} className="table-row cursor-pointer animate-table-row" onClick={() => navigate('/orders')}>
+                  <tr
+                    key={order.id}
+                    className="table-row cursor-pointer animate-table-row focus:outline-none focus-visible:bg-primary-50"
+                    tabIndex={0}
+                    onClick={() => navigate(`/orders?order=${order.id}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/orders?order=${order.id}`); }}
+                  >
                     <td className="table-cell font-bold text-primary">{order.orderNumber}</td>
                     <td className="table-cell">
                       <div>
@@ -493,6 +556,7 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       </div>
 

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { ChevronRight, Menu, Shield } from 'lucide-react';
 import AdminSidebar from './AdminSidebar';
 import PageTransition from '../ui/PageTransition';
 import GlobalSearch from '../ui/GlobalSearch';
 import LiveClock from '../ui/LiveClock';
 import NotificationBell from '../ui/NotificationBell';
+import { useAuthStore } from '../../store/authStore';
 
 const breadcrumbMap: Record<string, string> = {
   dashboard:     'Dashboard',
@@ -15,13 +16,14 @@ const breadcrumbMap: Record<string, string> = {
   documents:     'Document Verification',
   products:      'Products',
   orders:        'Orders',
+  reports:       'Reports',
   analytics:     'Analytics',
   notifications: 'Notifications',
   settings:      'Settings',
 };
 
 export default function AdminLayout() {
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -84,11 +86,11 @@ export default function AdminLayout() {
             {/* Admin Avatar */}
             <div className="flex items-center gap-2 pl-2 sm:pl-3 ml-1 border-l border-gray-200/60">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-sm shadow-blue-200 ring-2 ring-blue-100">
-                A
+                {(user?.email ?? 'A').charAt(0).toUpperCase()}
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-bold text-gray-900 leading-tight">Platform Admin</p>
-                <p className="text-[11px] text-gray-400 leading-tight">admin@spazasure.co.za</p>
+                <p className="text-[11px] text-gray-400 leading-tight">{user?.email}</p>
               </div>
             </div>
           </div>

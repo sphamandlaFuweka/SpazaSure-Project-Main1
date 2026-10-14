@@ -35,6 +35,8 @@ export interface Product {
   qrCode: string;
   hasQrCode: boolean;
   isAvailable: boolean;
+  unit?: string;
+  isFoodItem?: boolean;
   status: 'draft' | 'pending_approval' | 'active' | 'archived';
   rating: number;
   reviewCount: number;
@@ -80,7 +82,7 @@ export interface Category {
 
 // Order
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'dispatched' | 'delivered' | 'cancelled' | 'disputed';
-export type PaymentStatus = 'initiated' | 'pending' | 'held' | 'released' | 'failed' | 'refunded';
+export type PaymentStatus = 'initiated' | 'pending' | 'paid' | 'held' | 'released' | 'failed' | 'refunded';
 
 export interface OrderItem {
   productId: string;

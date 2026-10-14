@@ -7,6 +7,7 @@ import 'package:spazasure_app/core/widgets/product_card.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
+import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:spazasure_app/models/models.dart';
@@ -22,14 +23,13 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   bool _walletVisible = false;
   List<Order> _activeOrders = [];
-  bool _loadingProducts = true;
   String? _error;
 
   // Dashboard stats from real data
   int _orderCount = 0;
   String _complianceStatus = '--';
   String _rating = '--';
-  final double _walletBalance = 0;
+  double? _walletBalance;
 
   @override
   void initState() {
@@ -52,10 +52,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _loadingProducts = true;
-      _error = null;
-    });
+    setState(() => _error = null);
     try {
       // Products are now managed by ProductProvider (auto-refreshes)
       final productProvider = context.read<ProductProvider>();
@@ -63,11 +60,12 @@ class _HomeScreenState extends State<HomeScreen>
         await productProvider.loadInitial();
       }
 
-      await _loadOrders();
+      await Future.wait([_loadOrders(), _loadWalletBalance()]);
 
       // Load profile for compliance and rating
       try {
         final profile = await ProfileService.getProfile();
+        if (!mounted) return;
         setState(() {
           _complianceStatus = profile.complianceStatus == 'green'
               ? '100%'
@@ -82,15 +80,29 @@ class _HomeScreenState extends State<HomeScreen>
         });
       } catch (_) {}
     } catch (e) {
-      setState(() => _error = 'Unable to load data. Pull down to refresh.');
-    } finally {
-      setState(() => _loadingProducts = false);
+      if (mounted) {
+        setState(() => _error = 'Unable to load data. Pull down to refresh.');
+      }
+    }
+  }
+
+  Future<void> _loadWalletBalance() async {
+    try {
+      final res = await ApiService.get('/shop/wallet');
+      final data = res['data'] as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(
+        () => _walletBalance = (data['balance'] as num?)?.toDouble() ?? 0,
+      );
+    } catch (_) {
+      if (mounted) setState(() => _walletBalance = null);
     }
   }
 
   Future<void> _loadOrders() async {
     try {
       final orders = await OrderService.getOrders();
+      if (!mounted) return;
       setState(() {
         _activeOrders = orders
             .where((o) => o.status != 'delivered' && o.status != 'cancelled')
@@ -102,15 +114,21 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _onRefresh() async {
     // Pull-to-refresh: force fresh data from backend
-    await context.read<ProductProvider>().refreshAll();
-    await _loadOrders();
+    setState(() => _error = null);
+    try {
+      await context.read<ProductProvider>().refreshAll();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Unable to load data. Pull down to refresh.');
+      }
+    }
+    await Future.wait([_loadOrders(), _loadWalletBalance()]);
   }
 
   @override
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
     final products = productProvider.homeProducts;
-    final categories = productProvider.categories;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F0),
@@ -124,6 +142,8 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             slivers: [
               SliverToBoxAdapter(child: _buildHeader()),
+              if (_error != null)
+                SliverToBoxAdapter(child: _buildErrorBanner(_error!)),
               SliverToBoxAdapter(child: _buildWalletCard()),
               SliverToBoxAdapter(child: _buildKpiRow()),
               SliverToBoxAdapter(child: _buildActiveOrder()),
@@ -464,7 +484,11 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _walletVisible ? 'R 0.00' : 'R ••••••',
+                        !_walletVisible
+                            ? 'R ••••••'
+                            : _walletBalance == null
+                            ? 'R --'
+                            : 'R ${_walletBalance!.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
@@ -527,6 +551,29 @@ class _HomeScreenState extends State<HomeScreen>
         .fadeIn(delay: 100.ms)
         .slideY(begin: 0.08, end: 0, delay: 100.ms, duration: 400.ms);
   }
+
+  Widget _buildErrorBanner(String message) => Container(
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.error.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+          ),
+        ),
+        TextButton(onPressed: _loadData, child: const Text('Retry')),
+      ],
+    ),
+  );
 
   Widget _decorCircle(double size, double opacity) => Container(
     width: size,
@@ -600,6 +647,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildActiveOrder() {
     if (_activeOrders.isEmpty) return const SizedBox.shrink();
     final order = _activeOrders.first;
+    final statusColor = _orderStatusColor(order.status);
     return GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/orders'),
           child: Container(
@@ -662,15 +710,13 @@ class _HomeScreenState extends State<HomeScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.statusDispatched.withValues(
-                          alpha: 0.12,
-                        ),
+                        color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'On the Way',
+                        _orderStatusLabel(order.status),
                         style: TextStyle(
-                          color: AppColors.statusDispatched,
+                          color: statusColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -680,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(height: 16),
                 // Progress steps
-                _buildOrderProgress(),
+                _buildOrderProgress(order.status),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -707,9 +753,24 @@ class _HomeScreenState extends State<HomeScreen>
         .slideY(begin: 0.05, end: 0, delay: 250.ms, duration: 350.ms);
   }
 
-  Widget _buildOrderProgress() {
+  String _orderStatusLabel(String status) => switch (status) {
+    'pending' => 'Awaiting Confirmation',
+    'confirmed' => 'Confirmed',
+    'processing' => 'Being Packed',
+    'dispatched' => 'On the Way',
+    _ => status.isEmpty ? 'In Progress' : status,
+  };
+
+  Color _orderStatusColor(String status) => switch (status) {
+    'dispatched' => AppColors.statusDispatched,
+    'confirmed' || 'processing' => AppColors.info,
+    _ => AppColors.textSecondary,
+  };
+
+  Widget _buildOrderProgress(String status) {
     final steps = ['Confirmed', 'Processing', 'Dispatched', 'Delivered'];
-    const currentStep = 2; // dispatched
+    // -1 = still pending, so no step is complete yet
+    final currentStep = steps.indexWhere((s) => s.toLowerCase() == status);
     return Row(
       children: List.generate(steps.length, (i) {
         final isDone = i <= currentStep;
@@ -796,7 +857,9 @@ class _HomeScreenState extends State<HomeScreen>
         'label': 'Compliance',
         'color': AppColors.warning,
         'route': '/compliance',
-        'badge': '1',
+        'badge': _complianceStatus == '100%' || _complianceStatus == '--'
+            ? null
+            : '!',
       },
       {
         'icon': Icons.local_shipping_outlined,

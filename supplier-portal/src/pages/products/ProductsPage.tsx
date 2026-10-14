@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Product, ComplianceDoc } from '../../types';
@@ -20,6 +20,18 @@ const REQUIRED_DOCS = [
   { docType: 'product_license', label: 'Product License' },
 ];
 
+function ProductImage({ src, alt, className }: { src?: string; alt: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div className={clsx('bg-gray-100 text-gray-300 flex items-center justify-center', className)} aria-label={alt}>
+        <Package size={20} />
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} onError={() => setFailed(true)} className={clsx('object-cover bg-gray-50', className)} />;
+}
+
 const statusFilters = [
   { value: 'all',              label: 'All' },
   { value: 'active',           label: 'Active' },
@@ -36,6 +48,7 @@ const statusStyle: Record<string, string> = {
 
 export default function ProductsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -58,7 +71,9 @@ export default function ProductsPage() {
     const doc = docs.find((d) => d.docType === docType);
     return !doc || doc.status === 'rejected';
   });
-  const isCompliant = complianceChecked && missingDocs.length === 0;
+  // If the profile could not be loaded we don't know the document status, so
+  // don't lock the supplier out (the backend still enforces compliance).
+  const isCompliant = !complianceChecked || missingDocs.length === 0;
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -84,9 +99,8 @@ export default function ProductsPage() {
           status: d.status,
           expiryDate: d.expiryDate,
         })));
+        setComplianceChecked(true);
       }
-
-      setComplianceChecked(true);
     } catch {
       toast.error('Failed to load data');
     } finally {
@@ -102,6 +116,14 @@ export default function ProductsPage() {
       setShowComplianceAlert(true);
     }
   }, [complianceChecked, missingDocs.length]);
+
+  // "Add Product" shortcut from the dashboard: /products?new=1
+  useEffect(() => {
+    if (loading || searchParams.get('new') !== '1') return;
+    searchParams.delete('new');
+    setSearchParams(searchParams, { replace: true });
+    if (isCompliant) { setEditing(null); setShowModal(true); } else { setShowComplianceAlert(true); }
+  }, [loading, searchParams, setSearchParams, isCompliant]);
 
   if (loading) return <PageLoader variant="cards" />;
 
@@ -119,7 +141,9 @@ export default function ProductsPage() {
   const handleToggle = async (id: string) => {
     try {
       await productsApi.toggleAvailability(id);
-      setProducts((prev) => prev.map((p) => p.id === id ? { ...p, isAvailable: !p.isAvailable } : p));
+      setProducts((prev) => prev.map((p) => p.id === id
+        ? { ...p, isAvailable: !p.isAvailable, status: p.status === 'active' ? 'archived' : p.status === 'archived' ? 'active' : p.status }
+        : p));
       toast.success('Availability updated');
     } catch {
       toast.error('Failed to update availability');
@@ -141,12 +165,14 @@ export default function ProductsPage() {
     setSaving(true);
     try {
       if (editing) {
-        const updated = await productsApi.update(editing.id, data as any);
+        const updated = await productsApi.update(editing.id, data as any, editing);
         setProducts((prev) => prev.map((p) => p.id === editing.id ? updated : p));
         toast.success('Product updated');
       } else {
-        // Product already created inside ProductFormModal — just add to list
+        // Product already created inside ProductFormModal — just add to list.
+        // The modal stays open to show the generated barcode.
         setProducts((prev) => [data as Product, ...prev]);
+        return;
       }
       setShowModal(false);
       setEditing(null);
@@ -157,20 +183,38 @@ export default function ProductsPage() {
     }
   };
 
+  const openNewProduct = isCompliant ? () => { setEditing(null); setShowModal(true); } : handleBlockedAction;
+  const isFiltering = search.trim() !== '' || statusFilter !== 'all';
+  const emptyState = isFiltering ? (
+    <EmptyState
+      title="No matching products"
+      description="Try a different search term or status filter."
+      icon={<Search size={40} />}
+      action={<button onClick={() => { setSearch(''); setStatusFilter('all'); }} className="btn-secondary">Clear filters</button>}
+    />
+  ) : (
+    <EmptyState
+      title="No products yet"
+      description="Add your first product to start selling to spaza shops on SpazaSure."
+      icon={<Package size={40} />}
+      action={<button onClick={openNewProduct} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Product</button>}
+    />
+  );
+
   const activeCount = products.filter((p) => p.status === 'active').length;
   const pendingCount = products.filter((p) => p.status === 'pending_approval').length;
   const outOfStock = products.filter((p) => p.stockQuantity === 0).length;
 
   return (
-    <div className="p-6 space-y-5 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 animate-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Products</h1>
-          <p className="page-subtitle">{products.length} products in your catalog</p>
+          <p className="page-subtitle">{products.length} product{products.length === 1 ? '' : 's'} in your catalog</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={loadProducts} className="btn-secondary flex items-center gap-2" title="Refresh">
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={loadProducts} className="btn-secondary flex items-center gap-2" title="Refresh" aria-label="Refresh products">
             <RefreshCw size={14} />
           </button>
           <button
@@ -181,7 +225,7 @@ export default function ProductsPage() {
             <Upload size={14} /> Bulk Upload
           </button>
           <button
-            onClick={isCompliant ? () => { setEditing(null); setShowModal(true); } : handleBlockedAction}
+            onClick={openNewProduct}
             className={clsx('btn-primary flex items-center gap-2', !isCompliant && 'opacity-70')}
           >
             {!isCompliant && <Lock size={12} />}
@@ -192,7 +236,7 @@ export default function ProductsPage() {
 
       {/* Compliance Warning Banner (always visible when not compliant) */}
       {complianceChecked && !isCompliant && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-center gap-4 animate-in">
+        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 animate-in">
           <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <ShieldAlert size={24} className="text-red-600" />
           </div>
@@ -286,18 +330,11 @@ export default function ProductsPage() {
       {viewMode === 'grid' && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.length === 0 ? (
-            <div className="col-span-4">
-              <EmptyState
-                title="No products found"
-                description="Add your first product to start selling on SpazaSure."
-                icon={<Package size={40} />}
-                action={<button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Product</button>}
-              />
-            </div>
+            <div className="col-span-full card">{emptyState}</div>
           ) : filtered.map((p) => (
             <div key={p.id} className="card overflow-hidden hover:shadow-card-hover transition-all duration-200 group">
               <div className="relative">
-                <img src={p.imageUrl} alt={p.name} className="w-full h-36 object-cover bg-gray-50" />
+                <ProductImage src={p.imageUrl} alt={p.name} className="w-full h-36" />
                 <div className="absolute top-2 right-2 flex gap-1">
                   <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full capitalize', statusStyle[p.status] ?? 'bg-gray-100 text-gray-500')}>
                     {p.status.replace('_', ' ')}
@@ -319,7 +356,7 @@ export default function ProductsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                  <button onClick={() => { setEditing(p); setShowModal(true); }} className="flex-1 btn-secondary text-xs py-1.5 flex items-center justify-center gap-1" disabled={!isCompliant}>
+                  <button onClick={isCompliant ? () => { setEditing(p); setShowModal(true); } : handleBlockedAction} className="flex-1 btn-secondary text-xs py-1.5 flex items-center justify-center gap-1">
                     {isCompliant ? <Edit2 size={12} /> : <Lock size={12} />} Edit
                   </button>
                   <button onClick={() => setBarcodeProduct(p)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View QR & Barcode">
@@ -328,10 +365,10 @@ export default function ProductsPage() {
                   <button onClick={() => setCodesProduct(p)} className="p-1.5 text-primary hover:bg-primary-50 rounded-lg transition-colors" title="Authenticity codes">
                     <ShieldCheck size={16} />
                   </button>
-                  <button onClick={() => handleToggle(p.id)} className={clsx('p-1.5 rounded-lg transition-colors', p.isAvailable ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100')}>
+                  <button onClick={() => handleToggle(p.id)} title={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} aria-label={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} className={clsx('p-1.5 rounded-lg transition-colors', p.isAvailable ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100')}>
                     {p.isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
-                  <button onClick={() => handleDelete(p.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                  <button onClick={isCompliant ? () => handleDelete(p.id) : handleBlockedAction} title="Delete" aria-label="Delete product" className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -344,15 +381,9 @@ export default function ProductsPage() {
       {/* List View */}
       {viewMode === 'list' && (
         <div className="card overflow-hidden">
-          {filtered.length === 0 ? (
-            <EmptyState
-              title="No products found"
-              description="Add your first product to start selling on SpazaSure."
-              icon={<Package size={40} />}
-              action={<button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Product</button>}
-            />
-          ) : (
-            <table className="w-full text-sm">
+          {filtered.length === 0 ? emptyState : (
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[820px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80">
                   <th className="table-header">Product</th>
@@ -370,7 +401,7 @@ export default function ProductsPage() {
                   <tr key={p.id} className="table-row">
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
-                        <img src={p.imageUrl} alt={p.name} className="w-11 h-11 rounded-xl object-cover bg-gray-100 flex-shrink-0" />
+                        <ProductImage src={p.imageUrl} alt={p.name} className="w-11 h-11 rounded-xl flex-shrink-0" />
                         <div>
                           <p className="font-semibold text-gray-900">{p.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
@@ -382,7 +413,9 @@ export default function ProductsPage() {
                     </td>
                     <td className="table-cell text-gray-400 font-mono text-xs">{p.sku}</td>
                     <td className="table-cell">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-medium">{p.categoryName}</span>
+                      {p.categoryName
+                        ? <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-medium">{p.categoryName}</span>
+                        : <span className="text-xs text-gray-300">—</span>}
                     </td>
                     <td className="table-cell text-right">
                       <p className="font-bold text-gray-900">R{p.price.toFixed(2)}</p>
@@ -400,7 +433,7 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td className="table-cell text-center">
-                      <button onClick={() => handleToggle(p.id)} className={clsx('transition-colors', p.isAvailable ? 'text-emerald-600' : 'text-gray-300')}>
+                      <button onClick={() => handleToggle(p.id)} title={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} aria-label={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} className={clsx('transition-colors', p.isAvailable ? 'text-emerald-600' : 'text-gray-300')}>
                         {p.isAvailable ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                       </button>
                     </td>
@@ -424,6 +457,7 @@ export default function ProductsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}

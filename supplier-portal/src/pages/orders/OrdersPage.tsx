@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react';
-import { Search, Eye, CheckCircle, XCircle, Truck, ShoppingCart, Clock, Package, DollarSign, Printer, ShieldAlert, FileText, ArrowRight, MapPin } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Eye, CheckCircle, XCircle, Truck, ShoppingCart, Clock, Package, DollarSign, Printer, ShieldAlert, FileText, ArrowRight, MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ordersApi, profileApi } from '../../services/api';
 import type { Order, OrderStatus } from '../../types';
-import { OrderStatusBadge, PaymentStatusBadge, EmptyState } from '../../components/ui';
+import { OrderStatusBadge, PaymentStatusBadge, EmptyState, Modal } from '../../components/ui';
+import { formatCurrency } from '../../utils';
 import PageLoader from '../../components/ui/PageLoader';
 import clsx from 'clsx';
 import OrderDetailModal from './OrderDetailModal';
 import OrderReceiptModal from './OrderReceiptModal';
 import DeliveryTrackingModal from './DeliveryTrackingModal';
 import { useOrderStore } from '../../store/orderStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: 'all',        label: 'All Orders'  },
   { value: 'pending',    label: 'Pending'     },
+  { value: 'confirmed',  label: 'Confirmed'   },
   { value: 'processing', label: 'Processing'  },
   { value: 'dispatched', label: 'Dispatched'  },
   { value: 'delivered',  label: 'Delivered'   },
@@ -85,12 +87,19 @@ export default function OrdersPage() {
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
   const { fetchPendingCount } = useOrderStore();
 
   // Compliance
   const [isCompliant, setIsCompliant] = useState(true);
 
-  useEffect(() => {
+  const loadOrders = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
     Promise.allSettled([
       ordersApi.list({ pageSize: 100 }),
       profileApi.get(),
@@ -98,7 +107,16 @@ export default function OrdersPage() {
       if (ordersRes.status === 'fulfilled') {
         const response = ordersRes.value as any;
         const raw = response?.data?.items ?? response?.data ?? response?.items ?? [];
-        setOrders((Array.isArray(raw) ? raw : []).map(mapOrder));
+        const mapped = (Array.isArray(raw) ? raw : []).map(mapOrder);
+        setOrders(mapped);
+        // Deep link from the dashboard / notifications: /orders?order=<id>
+        const linkedId = searchParams.get('order');
+        if (linkedId) {
+          const linked = mapped.find((o) => o.id === linkedId || o.orderNumber === linkedId);
+          if (linked) setSelected(linked);
+        }
+      } else {
+        setLoadError(true);
       }
       if (profileRes.status === 'fulfilled') {
         const profile = profileRes.value as any;
@@ -110,7 +128,19 @@ export default function OrdersPage() {
         setIsCompliant(missing.length === 0);
       }
     }).finally(() => setLoading(false));
+    // searchParams is only read for the initial deep link
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  const closeDetail = () => {
+    setSelected(null);
+    if (searchParams.has('order')) {
+      searchParams.delete('order');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   if (loading) return <PageLoader variant="table" />;
 
@@ -120,29 +150,49 @@ export default function OrdersPage() {
     return matchSearch && matchStatus;
   });
 
-  const updateStatus = async (id: string, status: OrderStatus) => {
+  const STATUS_MESSAGES: Partial<Record<OrderStatus, string>> = {
+    processing: 'Order accepted. It is now being prepared.',
+    dispatched: 'Order marked as dispatched.',
+    cancelled:  'Order rejected. The shop has been notified.',
+  };
+
+  const applyStatus = async (id: string, status: OrderStatus, reason?: string) => {
+    setUpdatingId(id);
     try {
-      await ordersApi.updateStatus(id, status);
+      await ordersApi.updateStatus(id, status, reason);
       setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
-      toast.success(`Order ${status}`);
+      toast.success(STATUS_MESSAGES[status] ?? `Order ${status}`);
       if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status } : null);
       // Refresh the sidebar badge count immediately
       useOrderStore.setState({ lastFetched: 0 });
       fetchPendingCount();
     } catch {
       // error toast handled by api interceptor
+    } finally {
+      setUpdatingId(null);
     }
   };
 
+  // Rejecting is irreversible, so ask for confirmation (and an optional reason) first
+  const updateStatus = (id: string, status: OrderStatus) => {
+    if (status === 'cancelled') {
+      const order = orders.find((o) => o.id === id);
+      if (order) { setRejectReason(''); setRejecting(order); }
+      return;
+    }
+    void applyStatus(id, status);
+  };
+
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + o.total, 0);
-  const pendingCount = orders.filter((o) => o.status === 'pending').length;
+  const pendingCount = orders.filter((o) => o.status === 'pending' || o.status === 'confirmed').length;
   const processingCount = orders.filter((o) => o.status === 'processing').length;
+  const isFiltering = search.trim() !== '' || statusFilter !== 'all';
 
   return (
-    <div className="p-6 space-y-5 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 animate-in">
       {/* Compliance Warning */}
       {!isCompliant && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 p-5 flex items-center gap-4">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <ShieldAlert size={22} className="text-red-600" />
           </div>
@@ -157,15 +207,26 @@ export default function OrdersPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Orders</h1>
-          <p className="page-subtitle">{orders.length} total orders</p>
+          <p className="page-subtitle">{orders.length} total order{orders.length === 1 ? '' : 's'}</p>
         </div>
+        <button onClick={loadOrders} className="btn-secondary flex items-center gap-2" aria-label="Refresh orders">
+          <RefreshCw size={14} /> Refresh
+        </button>
       </div>
 
+      {loadError && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+          <p className="flex-1 text-sm font-medium text-red-800">We couldn't load your orders. Check your connection and try again.</p>
+          <button onClick={loadOrders} className="btn-secondary text-sm">Try again</button>
+        </div>
+      )}
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
             <Clock size={18} className="text-amber-600" />
@@ -198,7 +259,7 @@ export default function OrdersPage() {
             <DollarSign size={18} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-xl font-black text-gray-900">R{(totalRevenue / 1000).toFixed(1)}k</p>
+            <p className="text-xl font-black text-gray-900">{formatCurrency(totalRevenue)}</p>
             <p className="text-xs text-gray-500 font-medium">Revenue Delivered</p>
           </div>
         </div>
@@ -251,13 +312,23 @@ export default function OrdersPage() {
       {/* Table */}
       <div className="card overflow-hidden">
         {filtered.length === 0 ? (
-          <EmptyState
-            title="No orders found"
-            description="Orders from spaza shops will appear here once placed."
-            icon={<ShoppingCart size={40} />}
-          />
+          isFiltering ? (
+            <EmptyState
+              title="No matching orders"
+              description="Try a different search term or status tab."
+              icon={<Search size={40} />}
+              action={<button onClick={() => { setSearch(''); setStatusFilter('all'); }} className="btn-secondary">Clear filters</button>}
+            />
+          ) : (
+            <EmptyState
+              title="No orders yet"
+              description="Orders from spaza shops will appear here as soon as they are placed."
+              icon={<ShoppingCart size={40} />}
+            />
+          )
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[960px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
                 <th className="table-header">Order #</th>
@@ -325,18 +396,18 @@ export default function OrdersPage() {
                           <MapPin size={14} />
                         </button>
                       )}
-                      {order.status === 'pending' && (
+                      {(order.status === 'pending' || order.status === 'confirmed') && (
                         <>
-                          <button onClick={() => updateStatus(order.id, 'processing')} className="btn-icon hover:text-emerald-600 hover:bg-emerald-50" title="Accept Order">
+                          <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'processing')} aria-label="Accept order" className="btn-icon disabled:opacity-40 hover:text-emerald-600 hover:bg-emerald-50" title="Accept Order">
                             <CheckCircle size={14} />
                           </button>
-                          <button onClick={() => updateStatus(order.id, 'cancelled')} className="btn-icon hover:text-red-500 hover:bg-red-50" title="Reject Order">
+                          <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'cancelled')} aria-label="Reject order" className="btn-icon disabled:opacity-40 hover:text-red-500 hover:bg-red-50" title="Reject Order">
                             <XCircle size={14} />
                           </button>
                         </>
                       )}
                       {order.status === 'processing' && (
-                        <button onClick={() => updateStatus(order.id, 'dispatched')} className="btn-icon hover:text-indigo-600 hover:bg-indigo-50" title="Mark Dispatched">
+                        <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'dispatched')} aria-label="Mark dispatched" className="btn-icon disabled:opacity-40 hover:text-indigo-600 hover:bg-indigo-50" title="Mark Dispatched">
                           <Truck size={14} />
                         </button>
                       )}
@@ -346,11 +417,12 @@ export default function OrdersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {selected && (
-        <OrderDetailModal order={selected} onClose={() => setSelected(null)} onUpdateStatus={updateStatus} />
+        <OrderDetailModal order={selected} onClose={closeDetail} onUpdateStatus={updateStatus} />
       )}
 
       {receiptOrder && (
@@ -359,6 +431,41 @@ export default function OrdersPage() {
 
       {trackingOrder && (
         <DeliveryTrackingModal order={trackingOrder} onClose={() => setTrackingOrder(null)} />
+      )}
+
+      {rejecting && (
+        <Modal title={`Reject order ${rejecting.orderNumber}?`} onClose={() => setRejecting(null)} size="sm">
+          <form
+            className="p-6 space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const order = rejecting;
+              setRejecting(null);
+              await applyStatus(order.id, 'cancelled', rejectReason.trim() || undefined);
+            }}
+          >
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">{rejecting.shopName || 'The shop'}</span> will see this order as
+              rejected. This can't be undone.
+            </p>
+            <div>
+              <label htmlFor="reject-reason" className="label">Reason <span className="text-gray-400 font-normal text-xs">(shared with the shop)</span></label>
+              <textarea
+                id="reject-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="input resize-none"
+                rows={3}
+                placeholder="e.g. Out of stock on some items"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setRejecting(null)} className="btn-secondary">Keep order</button>
+              <button type="submit" className="btn-danger flex items-center gap-2"><XCircle size={15} /> Reject order</button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
