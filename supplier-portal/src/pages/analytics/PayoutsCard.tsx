@@ -27,7 +27,7 @@ export default function PayoutsCard() {
   if (!data) return <div className="card p-5 h-40 skeleton" aria-hidden="true" />;
 
   const tiles = [
-    { label: 'Awaiting delivery', value: data.awaitingDelivery, hint: 'Paid by the shop, not delivered yet' },
+    { label: 'Awaiting delivery', value: data.awaitingDelivery, hint: 'Paid online, not delivered yet' },
     {
       label: 'Pending', value: data.pending,
       hint: data.nextAvailableAt ? `Next release ${format(new Date(data.nextAvailableAt), 'd MMM')}` : `${data.payoutDelayDays}-day wait after delivery`,
@@ -44,7 +44,7 @@ export default function PayoutsCard() {
           <div>
             <h3 className="section-title">Your payouts</h3>
             <p className="text-xs text-ink-3">
-              For orders paid through Paystack: products + delivery, paid {data.payoutDelayDays} day{data.payoutDelayDays === 1 ? '' : 's'} after delivery.
+              SpazaSure collects each shop's payment and pays you products + delivery, {data.payoutDelayDays} day{data.payoutDelayDays === 1 ? '' : 's'} after delivery.
             </p>
           </div>
         </div>

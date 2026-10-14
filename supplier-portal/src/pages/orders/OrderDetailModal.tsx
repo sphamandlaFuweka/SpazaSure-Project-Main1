@@ -179,7 +179,7 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2 text-center">
-            Paystack orders are paid out to you after delivery, once the payout delay has passed. See Analytics → Your payouts.
+            SpazaSure collects the shop's payment and pays you after delivery, once the payout delay has passed. See Analytics → Your payouts.
           </p>
         </div>
 

@@ -528,6 +528,9 @@ export interface PlatformRules {
   maintenanceMessage: string;
   requireSupplierApproval: boolean;
   autoApproveVerifiedSupplierProducts: boolean;
+  cashOnDeliveryEnabled: boolean;
+  /** Largest checkout total (R) allowed as cash on delivery. 0 = no limit. */
+  cashOnDeliveryMaxOrderTotal: number;
 }
 
 export const adminSettingsApi = {

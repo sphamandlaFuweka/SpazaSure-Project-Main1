@@ -212,7 +212,12 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
 
         order.Status = req.Status;
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
-        if (req.Status == "delivered") order.DeliveredAt ??= DateTime.UtcNow;
+        if (req.Status == "delivered")
+        {
+            order.DeliveredAt ??= DateTime.UtcNow;
+            // Cash on delivery: SpazaSure collected the cash at delivery
+            if (order.PaymentMethod == ShopOrdersController.CashOnDelivery) order.PaymentStatus = "paid";
+        }
         await db.SaveChangesAsync();
 
         // Notify the shop owner about the status change

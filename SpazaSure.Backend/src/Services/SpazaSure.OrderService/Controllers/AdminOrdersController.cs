@@ -173,6 +173,9 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
         // Payouts are timed from delivery; moving an order out of "delivered" clears it
         order.DeliveredAt = req.Status == "delivered" ? order.DeliveredAt ?? DateTime.UtcNow : null;
+        // Cash on delivery is only paid once delivered (SpazaSure collects the cash)
+        if (order.PaymentMethod == ShopOrdersController.CashOnDelivery)
+            order.PaymentStatus = req.Status == "delivered" ? "paid" : "pending";
         await db.SaveChangesAsync();
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));

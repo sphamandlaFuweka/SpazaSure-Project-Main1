@@ -179,29 +179,40 @@ class OrderDetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        order.paymentStatus == 'released'
-                            ? Icons.check_circle
-                            : Icons.schedule,
-                        size: 16,
-                        color: order.paymentStatus == 'released'
-                            ? AppColors.success
-                            : AppColors.warning,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        order.paymentStatus == 'released'
-                            ? 'Payment completed'
-                            : 'Payment held in escrow',
-                        style: AppTextStyles.caption.copyWith(
-                          color: order.paymentStatus == 'released'
-                              ? AppColors.success
-                              : AppColors.warning,
-                        ),
-                      ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      final paid = order.paymentStatus == 'paid' ||
+                          order.paymentStatus == 'released';
+                      final cod = order.paymentMethod == OrderService.cashOnDelivery;
+                      final label = cod
+                          ? (paid
+                                ? 'Paid in cash on delivery'
+                                : 'Pay R${order.total.toStringAsFixed(2)} in cash on delivery')
+                          : order.paymentMethod == OrderService.paystack
+                          ? (paid ? 'Paid with Paystack' : 'Awaiting payment')
+                          : (paid ? 'Payment completed' : 'Payment pending');
+                      final color = paid ? AppColors.success : AppColors.warning;
+                      return Row(
+                        children: [
+                          Icon(
+                            paid
+                                ? Icons.check_circle
+                                : cod
+                                ? Icons.payments_outlined
+                                : Icons.schedule,
+                            size: 16,
+                            color: color,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: AppTextStyles.caption.copyWith(color: color),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -408,7 +419,9 @@ class OrderDetailScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Confirm Delivery', style: AppTextStyles.h3),
         content: Text(
-          'Have you received all items in good condition?',
+          order.paymentMethod == OrderService.cashOnDelivery
+              ? 'Have you received all items in good condition and paid R${order.total.toStringAsFixed(2)} in cash on delivery? Confirming completes the order.'
+              : 'Have you received all items in good condition?',
           style: AppTextStyles.body,
         ),
         actions: [
@@ -429,9 +442,11 @@ class OrderDetailScreen extends StatelessWidget {
                 await OrderService.confirmDelivery(order.id);
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Delivery confirmed! Payment released to supplier.',
+                      order.paymentMethod == OrderService.cashOnDelivery
+                          ? 'Delivery confirmed. Your cash order is complete.'
+                          : 'Delivery confirmed. Thank you!',
                     ),
                     backgroundColor: AppColors.success,
                     behavior: SnackBarBehavior.floating,

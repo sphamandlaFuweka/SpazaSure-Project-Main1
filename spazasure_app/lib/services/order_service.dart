@@ -5,19 +5,35 @@ import '../models/models.dart';
 
 class OrderCheckout {
   final String orderNumber;
-  final String checkoutUrl;
 
-  const OrderCheckout({required this.orderNumber, required this.checkoutUrl});
+  /// Paystack page to pay on. Null for cash on delivery (nothing to pay now).
+  final String? checkoutUrl;
+  final String paymentMethod;
+  final double totalAmount;
+
+  const OrderCheckout({
+    required this.orderNumber,
+    this.checkoutUrl,
+    this.paymentMethod = OrderService.paystack,
+    this.totalAmount = 0,
+  });
+
+  bool get isCashOnDelivery => paymentMethod == OrderService.cashOnDelivery;
 }
 
 class OrderService {
+  static const paystack = 'paystack';
+  static const cashOnDelivery = 'cash_on_delivery';
+
   static Future<OrderCheckout> placeOrder({
     required List<CartItem> items,
     required String deliveryOption,
+    String paymentMethod = paystack,
     required String deliveryAddress,
   }) async {
     final res = await ApiService.post('/shop/orders', {
       'deliveryType': deliveryOption,
+      'paymentMethod': paymentMethod,
       'deliveryAddress': deliveryAddress,
       'items': items
           .map(
@@ -30,13 +46,16 @@ class OrderService {
           .toList(),
     });
     final data = res['data'] as Map<String, dynamic>;
+    final method = data['paymentMethod']?.toString() ?? paymentMethod;
     final checkoutUrl = data['checkoutUrl']?.toString();
-    if (checkoutUrl == null || checkoutUrl.isEmpty) {
+    if (method == paystack && (checkoutUrl == null || checkoutUrl.isEmpty)) {
       throw StateError('Paystack checkout was not returned for this order.');
     }
     return OrderCheckout(
       orderNumber: data['orderNumber']?.toString() ?? '',
       checkoutUrl: checkoutUrl,
+      paymentMethod: method,
+      totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0,
     );
   }
 

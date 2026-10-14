@@ -398,6 +398,10 @@ export default function AdminSettingsPage() {
                     description: 'New suppliers stay hidden from shops until an admin verifies them. When off, they go live immediately as unverified suppliers.',
                   },
                   {
+                    key: 'cashOnDeliveryEnabled', danger: false, label: 'Allow cash on delivery',
+                    description: 'Shops can choose to pay in cash when the order arrives (app only). SpazaSure collects the cash on delivery and pays the supplier out as usual.',
+                  },
+                  {
                     key: 'autoApproveVerifiedSupplierProducts', danger: false, label: 'Auto-approve products from verified suppliers',
                     description: 'New products from verified suppliers go live without admin review. Unverified suppliers\' products always need review.',
                   },
@@ -423,6 +427,13 @@ export default function AdminSettingsPage() {
                     </div>
                   );
                 })}
+              </div>
+              <div className="max-w-xs">
+                <label className="label" htmlFor="codMax">Cash on delivery limit (R)</label>
+                <input id="codMax" type="number" min="0" max="1000000" step="100" className="input"
+                  value={rules.cashOnDeliveryMaxOrderTotal} disabled={!rules.cashOnDeliveryEnabled}
+                  onChange={(e) => setRules({ ...rules, cashOnDeliveryMaxOrderTotal: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                <p className="text-xs text-ink-3 mt-1.5">Largest order total a shop can pay in cash, to limit cash-handling risk. 0 = no limit.</p>
               </div>
               <div>
                 <label className="label" htmlFor="maintenanceMessage">Maintenance message</label>

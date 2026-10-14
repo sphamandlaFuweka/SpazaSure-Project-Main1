@@ -44,14 +44,14 @@ public class PlatformRulesTests
             StandardDeliveryFee = 99.5m, ExpressDeliveryFee = 199m, GroupBuyBaseDeliveryFee = 40m,
             GroupBuyPerKmRate = 6.5m, ShopServiceFeePercent = 1.5m, PayoutDelayDays = 7,
             MaintenanceMode = true, MaintenanceMessage = "Back at 10:00", RequireSupplierApproval = false,
-            AutoApproveVerifiedSupplierProducts = true,
+            AutoApproveVerifiedSupplierProducts = true, CashOnDeliveryEnabled = false, CashOnDeliveryMaxOrderTotal = 2500m,
         };
 
         await PlatformSettingsStore.SaveAsync(db, saved);
         await PlatformSettingsStore.SaveAsync(db, saved); // saving twice updates, never duplicates
 
         (await PlatformSettingsStore.LoadAsync(db)).Should().BeEquivalentTo(saved);
-        (await db.PlatformSettings.CountAsync()).Should().Be(10);
+        (await db.PlatformSettings.CountAsync()).Should().Be(12);
     }
 
     [Theory]

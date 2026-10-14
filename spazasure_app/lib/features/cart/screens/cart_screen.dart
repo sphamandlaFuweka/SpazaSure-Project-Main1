@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/widgets/custom_button.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/order_service.dart';
+import 'package:spazasure_app/services/platform_settings_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 
@@ -18,9 +19,28 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   String _deliveryOption = 'standard';
+  String _paymentMethod = OrderService.paystack;
   bool _placing = false;
   String? _pendingCheckoutUrl;
   String? _pendingOrderNumber;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fees and cash-on-delivery rules come from admin settings
+    PlatformSettingsService.fetch().then((settings) {
+      if (mounted) context.read<CartProvider>().applySettings(settings);
+    });
+  }
+
+  /// Cash on delivery only when the admin allows it and the total is within the limit
+  bool _codAllowed(CartProvider cart) =>
+      cart.settings.cashOnDeliveryAllowedFor(cart.total(_deliveryOption));
+
+  String _effectiveMethod(CartProvider cart) =>
+      _paymentMethod == OrderService.cashOnDelivery && !_codAllowed(cart)
+      ? OrderService.paystack
+      : _paymentMethod;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +84,7 @@ class _CartScreenState extends State<CartScreen> {
                   const SizedBox(height: 12),
                   _buildSection('Delivery option', _buildDeliveryOptions(cart)),
                   const SizedBox(height: 12),
-                  _buildSecurePaymentCard(),
+                  _buildSection('How will you pay?', _buildPaymentOptions(cart)),
                   const SizedBox(height: 12),
                   _buildOrderSummary(cart),
                   const SizedBox(height: 100),
@@ -114,7 +134,9 @@ class _CartScreenState extends State<CartScreen> {
                     Expanded(
                       flex: 2,
                       child: CustomButton(
-                        text: _placing
+                        text: _effectiveMethod(cart) == OrderService.cashOnDelivery
+                            ? (_placing ? 'Placing order...' : 'Place order · pay on delivery')
+                            : _placing
                             ? 'Opening checkout...'
                             : _pendingCheckoutUrl != null
                             ? 'Continue to payment'
@@ -440,22 +462,19 @@ class _CartScreenState extends State<CartScreen> {
       {
         'id': 'standard',
         'title': 'Standard delivery',
-        'detail': '2–3 business days · R150 per supplier',
-        'fee': 150.0,
+        'detail': '2–3 business days · R${cart.settings.standardDeliveryFee.toStringAsFixed(0)} per supplier',
         'icon': Icons.local_shipping_outlined,
       },
       {
         'id': 'express',
         'title': 'Express delivery',
-        'detail': 'Same day · R250 per supplier',
-        'fee': 250.0,
+        'detail': 'Same day · R${cart.settings.expressDeliveryFee.toStringAsFixed(0)} per supplier',
         'icon': Icons.bolt,
       },
       {
         'id': 'pickup',
         'title': 'Pickup',
         'detail': 'Collect from your suppliers',
-        'fee': 0.0,
         'icon': Icons.store_outlined,
       },
     ];
@@ -568,7 +587,9 @@ class _CartScreenState extends State<CartScreen> {
           _summaryRow('Subtotal', 'R${sub.toStringAsFixed(2)}'),
           _summaryRow('Delivery Fee', 'R${del.toStringAsFixed(2)}'),
           _summaryRow(
-            'Platform Fee (supplier plan rates)',
+            cart.settings.shopServiceFeePercent > 0
+                ? 'Platform fee (incl. ${cart.settings.shopServiceFeePercent.toStringAsFixed(1)}% service fee)'
+                : 'Platform Fee (supplier plan rates)',
             'R${fee.toStringAsFixed(2)}',
           ),
           const Padding(
@@ -595,54 +616,93 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildSecurePaymentCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.lock_outline,
-              color: AppColors.primary,
-              size: 19,
-            ),
+  Widget _buildPaymentOptions(CartProvider cart) {
+    final codAllowed = _codAllowed(cart);
+    final method = _effectiveMethod(cart);
+    final settings = cart.settings;
+    final codReason = !settings.cashOnDeliveryEnabled
+        ? 'Not available right now'
+        : 'Available for orders up to R${settings.cashOnDeliveryMaxOrderTotal.toStringAsFixed(0)}';
+
+    return Column(
+      children: [
+        _paymentTile(
+          selected: method == OrderService.paystack,
+          icon: Icons.lock_outline,
+          title: 'Pay now with Paystack',
+          detail: 'Card, EFT or instant payment. Your order goes to the supplier once paid.',
+          onTap: () => setState(() => _paymentMethod = OrderService.paystack),
+        ),
+        _paymentTile(
+          selected: method == OrderService.cashOnDelivery,
+          icon: Icons.payments_outlined,
+          title: 'Cash on delivery',
+          detail: codAllowed
+              ? 'Pay in cash when your order arrives. SpazaSure collects the payment, and the order is complete once you confirm delivery.'
+              : codReason,
+          enabled: codAllowed,
+          onTap: () => setState(() {
+            _paymentMethod = OrderService.cashOnDelivery;
+            // A Paystack checkout started earlier is abandoned when switching to cash
+            _pendingCheckoutUrl = null;
+            _pendingOrderNumber = null;
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentTile({
+    required bool selected,
+    required IconData icon,
+    required String title,
+    required String detail,
+    required VoidCallback onTap,
+    bool enabled = true,
+  }) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: enabled ? onTap : null,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary.withValues(alpha: 0.05) : AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? AppColors.primary : AppColors.divider),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Secure payment',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background,
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Pay the full order total through Paystack. Supplier platform fees are included in your total.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                child: Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 3),
+                    Text(detail, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                color: selected ? AppColors.primary : AppColors.divider,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -675,6 +735,25 @@ class _CartScreenState extends State<CartScreen> {
         );
       }
 
+      final method = _effectiveMethod(cart);
+      if (method == OrderService.cashOnDelivery) {
+        final total = cart.total(_deliveryOption);
+        final placed = await OrderService.placeOrder(
+          items: cart.items.toList(),
+          deliveryOption: _deliveryOption,
+          deliveryAddress: deliveryAddress,
+          paymentMethod: OrderService.cashOnDelivery,
+        );
+        cart.clear();
+        if (!mounted) return;
+        _showSuccess(
+          placed.orderNumber,
+          cashOnDelivery: true,
+          cashTotal: placed.totalAmount > 0 ? placed.totalAmount : total,
+        );
+        return;
+      }
+
       final checkout = _pendingCheckoutUrl == null
           ? await OrderService.placeOrder(
               items: cart.items.toList(),
@@ -692,7 +771,7 @@ class _CartScreenState extends State<CartScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => OnboardingFeeCheckoutScreen(
-            checkoutUrl: checkout.checkoutUrl,
+            checkoutUrl: checkout.checkoutUrl!,
             title: 'Pay for your order',
           ),
         ),
@@ -707,7 +786,7 @@ class _CartScreenState extends State<CartScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed: $e'),
+          content: Text(e.toString().replaceFirst(RegExp(r'^(Exception|Bad state): '), '')),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),
@@ -718,7 +797,11 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-  void _showSuccess(String orderNumber) {
+  void _showSuccess(
+    String orderNumber, {
+    bool cashOnDelivery = false,
+    double cashTotal = 0,
+  }) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -740,7 +823,10 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Payment Submitted', style: AppTextStyles.h2),
+            Text(
+              cashOnDelivery ? 'Order placed' : 'Payment Submitted',
+              style: AppTextStyles.h2,
+            ),
             const SizedBox(height: 8),
             Text(
               orderNumber,
@@ -748,7 +834,9 @@ class _CartScreenState extends State<CartScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Paystack received your payment. We will confirm it and notify the supplier shortly.',
+              cashOnDelivery
+                  ? 'Your supplier has been notified. Have R${cashTotal.toStringAsFixed(2)} in cash ready when your order arrives, then confirm delivery in Orders to complete it.'
+                  : 'Paystack received your payment. We will confirm it and notify the supplier shortly.',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
               ),

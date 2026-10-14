@@ -648,6 +648,10 @@ class ReceiptScreen extends StatelessWidget {
         return 'EFT';
       case 'wallet':
         return 'Wallet';
+      case 'paystack':
+        return 'Paystack';
+      case 'cash_on_delivery':
+        return 'Cash on delivery';
       default:
         return method.toUpperCase();
     }
@@ -659,6 +663,8 @@ class ReceiptScreen extends StatelessWidget {
         return 'Held in Escrow';
       case 'released':
         return 'Released';
+      case 'paid':
+        return 'Paid';
       case 'pending':
         return 'Pending';
       case 'failed':
@@ -672,6 +678,7 @@ class ReceiptScreen extends StatelessWidget {
 
   Color _paymentStatusColor(String status) {
     switch (status) {
+      case 'paid':
       case 'released':
         return AppColors.success;
       case 'held':

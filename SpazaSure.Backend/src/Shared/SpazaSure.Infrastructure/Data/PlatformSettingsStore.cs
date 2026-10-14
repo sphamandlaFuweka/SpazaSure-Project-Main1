@@ -28,6 +28,10 @@ public sealed record PlatformRules
     public bool RequireSupplierApproval { get; init; } = true;
     /// <summary>When on, products from verified suppliers go live without admin review.</summary>
     public bool AutoApproveVerifiedSupplierProducts { get; init; } = false;
+    /// <summary>When on, shops can choose to pay in cash on delivery; SpazaSure collects the cash and pays the supplier as usual.</summary>
+    public bool CashOnDeliveryEnabled { get; init; } = true;
+    /// <summary>Largest checkout total (R) allowed as cash on delivery, to limit cash-handling risk. 0 = no limit.</summary>
+    public decimal CashOnDeliveryMaxOrderTotal { get; init; } = 5000m;
 
     public const string DefaultMaintenanceMessage =
         "SpazaSure is undergoing scheduled maintenance. Please try again shortly.";
@@ -41,6 +45,7 @@ public sealed record PlatformRules
         if (GroupBuyPerKmRate is < 0 or > 500) return "Group-buy rate per km must be between R0 and R500.";
         if (ShopServiceFeePercent is < 0 or > 20) return "Shop service fee must be between 0% and 20%.";
         if (PayoutDelayDays is < 0 or > 60) return "Payout delay must be between 0 and 60 days.";
+        if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
         return null;
@@ -59,6 +64,8 @@ public static class PlatformSettingsStore
     public const string MaintenanceMessageKey = "maintenance_message";
     public const string RequireSupplierApprovalKey = "require_supplier_approval";
     public const string AutoApproveProductsKey = "auto_approve_verified_supplier_products";
+    public const string CashOnDeliveryEnabledKey = "cash_on_delivery_enabled";
+    public const string CashOnDeliveryMaxOrderTotalKey = "cash_on_delivery_max_order_total";
 
     public static async Task<PlatformRules> LoadAsync(SpazaSureDbContext db, CancellationToken ct = default)
     {
@@ -76,6 +83,8 @@ public static class PlatformSettingsStore
             MaintenanceMessage = values.TryGetValue(MaintenanceMessageKey, out var msg) && !string.IsNullOrWhiteSpace(msg) ? msg : d.MaintenanceMessage,
             RequireSupplierApproval = Bool(values, RequireSupplierApprovalKey, d.RequireSupplierApproval),
             AutoApproveVerifiedSupplierProducts = Bool(values, AutoApproveProductsKey, d.AutoApproveVerifiedSupplierProducts),
+            CashOnDeliveryEnabled = Bool(values, CashOnDeliveryEnabledKey, d.CashOnDeliveryEnabled),
+            CashOnDeliveryMaxOrderTotal = Dec(values, CashOnDeliveryMaxOrderTotalKey, d.CashOnDeliveryMaxOrderTotal),
         };
     }
 
@@ -93,6 +102,8 @@ public static class PlatformSettingsStore
             [MaintenanceMessageKey] = rules.MaintenanceMessage.Trim(),
             [RequireSupplierApprovalKey] = rules.RequireSupplierApproval ? "true" : "false",
             [AutoApproveProductsKey] = rules.AutoApproveVerifiedSupplierProducts ? "true" : "false",
+            [CashOnDeliveryEnabledKey] = rules.CashOnDeliveryEnabled ? "true" : "false",
+            [CashOnDeliveryMaxOrderTotalKey] = Fmt(rules.CashOnDeliveryMaxOrderTotal),
         };
         var existing = await db.PlatformSettings.Where(s => updates.Keys.Contains(s.Key)).ToListAsync(ct);
         foreach (var (key, value) in updates)

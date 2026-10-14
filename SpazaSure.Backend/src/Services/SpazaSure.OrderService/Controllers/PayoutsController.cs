@@ -11,17 +11,19 @@ using SpazaSure.Shared.Models;
 namespace SpazaSure.OrderService.Controllers;
 
 /// <summary>
-/// Supplier payout rules:
-///  - Only orders the shop paid through Paystack count (SpazaSure holds that money).
-///  - The supplier is owed Subtotal + DeliveryFee. The shop paid the commission and
-///    service fee on top, and SpazaSure keeps those.
-///  - Money is "pending" from delivery until PayoutDelayDays have passed, then
-///    "available" until an admin records the payout.
+/// Supplier payout rules. SpazaSure always collects the shop's money and pays the supplier:
+///  - Paystack orders: the shop pays online before the order is processed.
+///  - Cash on delivery: SpazaSure collects the cash from the shop on delivery (the order
+///    is marked paid at that point). The supplier never handles cash.
+///  - Either way the supplier is owed Subtotal + DeliveryFee (the shop paid commission +
+///    service fee on top, which SpazaSure keeps). "Pending" until PayoutDelayDays after
+///    delivery, then "available" until an admin records the payout.
 /// </summary>
 public static class PayoutRules
 {
-    public static IQueryable<Order> PaidThroughPlatform(IQueryable<Order> orders) =>
-        orders.Where(o => o.PaymentMethod == "paystack" && o.PaymentStatus == "paid" && o.Status != "cancelled");
+    public static IQueryable<Order> Settleable(IQueryable<Order> orders) =>
+        orders.Where(o => o.Status != "cancelled" && o.PaymentStatus == "paid"
+            && (o.PaymentMethod == "paystack" || o.PaymentMethod == ShopOrdersController.CashOnDelivery));
 
     public static decimal AmountOwed(Order o) => o.Subtotal + o.DeliveryFee;
 
@@ -49,7 +51,7 @@ public class SupplierPayoutsController(SpazaSureDbContext db) : ControllerBase
         var now = DateTime.UtcNow;
         var cutoff = now.AddDays(-rules.PayoutDelayDays);
 
-        var orders = await PayoutRules.PaidThroughPlatform(db.Orders.AsNoTracking())
+        var orders = await PayoutRules.Settleable(db.Orders.AsNoTracking())
             .Where(o => o.SupplierId == supplier.Id)
             .OrderByDescending(o => o.DeliveredAt ?? o.CreatedAt)
             .ToListAsync();
@@ -98,7 +100,7 @@ public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
 
-        var orders = await PayoutRules.PaidThroughPlatform(db.Orders.AsNoTracking())
+        var orders = await PayoutRules.Settleable(db.Orders.AsNoTracking())
             .Where(o => o.PaidOutAt == null && o.Status == "delivered" && o.DeliveredAt != null)
             .Include(o => o.Supplier)
             .ToListAsync();
@@ -147,10 +149,12 @@ public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
 
-        var orders = await PayoutRules.PaidThroughPlatform(db.Orders)
+        var orders = (await PayoutRules.Settleable(db.Orders)
             .Where(o => o.SupplierId == supplierId && o.PaidOutAt == null
-                && o.Status == "delivered" && o.DeliveredAt != null && o.DeliveredAt <= cutoff)
-            .ToListAsync();
+                && o.Status == "delivered" && o.DeliveredAt != null)
+            .ToListAsync())
+            .Where(o => PayoutRules.Stage(o, cutoff) == "available")
+            .ToList();
         if (orders.Count == 0)
             return BadRequest(ApiResponse.Fail("This supplier has nothing available to pay out."));
 

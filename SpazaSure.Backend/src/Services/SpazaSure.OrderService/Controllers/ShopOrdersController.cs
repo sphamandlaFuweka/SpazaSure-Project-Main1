@@ -15,8 +15,10 @@ namespace SpazaSure.OrderService.Controllers;
 [Authorize(Roles = "spaza_owner")]
 public class ShopOrdersController(
     SpazaSureDbContext db,
-    OrderPaystackPaymentService paystackPayments) : ControllerBase
+    OrderPaystackPaymentService paystackPayments,
+    EventPublisher events) : ControllerBase
 {
+    public const string CashOnDelivery = "cash_on_delivery";
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>
@@ -31,6 +33,16 @@ public class ShopOrdersController(
         if (req.Items is null || req.Items.Count == 0)
             return BadRequest(ApiResponse.Fail("Order must have at least one item."));
 
+        // Payment method: Paystack (pay now) or cash on delivery (pay the supplier on arrival)
+        var paymentMethod = req.PaymentMethod?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "paystack" => "paystack",
+            CashOnDelivery or "cod" or "cash" => CashOnDelivery,
+            _ => null
+        };
+        if (paymentMethod is null)
+            return BadRequest(ApiResponse.Fail("Choose Paystack or cash on delivery."));
+
         // Load products and validate
         var productIds = req.Items.Select(i => i.ProductId).ToList();
         var products = await db.Products
@@ -44,6 +56,9 @@ public class ShopOrdersController(
         // Group items by supplier (one order per supplier)
         var grouped = req.Items.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
         var rules = await PlatformSettingsStore.LoadAsync(db);
+        var isCashOnDelivery = paymentMethod == CashOnDelivery;
+        if (isCashOnDelivery && !rules.CashOnDeliveryEnabled)
+            return BadRequest(ApiResponse.Fail("Cash on delivery is not available right now. Please pay with Paystack."));
         var createdOrders = new List<Order>();
         var checkoutId = Guid.NewGuid();
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -107,9 +122,10 @@ public class ShopOrdersController(
                 DeliveryFee = deliveryFee,
                 PlatformCommission = platformCommission,
                 TotalAmount = totalAmount,
-                PaymentMethod = "paystack",
+                PaymentMethod = paymentMethod,
+                // Cash orders are marked paid when delivered (SpazaSure collects the cash)
                 PaymentStatus = "pending",
-                PaymentCheckoutId = checkoutId,
+                PaymentCheckoutId = isCashOnDelivery ? null : checkoutId,
                 Supplier = supplier,
                 Items = orderItems
             };
@@ -117,6 +133,46 @@ public class ShopOrdersController(
             db.Orders.Add(order);
             await db.SaveChangesAsync();
             createdOrders.Add(order);
+        }
+
+        if (isCashOnDelivery)
+        {
+            var checkoutTotal = createdOrders.Sum(o => o.TotalAmount);
+            if (rules.CashOnDeliveryMaxOrderTotal > 0 && checkoutTotal > rules.CashOnDeliveryMaxOrderTotal)
+                return BadRequest(ApiResponse.Fail(
+                    $"Cash on delivery is available for orders up to R{rules.CashOnDeliveryMaxOrderTotal:N2}. Your total is R{checkoutTotal:N2}, so please pay with Paystack or split the order."));
+
+            await transaction.CommitAsync();
+
+            // No online payment step, so suppliers hear about the order straight away.
+            // SpazaSure collects the cash on delivery and pays the supplier as usual.
+            foreach (var order in createdOrders)
+            {
+                events.PublishNotification(
+                    supplierId: order.Supplier.UserId.ToString(),
+                    type: "order",
+                    title: "New Order Received",
+                    message: $"{shop.ShopName} placed order {order.OrderNumber} for R{order.TotalAmount:F2}. The shop pays SpazaSure on delivery; you are paid out as usual.",
+                    priority: order.TotalAmount > 1000 ? "high" : "normal",
+                    referenceId: order.Id.ToString(),
+                    routingKey: "order.placed");
+            }
+
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                orders = createdOrders.Select(order => new
+                {
+                    order.Id,
+                    order.OrderNumber,
+                    order.Status,
+                    order.TotalAmount,
+                    supplierName = order.Supplier.CompanyName
+                }),
+                orderNumber = createdOrders[0].OrderNumber,
+                paymentMethod,
+                checkoutUrl = (string?)null,
+                totalAmount = checkoutTotal
+            }));
         }
 
         var paymentReference = $"SPZ-{Guid.NewGuid():N}";
@@ -142,6 +198,7 @@ public class ShopOrdersController(
                 supplierName = order.Supplier.CompanyName
             }),
             orderNumber = firstOrder.OrderNumber,
+            paymentMethod,
             checkoutUrl = checkout.AuthorizationUrl
         }));
     }
@@ -317,6 +374,7 @@ public class ShopOrdersController(
 
         order.Status = "delivered";
         order.DeliveredAt ??= DateTime.UtcNow;
+        if (order.PaymentMethod == CashOnDelivery) order.PaymentStatus = "paid";
         await db.SaveChangesAsync();
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));

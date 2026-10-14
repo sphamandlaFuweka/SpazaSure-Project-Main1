@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/platform_settings_service.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartItem> _items = [];
+  PlatformSettings _settings = PlatformSettings.defaults;
+
+  PlatformSettings get settings => _settings;
+
+  /// Use the admin-configured fees so the cart total matches the server's charge.
+  void applySettings(PlatformSettings settings) {
+    _settings = settings;
+    notifyListeners();
+  }
 
   List<CartItem> get items => List.unmodifiable(_items);
   int get count => _items.fold(0, (s, i) => s + i.quantity);
@@ -12,9 +22,9 @@ class CartProvider extends ChangeNotifier {
 
   double deliveryFee(String option) {
     final perSupplier = switch (option) {
-      'express' => 250.0,
+      'express' => _settings.expressDeliveryFee,
       'pickup' => 0.0,
-      _ => 150.0,
+      _ => _settings.standardDeliveryFee,
     };
     return perSupplier * _items.map((item) => item.product.supplierId).toSet().length;
   }
@@ -32,7 +42,10 @@ class CartProvider extends ChangeNotifier {
       rates[supplierId] = item.product.supplierCommissionRate;
     }
     return subtotals.entries.fold(0, (sum, entry) {
-      final fee = entry.value * (rates[entry.key] ?? 5) / 100;
+      // Supplier tier commission + any shop service fee, as charged by the server
+      final fee = entry.value *
+          ((rates[entry.key] ?? 5) + _settings.shopServiceFeePercent) /
+          100;
       return sum + double.parse(fee.toStringAsFixed(2));
     });
   }

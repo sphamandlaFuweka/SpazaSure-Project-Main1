@@ -56,7 +56,7 @@ export default function AdminPayoutsPage() {
         <div>
           <h1 className="page-title">Supplier Payouts</h1>
           <p className="page-subtitle">
-            Suppliers are owed products + delivery for orders paid through Paystack,
+            Suppliers are owed products + delivery for every order SpazaSure collected payment for (Paystack or cash on delivery),
             {data ? ` ${data.payoutDelayDays} day${data.payoutDelayDays === 1 ? '' : 's'}` : ''} after delivery.
           </p>
         </div>

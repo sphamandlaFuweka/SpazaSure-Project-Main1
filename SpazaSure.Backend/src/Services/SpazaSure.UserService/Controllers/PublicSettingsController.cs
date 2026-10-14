@@ -24,6 +24,8 @@ public class PublicSettingsController(SpazaSureDbContext db) : ControllerBase
             rules.ExpressDeliveryFee,
             pickupDeliveryFee = 0m,
             rules.ShopServiceFeePercent,
+            rules.CashOnDeliveryEnabled,
+            rules.CashOnDeliveryMaxOrderTotal,
             rules.MaintenanceMode,
             rules.MaintenanceMessage,
         }));

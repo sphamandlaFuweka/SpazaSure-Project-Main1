@@ -120,14 +120,14 @@ export default function LoginPage() {
     <div className="login-page relative min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-8 bg-[#F5F7FF] overflow-hidden">
       {/* Paystack-style dotted map of our supplier network */}
       {/* On desktop the map fills the right side, so South Africa sits around the sign-in card */}
-      <ConnectivityMap className="absolute inset-y-0 right-0 h-full w-full lg:w-[62%]" />
+      <ConnectivityMap className="absolute inset-y-0 right-0 h-full w-full lg:w-[62%] opacity-[0.35]" />
       <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[640px]">
 
       {/* LEFT PANEL: headline, feature chips and studio shot */}
       <div className="hidden lg:flex lg:w-[48%] rounded-[1.75rem] relative flex-col overflow-hidden px-10 pt-12 bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 shadow-2xl shadow-primary/20">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/10 blur-2xl" />
         {/* Supplier network across southern Africa, behind the headline and photo */}
-        <ConnectivityMap tone="dark" className="absolute inset-x-0 -top-[20%] w-full h-[120%]" />
+        <ConnectivityMap tone="dark" className="absolute inset-x-0 -top-[20%] w-full h-[120%] opacity-[0.25]" />
         <div className="absolute bottom-10 -left-20 w-64 h-64 rounded-full bg-accent/20 blur-3xl" />
 
         <div style={stagger(0)} className="relative z-10">
