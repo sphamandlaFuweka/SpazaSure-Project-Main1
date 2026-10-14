@@ -119,8 +119,8 @@ export default function LoginPage() {
   return (
     <div className="login-page relative min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-8 bg-[#F5F7FF] overflow-hidden">
       {/* Paystack-style dotted map of our supplier network */}
-      {/* On desktop the map fills the right side, so South Africa sits around the sign-in card */}
-      <ConnectivityMap className="absolute inset-y-0 right-0 h-full w-full lg:w-[62%] opacity-[0.35]" />
+      {/* The map covers the whole page; land and sea dots keep the left side from looking empty */}
+      <ConnectivityMap ocean className="absolute inset-0 h-full w-full opacity-[0.35]" />
       <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[640px]">
 
       {/* LEFT PANEL: headline, feature chips and studio shot */}

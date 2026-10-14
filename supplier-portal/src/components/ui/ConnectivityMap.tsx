@@ -1,19 +1,19 @@
 import clsx from 'clsx';
 import { MAP_DOTS_PATH, MAP_VIEW } from './connectivityMapData';
 
-type City = { name: string; lon: number; lat: number; label?: boolean };
+type City = { name: string; lon: number; lat: number };
 
 // Supplier hubs and the towns they deliver to across South Africa and the region
 const CITIES: Record<string, City> = {
-  jhb: { name: 'Johannesburg', lon: 28.05, lat: -26.2, label: true },
+  jhb: { name: 'Johannesburg', lon: 28.05, lat: -26.2 },
   pta: { name: 'Pretoria', lon: 28.19, lat: -25.75 },
-  dbn: { name: 'Durban', lon: 31.02, lat: -29.86, label: true },
-  cpt: { name: 'Cape Town', lon: 18.42, lat: -33.92, label: true },
-  pe: { name: 'Gqeberha', lon: 25.6, lat: -33.96, label: true },
+  dbn: { name: 'Durban', lon: 31.02, lat: -29.86 },
+  cpt: { name: 'Cape Town', lon: 18.42, lat: -33.92 },
+  pe: { name: 'Gqeberha', lon: 25.6, lat: -33.96 },
   el: { name: 'East London', lon: 27.91, lat: -33.02 },
-  bfn: { name: 'Bloemfontein', lon: 26.21, lat: -29.09, label: true },
+  bfn: { name: 'Bloemfontein', lon: 26.21, lat: -29.09 },
   kim: { name: 'Kimberley', lon: 24.76, lat: -28.73 },
-  plk: { name: 'Polokwane', lon: 29.45, lat: -23.9, label: true },
+  plk: { name: 'Polokwane', lon: 29.45, lat: -23.9 },
   mbo: { name: 'Mbombela', lon: 30.97, lat: -25.47 },
   gab: { name: 'Gaborone', lon: 25.91, lat: -24.65 },
   mpm: { name: 'Maputo', lon: 32.57, lat: -25.97 },
@@ -30,6 +30,10 @@ const LINKS: [keyof typeof CITIES, keyof typeof CITIES][] = [
   ['dbn', 'el'], ['cpt', 'pe'], ['bfn', 'msu'], ['bfn', 'kim'], ['mbo', 'mts'],
   ['hre', 'lun'], ['pe', 'el'], ['jhb', 'pta'],
 ];
+
+// Spacing of the generator's staggered dot grid (0.42° in both directions), in view units
+const GRID_DX = (0.42 / (MAP_VIEW.lonMax - MAP_VIEW.lonMin)) * MAP_VIEW.width;
+const GRID_DY = (0.42 / (MAP_VIEW.latMax - MAP_VIEW.latMin)) * MAP_VIEW.height;
 
 // Brand colours, in logo order
 const PULSE_COLORS = ['#F8B217', '#078C50', '#25449A', '#E02526'];
@@ -60,15 +64,15 @@ function arcPath(a: [number, number], b: [number, number]) {
  * Decorative dotted map of southern Africa with animated supplier→shop connections,
  * in the style of the Paystack landing page. Purely visual: hidden from screen readers,
  * and animation stops for users who prefer reduced motion.
+ * `ocean` fills the sea with a fainter dot grid aligned to the land dots, so the map
+ * can cover a whole page without empty areas.
  */
-export default function ConnectivityMap({ className, tone = 'light' }: { className?: string; tone?: 'light' | 'dark' }) {
+export default function ConnectivityMap({ className, tone = 'light', ocean = false }: { className?: string; tone?: 'light' | 'dark'; ocean?: boolean }) {
   const hub = project(CITIES.jhb.lon, CITIES.jhb.lat);
   // 'dark' = drawn in white on a blue background (e.g. the login hero panel)
   const ink = tone === 'dark' ? '#FFFFFF' : '#25449A';
   const dotOpacity = tone === 'dark' ? 0.16 : 0.2;
   const routeOpacity = tone === 'dark' ? 0.32 : 0.22;
-  const labelColor = tone === 'dark' ? '#FFFFFF' : '#5A5A7A';
-  const hubLabelColor = tone === 'dark' ? '#FFFFFF' : '#1A3278';
 
   return (
     <svg
@@ -83,7 +87,17 @@ export default function ConnectivityMap({ className, tone = 'light' }: { classNa
           <stop offset="0%" stopColor="#F8B217" stopOpacity="0.28" />
           <stop offset="100%" stopColor="#F8B217" stopOpacity="0" />
         </radialGradient>
+        {ocean && (
+          <pattern id="map-ocean" width={GRID_DX} height={GRID_DY * 2} patternUnits="userSpaceOnUse">
+            {[[0, 0], [GRID_DX, 0], [GRID_DX / 2, GRID_DY], [0, GRID_DY * 2], [GRID_DX, GRID_DY * 2]].map(([cx, cy]) => (
+              <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={2.1} fill={ink} />
+            ))}
+          </pattern>
+        )}
       </defs>
+
+      {/* Sea as fainter dots on the same grid */}
+      {ocean && <rect width={MAP_VIEW.width} height={MAP_VIEW.height} fill="url(#map-ocean)" opacity={dotOpacity * 0.4} />}
 
       {/* Land as dots */}
       <path d={MAP_DOTS_PATH} stroke={ink} strokeOpacity={dotOpacity} strokeWidth={4.2} strokeLinecap="round" fill="none" />
@@ -116,12 +130,6 @@ export default function ConnectivityMap({ className, tone = 'light' }: { classNa
             <circle cx={x} cy={y} r={isHub ? 9 : 6} fill={isHub ? '#F8B217' : ink} className="map-node-ring"
               style={{ animationDelay: `${(i * 0.4) % 3}s` }} />
             <circle cx={x} cy={y} r={isHub ? 6.5 : 4} fill={isHub ? '#F8B217' : tone === 'dark' ? '#FFFFFF' : '#25449A'} stroke={tone === 'dark' ? '#25449A' : '#fff'} strokeWidth={2} />
-            {city.label && tone === 'dark' && isHub && (
-              <text x={x + (isHub ? 12 : 9)} y={y + 4} fontSize={isHub ? 15 : 13} fontWeight={800}
-                fill={isHub ? hubLabelColor : labelColor} fillOpacity={isHub ? 0.9 : 0.65} fontFamily="Nunito, sans-serif">
-                {city.name}
-              </text>
-            )}
           </g>
         );
       })}
