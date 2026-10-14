@@ -9,6 +9,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spinner } from '../../components/ui';
 import { authApi, profileApi } from '../../services/api';
 import clsx from 'clsx';
+import ConnectivityMap from '../../components/ui/ConnectivityMap';
 
 /* ─── Schema ─── */
 const schema = z.object({
@@ -116,12 +117,17 @@ export default function LoginPage() {
       : { opacity: 0, transform: 'translateY(24px)' };
 
   return (
-    <div className="login-page min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-8 bg-[#EEF2FF]">
-      <div className="w-full max-w-6xl bg-white rounded-[2rem] shadow-2xl shadow-primary/10 flex flex-col lg:flex-row overflow-hidden lg:min-h-[640px]">
+    <div className="login-page relative min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-8 bg-[#F5F7FF] overflow-hidden">
+      {/* Paystack-style dotted map of our supplier network */}
+      {/* On desktop the map fills the right side, so South Africa sits around the sign-in card */}
+      <ConnectivityMap className="absolute inset-y-0 right-0 h-full w-full lg:w-[62%]" />
+      <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[640px]">
 
       {/* LEFT PANEL: headline, feature chips and studio shot */}
-      <div className="hidden lg:flex lg:w-[48%] m-3 rounded-[1.75rem] relative flex-col overflow-hidden px-10 pt-12 bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500">
+      <div className="hidden lg:flex lg:w-[48%] rounded-[1.75rem] relative flex-col overflow-hidden px-10 pt-12 bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 shadow-2xl shadow-primary/20">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/10 blur-2xl" />
+        {/* Supplier network across southern Africa, behind the headline and photo */}
+        <ConnectivityMap tone="dark" className="absolute inset-x-0 -top-[20%] w-full h-[120%]" />
         <div className="absolute bottom-10 -left-20 w-64 h-64 rounded-full bg-accent/20 blur-3xl" />
 
         <div style={stagger(0)} className="relative z-10">
@@ -159,9 +165,9 @@ export default function LoginPage() {
       {/* ═══════════════════════════════════════════════════════
           RIGHT PANEL — Login form (45% desktop, full mobile)
           ═══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex items-start lg:items-center justify-center bg-white relative py-8 lg:py-0">
+      <div className="flex-1 flex items-start lg:items-center justify-center relative py-8 lg:py-0">
 
-        <div className="w-full max-w-[420px] px-6 py-4 sm:py-6 lg:py-0">
+        <div className="w-full max-w-[460px] bg-white/90 backdrop-blur-sm rounded-[2rem] border border-brand-blue-light shadow-2xl shadow-primary/10 px-6 sm:px-10 py-8 sm:py-10">
 
           {/* Logo */}
           <div style={stagger(0)} className="flex flex-col items-center mb-6">
