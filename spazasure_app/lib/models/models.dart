@@ -50,6 +50,7 @@ class Product {
   final bool isAvailable;
   final bool isNearby;
   final String? supplierCity;
+  final String? supplierTier; // basic, bronze, silver, gold
   final double supplierCommissionRate;
 
   const Product({
@@ -73,6 +74,7 @@ class Product {
     this.isAvailable = true,
     this.isNearby = false,
     this.supplierCity,
+    this.supplierTier,
     this.supplierCommissionRate = 5,
   });
 }

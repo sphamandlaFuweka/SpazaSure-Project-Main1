@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import PageLoader from './PageLoader';
 import { useLocation } from 'react-router-dom';
 
 /**
@@ -38,7 +39,7 @@ export default function PageTransition({ children }: { children: React.ReactNode
         }}
       />
       <div ref={wrapperRef} key={location.pathname} className="animate-fade-in">
-        {children}
+        <Suspense fallback={<PageLoader variant="dashboard" />}>{children}</Suspense>
       </div>
     </>
   );

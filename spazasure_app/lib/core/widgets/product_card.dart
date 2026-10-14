@@ -131,14 +131,13 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  // Supplier tier badge (top-right)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: _SupplierTierBadge(
-                      supplierName: product.supplierName,
+                  // Supplier tier badge (top-right) — only for paid tiers we actually know
+                  if (const {'gold', 'silver', 'bronze'}.contains(product.supplierTier))
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _SupplierTierBadge(tier: product.supplierTier!),
                     ),
-                  ),
                   // Nearby badge
                   if (product.isNearby)
                     Positioned(
@@ -309,14 +308,12 @@ class ProductCard extends StatelessWidget {
 }
 
 // ─── Supplier Tier Badge ──────────────────────────────────────────────────────
-// Derives a mock tier from the supplier name hash so it's deterministic.
+// Shows the supplier's real subscription tier from the marketplace API.
 class _SupplierTierBadge extends StatelessWidget {
-  final String supplierName;
-  const _SupplierTierBadge({required this.supplierName});
+  final String tier;
+  const _SupplierTierBadge({required this.tier});
 
-  static const _tiers = ['gold', 'silver', 'bronze', 'basic'];
-
-  String get _tier => _tiers[supplierName.length % _tiers.length];
+  String get _tier => tier;
 
   Color get _color {
     switch (_tier) {

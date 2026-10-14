@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCircle, ShoppingCart, AlertTriangle, Package, X, Settings, Filter, Loader2 } from 'lucide-react';
+import { Bell, CheckCircle, ShoppingCart, AlertTriangle, Package, X, Filter, Loader2, RefreshCw, ChevronRight } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { notificationsApi } from '../../services/api';
 
@@ -31,6 +33,13 @@ const typeFilters: { value: string; label: string }[] = [
   { value: 'system',     label: 'System' },
 ];
 
+// Where clicking a notification takes the supplier
+const TYPE_ROUTES: Partial<Record<NotifType, string>> = {
+  order: '/orders',
+  compliance: '/profile',
+  product: '/products',
+};
+
 function getDateLabel(dateStr: string): string {
   const date = new Date(dateStr);
   if (isToday(date)) return 'Today';
@@ -40,7 +49,9 @@ function getDateLabel(dateStr: string): string {
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [readFilter, setReadFilter] = useState<'all' | 'unread'>('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -48,8 +59,9 @@ export default function NotificationsPage() {
 
   const loadNotifications = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const data = await notificationsApi.list({ page: 1, pageSize: 50 });
+      const data = await notificationsApi.listStrict({ page: 1, pageSize: 50 });
       const items = Array.isArray(data) ? data : data?.items ?? data?.data ?? [];
       setNotifications(items.map((n: any) => ({
         id: n.id,
@@ -62,21 +74,38 @@ export default function NotificationsPage() {
       })));
     } catch {
       setNotifications([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   };
 
   const markAllRead = async () => {
-    await notificationsApi.markAllRead();
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await notificationsApi.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      toast.success('All notifications marked as read');
+    } catch {
+      // error toast handled by api interceptor
+    }
   };
 
-  const dismiss = (id: string) => setNotifications((prev) => prev.filter((n) => n.id !== id));
-
   const markRead = async (id: string) => {
-    await notificationsApi.markRead(id);
+    // Optimistic: update immediately, the server call runs in the background
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    notificationsApi.markRead(id).catch(() => {});
+  };
+
+  // Hiding marks the notification as read so it doesn't come back as unread
+  const dismiss = (n: Notification) => {
+    if (!n.isRead) void markRead(n.id);
+    setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+  };
+
+  const open = (n: Notification) => {
+    if (!n.isRead) void markRead(n.id);
+    const target = TYPE_ROUTES[n.type];
+    if (target) navigate(target);
   };
 
   const filtered = notifications.filter((n) => {
@@ -104,12 +133,12 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 animate-in max-w-3xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 animate-in max-w-3xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Notifications</h1>
           <p className="page-subtitle">
-            {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
+            {loadError ? 'Could not load notifications' : unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -118,9 +147,17 @@ export default function NotificationsPage() {
               <CheckCircle size={14} /> Mark all read
             </button>
           )}
-          <button className="btn-icon"><Settings size={16} /></button>
+          <button onClick={loadNotifications} className="btn-icon" aria-label="Refresh notifications" title="Refresh"><RefreshCw size={16} /></button>
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+          <p className="flex-1 text-sm font-medium text-red-800">We couldn't load your notifications. Check your connection and try again.</p>
+          <button onClick={loadNotifications} className="btn-secondary text-sm">Try again</button>
+        </div>
+      )}
 
       {highPriorityCount > 0 && (
         <div className="warning-box flex items-center gap-3">
@@ -155,11 +192,20 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {Object.keys(grouped).length === 0 ? (
-        <div className="card p-16 text-center">
+      {loadError ? null : Object.keys(grouped).length === 0 ? (
+        <div className="card p-10 sm:p-16 text-center">
           <Bell size={36} className="text-gray-200 mx-auto mb-4" />
-          <p className="font-bold text-gray-600">No notifications</p>
-          <p className="text-gray-400 text-sm mt-1">You're all caught up</p>
+          {notifications.length > 0 ? (
+            <>
+              <p className="font-bold text-gray-600">Nothing matches these filters</p>
+              <button onClick={() => { setReadFilter('all'); setTypeFilter('all'); }} className="btn-secondary text-sm mt-4">Show all notifications</button>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-gray-600">No notifications</p>
+              <p className="text-gray-400 text-sm mt-1">New orders, approvals and document updates will appear here.</p>
+            </>
+          )}
         </div>
       ) : (
         Object.entries(grouped).map(([dateLabel, items]) => (
@@ -169,8 +215,9 @@ export default function NotificationsPage() {
               {items.map((n) => {
                 const { icon, color, bg } = typeConfig[n.type] ?? typeConfig.system;
                 return (
-                  <div key={n.id} onClick={() => markRead(n.id)}
-                    className={clsx('card p-4 flex items-start gap-4 cursor-pointer hover:shadow-card-hover transition-all duration-200',
+                  <div key={n.id} onClick={() => open(n)} role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') open(n); }}
+                    className={clsx('card p-4 flex items-start gap-3 sm:gap-4 cursor-pointer hover:shadow-card-hover transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                       !n.isRead && 'border-l-4 border-l-primary',
                       n.priority === 'high' && !n.isRead && 'bg-amber-50/30')}>
                     <div className={clsx('p-2.5 rounded-xl flex-shrink-0', bg, color)}>{icon}</div>
@@ -184,7 +231,7 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <p className="text-xs text-gray-400 whitespace-nowrap">{format(new Date(n.createdAt), 'HH:mm')}</p>
-                          <button onClick={(e) => { e.stopPropagation(); dismiss(n.id); }} className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors">
+                          <button onClick={(e) => { e.stopPropagation(); dismiss(n); }} aria-label="Hide notification" title="Hide" className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors">
                             <X size={14} />
                           </button>
                         </div>
@@ -192,6 +239,7 @@ export default function NotificationsPage() {
                       <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{n.message}</p>
                     </div>
                     {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse-soft" />}
+                    {TYPE_ROUTES[n.type] && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
                   </div>
                 );
               })}

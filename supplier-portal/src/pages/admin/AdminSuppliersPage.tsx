@@ -30,6 +30,7 @@ interface Supplier {
   phone: string;
   tier: string;
   isVerified: boolean;
+  isSuspended: boolean;
   joinedAt: string;
   totalOrders: number;
   totalRevenue: number;
@@ -44,6 +45,7 @@ interface SpazaOwner {
   phone: string;
   location: string;
   isVerified: boolean;
+  isSuspended: boolean;
   joinedAt: string;
   totalOrders: number;
   totalSpent: number;
@@ -88,6 +90,7 @@ export default function AdminSuppliersPage() {
         phone: s.phone ?? '',
         tier: s.tier ?? 'basic',
         isVerified: s.isVerified ?? s.status === 'verified',
+        isSuspended: s.status === 'suspended',
         joinedAt: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
         totalOrders: s.totalOrders ?? 0,
         totalRevenue: s.totalRevenue ?? 0,
@@ -125,6 +128,7 @@ export default function AdminSuppliersPage() {
         phone: o.phone ?? '',
         location: [o.address, o.city, o.province].filter(Boolean).join(', ') || o.location || '',
         isVerified: o.isVerified ?? o.status === 'verified',
+        isSuspended: o.status === 'suspended',
         joinedAt: o.joinedAt ?? o.createdAt ?? '',
         totalOrders: o.totalOrders ?? 0,
         totalSpent: o.totalSpent ?? 0,
@@ -424,7 +428,11 @@ export default function AdminSuppliersPage() {
                           })()}
                         </td>
                         <td className="px-4 py-3.5 text-center">
-                          {s.isVerified ? (
+                          {s.isSuspended ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                              <Ban size={11} /> Suspended
+                            </span>
+                          ) : s.isVerified ? (
                             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                               <CheckCircle size={11} /> Verified
                             </span>
@@ -613,7 +621,11 @@ export default function AdminSuppliersPage() {
                           })()}
                         </td>
                         <td className="px-4 py-3.5 text-center">
-                          {o.isVerified ? (
+                          {o.isSuspended ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                              <Ban size={11} /> Suspended
+                            </span>
+                          ) : o.isVerified ? (
                             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                               <CheckCircle size={11} /> Verified
                             </span>
@@ -672,7 +684,11 @@ export default function AdminSuppliersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedSupplier.isVerified ? (
+                    {selectedSupplier.isSuspended ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                              <Ban size={11} /> Suspended
+                            </span>
+                          ) : selectedSupplier.isVerified ? (
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-white/20 backdrop-blur-sm border border-white/30 px-2.5 py-1 rounded-full">
                         <CheckCircle size={11} /> Verified
                       </span>
@@ -815,7 +831,7 @@ export default function AdminSuppliersPage() {
                     onClick={() => verifySupplier(selectedSupplier.id)}
                     className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    <ShieldCheck size={14} /> Verify Supplier
+                    <ShieldCheck size={14} /> {selectedSupplier.isSuspended ? 'Reinstate Supplier' : 'Verify Supplier'}
                   </button>
                 )}
               </div>
@@ -842,7 +858,11 @@ export default function AdminSuppliersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedSpaza.isVerified ? (
+                    {selectedSpaza.isSuspended ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                              <Ban size={11} /> Suspended
+                            </span>
+                          ) : selectedSpaza.isVerified ? (
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-white/20 backdrop-blur-sm border border-white/30 px-2.5 py-1 rounded-full">
                         <CheckCircle size={11} /> Verified
                       </span>
@@ -997,7 +1017,7 @@ export default function AdminSuppliersPage() {
                     onClick={() => verifySpazaOwner(selectedSpaza.id)}
                     className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    <ShieldCheck size={14} /> Verify Spaza Owner
+                    <ShieldCheck size={14} /> {selectedSpaza.isSuspended ? 'Reinstate Spaza Owner' : 'Verify Spaza Owner'}
                   </button>
                 )}
               </div>
@@ -1019,7 +1039,7 @@ export default function AdminSuppliersPage() {
                   </div>
                   <div>
                     <h2 className="font-bold text-white text-lg">Suspend Account</h2>
-                    <p className="text-sm text-red-100">Provide a reason for suspending this account</p>
+                    <p className="text-sm text-red-100">The account is hidden from the marketplace until you reinstate it</p>
                   </div>
                 </div>
               </div>
@@ -1027,7 +1047,7 @@ export default function AdminSuppliersPage() {
               {/* Body */}
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Reason</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Note <span className="normal-case font-medium text-gray-400">(optional)</span></label>
                   <textarea
                     value={suspendReason}
                     onChange={(e) => setSuspendReason(e.target.value)}
@@ -1045,7 +1065,6 @@ export default function AdminSuppliersPage() {
                   </button>
                   <button
                     onClick={handleSuspend}
-                    disabled={!suspendReason.trim()}
                     className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Ban size={14} /> Suspend Account

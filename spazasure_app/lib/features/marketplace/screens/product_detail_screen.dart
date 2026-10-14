@@ -216,13 +216,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${product.rating}',
+                            product.reviewCount > 0
+                                ? product.rating.toStringAsFixed(1)
+                                : 'New',
                             style: AppTextStyles.subtitle,
                           ),
-                          Text(
-                            ' (${product.reviewCount} reviews)',
-                            style: AppTextStyles.bodySmall,
-                          ),
+                          if (product.reviewCount > 0)
+                            Text(
+                              ' (${product.reviewCount} review${product.reviewCount == 1 ? '' : 's'})',
+                              style: AppTextStyles.bodySmall,
+                            ),
                         ],
                       ),
                     ],

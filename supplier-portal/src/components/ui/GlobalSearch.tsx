@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Package, ShoppingCart, BarChart2, User, X, ArrowRight, Clock } from 'lucide-react';
+import { Search, Package, ShoppingCart, BarChart2, User, X, ArrowRight, Clock, Users, ShieldCheck, Flag, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { productsApi, ordersApi } from '../../services/api';
+import { productsApi, ordersApi, adminProductsApi, adminOrdersApi } from '../../services/api';
 
 interface SearchResult {
   id: string;
@@ -12,12 +12,25 @@ interface SearchResult {
   icon: React.ReactNode;
 }
 
-const pages: SearchResult[] = [
+const supplierPages: SearchResult[] = [
   { id: 'pg1', type: 'page', label: 'Dashboard',     sub: 'Overview & KPIs',          to: '/dashboard',     icon: <BarChart2 size={14} /> },
   { id: 'pg2', type: 'page', label: 'Products',      sub: 'Manage your catalog',      to: '/products',      icon: <Package size={14} /> },
   { id: 'pg3', type: 'page', label: 'Orders',        sub: 'Track & manage orders',    to: '/orders',        icon: <ShoppingCart size={14} /> },
   { id: 'pg4', type: 'page', label: 'Analytics',     sub: 'Revenue & insights',       to: '/analytics',     icon: <BarChart2 size={14} /> },
   { id: 'pg5', type: 'page', label: 'Profile',       sub: 'Account & compliance',     to: '/profile',       icon: <User size={14} /> },
+  { id: 'pg6', type: 'page', label: 'Group Buy',     sub: 'Bulk orders from shops',   to: '/group-buy',     icon: <Users size={14} /> },
+  { id: 'pg7', type: 'page', label: 'Notifications', sub: 'Alerts & updates',         to: '/notifications', icon: <Clock size={14} /> },
+];
+
+const adminPages: SearchResult[] = [
+  { id: 'ap1', type: 'page', label: 'Dashboard',     sub: 'Platform overview',        to: '/admin/dashboard',  icon: <BarChart2 size={14} /> },
+  { id: 'ap2', type: 'page', label: 'Suppliers',     sub: 'Suppliers & spaza owners', to: '/admin/suppliers',  icon: <Users size={14} /> },
+  { id: 'ap3', type: 'page', label: 'Documents',     sub: 'Compliance review',        to: '/admin/documents',  icon: <ShieldCheck size={14} /> },
+  { id: 'ap4', type: 'page', label: 'Products',      sub: 'Approve listings',         to: '/admin/products',   icon: <Package size={14} /> },
+  { id: 'ap5', type: 'page', label: 'Orders',        sub: 'All platform orders',      to: '/admin/orders',     icon: <ShoppingCart size={14} /> },
+  { id: 'ap6', type: 'page', label: 'Reports',       sub: 'Customer reports',         to: '/admin/reports',    icon: <Flag size={14} /> },
+  { id: 'ap7', type: 'page', label: 'Analytics',     sub: 'Platform insights',        to: '/admin/analytics',  icon: <BarChart2 size={14} /> },
+  { id: 'ap8', type: 'page', label: 'Settings',      sub: 'Fees & configuration',     to: '/admin/settings',   icon: <Settings size={14} /> },
 ];
 
 const RECENT_KEY = 'spaza_recent_searches';
@@ -30,7 +43,8 @@ function saveRecent(q: string) {
   localStorage.setItem(RECENT_KEY, JSON.stringify([q, ...prev]));
 }
 
-export default function GlobalSearch() {
+export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supplier' | 'admin' }) {
+  const isAdmin = variant === 'admin';
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -49,13 +63,34 @@ export default function GlobalSearch() {
       const ql = q.toLowerCase();
 
       // Search pages locally (always fast)
-      const pageResults: SearchResult[] = pages.filter((p) => p.label.toLowerCase().includes(ql));
+      const pageResults: SearchResult[] = (isAdmin ? adminPages : supplierPages).filter((p) => p.label.toLowerCase().includes(ql));
 
       // Search products and orders from real API
       let productResults: SearchResult[] = [];
       let orderResults: SearchResult[] = [];
 
       try {
+        if (isAdmin) {
+          // Admin endpoints search server-side across the whole platform
+          const [prodRes, ordRes] = await Promise.allSettled([
+            adminProductsApi.list({ search: q, pageSize: 3 }),
+            adminOrdersApi.list({ search: q, pageSize: 3 }),
+          ]);
+          if (prodRes.status === 'fulfilled') {
+            productResults = (prodRes.value.data ?? []).slice(0, 3).map((p: any) => ({
+              id: p.id, type: 'product' as const, label: p.name,
+              sub: `${p.supplierName || 'Supplier'} · SKU ${p.sku}`, to: '/admin/products',
+              icon: <Package size={14} />,
+            }));
+          }
+          if (ordRes.status === 'fulfilled') {
+            orderResults = (ordRes.value.data ?? []).slice(0, 3).map((o: any) => ({
+              id: o.id, type: 'order' as const, label: o.orderNumber,
+              sub: `${o.shopName ?? 'Shop'} → ${o.supplierName ?? 'Supplier'} · R${Number(o.totalAmount ?? 0).toLocaleString()}`,
+              to: '/admin/orders', icon: <ShoppingCart size={14} />,
+            }));
+          }
+        } else {
         const [prodRes, ordRes] = await Promise.allSettled([
           productsApi.list({ search: q, pageSize: 3 }),
           ordersApi.list({ pageSize: 50 }),
@@ -78,8 +113,9 @@ export default function GlobalSearch() {
             .map((o: any) => ({
               id: o.id, type: 'order' as const, label: o.orderNumber,
               sub: `${o.shop?.shopName ?? 'Shop'} · R${Number(o.totalAmount ?? 0).toLocaleString()}`,
-              to: '/orders', icon: <ShoppingCart size={14} />,
+              to: `/orders?order=${o.id}`, icon: <ShoppingCart size={14} />,
             }));
+        }
         }
       } catch {
         // Silently fail — just show page results
@@ -89,7 +125,7 @@ export default function GlobalSearch() {
       setLoading(false);
       setActive(0);
     }, 300);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { search(query); }, [query, search]);
 

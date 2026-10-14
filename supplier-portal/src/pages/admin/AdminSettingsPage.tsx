@@ -26,6 +26,18 @@ const defaultTiers: TierConfig[] = [
 ];
 
 // Default FAQ content for initialization
+const FAQ_UNAVAILABLE = 'The FAQ service is not available, so this change was not saved.';
+
+/** Shown on settings that are displayed here but not yet stored by the backend */
+function NotConnectedNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+      <p>{children}</p>
+    </div>
+  );
+}
+
 const DEFAULT_FAQS: Omit<FaqItem, 'id'>[] = [
   { question: 'Can I downgrade my plan?', answer: 'Yes. You can cancel at any time. Cancellation ends your paid plan immediately and reverts to Basic (free).', sortOrder: 1, isActive: true },
   { question: 'How does the commission rate work?', answer: 'SpazaSure takes a percentage of each order total. Higher tiers have lower rates — Gold saves the most for high-volume suppliers.', sortOrder: 2, isActive: true },
@@ -54,6 +66,7 @@ export default function AdminSettingsPage() {
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
   const [newFaq, setNewFaq] = useState({ question: '', answer: '' });
   const [showAddFaq, setShowAddFaq] = useState(false);
+  const [faqsFromApi, setFaqsFromApi] = useState(true);
 
   const updateTier = (tier: string, field: keyof TierConfig, value: string | number) => {
     setTiers((prev) => prev.map((t) => t.tier === tier ? { ...t, [field]: value } : t));
@@ -97,6 +110,7 @@ export default function AdminSettingsPage() {
     try {
       const res = await faqApi.listAll();
       const items = res?.data ?? res ?? [];
+      setFaqsFromApi(Array.isArray(items) && items.length > 0);
       if (items.length > 0) {
         setFaqs(items);
       } else {
@@ -129,11 +143,7 @@ export default function AdminSettingsPage() {
       setShowAddFaq(false);
       toast.success('FAQ added successfully');
     } catch {
-      // Fallback: add locally
-      setFaqs(prev => [...prev, { id: `local-${Date.now()}`, question: newFaq.question, answer: newFaq.answer, sortOrder: prev.length + 1, isActive: true }]);
-      setNewFaq({ question: '', answer: '' });
-      setShowAddFaq(false);
-      toast.success('FAQ added (saved locally)');
+      toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
     } finally {
       setFaqSaving(false);
     }
@@ -147,33 +157,32 @@ export default function AdminSettingsPage() {
       setEditingFaq(null);
       toast.success('FAQ updated');
     } catch {
-      setFaqs(prev => prev.map(f => f.id === faq.id ? faq : f));
-      setEditingFaq(null);
-      toast.success('FAQ updated (saved locally)');
+      toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
     } finally {
       setFaqSaving(false);
     }
   };
 
   const handleDeleteFaq = async (id: string) => {
+    if (!confirm('Delete this FAQ? Suppliers will no longer see it.')) return;
     try {
       await faqApi.delete(id);
+      setFaqs(prev => prev.filter(f => f.id !== id));
+      toast.success('FAQ deleted');
     } catch {
-      // Continue with local delete
+      toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
     }
-    setFaqs(prev => prev.filter(f => f.id !== id));
-    toast.success('FAQ deleted');
   };
 
   const handleToggleFaq = async (faq: FaqItem) => {
     const updated = { ...faq, isActive: !faq.isActive };
     try {
       await faqApi.update(faq.id, { isActive: updated.isActive });
+      setFaqs(prev => prev.map(f => f.id === faq.id ? updated : f));
+      toast.success(updated.isActive ? 'FAQ enabled' : 'FAQ hidden from suppliers');
     } catch {
-      // Continue with local toggle
+      toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
     }
-    setFaqs(prev => prev.map(f => f.id === faq.id ? updated : f));
-    toast.success(updated.isActive ? 'FAQ enabled' : 'FAQ hidden from suppliers');
   };
 
   const handleSaveFaqs = async () => {
@@ -182,7 +191,7 @@ export default function AdminSettingsPage() {
       await faqApi.reorder(faqs.map(f => f.id));
       toast.success('FAQ order saved');
     } catch {
-      toast.success('FAQ order saved locally');
+      toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
     } finally {
       setFaqSaving(false);
     }
@@ -198,15 +207,10 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 animate-in max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Platform Settings</h1>
-          <p className="page-subtitle">Configure commission rates, fees, and platform behaviour</p>
-        </div>
-        <button onClick={handleSave} disabled={saving} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm">
-          <Save size={15} /> {saving ? 'Saving...' : 'Save Changes'}
-        </button>
+    <div className="p-4 sm:p-6 space-y-6 animate-in max-w-5xl">
+      <div>
+        <h1 className="page-title">Platform Settings</h1>
+        <p className="page-subtitle">Configure commission rates, fees, and platform behaviour</p>
       </div>
 
       {/* Maintenance Warning */}
@@ -236,8 +240,10 @@ export default function AdminSettingsPage() {
       {/* Subscription Tiers */}
       {activeTab === 'Subscription Tiers' && (
         <div className="space-y-4 animate-in">
-          <p className="text-sm text-gray-500">Adjust monthly fees, commission rates, and listing limits per tier. Changes apply to new billing cycles.</p>
-          <div className="grid grid-cols-2 gap-4">
+          <NotConnectedNote>
+            Plan pricing is read-only here. These values are not saved by the backend yet; supplier plans are configured on the server.
+          </NotConnectedNote>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tiers.map((t) => (
               <div key={t.tier} className={`card p-5 border-2 ${t.color}`}>
                 <div className="flex items-center justify-between mb-4">
@@ -250,6 +256,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="number" value={t.monthlyFee}
                       onChange={(e) => updateTier(t.tier, 'monthlyFee', Number(e.target.value))}
+                      disabled
                       className="input text-sm"
                     />
                   </div>
@@ -258,6 +265,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="number" step="0.5" min="0" max="20" value={t.commissionRate}
                       onChange={(e) => updateTier(t.tier, 'commissionRate', Number(e.target.value))}
+                      disabled
                       className="input text-sm"
                     />
                   </div>
@@ -266,6 +274,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="text" value={t.maxListings}
                       onChange={(e) => updateTier(t.tier, 'maxListings', e.target.value === 'unlimited' ? 'unlimited' : Number(e.target.value))}
+                      disabled
                       className="input text-sm"
                       placeholder="e.g. 50 or unlimited"
                     />
@@ -281,7 +290,7 @@ export default function AdminSettingsPage() {
       {activeTab === 'Platform Fees' && (
         <div className="card p-6 animate-in space-y-5">
           <h2 className="font-bold text-gray-900">Fee Configuration</h2>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="label">Shop Onboarding Fee (R)</label>
               <input
@@ -295,28 +304,31 @@ export default function AdminSettingsPage() {
                 className="input"
               />
               <p className="text-xs text-gray-400 mt-1.5">Once-off amount charged to new shop owners. R0 waives the fee.</p>
+              <button onClick={handleSave} disabled={saving || settingsLoading} className="mt-3 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm inline-flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm">
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {saving ? 'Saving...' : 'Save onboarding fee'}
+              </button>
+            </div>
+            <div className="sm:col-span-2">
+              <NotConnectedNote>The fields below are shown for reference only and are not saved yet.</NotConnectedNote>
             </div>
             <div>
               <label className="label">Platform Transaction Fee (%)</label>
-              <input type="number" step="0.1" value={platformFee} onChange={(e) => setPlatformFee(e.target.value)} className="input" />
+              <input type="number" step="0.1" value={platformFee} onChange={(e) => setPlatformFee(e.target.value)} disabled className="input" />
               <p className="text-xs text-gray-400 mt-1.5">Applied on top of supplier commission per order</p>
             </div>
             <div>
               <label className="label">Supplier Payout Delay (days)</label>
-              <input type="number" min="1" max="30" value={payoutDays} onChange={(e) => setPayoutDays(e.target.value)} className="input" />
+              <input type="number" min="1" max="30" value={payoutDays} onChange={(e) => setPayoutDays(e.target.value)} disabled className="input" />
               <p className="text-xs text-gray-400 mt-1.5">Days after delivery before payout is released</p>
             </div>
             <div>
               <label className="label">Min Delivery Fee (R)</label>
-              <input type="number" value={deliveryFeeMin} onChange={(e) => setDeliveryFeeMin(e.target.value)} className="input" />
+              <input type="number" value={deliveryFeeMin} onChange={(e) => setDeliveryFeeMin(e.target.value)} disabled className="input" />
             </div>
             <div>
               <label className="label">Max Delivery Fee (R)</label>
-              <input type="number" value={deliveryFeeMax} onChange={(e) => setDeliveryFeeMax(e.target.value)} className="input" />
+              <input type="number" value={deliveryFeeMax} onChange={(e) => setDeliveryFeeMax(e.target.value)} disabled className="input" />
             </div>
-          </div>
-          <div className="success-box">
-            <strong>Current effective rates:</strong> Platform fee {platformFee}% + supplier commission (2–5% by tier). Payouts released after {payoutDays} days.
           </div>
         </div>
       )}
@@ -325,6 +337,9 @@ export default function AdminSettingsPage() {
       {activeTab === 'Operations' && (
         <div className="card p-6 animate-in space-y-5">
           <h2 className="font-bold text-gray-900">Platform Operations</h2>
+          <NotConnectedNote>
+            These switches are not connected to the platform yet, so changing them has no effect.
+          </NotConnectedNote>
           <div className="space-y-4">
             {[
               {
@@ -359,7 +374,7 @@ export default function AdminSettingsPage() {
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">{description}</p>
                 </div>
-                <button onClick={() => onChange(!value)} className={clsx('transition-colors flex-shrink-0', value ? (danger ? 'text-red-500' : 'text-emerald-600') : 'text-gray-300')}>
+                <button disabled aria-disabled="true" title="Not connected yet" onClick={() => onChange(!value)} className={clsx('transition-colors flex-shrink-0 cursor-not-allowed opacity-60', value ? (danger ? 'text-red-500' : 'text-emerald-600') : 'text-gray-300')}>
                   {value ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                 </button>
               </div>
@@ -393,6 +408,12 @@ export default function AdminSettingsPage() {
               </button>
             </div>
           </div>
+
+          {!faqsLoading && !faqsFromApi && (
+            <NotConnectedNote>
+              The FAQ service isn't available, so these are the built-in FAQs suppliers currently see. Edits can't be saved until the FAQ API is deployed.
+            </NotConnectedNote>
+          )}
 
           {/* Loading state */}
           {faqsLoading ? (

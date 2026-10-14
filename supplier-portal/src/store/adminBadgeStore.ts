@@ -25,10 +25,10 @@ export const useAdminBadgeStore = create<AdminBadgeState>((set, get) => ({
       // Fetch pending suppliers count
       let pendingSuppliers = 0;
       try {
-        const suppRes = await adminSuppliersApi.list({ status: 'pending' });
+        // Use the server-side total; counting items only covered the first page (max 20)
+        const suppRes = await adminSuppliersApi.list({ status: 'pending', pageSize: 1 });
         const suppData = suppRes?.data ?? suppRes;
-        const items = Array.isArray(suppData) ? suppData : suppData?.items ?? [];
-        pendingSuppliers = items.filter((s: any) => !s.isVerified && s.status !== 'verified').length;
+        pendingSuppliers = Number(suppData?.total ?? (Array.isArray(suppData) ? suppData.length : suppData?.items?.length ?? 0));
       } catch {}
 
       // Fetch pending documents count

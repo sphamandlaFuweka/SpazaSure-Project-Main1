@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'api_service.dart';
 import '../models/models.dart';
 
@@ -59,13 +61,25 @@ class OrderService {
     await ApiService.patch('/shop/orders/$orderId/confirm-delivery', {});
   }
 
+  /// Product images are stored as a JSON array string, e.g. '["https://..."]'
+  static String _firstImage(dynamic raw) {
+    if (raw is List && raw.isNotEmpty) return raw.first.toString();
+    if (raw is! String || raw.isEmpty) return '';
+    if (!raw.trimLeft().startsWith('[')) return raw;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List && decoded.isNotEmpty) return decoded.first.toString();
+    } catch (_) {}
+    return '';
+  }
+
   static Order _mapOrder(Map<String, dynamic> o) {
     final items = (o['items'] as List<dynamic>? ?? [])
         .map(
           (i) => OrderItem(
             productId: i['productId'].toString(),
             productName: i['name'] ?? i['productName'] ?? '',
-            productImage: '',
+            productImage: _firstImage(i['productImage']),
             quantity: (i['quantity'] as num?)?.toInt() ?? 0,
             price: (i['unitPrice'] as num).toDouble(),
           ),
@@ -79,7 +93,11 @@ class OrderService {
       orderNumber: o['orderNumber'] ?? '',
       shopId: o['shopId']?.toString() ?? '',
       supplierId: o['supplierId']?.toString() ?? '',
-      supplierName: o['supplier']?['companyName'] ?? '',
+      // List/detail endpoints return a flat supplierName; older payloads nest it
+      supplierName:
+          o['supplierName']?.toString() ??
+          o['supplier']?['companyName']?.toString() ??
+          '',
       items: items,
       subtotal: subtotal,
       deliveryFee: (o['deliveryFee'] as num? ?? 0).toDouble(),

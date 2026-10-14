@@ -126,11 +126,13 @@ class ProductService {
       supplierName: i['supplierName'] ?? '',
       stockQuantity: (i['stockQty'] as num?)?.toInt() ?? 0,
       minOrderQty: (i['minOrderQty'] as num?)?.toInt() ?? 1,
-      rating: (i['rating'] as num?)?.toDouble() ?? 4.0,
-      reviewCount: i['reviewCount'] ?? 0,
+      // No reviews means no rating — don't invent one
+      rating: (i['rating'] as num?)?.toDouble() ?? 0,
+      reviewCount: (i['reviewCount'] as num?)?.toInt() ?? 0,
       isAvailable: i['isAvailable'] ?? true,
       isNearby: i['isNearby'] ?? false,
       supplierCity: i['supplierCity'] as String?,
+      supplierTier: (i['supplierTier'] as String?)?.toLowerCase(),
       supplierCommissionRate:
           (i['supplierCommissionRate'] as num?)?.toDouble() ?? 5,
     );

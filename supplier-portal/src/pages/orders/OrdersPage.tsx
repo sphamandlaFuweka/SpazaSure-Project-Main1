@@ -392,7 +392,7 @@ export default function OrdersPage() {
                         <Printer size={14} />
                       </button>
                       {(order.status === 'processing' || order.status === 'dispatched' || order.status === 'delivered') && (
-                        <button onClick={() => setTrackingOrder(order)} className="btn-icon hover:text-blue-600 hover:bg-blue-50" title="Track Delivery">
+                        <button onClick={() => setTrackingOrder(order)} className="btn-icon hover:text-blue-600 hover:bg-blue-50" title="Delivery map">
                           <MapPin size={14} />
                         </button>
                       )}

@@ -438,6 +438,9 @@ export default api;
 export const notificationsApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
     api.get('/supplier/notifications', { params }).then((r) => r.data?.data ?? r.data ?? []).catch(() => []),
+  /** Same as list, but rejects on failure so a page can show an error state */
+  listStrict: (params?: { page?: number; pageSize?: number }) =>
+    api.get('/supplier/notifications', { params }).then((r) => r.data?.data ?? r.data ?? []),
   unreadCount: () =>
     api.get('/supplier/notifications/unread-count').then((r) => r.data?.count ?? r.data?.data?.count ?? 0).catch(() => 0),
   markRead: (id: string) =>

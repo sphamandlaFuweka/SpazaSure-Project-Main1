@@ -19,6 +19,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
   int _supplierRating = 0;
   final _commentController = TextEditingController();
   bool _submitted = false;
+  bool _submitting = false;
   late AnimationController _successController;
 
   @override
@@ -52,8 +53,9 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
     }
 
     final order = ModalRoute.of(context)?.settings.arguments as Order?;
-    if (order == null) return;
+    if (order == null || _submitting) return;
 
+    setState(() => _submitting = true);
     try {
       await ApiService.post('/shop/orders/${order.id}/rate', {
         'deliveryRating': _deliveryRating,
@@ -61,10 +63,29 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
         'comment': _commentController.text.trim(),
       });
     } catch (_) {
-      // Still show success even if API fails — rating is non-critical
+      // Keep the form filled in so the shop owner can simply try again
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Your rating could not be sent. Check your connection and try again.',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      return;
     }
 
-    setState(() => _submitted = true);
+    if (!mounted) return;
+    setState(() {
+      _submitting = false;
+      _submitted = true;
+    });
     _successController.forward();
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
@@ -315,9 +336,18 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: _submit,
-                    icon: const Icon(Icons.star_rounded, size: 22),
-                    label: Text('Submit Rating',
+                    onPressed: _submitting ? null : _submit,
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.star_rounded, size: 22),
+                    label: Text(_submitting ? 'Sending...' : 'Submit Rating',
                         style: AppTextStyles.button),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryLight,

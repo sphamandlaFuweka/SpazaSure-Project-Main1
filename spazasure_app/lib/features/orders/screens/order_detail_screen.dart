@@ -72,14 +72,16 @@ class OrderDetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(order.supplierName, style: AppTextStyles.subtitle),
-                        Text('Verified Supplier', style: AppTextStyles.caption),
+                        Text(
+                          order.supplierName.isEmpty ? 'Supplier' : order.supplierName,
+                          style: AppTextStyles.subtitle,
+                        ),
+                        Text(
+                          'Order ${order.orderNumber}',
+                          style: AppTextStyles.caption,
+                        ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.phone_outlined, color: AppColors.primary),
-                    onPressed: () {},
                   ),
                 ],
               ),
@@ -175,15 +177,17 @@ class OrderDetailScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Driver: John M.', style: AppTextStyles.subtitle),
-                              if (order.estimatedDelivery != null)
-                                Text('ETA: ${DateFormat('HH:mm').format(order.estimatedDelivery!)}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.info)),
+                              Text('On the way to your shop', style: AppTextStyles.subtitle),
+                              Text(
+                                order.estimatedDelivery != null
+                                    ? 'Expected by ${DateFormat('HH:mm').format(order.estimatedDelivery!)}'
+                                    : order.deliveryDistanceKm != null
+                                    ? '${order.deliveryDistanceKm!.toStringAsFixed(1)} km from ${order.supplierName.isEmpty ? 'the supplier' : order.supplierName}'
+                                    : 'Dispatched by ${order.supplierName.isEmpty ? 'the supplier' : order.supplierName}',
+                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.info),
+                              ),
                             ],
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.phone_outlined, color: AppColors.info),
-                          onPressed: () {},
                         ),
                       ],
                     ),

@@ -78,7 +78,7 @@ export default function AdminLayout() {
             <LiveClock variant="admin" />
 
             {/* Search */}
-            <GlobalSearch />
+            <GlobalSearch variant="admin" />
 
             {/* Notifications */}
             <NotificationBell variant="admin" />

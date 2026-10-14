@@ -1216,7 +1216,7 @@ class _WalletScreenState extends State<WalletScreen> {
               _settingItem(
                 Icons.speed,
                 'Daily Limit',
-                'R 5,000.00 per day',
+                'Set a daily spending limit',
                 false,
               ),
               const SizedBox(height: 10),
@@ -1292,18 +1292,23 @@ class _WalletScreenState extends State<WalletScreen> {
               ],
             ),
           ),
-          if (hasToggle)
-            Switch(
-              value: true,
-              onChanged: (_) {},
-              activeThumbColor: AppColors.primary,
-            )
-          else
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textHint,
-              size: 20,
+          // None of these settings are available yet, so don't show switches
+          // that look switched on (e.g. a PIN or 2FA that doesn't exist).
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.textHint.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
             ),
+            child: Text(
+              'Soon',
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         ],
       ),
     );

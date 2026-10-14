@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Modal } from '../../components/ui';
 import type { Order } from '../../types';
-import { MapPin, Truck, Store, Navigation } from 'lucide-react';
-
+import { MapPin, Navigation, Loader2, Check } from 'lucide-react';
+import clsx from 'clsx';
+import { profileApi } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { formatCurrency } from '../../utils';
 // Fix default marker icon issue with Leaflet + bundlers
 import 'leaflet/dist/leaflet.css';
 
@@ -13,39 +16,7 @@ interface Props {
   onClose: () => void;
 }
 
-// Supplier location (Johannesburg CBD area - this would come from backend in production)
-const SUPPLIER_COORDS: [number, number] = [-26.1952, 28.0348];
-
-// Simulated driver position along the route
-function getDriverPosition(supplier: [number, number], shop: [number, number], progress: number): [number, number] {
-  return [
-    supplier[0] + (shop[0] - supplier[0]) * progress,
-    supplier[1] + (shop[1] - supplier[1]) * progress,
-  ];
-}
-
-// Geocode shop address to coordinates (simulated - in production use a geocoding API)
-function getShopCoords(shopAddress: string): [number, number] {
-  // Use a hash of the address to generate consistent but varied coordinates around Johannesburg
-  let hash = 0;
-  for (let i = 0; i < shopAddress.length; i++) {
-    hash = ((hash << 5) - hash) + shopAddress.charCodeAt(i);
-    hash |= 0;
-  }
-  const latOffset = (Math.abs(hash % 100) - 50) * 0.0003;
-  const lngOffset = (Math.abs((hash >> 8) % 100) - 50) * 0.0003;
-  return [-26.2041 + latOffset, 28.0473 + lngOffset];
-}
-
-// Delivery progress based on order status
-function getDeliveryProgress(status: string): number {
-  switch (status) {
-    case 'processing': return 0.0;
-    case 'dispatched': return 0.55;
-    case 'delivered': return 1.0;
-    default: return 0.0;
-  }
-}
+type LatLng = [number, number];
 
 // Custom marker icons using SVG
 function createIcon(color: string, iconSvg: string): L.DivIcon {
@@ -55,7 +26,7 @@ function createIcon(color: string, iconSvg: string): L.DivIcon {
       <div style="
         width: 40px; height: 40px; border-radius: 50%;
         background: ${color}; border: 3px solid white;
-        box-shadow: 0 3px 10px ${color}66;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
       ">
         ${iconSvg}
@@ -70,206 +41,199 @@ const supplierIcon = createIcon('#3b82f6',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>'
 );
 
-const driverIcon = createIcon('#16a34a',
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
-);
-
 const shopIcon = createIcon('#f59e0b',
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
 );
 
-// Component to fit bounds to markers
-function FitBounds({ points }: { points: [number, number][] }) {
+function FitBounds({ points }: { points: LatLng[] }) {
   const map = useMap();
   useEffect(() => {
     if (points.length >= 2) {
-      const bounds = L.latLngBounds(points.map(p => L.latLng(p[0], p[1])));
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(L.latLngBounds(points.map((p) => L.latLng(p[0], p[1]))), { padding: [50, 50] });
+    } else if (points.length === 1) {
+      map.setView(points[0], 14);
     }
   }, [map, points]);
   return null;
 }
 
-// Animated driver marker that moves along the route
-function AnimatedDriver({ from, to, status }: { from: [number, number]; to: [number, number]; status: string }) {
-  const [progress, setProgress] = useState(getDeliveryProgress(status));
-
-  useEffect(() => {
-    if (status !== 'dispatched') return;
-    // Simulate movement for dispatched orders
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        const next = prev + 0.003;
-        return next >= 0.95 ? 0.55 : next; // Loop around for demo
-      });
-    }, 200);
-    return () => clearInterval(interval);
-  }, [status]);
-
-  const pos = getDriverPosition(from, to, progress);
-
-  if (status === 'pending' || status === 'confirmed') return null;
-
-  return (
-    <Marker position={pos} icon={driverIcon}>
-      <Popup>
-        <div className="text-center">
-          <p className="font-bold text-sm">Delivery Driver</p>
-          <p className="text-xs text-gray-500">
-            {status === 'dispatched' ? 'In transit' : status === 'delivered' ? 'Delivered' : 'Preparing'}
-          </p>
-        </div>
-      </Popup>
-    </Marker>
-  );
+/** Straight-line distance in km (haversine) */
+function distanceKm(a: LatLng, b: LatLng) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
+const STEPS = [
+  { status: 'pending',    label: 'Placed' },
+  { status: 'processing', label: 'Preparing' },
+  { status: 'dispatched', label: 'Dispatched' },
+  { status: 'delivered',  label: 'Delivered' },
+];
+
+const STATUS_MESSAGE: Record<string, { text: string; color: string; bg: string }> = {
+  pending:    { text: 'Awaiting your confirmation',            color: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200' },
+  confirmed:  { text: 'Confirmed — ready to be prepared',      color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-200' },
+  processing: { text: 'Being packed and prepared for dispatch', color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-200' },
+  dispatched: { text: 'Out for delivery to the spaza shop',    color: 'text-green-600',   bg: 'bg-green-50 border-green-200' },
+  delivered:  { text: 'Delivered',                             color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+  cancelled:  { text: 'This order was cancelled',              color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+};
+
 export default function DeliveryTrackingModal({ order, onClose }: Props) {
-  const shopCoords = getShopCoords(order.shopAddress || order.shopName);
-  const supplierCoords = SUPPLIER_COORDS;
-  const progress = getDeliveryProgress(order.status);
-  const driverPos = getDriverPosition(supplierCoords, shopCoords, progress);
+  const { user } = useAuthStore();
+  const [supplierCoords, setSupplierCoords] = useState<LatLng | null>(null);
+  const [supplierCity, setSupplierCity] = useState<string>('');
+  const [loadingOrigin, setLoadingOrigin] = useState(true);
 
-  // Route points (in production, use a routing API for real road directions)
-  const routePoints: [number, number][] = [
-    supplierCoords,
-    // Add intermediate points for a more realistic route
-    [
-      supplierCoords[0] + (shopCoords[0] - supplierCoords[0]) * 0.3,
-      supplierCoords[1] + (shopCoords[1] - supplierCoords[1]) * 0.2,
-    ],
-    [
-      supplierCoords[0] + (shopCoords[0] - supplierCoords[0]) * 0.6,
-      supplierCoords[1] + (shopCoords[1] - supplierCoords[1]) * 0.7,
-    ],
-    shopCoords,
-  ];
+  // The supplier's saved business location is the delivery origin
+  useEffect(() => {
+    let cancelled = false;
+    profileApi.get()
+      .then((p) => {
+        if (cancelled) return;
+        if (p.latitude != null && p.longitude != null) setSupplierCoords([p.latitude, p.longitude]);
+        setSupplierCity([p.city, p.province].filter(Boolean).join(', '));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingOrigin(false); });
+    return () => { cancelled = true; };
+  }, []);
 
-  const statusMessage = () => {
-    switch (order.status) {
-      case 'pending': return { text: 'Awaiting confirmation', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' };
-      case 'confirmed': return { text: 'Order confirmed, preparing for dispatch', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' };
-      case 'processing': return { text: 'Order being packed and prepared', color: 'text-violet-600', bg: 'bg-violet-50 border-violet-200' };
-      case 'dispatched': return { text: 'Driver is on the way to the spaza shop', color: 'text-green-600', bg: 'bg-green-50 border-green-200' };
-      case 'delivered': return { text: 'Order delivered successfully', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' };
-      default: return { text: 'Order status unknown', color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' };
-    }
-  };
+  const shopCoords: LatLng | null = order.deliveryLatitude != null && order.deliveryLongitude != null
+    ? [order.deliveryLatitude, order.deliveryLongitude]
+    : null;
+  const points = [supplierCoords, shopCoords].filter(Boolean) as LatLng[];
+  const straightKm = supplierCoords && shopCoords ? distanceKm(supplierCoords, shopCoords) : null;
+  const km = order.deliveryDistanceKm ?? straightKm;
 
-  const msg = statusMessage();
+  const msg = STATUS_MESSAGE[order.status] ?? { text: `Status: ${order.status}`, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' };
+  const stepStatus = order.status === 'confirmed' ? 'pending' : order.status;
+  const currentStep = STEPS.findIndex((s) => s.status === stepStatus);
+
+  const directionsUrl = shopCoords
+    ? `https://www.google.com/maps/dir/?api=1&destination=${shopCoords[0]},${shopCoords[1]}${supplierCoords ? `&origin=${supplierCoords[0]},${supplierCoords[1]}` : ''}`
+    : null;
 
   return (
-    <Modal title={`Track Delivery — ${order.orderNumber}`} onClose={onClose} size="xl">
+    <Modal title={`Delivery — ${order.orderNumber}`} onClose={onClose} size="xl">
       <div className="p-0">
         {/* Map */}
-        <div className="h-[400px] w-full relative">
-          <MapContainer
-            center={driverPos}
-            zoom={14}
-            style={{ height: '100%', width: '100%' }}
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            <FitBounds points={[supplierCoords, shopCoords]} />
-
-            {/* Route line - completed portion */}
-            <Polyline
-              positions={routePoints}
-              pathOptions={{ color: '#16a34a', weight: 4, opacity: 0.8, dashArray: order.status === 'dispatched' ? undefined : '8 12' }}
-            />
-
-            {/* Route line - remaining portion (lighter) */}
-            {order.status === 'dispatched' && (
-              <Polyline
-                positions={[driverPos, ...routePoints.slice(2)]}
-                pathOptions={{ color: '#16a34a', weight: 3, opacity: 0.3, dashArray: '8 12' }}
+        <div className="h-[300px] sm:h-[380px] w-full relative bg-gray-100">
+          {loadingOrigin ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 size={28} className="animate-spin text-gray-300" />
+            </div>
+          ) : points.length === 0 ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+              <MapPin size={32} className="text-gray-300 mb-2" />
+              <p className="text-sm font-semibold text-gray-600">No map location for this order</p>
+              <p className="text-xs text-gray-400 mt-1 max-w-sm">
+                The shop didn't share a delivery pin and your business location isn't set. Add your location under Profile to see it here.
+              </p>
+            </div>
+          ) : (
+            <MapContainer center={points[0]} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-            )}
+              <FitBounds points={points} />
 
-            {/* Supplier marker */}
-            <Marker position={supplierCoords} icon={supplierIcon}>
-              <Popup>
-                <div className="text-center">
-                  <p className="font-bold text-sm">Supplier Warehouse</p>
-                  <p className="text-xs text-gray-500">Origin</p>
-                </div>
-              </Popup>
-            </Marker>
+              {supplierCoords && shopCoords && (
+                <Polyline
+                  positions={[supplierCoords, shopCoords]}
+                  pathOptions={{ color: '#16a34a', weight: 3, opacity: 0.7, dashArray: order.status === 'delivered' ? undefined : '8 10' }}
+                />
+              )}
 
-            {/* Shop destination marker */}
-            <Marker position={shopCoords} icon={shopIcon}>
-              <Popup>
-                <div className="text-center">
-                  <p className="font-bold text-sm">{order.shopName}</p>
-                  <p className="text-xs text-gray-500">{order.shopAddress}</p>
-                </div>
-              </Popup>
-            </Marker>
+              {supplierCoords && (
+                <Marker position={supplierCoords} icon={supplierIcon}>
+                  <Popup>
+                    <div className="text-center">
+                      <p className="font-bold text-sm">{user?.companyName ?? 'Your business'}</p>
+                      <p className="text-xs text-gray-500">Origin</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
 
-            {/* Animated driver */}
-            <AnimatedDriver from={supplierCoords} to={shopCoords} status={order.status} />
-          </MapContainer>
+              {shopCoords && (
+                <Marker position={shopCoords} icon={shopIcon}>
+                  <Popup>
+                    <div className="text-center">
+                      <p className="font-bold text-sm">{order.shopName}</p>
+                      <p className="text-xs text-gray-500">{order.shopAddress}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+            </MapContainer>
+          )}
         </div>
 
         {/* Info Panel */}
         <div className="p-5 space-y-4">
-          {/* Status Banner */}
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${msg.bg}`}>
+          <div className={clsx('flex items-center gap-3 px-4 py-3 rounded-xl border', msg.bg)}>
             <Navigation size={16} className={msg.color} />
-            <p className={`text-sm font-semibold ${msg.color}`}>{msg.text}</p>
+            <p className={clsx('text-sm font-semibold', msg.color)}>{msg.text}</p>
           </div>
+
+          {/* Progress steps */}
+          {order.status !== 'cancelled' && (
+            <ol className="flex items-center" aria-label="Delivery progress">
+              {STEPS.map((step, i) => {
+                const done = i <= currentStep;
+                return (
+                  <li key={step.status} className="flex-1 flex items-center last:flex-none">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={clsx('w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold',
+                        done ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400')}>
+                        {done ? <Check size={14} /> : i + 1}
+                      </span>
+                      <span className={clsx('text-[11px] font-semibold whitespace-nowrap', done ? 'text-primary' : 'text-gray-400')}>{step.label}</span>
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <span className={clsx('flex-1 h-0.5 mx-2 mb-5 rounded', i < currentStep ? 'bg-primary' : 'bg-gray-200')} />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
 
           {/* Route Info */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* From */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-start gap-3 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-blue-600 uppercase">From: Supplier</p>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5">Your Warehouse</p>
-                <p className="text-xs text-gray-500">Johannesburg</p>
+              <span className="w-3 h-3 mt-1 rounded-full bg-blue-500 ring-2 ring-blue-200 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-blue-600 uppercase">From</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5 truncate">{user?.companyName ?? 'Your business'}</p>
+                <p className="text-xs text-gray-500">{supplierCity || (supplierCoords ? 'Saved business location' : 'Location not set')}</p>
               </div>
             </div>
-
-            {/* To */}
             <div className="flex items-start gap-3 p-3 bg-amber-50/60 rounded-xl border border-amber-100">
-              <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-amber-600 uppercase">To: Spaza Shop</p>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5">{order.shopName}</p>
-                <p className="text-xs text-gray-500">{order.shopAddress || 'Address on file'}</p>
+              <span className="w-3 h-3 mt-1 rounded-full bg-amber-500 ring-2 ring-amber-200 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-amber-600 uppercase">To</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5 truncate">{order.shopName}</p>
+                <p className="text-xs text-gray-500">{order.shopAddress || (shopCoords ? 'Pinned location' : 'Address not provided')}</p>
               </div>
             </div>
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center justify-center gap-5 pt-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-blue-200" />
-              <span className="text-xs text-gray-500 font-medium">Supplier</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-green-500 ring-2 ring-green-200" />
-              <span className="text-xs text-gray-500 font-medium">Driver</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-amber-500 ring-2 ring-amber-200" />
-              <span className="text-xs text-gray-500 font-medium">Spaza Shop</span>
-            </div>
-          </div>
-
-          {/* Order Details Quick Info */}
-          <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">
-            <span>{order.items.length} item{order.items.length !== 1 ? 's' : ''} • R{order.total.toLocaleString()}</span>
-            <span className="capitalize">{order.deliveryOption} delivery</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 border-t border-gray-100 pt-3">
+            <span>
+              {order.items.length} item{order.items.length !== 1 ? 's' : ''} • {formatCurrency(order.total)}
+              {km != null && <> • {km.toFixed(1)} km{order.deliveryDistanceKm == null ? ' (straight line)' : ''}</>}
+            </span>
+            {directionsUrl && (
+              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">
+                <Navigation size={12} /> Open directions
+              </a>
+            )}
           </div>
         </div>
       </div>

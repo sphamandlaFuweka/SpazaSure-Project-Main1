@@ -1,19 +1,35 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, ShoppingCart, Package, TrendingUp, Download, ArrowUpRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DollarSign, ShoppingCart, Package, TrendingUp, TrendingDown, Download, ArrowUpRight, BarChart2 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { StatCard } from '../../components/ui';
+import clsx from 'clsx';
+import { StatCard, TierIcon } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
-import { analyticsApi, ordersApi } from '../../services/api';
+import { analyticsApi, ordersApi, subscriptionApi } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { formatCurrency } from '../../utils';
 import toast from 'react-hot-toast';
-import type { AnalyticsSummary, RevenueDataPoint, TopProduct, Order } from '../../types';
-import { TierIcon } from '../../components/ui';
+import type { AnalyticsSummary, RevenueDataPoint, TopProduct, Order, SubscriptionPlan } from '../../types';
 
-const COLORS = ['#1B4332', '#2E7D52', '#4CAF50', '#81C784', '#A5D6A7'];
+const COLORS = ['#1B4332', '#2E7D52', '#4CAF50', '#81C784', '#A5D6A7', '#C8E6C9'];
+
+const TIER_STYLE: Record<string, { color: string; text: string }> = {
+  basic:  { color: 'bg-gray-50 border-gray-200',     text: 'text-gray-600' },
+  bronze: { color: 'bg-orange-50 border-orange-200', text: 'text-orange-700' },
+  silver: { color: 'bg-slate-50 border-slate-300',   text: 'text-slate-700' },
+  gold:   { color: 'bg-amber-50 border-amber-300',   text: 'text-amber-700' },
+};
 
 type Period = 'week' | 'month' | 'year';
+
+const PERIOD_LABEL: Record<Period, string> = {
+  week: 'Daily revenue this week',
+  month: 'Revenue by month',
+  year: 'Revenue by year',
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
@@ -22,7 +38,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-bold text-gray-700 mb-1">{label}</p>
         {payload.map((p: any) => (
           <p key={p.name} style={{ color: p.color }} className="font-semibold">
-            {p.name === 'revenue' ? `R${p.value.toLocaleString()}` : p.value}
+            {p.name === 'revenue' ? formatCurrency(p.value) : `${p.value} orders`}
           </p>
         ))}
       </div>
@@ -31,23 +47,52 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+function ChartEmpty({ height, message }: { height: number; message: string }) {
+  return (
+    <div style={{ height }} className="flex flex-col items-center justify-center text-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-6">
+      <BarChart2 size={28} className="text-gray-300 mb-2" />
+      <p className="text-xs text-gray-400 max-w-[240px]">{message}</p>
+    </div>
+  );
+}
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const escape = (v: string | number) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = rows.map((r) => r.map(escape).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AnalyticsPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [period, setPeriod] = useState<Period>('month');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueDataPoint[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [currentTier, setCurrentTier] = useState<string>(user?.tier ?? 'basic');
 
+  // Everything except the revenue series is independent of the period, so load it once
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      const [summaryRes, revenueRes, topRes, ordersRes] = await Promise.allSettled([
+    (async () => {
+      const [summaryRes, topRes, ordersRes, plansRes, currentRes] = await Promise.allSettled([
         analyticsApi.summary(),
-        analyticsApi.revenue(period),
         analyticsApi.topProducts(),
         ordersApi.list({ pageSize: 100 }),
+        subscriptionApi.getPlans(),
+        subscriptionApi.getCurrent(),
       ]);
       if (cancelled) return;
 
@@ -61,15 +106,6 @@ export default function AnalyticsPage() {
           revenueChange:  d.revenueGrowth  ?? d.revenueChange  ?? 0,
           ordersChange:   d.ordersGrowth   ?? d.ordersChange   ?? 0,
         });
-      }
-
-      if (revenueRes.status === 'fulfilled') {
-        const raw: any[] = (revenueRes.value as any)?.data ?? revenueRes.value ?? [];
-        setRevenue(raw.map((r) => ({
-          month:   r.month ?? r.date ?? '',
-          revenue: r.revenue ?? 0,
-          orders:  r.orders  ?? 0,
-        })));
       }
 
       if (topRes.status === 'fulfilled') {
@@ -106,9 +142,33 @@ export default function AnalyticsPage() {
         })));
       }
 
-      if (!cancelled) setLoading(false);
-    };
-    load();
+      if (plansRes.status === 'fulfilled') {
+        const raw = (plansRes.value as any)?.data ?? plansRes.value ?? [];
+        if (Array.isArray(raw)) setPlans([...raw].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+      }
+      if (currentRes.status === 'fulfilled') {
+        const d = (currentRes.value as any)?.data ?? currentRes.value;
+        if (d?.currentTier) setCurrentTier(d.currentTier);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setRefreshing(true);
+    analyticsApi.revenue(period)
+      .then((res) => {
+        if (cancelled) return;
+        const raw: any[] = (res as any)?.data ?? res ?? [];
+        setRevenue(raw.map((r) => ({
+          month:   r.month ?? r.date ?? '',
+          revenue: r.revenue ?? 0,
+          orders:  r.orders  ?? 0,
+        })));
+      })
+      .catch(() => { if (!cancelled) setRevenue([]); })
+      .finally(() => { if (!cancelled) { setRefreshing(false); setLoading(false); } });
     return () => { cancelled = true; };
   }, [period]);
 
@@ -122,75 +182,134 @@ export default function AnalyticsPage() {
     value,
   }));
 
-  // Derive category revenue from top products (best available without a dedicated endpoint)
-  const categoryRevenue = topProducts.map((p) => ({ name: p.productName, revenue: p.revenue }));
+  const productRevenue = topProducts.map((p) => ({ name: p.productName, revenue: p.revenue }));
+  const recentTransactions = orders.filter((o) => o.status !== 'cancelled').slice(0, 10);
+
+  // Commission savings for this calendar month, based on delivered orders
+  const now = new Date();
+  const monthRevenue = orders
+    .filter((o) => o.status === 'delivered')
+    .filter((o) => { const d = new Date(o.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+    .reduce((sum, o) => sum + o.subtotal, 0);
+  const basicPlan = plans.find((p) => p.tier === 'basic');
+  const currentPlan = plans.find((p) => p.tier === currentTier);
+  const goldPlan = plans.find((p) => p.tier === 'gold');
+  const savingVsBasic = basicPlan && currentPlan
+    ? (monthRevenue * (basicPlan.commissionRate - currentPlan.commissionRate)) / 100
+    : 0;
+  const tierLabel = currentTier.charAt(0).toUpperCase() + currentTier.slice(1);
 
   const s = summary;
-  const handleExport = () => toast.success('Report export started — check your email shortly.');
+  const revenueUp = (s?.revenueChange ?? 0) >= 0;
+
+  const handleExport = () => {
+    if (!s && revenue.length === 0 && orders.length === 0) {
+      toast.error('There is no data to export yet.');
+      return;
+    }
+    const rows: (string | number)[][] = [
+      ['SpazaSure analytics report', user?.companyName ?? ''],
+      ['Generated', new Date().toLocaleString('en-ZA')],
+      [],
+      ['Summary'],
+      ['Total revenue', s?.totalRevenue ?? 0],
+      ['Total orders', s?.totalOrders ?? 0],
+      ['Active products', s?.activeProducts ?? 0],
+      ['Average order value', s?.avgOrderValue ?? 0],
+      [],
+      [`Revenue (${period})`],
+      ['Period', 'Revenue', 'Orders'],
+      ...revenue.map((r) => [r.month, r.revenue, r.orders ?? 0]),
+      [],
+      ['Top products'],
+      ['Product', 'Units sold', 'Revenue'],
+      ...topProducts.map((p) => [p.productName, p.totalSold, p.revenue]),
+      [],
+      ['Orders'],
+      ['Order', 'Shop', 'Status', 'Date', 'Gross', 'Commission', 'Net payout'],
+      ...orders.map((o) => [
+        o.orderNumber, o.shopName, o.status, new Date(o.createdAt).toLocaleDateString('en-ZA'),
+        o.total.toFixed(2), o.platformCommission.toFixed(2), (o.subtotal - o.platformCommission).toFixed(2),
+      ]),
+    ];
+    downloadCsv(`spazasure-analytics-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success('Report downloaded');
+  };
 
   return (
-    <div className="p-6 space-y-6 animate-in">
+    <div className="p-4 sm:p-6 space-y-6 animate-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Analytics</h1>
           <p className="page-subtitle">Performance overview for your supplier account</p>
         </div>
         <button onClick={handleExport} className="btn-secondary flex items-center gap-2">
-          <Download size={15} /> Export Report
+          <Download size={15} /> Export CSV
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Revenue" value={s?.totalRevenue ?? 0} prefix="R " change={s?.revenueChange} icon={<DollarSign size={20} />} variant="green" />
         <StatCard title="Total Orders" value={s?.totalOrders ?? 0} change={s?.ordersChange} icon={<ShoppingCart size={20} />} />
         <StatCard title="Active Products" value={s?.activeProducts ?? 0} icon={<Package size={20} />} />
         <StatCard title="Avg Order Value" value={s?.avgOrderValue ?? 0} prefix="R " icon={<TrendingUp size={20} />} variant="amber" />
       </div>
 
-      {/* Subscription Tier Revenue Impact */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-bold text-gray-900">Subscription Tier Savings</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Your Silver tier saves you commission vs Basic</p>
-          </div>
-          <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-full inline-flex items-center gap-1"><TierIcon tier="silver" size={12} /> Silver Plan</span>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { tier: 'Basic',  rate: '5%', monthly: 'R500', color: 'bg-gray-50 border-gray-200', text: 'text-gray-600' },
-            { tier: 'Bronze', rate: '4%', monthly: 'R500', color: 'bg-orange-50 border-orange-200', text: 'text-orange-700' },
-            { tier: 'Silver', rate: '3%', monthly: 'R1,500', color: 'bg-slate-50 border-slate-300', text: 'text-slate-700', active: true },
-            { tier: 'Gold',   rate: '2%', monthly: 'R5,500', color: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-          ].map(({ tier, rate, monthly, color, text, active }) => (
-            <div key={tier} className={`p-4 rounded-xl border-2 ${color} ${active ? 'ring-2 ring-slate-400' : ''}`}>
-              <div className="flex items-center justify-between mb-2">
-                <p className={`font-bold text-sm ${text}`}>{tier}</p>
-                {active && <span className="text-[10px] font-bold bg-slate-600 text-white px-1.5 py-0.5 rounded-full">CURRENT</span>}
-              </div>
-              <p className={`text-2xl font-black ${text}`}>{rate}</p>
-              <p className="text-xs text-gray-500 mt-0.5">commission</p>
-              <p className="text-xs text-gray-400 mt-2">{monthly}/month</p>
+      {/* Subscription Tier Commission Impact (real plans + this month's delivered orders) */}
+      {plans.length > 0 && (
+        <div className="card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="font-bold text-gray-900">Commission by Plan</h3>
+              <p className="text-xs text-gray-400 mt-0.5">What you pay SpazaSure on each plan</p>
             </div>
-          ))}
+            <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-full inline-flex items-center gap-1">
+              <TierIcon tier={currentTier} size={12} /> {tierLabel} Plan
+            </span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {plans.map((plan) => {
+              const style = TIER_STYLE[plan.tier] ?? TIER_STYLE.basic;
+              const active = plan.tier === currentTier;
+              return (
+                <div key={plan.tier} className={clsx('p-4 rounded-xl border-2', style.color, active && 'ring-2 ring-slate-400')}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={clsx('font-bold text-sm', style.text)}>{plan.name}</p>
+                    {active && <span className="text-[10px] font-bold bg-slate-600 text-white px-1.5 py-0.5 rounded-full">CURRENT</span>}
+                  </div>
+                  <p className={clsx('text-2xl font-black', style.text)}>{plan.commissionRate}%</p>
+                  <p className="text-xs text-gray-500 mt-0.5">commission</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {plan.monthlyPrice > 0 ? `${formatCurrency(plan.monthlyPrice)}/month` : 'Free'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <p className="text-sm text-emerald-800 font-medium">
+              {currentTier === 'basic' || !basicPlan || !currentPlan
+                ? <>You delivered <strong>{formatCurrency(monthRevenue)}</strong> in orders this month.</>
+                : <>On {tierLabel} ({currentPlan.commissionRate}%) you saved <strong>{formatCurrency(savingVsBasic)}</strong> vs Basic ({basicPlan.commissionRate}%) on this month's delivered orders.</>}
+            </p>
+            {currentTier !== 'gold' && goldPlan && (
+              <button onClick={() => navigate('/subscription')} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 whitespace-nowrap">
+                Compare plans <ArrowUpRight size={12} />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
-          <p className="text-sm text-emerald-800 font-medium">
-            At Silver (3%), you save <strong>R731.25</strong> vs Basic (5%) on this month's orders
-          </p>
-          <button className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
-            Upgrade to Gold <ArrowUpRight size={12} />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Period Toggle */}
-      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl p-1 w-fit" role="tablist" aria-label="Revenue period">
         {(['week', 'month', 'year'] as Period[]).map((p) => (
           <button
             key={p}
+            role="tab"
+            aria-selected={period === p}
             onClick={() => setPeriod(p)}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition-all ${
               period === p ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -202,93 +321,115 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-5 col-span-2">
+      <div className={clsx('grid grid-cols-1 lg:grid-cols-3 gap-4 transition-opacity', refreshing && 'opacity-60')}>
+        <div className="card p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-bold text-gray-900">Revenue Trend</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Monthly revenue over time</p>
+              <p className="text-xs text-gray-400 mt-0.5">{PERIOD_LABEL[period]}</p>
             </div>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              {s && s.revenueChange >= 0 ? '+' : ''}{s?.revenueChange ?? 0}% ↑
-            </span>
+            {s && (
+              <span className={clsx(
+                'text-xs font-semibold px-2.5 py-1 rounded-full border inline-flex items-center gap-1',
+                revenueUp ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-600 bg-red-50 border-red-100',
+              )}>
+                {revenueUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {revenueUp ? '+' : ''}{s.revenueChange}%
+              </span>
+            )}
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={revenue}>
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#1B4332" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#1B4332" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => `R${(v / 1000).toFixed(0)}k`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="revenue" stroke="#1B4332" fill="url(#grad)" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#1B4332' }} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {revenue.length === 0 ? (
+            <ChartEmpty height={240} message="No revenue recorded for this period yet." />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={revenue}>
+                <defs>
+                  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1B4332" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#1B4332" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `R${(v / 1000).toFixed(0)}k` : `R${v}`)} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="revenue" stroke="#1B4332" fill="url(#grad)" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#1B4332' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card p-5">
           <h3 className="font-bold text-gray-900 mb-5">Orders by Status</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={ordersByStatus} cx="50%" cy="45%" innerRadius={55} outerRadius={85} dataKey="value" paddingAngle={3}>
-                {ordersByStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB' }} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {ordersByStatus.length === 0 ? (
+            <ChartEmpty height={240} message="No orders yet." />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={ordersByStatus} cx="50%" cy="45%" innerRadius={55} outerRadius={85} dataKey="value" paddingAngle={3}>
+                  {ordersByStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB' }} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className={clsx('grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity', refreshing && 'opacity-60')}>
         <div className="card p-5">
-          <h3 className="font-bold text-gray-900 mb-5">Orders per Month</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={revenue}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="orders" fill="#2E7D52" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="font-bold text-gray-900 mb-5">Orders per Period</h3>
+          {revenue.length === 0 ? (
+            <ChartEmpty height={200} message="No orders recorded for this period yet." />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={revenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="orders" fill="#2E7D52" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card p-5">
-          <h3 className="font-bold text-gray-900 mb-5">Revenue by Category</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={categoryRevenue} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => `R${(v / 1000).toFixed(0)}k`} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} width={90} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB' }} formatter={(v: number) => [`R${v.toLocaleString()}`, 'Revenue']} />
-              <Bar dataKey="revenue" fill="#1B4332" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="font-bold text-gray-900 mb-5">Revenue by Product</h3>
+          {productRevenue.length === 0 ? (
+            <ChartEmpty height={200} message="Product revenue will appear after your first sales." />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={productRevenue} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `R${(v / 1000).toFixed(0)}k` : `R${v}`)} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} width={90} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB' }} formatter={(v: number) => [formatCurrency(v), 'Revenue']} />
+                <Bar dataKey="revenue" fill="#1B4332" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
       {/* Top Products + Transactions */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card p-5">
           <h3 className="font-bold text-gray-900 mb-4">Top Products by Revenue</h3>
           <div className="space-y-4">
-            {topProducts.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No product data yet.</p>}
+            {topProducts.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No product sales yet.</p>}
             {topProducts.map((p, i) => (
-              <div key={p.productId}>
-                <div className="flex justify-between text-sm mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white ${i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-gray-400' : 'bg-orange-400'}`}>
+              <div key={p.productId || p.productName}>
+                <div className="flex justify-between gap-3 text-sm mb-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] font-black text-white ${i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-gray-400' : 'bg-orange-400'}`}>
                       {i + 1}
                     </span>
-                    <span className="font-semibold text-gray-900">{p.productName}</span>
+                    <span className="font-semibold text-gray-900 truncate">{p.productName}</span>
                   </div>
-                  <span className="font-bold text-gray-700">R{p.revenue.toLocaleString()}</span>
+                  <span className="font-bold text-gray-700 whitespace-nowrap">{formatCurrency(p.revenue)}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
@@ -303,11 +444,12 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="card">
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-bold text-gray-900">Recent Transactions</h3>
+            <button onClick={() => navigate('/orders')} className="text-xs text-primary font-semibold hover:underline">View all</button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[420px]">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/50">
                   <th className="table-header">Order</th>
@@ -317,16 +459,16 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 && (
+                {recentTransactions.length === 0 && (
                   <tr><td colSpan={4} className="table-cell text-center text-gray-400">No transactions yet.</td></tr>
                 )}
-                {orders.map((o) => (
-                  <tr key={o.id} className="table-row">
+                {recentTransactions.map((o) => (
+                  <tr key={o.id} className="table-row cursor-pointer" onClick={() => navigate(`/orders?order=${o.id}`)}>
                     <td className="table-cell font-bold text-primary">{o.orderNumber}</td>
                     <td className="table-cell text-gray-600">{o.shopName}</td>
-                    <td className="table-cell text-right font-semibold">R{o.total.toFixed(2)}</td>
+                    <td className="table-cell text-right font-semibold">{formatCurrency(o.total)}</td>
                     <td className="table-cell text-right font-bold text-emerald-700">
-                      R{(o.subtotal - o.platformCommission).toFixed(2)}
+                      {formatCurrency(o.subtotal - o.platformCommission)}
                     </td>
                   </tr>
                 ))}

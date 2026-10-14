@@ -41,7 +41,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
             if (status == "verified")
                 query = query.Where(s => s.Status == "verified");
             else if (status == "pending")
-                query = query.Where(s => s.Status != "verified");
+                query = query.Where(s => s.Status != "verified" && s.Status != "suspended");
         }
 
         var total = await query.CountAsync();
@@ -85,6 +85,16 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         return Ok(ApiResponse.Ok("Supplier verified successfully."));
     }
 
+    [HttpPatch("suppliers/{id}/suspend")]
+    public async Task<IActionResult> SuspendSupplier(Guid id)
+    {
+        var supplier = await db.Suppliers.FindAsync(id);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        supplier.Status = "suspended";
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Supplier suspended."));
+    }
+
     //  SPAZA OWNERS 
 
     [HttpGet("spaza-owners")]
@@ -113,7 +123,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
             if (status == "verified")
                 query = query.Where(s => s.Status == "verified");
             else if (status == "pending")
-                query = query.Where(s => s.Status != "verified");
+                query = query.Where(s => s.Status != "verified" && s.Status != "suspended");
         }
 
         var total = await query.CountAsync();
@@ -189,6 +199,16 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder) :
         shop.Status = "verified";
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Spaza owner verified successfully."));
+    }
+
+    [HttpPatch("spaza-owners/{id}/suspend")]
+    public async Task<IActionResult> SuspendSpazaOwner(Guid id)
+    {
+        var shop = await db.SpazaShops.FindAsync(id);
+        if (shop is null) return NotFound(ApiResponse.Fail("Spaza shop not found."));
+        shop.Status = "suspended";
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse.Ok("Spaza owner suspended."));
     }
 
     [HttpGet("wallet-top-ups")]

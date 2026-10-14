@@ -1,25 +1,37 @@
-import { useState } from 'react';
-import { Bell, CheckCircle, AlertTriangle, ShoppingCart, Users, X, Send, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CheckCircle, AlertTriangle, ShoppingCart, Users, X, Loader2, RefreshCw, Package, ChevronRight } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { notificationsApi } from '../../services/api';
+
+type NotifType = 'system' | 'compliance' | 'order' | 'supplier' | 'product';
 
 interface AdminNotification {
   id: string;
-  type: 'system' | 'compliance' | 'order' | 'supplier';
+  type: NotifType;
   title: string;
   message: string;
-  sentTo: 'all' | 'suppliers' | 'specific';
   createdAt: string;
   read: boolean;
   priority: 'high' | 'normal';
 }
 
-const typeConfig: Record<AdminNotification['type'], { icon: React.ReactNode; color: string; bg: string }> = {
-  system:     { icon: <Bell size={15} />,           color: 'text-slate-600',  bg: 'bg-slate-100' },
-  compliance: { icon: <AlertTriangle size={15} />,  color: 'text-amber-600',  bg: 'bg-amber-100' },
-  order:      { icon: <ShoppingCart size={15} />,   color: 'text-blue-600',   bg: 'bg-blue-100' },
-  supplier:   { icon: <Users size={15} />,          color: 'text-emerald-600', bg: 'bg-emerald-100' },
+const typeConfig: Record<NotifType, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
+  system:     { icon: <Bell size={15} />,          color: 'text-slate-600',   bg: 'bg-slate-100',   label: 'System' },
+  compliance: { icon: <AlertTriangle size={15} />, color: 'text-amber-600',   bg: 'bg-amber-100',   label: 'Compliance' },
+  order:      { icon: <ShoppingCart size={15} />,  color: 'text-blue-600',    bg: 'bg-blue-100',    label: 'Orders' },
+  supplier:   { icon: <Users size={15} />,         color: 'text-emerald-600', bg: 'bg-emerald-100', label: 'Suppliers' },
+  product:    { icon: <Package size={15} />,       color: 'text-violet-600',  bg: 'bg-violet-100',  label: 'Products' },
+};
+
+// Where clicking a notification takes the admin
+const TYPE_ROUTES: Partial<Record<NotifType, string>> = {
+  compliance: '/admin/documents',
+  order: '/admin/orders',
+  supplier: '/admin/suppliers',
+  product: '/admin/products',
 };
 
 function getDateLabel(d: string) {
@@ -30,17 +42,66 @@ function getDateLabel(d: string) {
 }
 
 export default function AdminNotificationsPage() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
-  const [typeFilter, setTypeFilter] = useState<'all' | AdminNotification['type']>('all');
-  const [showCompose, setShowCompose] = useState(false);
-  const [compose, setCompose] = useState({ title: '', message: '', sentTo: 'all' as 'all' | 'suppliers' });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'all' | NotifType>('all');
 
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  const dismiss = (id: string) => setNotifications((prev) => prev.filter((n) => n.id !== id));
-  const markRead = (id: string) => setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  const load = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const data: any = await notificationsApi.listStrict({ page: 1, pageSize: 50 });
+      const items: any[] = Array.isArray(data) ? data : data?.items ?? data?.data ?? [];
+      setNotifications(items.map((n) => ({
+        id: n.id,
+        type: (n.type in typeConfig ? n.type : 'system') as NotifType,
+        title: n.title ?? '',
+        message: n.message ?? n.body ?? '',
+        createdAt: n.createdAt ?? new Date().toISOString(),
+        read: n.isRead ?? n.read ?? false,
+        priority: n.priority === 'high' ? 'high' : 'normal',
+      })));
+    } catch {
+      setNotifications([]);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const markRead = (id: string) => {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    notificationsApi.markRead(id).catch(() => {});
+  };
+
+  const markAllRead = async () => {
+    try {
+      await notificationsApi.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      toast.success('All notifications marked as read');
+    } catch {
+      // error toast handled by api interceptor
+    }
+  };
+
+  const dismiss = (n: AdminNotification) => {
+    if (!n.read) markRead(n.id);
+    setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+  };
+
+  const open = (n: AdminNotification) => {
+    if (!n.read) markRead(n.id);
+    const target = TYPE_ROUTES[n.type];
+    if (target) navigate(target);
+  };
 
   const filtered = notifications.filter((n) => typeFilter === 'all' || n.type === typeFilter);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const presentTypes = Array.from(new Set(notifications.map((n) => n.type)));
 
   const grouped = filtered.reduce<Record<string, AdminNotification[]>>((acc, n) => {
     const label = getDateLabel(n.createdAt);
@@ -49,66 +110,60 @@ export default function AdminNotificationsPage() {
     return acc;
   }, {});
 
-  const sendNotification = () => {
-    if (!compose.title.trim() || !compose.message.trim()) {
-      toast.error('Title and message are required');
-      return;
-    }
-    const newNotif: AdminNotification = {
-      id: `an${Date.now()}`, type: 'system', title: compose.title,
-      message: compose.message, sentTo: compose.sentTo,
-      createdAt: new Date().toISOString(), read: false, priority: 'normal',
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
-    toast.success(`Notification sent to ${compose.sentTo === 'all' ? 'everyone' : 'all suppliers'}`);
-    setShowCompose(false);
-    setCompose({ title: '', message: '', sentTo: 'all' });
-  };
-
-  const typeFilters: { value: 'all' | AdminNotification['type']; label: string }[] = [
-    { value: 'all',        label: 'All' },
-    { value: 'system',     label: 'System' },
-    { value: 'compliance', label: 'Compliance' },
-    { value: 'order',      label: 'Orders' },
-    { value: 'supplier',   label: 'Suppliers' },
-  ];
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[300px]">
+        <Loader2 size={32} className="text-gray-300 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-5 animate-in max-w-3xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 animate-in max-w-3xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">Notifications</h1>
-          <p className="page-subtitle">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
+          <h1 className="text-2xl font-black text-gray-900">Notifications</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {loadError ? 'Could not load notifications' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
-            <button onClick={markAllRead} className="btn-secondary text-sm flex items-center gap-1.5">
+            <button onClick={markAllRead} className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 bg-white border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-xl">
               <CheckCircle size={14} /> Mark all read
             </button>
           )}
-          <button onClick={() => setShowCompose(true)} className="btn-primary flex items-center gap-2">
-            <Plus size={15} /> Send Notification
+          <button onClick={load} aria-label="Refresh notifications" title="Refresh" className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
+            <RefreshCw size={16} />
           </button>
         </div>
       </div>
 
-      {/* Type Filters */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {typeFilters.map(({ value, label }) => (
-          <button key={value} onClick={() => setTypeFilter(value)}
-            className={clsx('px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
-              typeFilter === value ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400 hover:text-slate-700'
-            )}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {loadError && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+          <p className="flex-1 text-sm font-medium text-red-800">We couldn't load notifications. Check your connection and try again.</p>
+          <button onClick={load} className="text-sm font-semibold bg-white border border-red-200 rounded-xl px-3 py-1.5 hover:bg-red-50">Try again</button>
+        </div>
+      )}
 
-      {/* Notifications */}
-      {Object.keys(grouped).length === 0 ? (
-        <div className="card p-16 text-center">
+      {presentTypes.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {(['all', ...presentTypes] as const).map((t) => (
+            <button key={t} onClick={() => setTypeFilter(t)}
+              className={clsx('px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
+                typeFilter === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400 hover:text-slate-700')}>
+              {t === 'all' ? 'All' : typeConfig[t].label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loadError ? null : Object.keys(grouped).length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 sm:p-16 text-center">
           <Bell size={36} className="text-gray-200 mx-auto mb-4" />
           <p className="font-bold text-gray-600">No notifications</p>
+          <p className="text-gray-400 text-sm mt-1">Platform alerts for your admin account will appear here.</p>
         </div>
       ) : (
         Object.entries(grouped).map(([dateLabel, items]) => (
@@ -118,11 +173,11 @@ export default function AdminNotificationsPage() {
               {items.map((n) => {
                 const { icon, color, bg } = typeConfig[n.type];
                 return (
-                  <div key={n.id} onClick={() => markRead(n.id)}
-                    className={clsx('card p-4 flex items-start gap-4 cursor-pointer hover:shadow-card-hover transition-all duration-200',
-                      !n.read && 'border-l-4 border-l-slate-700',
-                      n.priority === 'high' && !n.read && 'bg-amber-50/20'
-                    )}>
+                  <div key={n.id} onClick={() => open(n)} role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') open(n); }}
+                    className={clsx('bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3 sm:gap-4 cursor-pointer hover:shadow-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40',
+                      !n.read && 'border-l-4 border-l-blue-500',
+                      n.priority === 'high' && !n.read && 'bg-amber-50/30')}>
                     <div className={clsx('p-2.5 rounded-xl flex-shrink-0', bg, color)}>{icon}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -131,68 +186,23 @@ export default function AdminNotificationsPage() {
                           {n.priority === 'high' && !n.read && (
                             <span className="text-[10px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">URGENT</span>
                           )}
-                          <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full capitalize">
-                            To {n.sentTo === 'all' ? 'Everyone' : n.sentTo}
-                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <p className="text-xs text-gray-400 whitespace-nowrap">{format(new Date(n.createdAt), 'HH:mm')}</p>
-                          <button onClick={(e) => { e.stopPropagation(); dismiss(n.id); }} className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors">
+                          <button onClick={(e) => { e.stopPropagation(); dismiss(n); }} aria-label="Hide notification" title="Hide" className="p-0.5 text-gray-300 hover:text-gray-500">
                             <X size={14} />
                           </button>
                         </div>
                       </div>
                       <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{n.message}</p>
                     </div>
-                    {!n.read && <div className="w-2 h-2 rounded-full bg-slate-700 flex-shrink-0 mt-1.5 animate-pulse-soft" />}
+                    {TYPE_ROUTES[n.type] && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
                   </div>
                 );
               })}
             </div>
           </div>
         ))
-      )}
-
-      {/* Compose Modal */}
-      {showCompose && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowCompose(false)} />
-          <div className="relative bg-white rounded-2xl shadow-card-lg w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="font-bold text-gray-900">Send Platform Notification</h2>
-              <button onClick={() => setShowCompose(false)} className="btn-icon"><X size={18} /></button>
-            </div>
-            <div className="p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
-              <div>
-                <label className="label">Send To</label>
-                <div className="flex gap-2">
-                  {(['all', 'suppliers'] as const).map((v) => (
-                    <button key={v} onClick={() => setCompose((c) => ({ ...c, sentTo: v }))}
-                      className={clsx('flex-1 py-2 rounded-xl text-sm font-semibold border transition-all capitalize',
-                        compose.sentTo === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400'
-                      )}>
-                      {v === 'all' ? 'Everyone' : 'Suppliers Only'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label">Title</label>
-                <input value={compose.title} onChange={(e) => setCompose((c) => ({ ...c, title: e.target.value }))} className="input" placeholder="Notification title..." />
-              </div>
-              <div>
-                <label className="label">Message</label>
-                <textarea value={compose.message} onChange={(e) => setCompose((c) => ({ ...c, message: e.target.value }))} className="input resize-none" rows={3} placeholder="Write your message..." />
-              </div>
-              <div className="flex gap-3 justify-end pt-1">
-                <button onClick={() => setShowCompose(false)} className="btn-secondary">Cancel</button>
-                <button onClick={sendNotification} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all">
-                  <Send size={14} /> Send Now
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

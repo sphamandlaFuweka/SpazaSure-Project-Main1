@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, ShieldCheck, Package, ShoppingCart, DollarSign,
   AlertTriangle, CheckCircle, Clock, ArrowRight, TrendingUp, FileText,
-  Store, BarChart2, Settings, ChevronRight, Zap, Globe,
+  Store, BarChart2, Settings, ChevronRight, Zap, Globe, Flag, RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
-import { adminSuppliersApi } from '../../services/api';
+import { adminSuppliersApi, adminProductsApi, adminOrdersApi, adminReportsApi } from '../../services/api';
 import api from '../../services/api';
 import { Spinner } from '../../components/ui';
+import { formatCurrency } from '../../utils';
 
 interface DashboardData {
   totalSuppliers: number;
@@ -17,8 +18,12 @@ interface DashboardData {
   pendingVerifications: number;
   pendingDocuments: number;
   totalProducts: number;
+  pendingProducts: number;
+  pendingReports: number;
   totalOrders: number;
-  totalRevenue: number;
+  pendingOrders: number;
+  deliveredRevenue: number;
+  platformFees: number;
   recentSuppliers: Array<{
     id: string;
     companyName: string;
@@ -33,56 +38,66 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [failed, setFailed] = useState<string[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
+    let cancelled = false;
     const fetchData = async () => {
-      try {
-        // Fetch suppliers
-        const suppRes = await adminSuppliersApi.list({});
-        const suppData = suppRes?.data ?? suppRes;
-        const suppliers = Array.isArray(suppData) ? suppData : suppData?.items ?? [];
+      const supplierPage = (r: any) => {
+        const d = r?.data ?? r;
+        return { items: (Array.isArray(d) ? d : d?.items ?? []) as any[], total: Number(d?.total ?? (Array.isArray(d) ? d.length : d?.items?.length ?? 0)) };
+      };
 
-        // Fetch documents
-        let pendingDocs = 0;
-        try {
-          const docRes = await api.get('/compliance/documents', { params: { status: 'pending' } });
-          pendingDocs = docRes.data?.data?.summary?.pending ?? docRes.data?.data?.docs?.length ?? 0;
-        } catch {}
+      // Each request is independent; one failing service shouldn't blank the whole dashboard
+      const [suppRes, pendingSuppRes, docsRes, productsRes, pendingProductsRes, ordersRes, reportsRes] = await Promise.allSettled([
+        adminSuppliersApi.list({ pageSize: 5 }),
+        adminSuppliersApi.list({ status: 'pending', pageSize: 1 }),
+        api.get('/compliance/documents', { params: { status: 'pending' } }),
+        adminProductsApi.list({ status: 'active', pageSize: 1 }),
+        adminProductsApi.list({ status: 'pending_approval', pageSize: 1 }),
+        adminOrdersApi.list({ pageSize: 1 }),
+        adminReportsApi.list({ status: 'submitted', pageSize: 1 }),
+      ]);
+      if (cancelled) return;
 
-        // Fetch products count
-        let totalProducts = 0;
-        try {
-          const prodRes = await api.get('/supplier/products', { params: { pageSize: 1 } });
-          const pd = prodRes.data?.data ?? prodRes.data;
-          totalProducts = pd?.total ?? (pd?.items ?? pd?.data ?? []).length ?? 0;
-        } catch {}
+      const failures: string[] = [];
+      const suppliers = suppRes.status === 'fulfilled' ? supplierPage(suppRes.value) : (failures.push('suppliers'), { items: [], total: 0 });
+      const pendingSuppliers = pendingSuppRes.status === 'fulfilled' ? supplierPage(pendingSuppRes.value).total : 0;
+      const pendingDocs = docsRes.status === 'fulfilled'
+        ? Number(docsRes.value.data?.data?.summary?.pending ?? docsRes.value.data?.data?.docs?.length ?? 0)
+        : (failures.push('documents'), 0);
+      const totalProducts = productsRes.status === 'fulfilled' ? productsRes.value.total : (failures.push('products'), 0);
+      const pendingProducts = pendingProductsRes.status === 'fulfilled' ? pendingProductsRes.value.total : 0;
+      const orderSummary = ordersRes.status === 'fulfilled' ? ordersRes.value.summary as any : (failures.push('orders'), {});
+      const pendingReports = reportsRes.status === 'fulfilled' ? reportsRes.value.total : 0;
 
-        setData({
-          totalSuppliers: suppliers.length,
-          verifiedSuppliers: suppliers.filter((s: any) => s.isVerified || s.status === 'verified').length,
-          pendingVerifications: suppliers.filter((s: any) => !s.isVerified && s.status !== 'verified').length,
-          pendingDocuments: pendingDocs,
-          totalProducts,
-          totalOrders: 0,
-          totalRevenue: 0,
-          recentSuppliers: suppliers.slice(0, 5).map((s: any) => ({
-            id: s.id,
-            companyName: s.companyName ?? '',
-            email: s.email ?? '',
-            isVerified: s.isVerified ?? s.status === 'verified',
-            joinedAt: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
-          })),
-        });
-      } catch {
-        setData({
-          totalSuppliers: 0, verifiedSuppliers: 0, pendingVerifications: 0,
-          pendingDocuments: 0, totalProducts: 0, totalOrders: 0, totalRevenue: 0, recentSuppliers: [],
-        });
-      } finally {
-        setLoading(false);
-      }
+      setFailed(failures);
+      setData({
+        totalSuppliers: suppliers.total,
+        verifiedSuppliers: Math.max(0, suppliers.total - pendingSuppliers),
+        pendingVerifications: pendingSuppliers,
+        pendingDocuments: pendingDocs,
+        totalProducts,
+        pendingProducts,
+        pendingReports,
+        totalOrders: Number(orderSummary?.totalOrders ?? 0),
+        pendingOrders: Number(orderSummary?.pendingCount ?? 0),
+        deliveredRevenue: Number(orderSummary?.deliveredRevenue ?? 0),
+        platformFees: Number(orderSummary?.totalPlatformFees ?? 0),
+        recentSuppliers: suppliers.items.slice(0, 5).map((s: any) => ({
+          id: s.id,
+          companyName: s.companyName ?? '',
+          email: s.email ?? '',
+          isVerified: s.isVerified ?? s.status === 'verified',
+          joinedAt: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
+        })),
+      });
+      setLoading(false);
     };
     fetchData();
-  }, []);
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -147,49 +162,55 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {failed.length > 0 && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
+          <p className="flex-1 text-sm font-medium text-amber-900">
+            Some figures couldn't be loaded ({failed.join(', ')}). They are shown as 0 until the service responds.
+          </p>
+          <button onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }} className="flex items-center gap-1.5 text-sm font-semibold bg-white border border-amber-200 rounded-xl px-3 py-1.5 hover:bg-amber-100">
+            <RefreshCw size={13} /> Try again
+          </button>
+        </div>
+      )}
+
       {/* ═══ KPI CARDS — CLICKABLE ═══ */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {[
-          { label: 'Total Suppliers',       value: d.totalSuppliers,       icon: Users,       gradient: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-50',  ring: 'hover:ring-blue-200',  path: '/admin/suppliers' },
-          { label: 'Pending Verifications', value: d.pendingVerifications, icon: ShieldCheck, gradient: 'from-amber-500 to-orange-600',  bg: 'bg-amber-50', ring: 'hover:ring-amber-200', path: '/admin/suppliers', urgent: true },
-          { label: 'Pending Documents',     value: d.pendingDocuments,     icon: FileText,    gradient: 'from-orange-500 to-red-500',    bg: 'bg-orange-50',ring: 'hover:ring-orange-200',path: '/admin/documents', urgent: true },
-          { label: 'Active Products',       value: d.totalProducts,        icon: Package,     gradient: 'from-emerald-500 to-teal-600',  bg: 'bg-emerald-50',ring:'hover:ring-emerald-200',path: '/admin/products' },
-          { label: 'Total Orders',          value: d.totalOrders,          icon: ShoppingCart, gradient: 'from-violet-500 to-purple-600', bg: 'bg-violet-50',ring: 'hover:ring-violet-200',path: '/admin/orders' },
-          { label: 'Platform Revenue',      value: `R${(d.totalRevenue / 1000).toFixed(0)}k`, icon: DollarSign, gradient: 'from-emerald-600 to-green-700', bg: 'bg-green-50', ring: 'hover:ring-green-200', path: '/admin/analytics' },
-        ].map(({ label, value, icon: Icon, gradient, bg, ring, path, urgent }) => (
+        {([
+          { label: 'Total Suppliers',       value: d.totalSuppliers.toLocaleString(),  icon: Users,        color: 'text-blue-600',    bg: 'bg-blue-50',    ring: 'hover:ring-blue-200',    path: '/admin/suppliers', sub: `${d.verifiedSuppliers.toLocaleString()} verified` },
+          { label: 'Pending Verifications', value: d.pendingVerifications.toLocaleString(), icon: ShieldCheck, color: 'text-amber-600', bg: 'bg-amber-50', ring: 'hover:ring-amber-200', path: '/admin/suppliers', urgent: d.pendingVerifications > 0 },
+          { label: 'Pending Documents',     value: d.pendingDocuments.toLocaleString(), icon: FileText,    color: 'text-orange-600',  bg: 'bg-orange-50',  ring: 'hover:ring-orange-200',  path: '/admin/documents', urgent: d.pendingDocuments > 0 },
+          { label: 'Live Products',         value: d.totalProducts.toLocaleString(),    icon: Package,     color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'hover:ring-emerald-200', path: '/admin/products', sub: d.pendingProducts > 0 ? `${d.pendingProducts} awaiting approval` : undefined },
+          { label: 'Total Orders',          value: d.totalOrders.toLocaleString(),      icon: ShoppingCart, color: 'text-violet-600', bg: 'bg-violet-50',  ring: 'hover:ring-violet-200',  path: '/admin/orders', sub: d.pendingOrders > 0 ? `${d.pendingOrders} pending` : undefined },
+          { label: 'Platform Fees Earned',  value: formatCurrency(d.platformFees),      icon: DollarSign,  color: 'text-green-700',   bg: 'bg-green-50',   ring: 'hover:ring-green-200',   path: '/admin/orders', sub: `${formatCurrency(d.deliveredRevenue)} delivered GMV` },
+        ] as { label: string; value: string; icon: typeof Users; color: string; bg: string; ring: string; path: string; urgent?: boolean; sub?: string }[]).map(({ label, value, icon: Icon, color, bg, ring, path, urgent, sub }) => (
           <button
             key={label}
             onClick={() => navigate(path)}
             className={clsx(
-              'relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 text-left transition-all duration-200',
-              'shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:ring-2',
+              'group relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 text-left transition-all duration-200',
+              'shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:ring-2 focus:outline-none focus-visible:ring-2',
               ring,
               urgent && 'border-amber-200/60'
             )}
           >
-            {/* Decorative corner gradient */}
-            <div className={clsx('absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-10 bg-gradient-to-br', gradient)} />
-
-            <div className="relative flex items-start justify-between">
-              <div>
+            <div className="relative flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-                <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-2 tabular-nums">{value}</p>
-                {urgent && value > 0 && (
+                <p className="text-xl sm:text-3xl font-black text-gray-900 mt-2 tabular-nums truncate">{value}</p>
+                {urgent ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-2.5">
                     <AlertTriangle size={9} /> Needs attention
                   </span>
-                )}
+                ) : sub ? (
+                  <p className="text-[11px] text-gray-400 font-medium mt-2 truncate">{sub}</p>
+                ) : null}
               </div>
-              <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center shadow-sm', bg)}>
-                <Icon size={20} className={clsx('bg-gradient-to-br bg-clip-text', gradient.replace('from-', 'text-').split(' ')[0].replace('text-', 'text-'))} style={{ color: undefined }} />
-                <Icon size={20} className="text-current absolute opacity-0" />
+              <div className={clsx('w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0', bg)}>
+                <Icon size={20} className={color} />
               </div>
             </div>
-
-            {/* "Go" indicator */}
-            <div className="absolute bottom-3 right-4 flex items-center gap-1 text-[10px] font-bold text-gray-300 group-hover:text-gray-500">
-              <ArrowRight size={10} />
-            </div>
+            <ArrowRight size={12} className="absolute bottom-3 right-4 text-gray-200 group-hover:text-gray-500 transition-colors" />
           </button>
         ))}
       </div>
@@ -271,34 +292,38 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Platform Status */}
+        {/* Work queue — real counts of items waiting for an admin */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
             <div>
-              <h3 className="font-bold text-gray-900 text-sm">Platform Status</h3>
-              <p className="text-xs text-gray-400 mt-0.5">System health overview</p>
+              <h3 className="font-bold text-gray-900 text-sm">Needs Your Attention</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Items waiting for an admin decision</p>
             </div>
           </div>
-          <div className="p-5 space-y-4">
+          <div className="divide-y divide-gray-50">
             {[
-              { label: 'API Gateway',       status: 'online', desc: 'Port 5181' },
-              { label: 'Auth Service',      status: 'online', desc: 'Port 5001' },
-              { label: 'Product Service',   status: 'online', desc: 'Port 5002' },
-              { label: 'Order Service',     status: 'online', desc: 'Port 5003' },
-              { label: 'Analytics Service', status: 'online', desc: 'Port 5004' },
-              { label: 'User Service',      status: 'online', desc: 'Port 5005' },
-              { label: 'Compliance Service',status: 'online', desc: 'Port 5006' },
-            ].map(({ label, status, desc }) => (
-              <div key={label} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={clsx(
-                    'w-2.5 h-2.5 rounded-full',
-                    status === 'online' ? 'bg-emerald-400 shadow-sm shadow-emerald-200' : 'bg-red-400'
-                  )} />
-                  <span className="text-sm font-medium text-gray-700">{label}</span>
+              { label: 'Suppliers to verify',          count: d.pendingVerifications, icon: ShieldCheck,  path: '/admin/suppliers' },
+              { label: 'Compliance documents to review', count: d.pendingDocuments,   icon: FileText,     path: '/admin/documents' },
+              { label: 'Products awaiting approval',   count: d.pendingProducts,      icon: Package,      path: '/admin/products' },
+              { label: 'New customer reports',         count: d.pendingReports,       icon: Flag,         path: '/admin/reports' },
+              { label: 'Orders still pending',         count: d.pendingOrders,        icon: Clock,        path: '/admin/orders' },
+            ].map(({ label, count, icon: Icon, path }) => (
+              <button
+                key={label}
+                onClick={() => navigate(path)}
+                className="w-full flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-gray-50/70 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', count > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')}>
+                    {count > 0 ? <Icon size={15} /> : <CheckCircle size={15} />}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 truncate">{label}</span>
                 </div>
-                <span className="text-[11px] font-medium text-gray-400">{desc}</span>
-              </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={clsx('text-sm font-black tabular-nums', count > 0 ? 'text-amber-700' : 'text-gray-300')}>{count}</span>
+                  <ChevronRight size={14} className="text-gray-200" />
+                </div>
+              </button>
             ))}
           </div>
         </div>

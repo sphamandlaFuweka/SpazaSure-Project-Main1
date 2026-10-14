@@ -1,4 +1,6 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import PageLoader from './components/ui/PageLoader';
 import { useAuthStore } from './store/authStore';
 
 // Layouts
@@ -11,27 +13,27 @@ import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
 // Supplier pages
-import DashboardPage from './pages/dashboard/DashboardPage';
-import ProductsPage from './pages/products/ProductsPage';
-import OrdersPage from './pages/orders/OrdersPage';
-import AnalyticsPage from './pages/analytics/AnalyticsPage';
-import ProfilePage from './pages/profile/ProfilePage';
-import NotificationsPage from './pages/notifications/NotificationsPage';
-import SubscriptionPage from './pages/subscription/SubscriptionPage';
-import GroupBuyPage from './pages/group-buy/GroupBuyPage';
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const ProductsPage = lazy(() => import('./pages/products/ProductsPage'));
+const OrdersPage = lazy(() => import('./pages/orders/OrdersPage'));
+const AnalyticsPage = lazy(() => import('./pages/analytics/AnalyticsPage'));
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
+const SubscriptionPage = lazy(() => import('./pages/subscription/SubscriptionPage'));
+const GroupBuyPage = lazy(() => import('./pages/group-buy/GroupBuyPage'));
 
 // Admin pages
-import AdminDashboardPage from './pages/admin/AdminDashboardPage';
-import AdminSuppliersPage from './pages/admin/AdminSuppliersPage';
-import DocumentVerificationPage from './pages/admin/DocumentVerificationPage';
-import AdminProductsPage from './pages/admin/AdminProductsPage';
-import AdminOrdersPage from './pages/admin/AdminOrdersPage';
-import AdminReportsPage from './pages/admin/AdminReportsPage';
-import AdminShopsMapPage from './pages/admin/AdminShopsMapPage';
-import AdminGroupBuysPage from './pages/admin/AdminGroupBuysPage';
-import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage';
-import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
-import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
+const AdminSuppliersPage = lazy(() => import('./pages/admin/AdminSuppliersPage'));
+const DocumentVerificationPage = lazy(() => import('./pages/admin/DocumentVerificationPage'));
+const AdminProductsPage = lazy(() => import('./pages/admin/AdminProductsPage'));
+const AdminOrdersPage = lazy(() => import('./pages/admin/AdminOrdersPage'));
+const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage'));
+const AdminShopsMapPage = lazy(() => import('./pages/admin/AdminShopsMapPage'));
+const AdminGroupBuysPage = lazy(() => import('./pages/admin/AdminGroupBuysPage'));
+const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'));
+const AdminNotificationsPage = lazy(() => import('./pages/admin/AdminNotificationsPage'));
+const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'supplier' | 'admin' }) {
   const { user } = useAuthStore();
@@ -46,6 +48,7 @@ export default function App() {
   const { user } = useAuthStore();
 
   return (
+    <Suspense fallback={<PageLoader variant="dashboard" />}>
     <Routes>
       {/* Auth */}
       <Route path="/login" element={<LoginPage />} />
@@ -86,5 +89,6 @@ export default function App() {
         <Navigate to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />
       } />
     </Routes>
+    </Suspense>
   );
 }
