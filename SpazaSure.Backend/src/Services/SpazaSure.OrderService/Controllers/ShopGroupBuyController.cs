@@ -139,6 +139,19 @@ public class ShopGroupBuyController(
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    private async Task<GroupBuy?> LoadGroupBuyForUpdate(Guid id)
+    {
+        var lockedGroupId = await db.GroupBuys
+            .FromSqlInterpolated($"SELECT * FROM group_buys WHERE id = {id} FOR UPDATE")
+            .AsNoTracking()
+            .Select(groupBuy => groupBuy.Id)
+            .SingleOrDefaultAsync();
+        if (lockedGroupId == Guid.Empty) return null;
+
+        return await GroupBuyResponse.WithGraph(db.GroupBuys)
+            .FirstOrDefaultAsync(groupBuy => groupBuy.Id == lockedGroupId);
+    }
+
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string status = "active")
     {
@@ -190,12 +203,11 @@ public class ShopGroupBuyController(
         if (req.Items.Select(i => i.GroupBuyProductId).Distinct().Count() != req.Items.Count)
             return BadRequest(ApiResponse.Fail("Group buy product IDs must be unique."));
 
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
-        var groupBuy = await GroupBuyResponse.WithGraph(db.GroupBuys)
-            .FirstOrDefaultAsync(g => g.Id == id);
+        var groupBuy = await LoadGroupBuyForUpdate(id);
         if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
         if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active")
         {
@@ -309,12 +321,11 @@ public class ShopGroupBuyController(
     [HttpPost("{id:guid}/leave")]
     public async Task<IActionResult> Leave(Guid id)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
-        var groupBuy = await GroupBuyResponse.WithGraph(db.GroupBuys)
-            .FirstOrDefaultAsync(g => g.Id == id);
+        var groupBuy = await LoadGroupBuyForUpdate(id);
         if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
         if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active")
         {
