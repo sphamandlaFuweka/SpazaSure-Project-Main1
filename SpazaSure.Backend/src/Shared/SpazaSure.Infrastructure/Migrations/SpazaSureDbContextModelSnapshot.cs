@@ -124,6 +124,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("allergies");
 
+                    b.Property<string>("City")
+                        .HasColumnType("text")
+                        .HasColumnName("city");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -133,35 +137,15 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("first_name");
 
+                    b.Property<string>("Interests")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("interests");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("last_name");
-
-                    b.Property<string>("PreferredName")
-                        .HasColumnType("text")
-                        .HasColumnName("preferred_name");
-
-                    b.Property<string>("PreferredLanguage")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("preferred_language");
-
-                    b.Property<string>("Province")
-                        .HasColumnType("text")
-                        .HasColumnName("province");
-
-                    b.Property<string>("City")
-                        .HasColumnType("text")
-                        .HasColumnName("city");
-
-                    b.Property<string>("Suburb")
-                        .HasColumnType("text")
-                        .HasColumnName("suburb");
-
-                    b.Property<bool>("NearbyRecommendationsEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("nearby_recommendations_enabled");
 
                     b.Property<double?>("Latitude")
                         .HasColumnType("double precision")
@@ -171,19 +155,35 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
 
-                    b.Property<string>("Interests")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("interests");
+                    b.Property<bool>("MarketingOptIn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("marketing_opt_in");
+
+                    b.Property<bool>("NearbyRecommendationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("nearby_recommendations_enabled");
 
                     b.Property<string>("NotificationPreferences")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("notification_preferences");
 
-                    b.Property<bool>("MarketingOptIn")
-                        .HasColumnType("boolean")
-                        .HasColumnName("marketing_opt_in");
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_language");
+
+                    b.Property<string>("PreferredName")
+                        .HasColumnType("text")
+                        .HasColumnName("preferred_name");
+
+                    b.Property<string>("Province")
+                        .HasColumnType("text")
+                        .HasColumnName("province");
+
+                    b.Property<string>("Suburb")
+                        .HasColumnType("text")
+                        .HasColumnName("suburb");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -332,6 +332,30 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_user_id");
 
+                    b.Property<string>("PaymentProviderCheckoutReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_checkout_reference");
+
+                    b.Property<string>("PaymentProviderCheckoutUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_checkout_url");
+
+                    b.Property<string>("PaymentProviderCustomerCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_customer_code");
+
+                    b.Property<string>("PaymentProviderEmailToken")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_email_token");
+
+                    b.Property<string>("PaymentProviderPlanCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_plan_code");
+
+                    b.Property<string>("PaymentProviderSubscriptionCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_subscription_code");
+
                     b.Property<string>("PaymentReference")
                         .HasColumnType("text")
                         .HasColumnName("payment_reference");
@@ -346,18 +370,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
-                    b.Property<string>("StripeCheckoutSessionId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_checkout_session_id");
-
-                    b.Property<string>("StripeCustomerId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_customer_id");
-
-                    b.Property<string>("StripeSubscriptionId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_subscription_id");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -370,15 +382,15 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_customer_subscriptions_customer_user_id")
                         .HasFilter("\"status\" IN ('pending', 'active', 'past_due', 'unpaid', 'incomplete', 'trialing', 'paused')");
 
-                    b.HasIndex("StripeCheckoutSessionId")
+                    b.HasIndex("PaymentProviderCheckoutReference")
                         .IsUnique()
-                        .HasDatabaseName("ix_customer_subscriptions_stripe_checkout_session_id")
-                        .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
+                        .HasDatabaseName("ix_customer_subscriptions_payment_provider_checkout_reference")
+                        .HasFilter("\"payment_provider_checkout_reference\" IS NOT NULL");
 
-                    b.HasIndex("StripeSubscriptionId")
+                    b.HasIndex("PaymentProviderSubscriptionCode")
                         .IsUnique()
-                        .HasDatabaseName("ix_customer_subscriptions_stripe_subscription_id")
-                        .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
+                        .HasDatabaseName("ix_customer_subscriptions_payment_provider_subscription_code")
+                        .HasFilter("\"payment_provider_subscription_code\" IS NOT NULL");
 
                     b.HasIndex("CustomerUserId", "CreatedAt")
                         .HasDatabaseName("ix_customer_subscriptions_customer_user_id_created_at");
@@ -769,10 +781,18 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("order_number");
 
+                    b.Property<Guid?>("PaymentCheckoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_checkout_id");
+
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentProviderReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_reference");
 
                     b.Property<string>("PaymentStatus")
                         .IsRequired()
@@ -796,14 +816,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");
-
-                    b.Property<Guid?>("StripeCheckoutId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("stripe_checkout_id");
-
-                    b.Property<string>("StripeCheckoutSessionId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_checkout_session_id");
 
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(10, 2)
@@ -835,14 +847,14 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_orders_order_number");
 
+                    b.HasIndex("PaymentCheckoutId")
+                        .HasDatabaseName("ix_orders_payment_checkout_id");
+
+                    b.HasIndex("PaymentProviderReference")
+                        .HasDatabaseName("ix_orders_payment_provider_reference");
+
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_orders_shop_id");
-
-                    b.HasIndex("StripeCheckoutId")
-                        .HasDatabaseName("ix_orders_stripe_checkout_id");
-
-                    b.HasIndex("StripeCheckoutSessionId")
-                        .HasDatabaseName("ix_orders_stripe_checkout_session_id");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_orders_supplier_id");
@@ -937,6 +949,12 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
+
+                    b.Property<int>("FailedAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_attempts");
 
                     b.Property<string>("Phone")
                         .HasColumnType("text")
@@ -1813,10 +1831,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("province");
 
-                    b.Property<string>("RegistrationDetails")
-                        .HasColumnType("text")
-                        .HasColumnName("registration_details");
-
                     b.Property<decimal>("RatingAvg")
                         .HasPrecision(3, 2)
                         .HasColumnType("numeric(3,2)")
@@ -1825,6 +1839,10 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<int>("RatingCount")
                         .HasColumnType("integer")
                         .HasColumnName("rating_count");
+
+                    b.Property<string>("RegistrationDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("registration_details");
 
                     b.Property<string>("ShopName")
                         .IsRequired()
@@ -2161,6 +2179,30 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("payment_method");
 
+                    b.Property<string>("PaymentProviderCheckoutReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_checkout_reference");
+
+                    b.Property<string>("PaymentProviderCheckoutUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_checkout_url");
+
+                    b.Property<string>("PaymentProviderCustomerCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_customer_code");
+
+                    b.Property<string>("PaymentProviderEmailToken")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_email_token");
+
+                    b.Property<string>("PaymentProviderPlanCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_plan_code");
+
+                    b.Property<string>("PaymentProviderSubscriptionCode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_provider_subscription_code");
+
                     b.Property<string>("PaymentReference")
                         .HasColumnType("text")
                         .HasColumnName("payment_reference");
@@ -2178,18 +2220,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
-                    b.Property<string>("StripeCheckoutSessionId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_checkout_session_id");
-
-                    b.Property<string>("StripeCustomerId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_customer_id");
-
-                    b.Property<string>("StripeSubscriptionId")
-                        .HasColumnType("text")
-                        .HasColumnName("stripe_subscription_id");
-
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
@@ -2201,18 +2231,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_supplier_subscriptions");
 
+                    b.HasIndex("PaymentProviderCheckoutReference")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_subscriptions_payment_provider_checkout_reference")
+                        .HasFilter("\"payment_provider_checkout_reference\" IS NOT NULL");
+
+                    b.HasIndex("PaymentProviderSubscriptionCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_subscriptions_payment_provider_subscription_code")
+                        .HasFilter("\"payment_provider_subscription_code\" IS NOT NULL");
+
                     b.HasIndex("PlanId")
                         .HasDatabaseName("ix_supplier_subscriptions_plan_id");
-
-                    b.HasIndex("StripeCheckoutSessionId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_supplier_subscriptions_stripe_checkout_session_id")
-                        .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
-
-                    b.HasIndex("StripeSubscriptionId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_supplier_subscriptions_stripe_subscription_id")
-                        .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_supplier_subscriptions_supplier_id");

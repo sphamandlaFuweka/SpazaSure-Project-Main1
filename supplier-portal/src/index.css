@@ -223,6 +223,47 @@
   border: 0;
 }
 
+@media (max-width: 767px) {
+  main > div[class~="p-6"],
+  main > div[class~="p-5"] {
+    padding: 1rem;
+  }
+
+  main .page-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  main .page-subtitle {
+    line-height: 1.35rem;
+  }
+
+  main table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  main table .table-header,
+  main table .table-cell {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+  }
+}
+
+@media (max-width: 479px) {
+  main .grid[class~="grid-cols-4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main .card {
+    border-radius: 1rem;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    PREMIUM PAGE ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */

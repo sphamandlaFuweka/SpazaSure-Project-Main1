@@ -146,7 +146,7 @@ export default function DocumentVerificationPage() {
   const requiredDocs = ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'];
 
   return (
-    <div className="p-6 space-y-6 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in">
 
       {/* ═══ HEADER ═══ */}
       <div className="flex items-start justify-between">
@@ -172,7 +172,7 @@ export default function DocumentVerificationPage() {
       </div>
 
       {/* ═══ STATS CARDS ═══ */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-[40px]" />
           <div className="relative">

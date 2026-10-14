@@ -114,7 +114,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="p-6 space-y-5 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 animate-in">
       <div>
         <h1 className="page-title">Reports</h1>
         <p className="page-subtitle">Review submitted reports and escalate cases to the appropriate authority</p>
@@ -130,7 +130,7 @@ export default function AdminReportsPage() {
         ))}
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         {loading ? (
           <div className="p-16 text-center">
             <Loader2 size={36} className="text-gray-300 mx-auto mb-3 animate-spin" />

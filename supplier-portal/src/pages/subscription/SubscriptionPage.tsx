@@ -80,7 +80,7 @@ const FEATURE_ROWS = [
 const DEFAULT_FAQS = [
   {
     q: 'Can I downgrade my plan?',
-    a: 'Yes. You can cancel at any time. Your current tier stays active until the end of your billing period, then reverts to Basic (free).',
+    a: 'Yes. You can cancel at any time. Cancellation stops automatic billing immediately and your account returns to Basic (free).',
   },
   {
     q: 'How does the commission rate work?',
@@ -88,11 +88,11 @@ const DEFAULT_FAQS = [
   },
   {
     q: 'What payment methods are accepted?',
-    a: 'Paid supplier plans are processed through secure Stripe Checkout. Available payment methods are shown during checkout.',
+    a: 'Paid supplier plans are processed securely through Paystack in South African rand. Available payment methods are shown during checkout.',
   },
   {
     q: 'Is there a free trial?',
-    a: 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Stripe Checkout and renews each billing period until you cancel.',
+    a: 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Paystack checkout and renews each billing period until you cancel.',
   },
   {
     q: 'Can I pay annually?',
@@ -121,7 +121,7 @@ export default function SubscriptionPage() {
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'cancelled' | null>(null);
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>(DEFAULT_FAQS);
 
-  // Handle Stripe Checkout return URL query params
+  // Handle Paystack checkout return URL query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
@@ -197,11 +197,11 @@ export default function SubscriptionPage() {
         const refreshed = await subscriptionApi.getCurrent();
         setCurrent(refreshed?.data ?? refreshed);
       } else {
-        const stripeRes = await paymentApi.stripeCheckout(d.subscriptionId);
-        const stripeData = stripeRes?.data ?? stripeRes;
+        const paystackRes = await paymentApi.paystackCheckout(d.subscriptionId);
+        const paystackData = paystackRes?.data ?? paystackRes;
 
-        if (stripeData?.checkoutUrl) {
-          window.location.assign(stripeData.checkoutUrl);
+        if (paystackData?.checkoutUrl) {
+          window.location.assign(paystackData.checkoutUrl);
         } else {
           toast.error('Failed to initiate payment. Please try again.');
           setShowConfirm(false);
@@ -228,9 +228,7 @@ export default function SubscriptionPage() {
       if (user && refreshedCurrent?.currentTier) {
         setUser({ ...user, tier: refreshedCurrent.currentTier });
       }
-      toast.success(refreshedCurrent?.subscription?.cancelAtPeriodEnd
-        ? 'Auto-renewal cancelled. Your plan remains active until the end of this billing period.'
-        : 'Subscription cancelled and your plan has been updated.');
+      toast.success('Subscription cancelled immediately and your plan has been updated.');
     } catch (error: unknown) {
       const message = isAxiosError<{ message?: string }>(error)
         ? error.response?.data?.message
@@ -793,16 +791,16 @@ export default function SubscriptionPage() {
                     <Shield size={14} className="text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-bold text-blue-900 text-sm">Secure checkout via Stripe</p>
+                    <p className="font-bold text-blue-900 text-sm">Secure checkout via Paystack</p>
                     <p className="mt-1.5 text-xs text-blue-700 leading-relaxed">
-                      You'll be redirected to <strong>Stripe Checkout</strong> to complete your payment of{' '}
+                      You'll be redirected to <strong>Paystack Checkout</strong> to complete your payment of{' '}
                       <strong>R{billingCycle === 'annual' ? selectedPlan.annualPrice.toLocaleString() : selectedPlan.monthlyPrice.toLocaleString()}</strong>.
                     </p>
                     <p className="mt-2 text-xs text-blue-700 leading-relaxed">
-                      This plan renews automatically every {billingCycle === 'annual' ? 'year' : 'month'} at the amount shown until you cancel. Your plan stays active through the paid period after cancellation.
+                      This plan renews automatically every {billingCycle === 'annual' ? 'year' : 'month'} at the amount shown until you cancel. Cancellation ends the plan immediately.
                     </p>
                     <p className="mt-3 text-[10px] text-blue-500 flex items-center gap-3 flex-wrap">
-                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> Payment is confirmed securely by Stripe</span>
+                      <span className="flex items-center gap-1"><Check size={9} strokeWidth={3} /> Payment is confirmed securely by Paystack</span>
                     </p>
                   </div>
                 </div>
@@ -853,7 +851,7 @@ export default function SubscriptionPage() {
                   'hover:shadow-lg active:scale-[0.97]'
                 )}
               >
-                {subscribing ? <><Loader2 size={14} className="animate-spin" /> Processing…</> : <>Continue to Stripe <ArrowRight size={14} /></>}
+                {subscribing ? <><Loader2 size={14} className="animate-spin" /> Processing…</> : <>Continue to Paystack <ArrowRight size={14} /></>}
               </button>
             </div>
           </div>
@@ -872,7 +870,7 @@ export default function SubscriptionPage() {
                 <div>
                   <p className="font-bold text-red-900 text-sm">Are you sure?</p>
                   <p className="text-xs text-red-700 mt-1.5 leading-relaxed">
-                    This stops automatic renewal. Your {currentTier} plan stays active until the end of the current paid period, then reverts to Basic (5% commission, 10 products).
+                    This stops automatic renewal and ends your {currentTier} plan immediately. Your account reverts to Basic (5% commission, 10 products).
                   </p>
                 </div>
               </div>

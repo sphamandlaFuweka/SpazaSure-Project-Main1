@@ -116,9 +116,8 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
       Jwt__Secret:                          ${QA_JWT_SECRET}
-      Stripe__SecretKey:                    ${QA_STRIPE_SECRET_KEY:-}
-      Stripe__OrderSuccessUrl:              ${QA_STRIPE_ORDER_SUCCESS_URL:-https://qa.example.com/}
-      Stripe__OrderCancelUrl:               ${QA_STRIPE_ORDER_CANCEL_URL:-https://qa.example.com/}
+      Paystack__SecretKey:                  ${QA_PAYSTACK_SECRET_KEY:-}
+      Paystack__CallbackUrls__ShopCheckout: ${QA_PAYSTACK_SHOP_CALLBACK_URL:-https://qa.example.com/?payment=success}
       DeliveryPricing__BaseFee:             "50"
       DeliveryPricing__PerKmRate:            "8"
     depends_on:
@@ -146,14 +145,17 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
       Jwt__Secret:                          ${QA_JWT_SECRET}
-      Stripe__SecretKey:                    ${QA_STRIPE_SECRET_KEY:-}
-      Stripe__WebhookSecret:                ${QA_STRIPE_WEBHOOK_SECRET:-}
-      Stripe__CustomerSuccessUrl:           ${QA_STRIPE_CUSTOMER_SUCCESS_URL:-https://qa.example.com/}
-      Stripe__CustomerCancelUrl:            ${QA_STRIPE_CUSTOMER_CANCEL_URL:-https://qa.example.com/}
-      Stripe__SuccessUrl:                   ${QA_STRIPE_SUCCESS_URL:-https://qa.example.com/subscription}
-      Stripe__CancelUrl:                    ${QA_STRIPE_CANCEL_URL:-https://qa.example.com/subscription}
-      Stripe__OnboardingSuccessUrl:         ${QA_STRIPE_ONBOARDING_SUCCESS_URL:-https://qa.example.com/}
-      Stripe__OnboardingCancelUrl:          ${QA_STRIPE_ONBOARDING_CANCEL_URL:-https://qa.example.com/}
+      Paystack__SecretKey:                  ${QA_PAYSTACK_SECRET_KEY:-}
+      Paystack__CallbackUrls__ShopCheckout: ${QA_PAYSTACK_SHOP_CALLBACK_URL:-https://qa.example.com/?payment=success}
+      Paystack__CallbackUrls__CustomerSubscription: ${QA_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://qa.example.com/?payment=success}
+      Paystack__CallbackUrls__SupplierSubscription: ${QA_PAYSTACK_SUPPLIER_CALLBACK_URL:-https://qa.example.com/subscription?payment=success}
+      Paystack__PlanCodes__CustomerPlusMonthly: ${QA_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY:-}
+      Paystack__PlanCodes__SupplierBronzeMonthly: ${QA_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY:-}
+      Paystack__PlanCodes__SupplierBronzeAnnual: ${QA_PAYSTACK_PLAN_SUPPLIER_BRONZE_ANNUAL:-}
+      Paystack__PlanCodes__SupplierSilverMonthly: ${QA_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY:-}
+      Paystack__PlanCodes__SupplierSilverAnnual: ${QA_PAYSTACK_PLAN_SUPPLIER_SILVER_ANNUAL:-}
+      Paystack__PlanCodes__SupplierGoldMonthly: ${QA_PAYSTACK_PLAN_SUPPLIER_GOLD_MONTHLY:-}
+      Paystack__PlanCodes__SupplierGoldAnnual: ${QA_PAYSTACK_PLAN_SUPPLIER_GOLD_ANNUAL:-}
     depends_on:
       postgres:
         condition: service_healthy

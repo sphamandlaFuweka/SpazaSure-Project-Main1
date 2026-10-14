@@ -49,7 +49,7 @@ class _CustomerSubscriptionScreenState
         context,
         MaterialPageRoute(
           builder: (_) => OnboardingFeeCheckoutScreen(
-            stripeUrl: url,
+            checkoutUrl: url,
             title: 'Subscribe to SpazaSure Plus',
           ),
         ),
@@ -83,7 +83,7 @@ class _CustomerSubscriptionScreenState
       builder: (context) => AlertDialog(
         title: const Text('Cancel SpazaSure Plus?'),
         content: const Text(
-          'Your Plus benefits remain available until the current billing period ends.',
+          'Cancelling ends your Plus benefits immediately and stops future renewals.',
         ),
         actions: [
           TextButton(
@@ -106,7 +106,7 @@ class _CustomerSubscriptionScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Your subscription is set to end after this period.'),
+            content: Text('Your subscription has been cancelled immediately.'),
             backgroundColor: AppColors.success,
           ),
         );

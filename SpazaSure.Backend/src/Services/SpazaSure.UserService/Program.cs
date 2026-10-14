@@ -42,7 +42,8 @@ builder.Services.AddHttpClient<GeocodingService>(client =>
     client.Timeout = TimeSpan.FromSeconds(8);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (support@spazasure.co.za)");
 });
-builder.Services.AddSingleton<StripePaymentService>();
+builder.Services.AddHttpClient<PaystackPaymentService>();
+builder.Services.AddHttpClient<PaystackPaymentService>();
 builder.Services.AddSingleton(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();

@@ -15,27 +15,57 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize(Roles = "spaza_owner")]
 public class ShopOnboardingFeeController(
     SpazaSureDbContext db,
-    StripePaymentService stripe) : ControllerBase
+    PaystackPaymentService paystack) : ControllerBase
 {
-    [HttpPost("stripe/checkout-session")]
-    public async Task<IActionResult> StripeCheckout()
+    [HttpPost("paystack/checkout-session")]
+    public async Task<IActionResult> PaystackCheckout(CancellationToken cancellationToken)
     {
+        if (!paystack.IsConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("Paystack checkout is not configured."));
+
         var shop = await db.SpazaShops.Include(s => s.User).FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
         if (shop.OnboardingFeePaid) return Ok(ApiResponse<object>.Ok(new { paid = true }));
+        var email = shop.Email ?? shop.User.Email;
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(ApiResponse.Fail("Add an email address to your shop profile before paying the onboarding fee."));
+
         var amount = await GetConfiguredAmount();
         if (amount <= 0) return Ok(ApiResponse<object>.Ok(new { paid = true, amount = 0 }));
-        var payment = await db.ShopOnboardingPayments.FirstOrDefaultAsync(p => p.ShopId == shop.Id && p.Status == "pending" && p.ExpiresAt > DateTime.UtcNow);
-        if (payment is null)
+        var previousPendingPayments = await db.ShopOnboardingPayments
+            .Where(p => p.ShopId == shop.Id && p.Status == "pending")
+            .ToListAsync(cancellationToken);
+        foreach (var previousPayment in previousPendingPayments)
+            previousPayment.Status = "cancelled";
+        if (previousPendingPayments.Count > 0)
+            await db.SaveChangesAsync(cancellationToken);
+
+        var reference = $"SS-{Guid.NewGuid():N}";
+        var payment = new ShopOnboardingPayment
         {
-            payment = new ShopOnboardingPayment { ShopId = shop.Id, Amount = amount, Status = "pending", ExpiresAt = DateTime.UtcNow.AddHours(24) };
-            db.ShopOnboardingPayments.Add(payment);
-            await db.SaveChangesAsync();
-        }
-        var url = await stripe.CreateCheckoutSessionAsync(amount, "zar", "SpazaSure shop onboarding fee", "shop_onboarding", payment.Id, shop.Email ?? shop.User.Email ?? string.Empty);
-        payment.ProviderPaymentId = $"stripe-pending-{payment.Id:N}";
-        await db.SaveChangesAsync();
-        return Ok(ApiResponse<object>.Ok(new { paid = false, paymentId = payment.Id, amount, checkoutUrl = url }));
+            ShopId = shop.Id,
+            Amount = amount,
+            Status = "pending",
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            ProviderPaymentId = reference
+        };
+        db.ShopOnboardingPayments.Add(payment);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var checkout = await paystack.CreateOnboardingCheckoutAsync(
+            amount,
+            email,
+            reference,
+            paystack.GetCallbackUrl("ShopCheckout"),
+            cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            paid = false,
+            paymentId = payment.Id,
+            amount,
+            checkoutUrl = checkout.AuthorizationUrl
+        }));
     }
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 

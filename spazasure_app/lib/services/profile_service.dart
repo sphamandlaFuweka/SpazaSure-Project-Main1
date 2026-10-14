@@ -80,9 +80,9 @@ class ProfileService {
     await ApiService.patch('/shop/profile', updates);
   }
 
-  static Future<String?> initiateStripeOnboardingPayment() async {
+  static Future<String?> initiatePaystackOnboardingPayment() async {
     final response = await ApiService.post(
-      '/shop/profile/onboarding-fee/stripe/checkout-session',
+      '/shop/profile/onboarding-fee/paystack/checkout-session',
       const {},
     );
     final data = response['data'] as Map<String, dynamic>;

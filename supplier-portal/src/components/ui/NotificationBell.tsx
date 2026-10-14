@@ -126,7 +126,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl border border-gray-100 shadow-card-xl overflow-hidden z-50"
+          className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1rem))] bg-white rounded-2xl border border-gray-100 shadow-card-xl overflow-hidden z-50"
           style={{ animation: 'dropIn 0.2s cubic-bezier(0.16,1,0.3,1)' }}
         >
           {/* Header */}

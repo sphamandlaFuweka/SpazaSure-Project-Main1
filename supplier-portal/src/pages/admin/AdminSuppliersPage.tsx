@@ -235,7 +235,7 @@ export default function AdminSuppliersPage() {
         .modal-slide-up { animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
 
-      <div className="p-6 space-y-6 animate-in">
+      <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in">
         {/* ─── Header ─── */}
         <div className="flex items-center gap-4">
           <div className="w-11 h-11 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
@@ -248,7 +248,7 @@ export default function AdminSuppliersPage() {
         </div>
 
         {/* ─── Tab Toggle ─── */}
-        <div className="bg-gray-100/80 rounded-2xl p-1.5 w-fit">
+        <div className="bg-gray-100/80 rounded-2xl p-1.5 w-fit max-w-full">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setMainTab('suppliers')}
@@ -281,7 +281,7 @@ export default function AdminSuppliersPage() {
         {mainTab === 'suppliers' && (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow group">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-[40px]" />
                 <div className="relative flex items-center gap-3">
@@ -321,7 +321,7 @@ export default function AdminSuppliersPage() {
             </div>
 
             {/* Search & Filters */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative flex-1 max-w-sm">
                 <Search size={15} className="absolute left-4 top-3.5 text-gray-300" />
                 <input
@@ -331,7 +331,7 @@ export default function AdminSuppliersPage() {
                   placeholder="Search by name or email..."
                 />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto">
                 {(['all', 'verified', 'pending'] as FilterStatus[]).map((f) => (
                   <button
                     key={f}
@@ -350,7 +350,7 @@ export default function AdminSuppliersPage() {
             </div>
 
             {/* Table */}
-            <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-x-auto">
               {filteredSuppliers.length === 0 ? (
                 <div className="p-16 text-center">
                   <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -468,7 +468,7 @@ export default function AdminSuppliersPage() {
         {mainTab === 'spaza-owners' && (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow group">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-purple-50 to-transparent rounded-bl-[40px]" />
                 <div className="relative flex items-center gap-3">
@@ -537,7 +537,7 @@ export default function AdminSuppliersPage() {
             </div>
 
             {/* Table */}
-            <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+            <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-x-auto">
               {filteredSpazaOwners.length === 0 ? (
                 <div className="p-16 text-center">
                   <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">

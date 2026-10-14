@@ -98,7 +98,7 @@ export default function AdminAnalyticsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Platform Analytics</h1>
@@ -140,8 +140,8 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-5 col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-4 sm:p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-bold text-gray-900">Platform GMV Trend</h3>
@@ -188,7 +188,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card p-5">
           <h3 className="font-bold text-gray-900 mb-5">Monthly Orders</h3>
           {revenueData.length > 0 ? (

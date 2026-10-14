@@ -310,8 +310,8 @@ CREATE TABLE IF NOT EXISTS orders (
     total_amount numeric(10,2) NOT NULL DEFAULT 0,
     payment_method text NOT NULL DEFAULT 'invoice',
     payment_status text NOT NULL DEFAULT 'pending',
-    stripe_checkout_id uuid,
-    stripe_checkout_session_id text,
+    payment_checkout_id uuid,
+    payment_provider_reference text,
     rejection_reason text,
     notes text,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
@@ -382,7 +382,22 @@ CREATE TABLE IF NOT EXISTS customer_profiles (
 ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS first_name text;
 ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS last_name text;
 ALTER TABLE customer_profiles ADD COLUMN IF NOT EXISTS age integer;
+DROP INDEX IF EXISTS "IX_Orders_StripeCheckoutId";
+DROP INDEX IF EXISTS "IX_Orders_StripeCheckoutSessionId";
+DROP INDEX IF EXISTS ix_orders_stripe_checkout_id;
+DROP INDEX IF EXISTS ix_orders_stripe_checkout_session_id;
+DROP INDEX IF EXISTS "IX_CustomerSubscriptions_StripeCheckoutSessionId";
+DROP INDEX IF EXISTS "IX_CustomerSubscriptions_StripeSubscriptionId";
+DROP INDEX IF EXISTS ix_customer_subscriptions_stripe_checkout_session_id;
+DROP INDEX IF EXISTS ix_customer_subscriptions_stripe_subscription_id;
+DROP INDEX IF EXISTS "IX_SupplierSubscriptions_StripeCheckoutSessionId";
+DROP INDEX IF EXISTS "IX_SupplierSubscriptions_StripeSubscriptionId";
+DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_checkout_session_id;
+DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_subscription_id;
+
 DO $$
+DECLARE
+    table_to_update text;
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -420,9 +435,12 @@ CREATE TABLE IF NOT EXISTS customer_subscriptions (
     customer_user_id uuid NOT NULL,
     plan_key text NOT NULL DEFAULT 'free',
     status text NOT NULL DEFAULT 'pending',
-    stripe_customer_id text,
-    stripe_subscription_id text,
-    stripe_checkout_session_id text,
+    payment_provider_customer_code text,
+    payment_provider_subscription_code text,
+    payment_provider_checkout_reference text,
+    payment_provider_checkout_url text,
+    payment_provider_plan_code text,
+    payment_provider_email_token text,
     payment_reference text,
     current_period_end timestamp with time zone,
     cancel_at_period_end boolean NOT NULL DEFAULT false,
@@ -542,9 +560,12 @@ CREATE TABLE IF NOT EXISTS supplier_subscriptions (
     payment_reference text,
     payment_method text,
     cancelled_reason text,
-    stripe_customer_id text,
-    stripe_subscription_id text,
-    stripe_checkout_session_id text,
+    payment_provider_customer_code text,
+    payment_provider_subscription_code text,
+    payment_provider_checkout_reference text,
+    payment_provider_checkout_url text,
+    payment_provider_plan_code text,
+    payment_provider_email_token text,
     cancel_at_period_end boolean NOT NULL DEFAULT false,
     created_at timestamp with time zone NOT NULL DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW(),
@@ -552,10 +573,45 @@ CREATE TABLE IF NOT EXISTS supplier_subscriptions (
     CONSTRAINT "FK_SupplierSubscriptions_Suppliers_SupplierId" FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
     CONSTRAINT "FK_SupplierSubscriptions_SubscriptionPlans_PlanId" FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
 );
-ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id text;
-ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_subscription_id text;
-ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'stripe_checkout_id')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'payment_checkout_id') THEN
+        ALTER TABLE orders RENAME COLUMN stripe_checkout_id TO payment_checkout_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'stripe_checkout_session_id') THEN
+        ALTER TABLE orders DROP COLUMN stripe_checkout_session_id;
+    END IF;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider_reference text;
+
+    FOREACH table_to_update IN ARRAY ARRAY['customer_subscriptions', 'supplier_subscriptions'] LOOP
+        IF EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema = current_schema() AND c.table_name = table_to_update AND c.column_name = 'stripe_customer_id') THEN
+            EXECUTE format('ALTER TABLE %I DROP COLUMN stripe_customer_id', table_to_update);
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema = current_schema() AND c.table_name = table_to_update AND c.column_name = 'stripe_subscription_id') THEN
+            EXECUTE format('ALTER TABLE %I DROP COLUMN stripe_subscription_id', table_to_update);
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema = current_schema() AND c.table_name = table_to_update AND c.column_name = 'stripe_checkout_session_id') THEN
+            EXECUTE format('ALTER TABLE %I DROP COLUMN stripe_checkout_session_id', table_to_update);
+        END IF;
+    END LOOP;
+END $$;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_customer_code text;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_subscription_code text;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_checkout_reference text;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_checkout_url text;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_plan_code text;
+ALTER TABLE customer_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_email_token text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_customer_code text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_subscription_code text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_checkout_reference text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_checkout_url text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_plan_code text;
+ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS payment_provider_email_token text;
 ALTER TABLE supplier_subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end boolean NOT NULL DEFAULT false;
+UPDATE orders SET payment_method = 'legacy' WHERE lower(payment_method) = 'stripe';
+UPDATE shop_wallet_transactions SET method = 'legacy' WHERE lower(method) = 'stripe';
+UPDATE supplier_subscriptions SET payment_method = 'legacy' WHERE lower(payment_method) = 'stripe';
 
 CREATE TABLE IF NOT EXISTS group_buys (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -711,8 +767,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_longitude double precision;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_distance_km numeric(10,2);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'invoice';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'pending';
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_checkout_id uuid;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_checkout_id uuid;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider_reference text;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS original_unit_price numeric(10,2);
 UPDATE order_items SET original_unit_price = unit_price WHERE original_unit_price IS NULL;
 ALTER TABLE order_items ALTER COLUMN original_unit_price TYPE numeric(10,2)
@@ -1241,8 +1297,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_Products_SupplierId_Sku" ON products(suppl
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_Orders_OrderNumber" ON orders(order_number);
 CREATE INDEX IF NOT EXISTS "IX_Orders_ShopId" ON orders(shop_id);
 CREATE INDEX IF NOT EXISTS "IX_Orders_SupplierId" ON orders(supplier_id);
-CREATE INDEX IF NOT EXISTS "IX_Orders_StripeCheckoutId" ON orders(stripe_checkout_id);
-CREATE INDEX IF NOT EXISTS "IX_Orders_StripeCheckoutSessionId" ON orders(stripe_checkout_session_id);
+CREATE INDEX IF NOT EXISTS ix_orders_payment_checkout_id ON orders(payment_checkout_id);
+CREATE INDEX IF NOT EXISTS ix_orders_payment_provider_reference ON orders(payment_provider_reference);
 CREATE INDEX IF NOT EXISTS "IX_Orders_GroupBuyId" ON orders(group_buy_id);
 CREATE UNIQUE INDEX IF NOT EXISTS "UX_Orders_GroupBuyParticipantId"
     ON orders(group_buy_participant_id) WHERE group_buy_participant_id IS NOT NULL;
@@ -1255,12 +1311,12 @@ CREATE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_CustomerUserId_CreatedAt"
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_CustomerUserId"
     ON customer_subscriptions(customer_user_id)
     WHERE status IN ('pending', 'active', 'past_due', 'unpaid', 'incomplete', 'trialing', 'paused');
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_StripeCheckoutSessionId"
-    ON customer_subscriptions(stripe_checkout_session_id)
-    WHERE stripe_checkout_session_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_CustomerSubscriptions_StripeSubscriptionId"
-    ON customer_subscriptions(stripe_subscription_id)
-    WHERE stripe_subscription_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ix_customer_subscriptions_payment_provider_checkout_reference
+    ON customer_subscriptions(payment_provider_checkout_reference)
+    WHERE payment_provider_checkout_reference IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ix_customer_subscriptions_payment_provider_subscription_code
+    ON customer_subscriptions(payment_provider_subscription_code)
+    WHERE payment_provider_subscription_code IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_ProductQrCodes_ProductId" ON product_qr_codes(product_id);
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProductQrCodes_QrCode" ON product_qr_codes(qr_code);
 
@@ -1296,12 +1352,12 @@ WHERE NOT EXISTS (
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_SubscriptionPlans_Tier" ON subscription_plans(tier);
 CREATE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_SupplierId" ON supplier_subscriptions(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_PlanId" ON supplier_subscriptions(plan_id);
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_StripeSubscriptionId"
-    ON supplier_subscriptions(stripe_subscription_id)
-    WHERE stripe_subscription_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_SupplierSubscriptions_StripeCheckoutSessionId"
-    ON supplier_subscriptions(stripe_checkout_session_id)
-    WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ix_supplier_subscriptions_payment_provider_subscription_code
+    ON supplier_subscriptions(payment_provider_subscription_code)
+    WHERE payment_provider_subscription_code IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ix_supplier_subscriptions_payment_provider_checkout_reference
+    ON supplier_subscriptions(payment_provider_checkout_reference)
+    WHERE payment_provider_checkout_reference IS NOT NULL;
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_ProductId" ON group_buys(product_id);
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_SupplierId" ON group_buys(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_GroupBuys_CreatedByShopId" ON group_buys(created_by_shop_id);
@@ -1366,7 +1422,8 @@ VALUES
     ('20261012232837_AddCustomerSubscriptions', '8.0.0'),
     ('20261012234836_AddSupplierStripeSubscriptions', '8.0.0'),
     ('20261013130000_AddCustomerRegistrationPreferences', '8.0.0'),
-    ('20261014120000_AddShopRegistrationDetails', '8.0.0')
+    ('20261014120000_AddShopRegistrationDetails', '8.0.0'),
+    ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Seed the configurable once-off shop onboarding fee without overwriting admin changes.

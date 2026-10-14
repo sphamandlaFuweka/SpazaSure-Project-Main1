@@ -116,7 +116,7 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <div className="p-6 space-y-5 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 animate-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Orders</h1>
@@ -125,20 +125,20 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="card p-4 flex items-center gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card p-3 sm:p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0"><ShoppingCart size={18} className="text-blue-600" /></div>
           <div><p className="text-2xl font-black tabular-nums">{summary.totalOrders ?? orders.length}</p><p className="text-xs text-gray-500 font-semibold">Total Orders</p></div>
         </div>
-        <div className="card p-4 flex items-center gap-3">
+        <div className="card p-3 sm:p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0"><Clock size={18} className="text-amber-600" /></div>
           <div><p className="text-2xl font-black tabular-nums">{pendingCount}</p><p className="text-xs text-gray-500 font-semibold">Pending</p></div>
         </div>
-        <div className="card p-4 flex items-center gap-3">
+        <div className="card p-3 sm:p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0"><DollarSign size={18} className="text-emerald-600" /></div>
           <div><p className="text-2xl font-black tabular-nums">R{(Number(totalRevenue) / 1000).toFixed(1)}k</p><p className="text-xs text-gray-500 font-semibold">GMV Delivered</p></div>
         </div>
-        <div className="card p-4 flex items-center gap-3">
+        <div className="card p-3 sm:p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0"><DollarSign size={18} className="text-violet-600" /></div>
           <div><p className="text-2xl font-black tabular-nums">R{Number(platformFees).toFixed(0)}</p><p className="text-xs text-gray-500 font-semibold">Platform Fees</p></div>
         </div>
@@ -171,7 +171,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         {loading ? (
           <div className="p-16 text-center">
             <Loader2 size={36} className="text-gray-300 mx-auto mb-3 animate-spin" />

@@ -198,11 +198,11 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="p-6 space-y-6 compact:p-4 compact:space-y-3 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 compact:p-4 compact:space-y-3 animate-in">
       {/* ══════════════════════════════════════════════════════════════
           HERO WELCOME BANNER — World Class with Animations
          ══════════════════════════════════════════════════════════════ */}
-      <div className="bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-3xl p-8 compact:p-5 compact:rounded-2xl text-white relative overflow-hidden shadow-2xl group">
+      <div className="bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-2xl sm:rounded-3xl p-5 sm:p-8 compact:p-5 compact:rounded-2xl text-white relative overflow-hidden shadow-2xl group">
         {/* Animated floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-6 right-20 w-3 h-3 bg-primary-300/30 rounded-full animate-float-slow" />
@@ -219,9 +219,9 @@ export default function DashboardPage() {
 
         <div className="relative z-10">
           {/* Top bar with date and live indicator */}
-          <div className="flex items-center justify-between mb-6 compact:mb-3">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-primary-200/80 uppercase tracking-[0.2em]">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6 compact:mb-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="text-[10px] sm:text-xs font-bold text-primary-200/80 uppercase tracking-[0.15em] sm:tracking-[0.2em]">
                 {format(new Date(), 'EEEE, d MMMM yyyy')}
               </span>
               <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2.5 py-1">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Hero Stats Row — Big animated numbers */}
-          <div className="grid grid-cols-3 gap-6 compact:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 compact:gap-3">
             <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 compact:p-3 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02] group/stat">
               <div className="flex items-center gap-2 mb-3 compact:mb-1.5">
                 <div className="p-2 bg-emerald-500/20 rounded-lg">
@@ -322,7 +322,7 @@ export default function DashboardPage() {
       )}
 
       {/* Quick Actions — Premium Cards */}
-      <div className="grid grid-cols-4 gap-4 compact:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 compact:gap-3">
         {quickActions.map(({ label, icon: Icon, to, color }, i) => (
           <button
             key={label}
@@ -340,9 +340,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row — Enhanced */}
-      <div className="grid grid-cols-3 gap-5 compact:gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 compact:gap-3">
         {/* Revenue Chart */}
-        <div className="card p-6 compact:p-4 col-span-2 group hover:shadow-xl transition-shadow duration-300">
+        <div className="card p-4 sm:p-6 compact:p-4 lg:col-span-2 group hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between mb-6 compact:mb-3">
             <div>
               <h3 className="text-lg font-black text-gray-900">Revenue Trend</h3>
@@ -433,7 +433,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-3 gap-4 compact:gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 compact:gap-3">
         {/* Top Products */}
         <div className="card p-5 compact:p-4">
           <div className="flex items-center justify-between mb-4">
@@ -455,7 +455,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Orders */}
-        <div className="card col-span-2">
+        <div className="card lg:col-span-2">
           <SectionHeader
             title="Recent Orders"
             action={
@@ -507,7 +507,7 @@ export default function DashboardPage() {
             Manage <ArrowRight size={13} />
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-4 compact:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 compact:gap-3">
           {DOC_META.map(({ docType, label }) => {
             const doc = docs.find((d) => d.docType === docType);
             const status = doc?.status ?? 'missing';
@@ -541,9 +541,9 @@ export default function DashboardPage() {
 
       {/* Upgrade CTA Banner — Premium with shimmer */}
       {user?.tier !== 'gold' && (
-      <div className="rounded-3xl bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 p-6 compact:p-4 flex items-center justify-between relative overflow-hidden shadow-2xl animate-upgrade-shimmer group">
+      <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 p-4 sm:p-6 compact:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden shadow-2xl animate-upgrade-shimmer group">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative z-10 flex items-center gap-5">
+        <div className="relative z-10 flex items-center gap-3 sm:gap-5">
           <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
             <Sparkles size={24} className="text-accent" />
           </div>
@@ -554,7 +554,7 @@ export default function DashboardPage() {
         </div>
         <button
           onClick={() => navigate('/subscription')}
-          className="relative z-10 flex items-center gap-2 bg-accent hover:bg-accent-600 text-white text-sm font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0"
+          className="relative z-10 flex items-center justify-center gap-2 bg-accent hover:bg-accent-600 text-white text-sm font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0 w-full sm:w-auto"
         >
           Upgrade Now <ArrowRight size={14} />
         </button>

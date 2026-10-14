@@ -3,11 +3,13 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class OnboardingFeeCheckoutScreen extends StatefulWidget {
-  final String stripeUrl;
+  final String checkoutUrl;
+  final String paymentProvider;
   final String title;
 
   const OnboardingFeeCheckoutScreen({
-    required this.stripeUrl,
+    required this.checkoutUrl,
+    this.paymentProvider = 'Paystack',
     this.title = 'Complete payment',
     super.key,
   });
@@ -77,7 +79,7 @@ class _OnboardingFeeCheckoutScreenState
       _loadFailed = false;
     });
     try {
-      await _controller.loadRequest(Uri.parse(widget.stripeUrl));
+      await _controller.loadRequest(Uri.parse(widget.checkoutUrl));
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -179,7 +181,7 @@ class _OnboardingFeeCheckoutScreenState
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            'Your payment details are handled securely by Stripe.',
+                            'Your payment details are handled securely by ${widget.paymentProvider}.',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.84),
@@ -249,7 +251,7 @@ class _OnboardingFeeCheckoutScreenState
                               ),
                             ),
                             Text(
-                              'Powered by Stripe',
+                              'Powered by ${widget.paymentProvider}',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: AppColors.textSecondary,

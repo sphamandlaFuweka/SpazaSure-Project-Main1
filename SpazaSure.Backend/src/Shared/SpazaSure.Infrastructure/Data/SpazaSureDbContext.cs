@@ -127,18 +127,18 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(s => new { s.CustomerUserId, s.CreatedAt });
             e.HasIndex(s => s.CustomerUserId).IsUnique()
                 .HasFilter("\"status\" IN ('pending', 'active', 'past_due', 'unpaid', 'incomplete', 'trialing', 'paused')");
-            e.HasIndex(s => s.StripeSubscriptionId).IsUnique()
-                .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
-            e.HasIndex(s => s.StripeCheckoutSessionId).IsUnique()
-                .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
+            e.HasIndex(s => s.PaymentProviderSubscriptionCode).IsUnique()
+                .HasFilter("\"payment_provider_subscription_code\" IS NOT NULL");
+            e.HasIndex(s => s.PaymentProviderCheckoutReference).IsUnique()
+                .HasFilter("\"payment_provider_checkout_reference\" IS NOT NULL");
         });
 
         model.Entity<SupplierSubscription>(e =>
         {
-            e.HasIndex(s => s.StripeSubscriptionId).IsUnique()
-                .HasFilter("\"stripe_subscription_id\" IS NOT NULL");
-            e.HasIndex(s => s.StripeCheckoutSessionId).IsUnique()
-                .HasFilter("\"stripe_checkout_session_id\" IS NOT NULL");
+            e.HasIndex(s => s.PaymentProviderSubscriptionCode).IsUnique()
+                .HasFilter("\"payment_provider_subscription_code\" IS NOT NULL");
+            e.HasIndex(s => s.PaymentProviderCheckoutReference).IsUnique()
+                .HasFilter("\"payment_provider_checkout_reference\" IS NOT NULL");
         });
 
         model.Entity<CustomerScanEvent>(e =>
@@ -255,8 +255,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);
             e.Property(o => o.PlatformCommission).HasPrecision(10, 2);
             e.Property(o => o.TotalAmount).HasPrecision(10, 2);
-            e.HasIndex(o => o.StripeCheckoutId);
-            e.HasIndex(o => o.StripeCheckoutSessionId);
+            e.HasIndex(o => o.PaymentCheckoutId);
+            e.HasIndex(o => o.PaymentProviderReference);
             e.HasOne(o => o.Shop).WithMany().HasForeignKey(o => o.ShopId);
             e.HasOne(o => o.Supplier).WithMany().HasForeignKey(o => o.SupplierId);
             e.HasOne(o => o.GroupBuy).WithMany().HasForeignKey(o => o.GroupBuyId).OnDelete(DeleteBehavior.Restrict);

@@ -37,9 +37,12 @@ public class SupplierSubscription : BaseEntity
     public string? PaymentReference { get; set; }
     public string? PaymentMethod { get; set; }
     public string? CancelledReason { get; set; }
-    public string? StripeCustomerId { get; set; }
-    public string? StripeSubscriptionId { get; set; }
-    public string? StripeCheckoutSessionId { get; set; }
+    public string? PaymentProviderCustomerCode { get; set; }
+    public string? PaymentProviderSubscriptionCode { get; set; }
+    public string? PaymentProviderCheckoutReference { get; set; }
+    public string? PaymentProviderCheckoutUrl { get; set; }
+    public string? PaymentProviderPlanCode { get; set; }
+    public string? PaymentProviderEmailToken { get; set; }
     public bool CancelAtPeriodEnd { get; set; }
     public Supplier Supplier { get; set; } = null!;
     public SubscriptionPlan Plan { get; set; } = null!;

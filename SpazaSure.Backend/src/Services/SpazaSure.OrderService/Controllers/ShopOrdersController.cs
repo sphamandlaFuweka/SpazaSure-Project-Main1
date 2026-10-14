@@ -15,7 +15,7 @@ namespace SpazaSure.OrderService.Controllers;
 [Authorize(Roles = "spaza_owner")]
 public class ShopOrdersController(
     SpazaSureDbContext db,
-    OrderStripePaymentService stripePayments) : ControllerBase
+    OrderPaystackPaymentService paystackPayments) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -103,9 +103,9 @@ public class ShopOrdersController(
                 DeliveryFee = deliveryFee,
                 PlatformCommission = platformCommission,
                 TotalAmount = totalAmount,
-                PaymentMethod = "stripe",
+                PaymentMethod = "paystack",
                 PaymentStatus = "pending",
-                StripeCheckoutId = checkoutId,
+                PaymentCheckoutId = checkoutId,
                 Supplier = supplier,
                 Items = orderItems
             };
@@ -115,13 +115,14 @@ public class ShopOrdersController(
             createdOrders.Add(order);
         }
 
-        var checkout = await stripePayments.CreateCheckoutSessionAsync(
+        var paymentReference = $"SPZ-{Guid.NewGuid():N}";
+        var checkout = await paystackPayments.CreateCheckoutAsync(
             createdOrders,
-            checkoutId,
             shop.Email ?? string.Empty,
+            paymentReference,
             HttpContext.RequestAborted);
         foreach (var order in createdOrders)
-            order.StripeCheckoutSessionId = checkout.Id;
+            order.PaymentProviderReference = checkout.Reference;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
@@ -137,7 +138,7 @@ public class ShopOrdersController(
                 supplierName = order.Supplier.CompanyName
             }),
             orderNumber = firstOrder.OrderNumber,
-            checkoutUrl = checkout.Url
+            checkoutUrl = checkout.AuthorizationUrl
         }));
     }
 

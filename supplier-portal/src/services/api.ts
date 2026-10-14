@@ -432,10 +432,10 @@ export const subscriptionApi = {
     api.get('/supplier/subscription/history').then((r) => r.data),
 };
 
-// Payment (Stripe Checkout)
+// Payment (Paystack)
 export const paymentApi = {
-  stripeCheckout: (subscriptionId: string) =>
-    api.post('/supplier/payment/stripe/checkout-session', { subscriptionId }).then((r) => r.data),
+  paystackCheckout: (subscriptionId: string) =>
+    api.post('/supplier/payment/paystack/checkout-session', { subscriptionId }).then((r) => r.data),
 
   /** Check payment/subscription status after redirect */
   getStatus: (subscriptionId: string) =>

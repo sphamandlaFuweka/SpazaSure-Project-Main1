@@ -885,16 +885,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_startingPayment) return;
     setState(() => _startingPayment = true);
     try {
-      final stripeUrl = await ProfileService.initiateStripeOnboardingPayment();
+      final checkoutUrl =
+          await ProfileService.initiatePaystackOnboardingPayment();
       if (!mounted) return;
-      if (stripeUrl == null || stripeUrl.isEmpty) {
-        throw StateError('Stripe checkout is unavailable.');
+      if (checkoutUrl == null || checkoutUrl.isEmpty) {
+        throw StateError('Paystack checkout is unavailable.');
       }
       await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (_) => OnboardingFeeCheckoutScreen(
-            stripeUrl: stripeUrl,
+            checkoutUrl: checkoutUrl,
+            paymentProvider: 'Paystack',
             title: 'Pay onboarding fee',
           ),
         ),
@@ -908,7 +910,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Text(
             status.paid
                 ? 'Onboarding payment confirmed.'
-                : 'Payment is still pending. Pull down to refresh after Stripe confirms it.',
+                : 'Payment is still pending. Refresh after Paystack confirms it.',
           ),
           backgroundColor: status.paid ? AppColors.success : AppColors.warning,
         ),

@@ -5,8 +5,6 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
 using System.Security.Claims;
-using Stripe;
-using Stripe.Checkout;
 using SpazaSure.UserService.Services;
 
 namespace SpazaSure.UserService.Controllers;
@@ -14,10 +12,10 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/shop/wallet")]
 [Authorize(Roles = "spaza_owner")]
-public class ShopWalletController(SpazaSureDbContext db, StripePaymentService stripe) : ControllerBase
+public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService paystack) : ControllerBase
 {
-    private const decimal MinimumStripeTopUp = 50m;
-    private const decimal MaximumStripeTopUp = 2_000m;
+    private const decimal MinimumPaystackTopUp = 50m;
+    private const decimal MaximumPaystackTopUp = 2_000m;
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     /// <summary>Get wallet summary: balance and recent transactions.</summary>
@@ -98,54 +96,60 @@ public class ShopWalletController(SpazaSureDbContext db, StripePaymentService st
         return Ok(ApiResponse<object>.Ok(new { transaction.Id, transaction.Status, transaction.Method, transaction.Amount }, "Top-up request submitted for review."));
     }
 
-    [HttpPost("top-ups/stripe/checkout-session")]
-    public async Task<IActionResult> CreateStripeTopUpCheckoutSession(
-        [FromBody] StripeWalletTopUpRequest req,
+    [HttpPost("top-ups/paystack/checkout-session")]
+    public async Task<IActionResult> CreatePaystackTopUpCheckout(
+        [FromBody] PaystackWalletTopUpRequest req,
         CancellationToken cancellationToken)
     {
-        if (req.Amount < MinimumStripeTopUp || req.Amount > MaximumStripeTopUp)
+        if (req.Amount < MinimumPaystackTopUp || req.Amount > MaximumPaystackTopUp ||
+            decimal.Round(req.Amount, 2) != req.Amount)
             return BadRequest(ApiResponse.Fail(
-                $"Stripe top-ups must be between R{MinimumStripeTopUp:N0} and R{MaximumStripeTopUp:N0}."));
+                $"Paystack top-ups must be between R{MinimumPaystackTopUp:N0} and R{MaximumPaystackTopUp:N0} with at most two decimal places."));
 
         var shop = await db.SpazaShops
             .Include(s => s.User)
             .FirstOrDefaultAsync(s => s.UserId == UserId, cancellationToken);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var email = shop.Email ?? shop.User.Email;
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(ApiResponse.Fail("Add an email address to your shop profile before topping up."));
 
         var transaction = new ShopWalletTransaction
         {
             ShopId = shop.Id,
             Amount = decimal.Round(req.Amount, 2, MidpointRounding.AwayFromZero),
-            Method = "stripe",
+            Method = "paystack",
             Status = "pending",
             Type = "top_up",
-            Notes = "Awaiting Stripe Checkout payment."
+            Notes = "Awaiting Paystack checkout payment."
         };
         db.ShopWalletTransactions.Add(transaction);
         await db.SaveChangesAsync(cancellationToken);
 
         try
         {
-            Session session = await stripe.CreateWalletTopUpCheckoutSessionAsync(
+            var reference = $"WAL-{transaction.Id:N}";
+            var checkout = await paystack.CreateOnboardingCheckoutAsync(
                 transaction.Amount,
-                transaction.Id,
-                shop.Email ?? shop.User.Email ?? string.Empty,
+                email,
+                reference,
+                paystack.GetCallbackUrl("ShopCheckout"),
                 cancellationToken);
-            transaction.Reference = session.Id;
+            transaction.Reference = checkout.Reference;
             await db.SaveChangesAsync(cancellationToken);
 
             return Ok(ApiResponse<object>.Ok(new
             {
                 transactionId = transaction.Id,
-                checkoutUrl = session.Url,
+                checkoutUrl = checkout.AuthorizationUrl,
                 amount = transaction.Amount,
                 currency = "ZAR"
             }));
         }
-        catch (Exception ex) when (ex is StripeException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or ArgumentException)
         {
             transaction.Status = "failed";
-            transaction.Notes = "Stripe Checkout session could not be created.";
+            transaction.Notes = "Paystack checkout could not be created.";
             await db.SaveChangesAsync(cancellationToken);
             throw;
         }
@@ -216,7 +220,7 @@ public class ShopWalletController(SpazaSureDbContext db, StripePaymentService st
 }
 
 public record WalletTopUpRequest(decimal Amount, string Method, string? Reference, string? Notes);
-public record StripeWalletTopUpRequest(decimal Amount);
+public record PaystackWalletTopUpRequest(decimal Amount);
 public record WalletActivity(
     Guid Id,
     string Type,

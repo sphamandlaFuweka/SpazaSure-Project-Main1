@@ -30,7 +30,7 @@ class OrderService {
     final data = res['data'] as Map<String, dynamic>;
     final checkoutUrl = data['checkoutUrl']?.toString();
     if (checkoutUrl == null || checkoutUrl.isEmpty) {
-      throw StateError('Stripe checkout was not returned for this order.');
+      throw StateError('Paystack checkout was not returned for this order.');
     }
     return OrderCheckout(
       orderNumber: data['orderNumber']?.toString() ?? '',

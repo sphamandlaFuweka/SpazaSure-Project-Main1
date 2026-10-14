@@ -94,29 +94,45 @@ entry point. The portal's `VITE_API_URL` is set to
 `https://api.spazasure.co.za/api`; Flutter release builds use that URL by
 default (development builds can override it with `--dart-define=API_URL=...`).
 
-## Stripe
+## Paystack
 
-Add these as GitHub Actions secrets in the **production** environment:
+All online payments use Paystack in ZAR: shop onboarding fees, shop orders,
+wallet top-ups, customer Plus, and supplier subscriptions. Add
+`PROD_PAYSTACK_SECRET_KEY` to the GitHub production environment. For local
+deployment, put it in `.env.prod`; for QA, use `QA_PAYSTACK_SECRET_KEY` with a
+test-mode key.
 
-- `PROD_STRIPE_SECRET_KEY` (use a Stripe test key for testing; a live key
-  processes real payments)
-- `PROD_STRIPE_WEBHOOK_SECRET` (signing secret for the webhook below)
+Configure the Paystack webhook at
+`https://api.spazasure.co.za/api/supplier/payment/paystack/webhook`. The
+application verifies Paystack's HMAC signature and independently verifies each
+transaction before marking it paid. Enable `charge.success`, `subscription.create`,
+`subscription.disable`, and `invoice.payment_failed` events. Set checkout return
+URLs with the `PROD_PAYSTACK_*_CALLBACK_URL` variables; QA equivalents use the
+`QA_PAYSTACK_*_CALLBACK_URL` names.
 
-In Stripe, register the webhook URL
-`https://api.spazasure.co.za/api/supplier/payment/stripe/webhook` and enable
-`checkout.session.completed`, `checkout.session.async_payment_succeeded`,
-`checkout.session.expired`, `checkout.session.async_payment_failed`,
-`customer.subscription.updated`, and `customer.subscription.deleted`. These
-events confirm shop order payments,
-supplier plan renewals, and customer subscription lifecycle changes. Supplier
-monthly and annual plans now auto-renew through Stripe; cancellation takes
-effect at the end of the paid period. Customer Plus checkout is a recurring
-R19.99 ZAR monthly Stripe subscription. The Family plan is listed as coming
-soon and cannot be purchased yet. Shop owners can top up their wallet through
-Stripe Checkout for R50–R2,000 per transaction. Top-ups are credited only after
-the signed Stripe webhook confirms a paid session. Wallet checkout returns to
-the API hostname; supplier subscriptions and customer payments use the portal
-and app URLs above.
+Recurring billing uses Paystack plans, which must be created in the Paystack
+Dashboard using the correct ZAR amount and interval. Add each returned plan code
+to the matching production GitHub secret:
+
+- `PROD_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY` — R19.99 per month.
+- `PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY` / `_ANNUAL`.
+- `PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY` / `_ANNUAL`.
+- `PROD_PAYSTACK_PLAN_SUPPLIER_GOLD_MONTHLY` / `_ANNUAL`.
+
+The supplier plan amounts are the active monthly/annual prices in the
+`subscription_plans` table. Configure matching QA plan-code variables for
+test-mode plans. The backend checks every plan's currency, amount, and interval
+before creating checkout. A missing plan code disables only that subscription
+checkout and returns a configuration error. Cancellation disables recurring
+billing immediately and ends the paid plan immediately; the supplier is
+downgraded to Basic.
+
+Shop wallet top-ups are limited to R50–R2,000 per transaction. Order payments
+are confirmed only by a signed webhook and server-side transaction verification.
+
+Before applying the provider-reference migration in production, cancel any
+existing auto-renewing subscriptions in the previous payment provider
+dashboard. Their provider subscription IDs cannot be migrated into Paystack.
 
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and

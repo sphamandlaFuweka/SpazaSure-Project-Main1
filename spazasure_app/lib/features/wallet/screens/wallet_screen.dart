@@ -203,7 +203,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Stripe top-ups are available',
+                          'Paystack top-ups are available',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -624,9 +624,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 10),
                 _paymentOption(
                   Icons.credit_card,
-                  'Card / Stripe',
-                  method == 'stripe',
-                  () => setSheetState(() => method = 'stripe'),
+                  'Card / Paystack',
+                  method == 'paystack',
+                  () => setSheetState(() => method = 'paystack'),
                 ),
                 const SizedBox(height: 8),
                 _paymentOption(
@@ -667,12 +667,12 @@ class _WalletScreenState extends State<WalletScreen> {
                               );
                               return;
                             }
-                            if (method == 'stripe' &&
+                            if (method == 'paystack' &&
                                 (amount < 50 || amount > 2000)) {
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                    'Stripe top-ups must be between R50 and R2,000.',
+                                    'Paystack top-ups must be between R50 and R2,000.',
                                   ),
                                 ),
                               );
@@ -682,9 +682,9 @@ class _WalletScreenState extends State<WalletScreen> {
                             final navigator = Navigator.of(ctx);
                             final messenger = ScaffoldMessenger.of(ctx);
                             try {
-                              if (method == 'stripe') {
+                              if (method == 'paystack') {
                                 final response = await ApiService.post(
-                                  '/shop/wallet/top-ups/stripe/checkout-session',
+                                  '/shop/wallet/top-ups/paystack/checkout-session',
                                   {'amount': amount},
                                 );
                                 final data =
@@ -694,7 +694,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 if (checkoutUrl == null ||
                                     checkoutUrl.isEmpty) {
                                   throw StateError(
-                                    'Stripe checkout was not returned.',
+                                    'Paystack checkout was not returned.',
                                   );
                                 }
                                 if (!ctx.mounted) return;
@@ -702,7 +702,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 final paid = await navigator.push<bool>(
                                   MaterialPageRoute(
                                     builder: (_) => OnboardingFeeCheckoutScreen(
-                                      stripeUrl: checkoutUrl,
+                                      checkoutUrl: checkoutUrl,
                                       title: 'Top up wallet',
                                     ),
                                   ),
@@ -714,7 +714,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
-                                        'Checkout completed. Your balance updates when Stripe confirms the payment.',
+                                        'Checkout completed. Your balance updates when Paystack confirms the payment.',
                                       ),
                                       backgroundColor: AppColors.success,
                                     ),
@@ -763,8 +763,8 @@ class _WalletScreenState extends State<WalletScreen> {
                     child: Text(
                       submitting
                           ? 'Submitting...'
-                          : method == 'stripe'
-                          ? 'Continue to Stripe'
+                          : method == 'paystack'
+                          ? 'Continue to Paystack'
                           : 'Submit Top-up Request',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),

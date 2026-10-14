@@ -11,9 +11,11 @@ import { useAdminBadgeStore } from '../../store/adminBadgeStore';
 interface AdminSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onClose: () => void;
 }
 
-export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
+export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose }: AdminSidebarProps) {
   const { logout } = useAuthStore();
   const { pendingSuppliers, pendingDocuments, pendingReports, fetchBadges } = useAdminBadgeStore();
   const navigate = useNavigate();
@@ -44,15 +46,17 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
   return (
     <aside
       className={clsx(
-        'relative flex flex-col h-[100dvh] sticky top-0 transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
-        collapsed ? 'w-[72px]' : 'w-64'
+        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 overflow-hidden transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full',
+        collapsed ? 'lg:w-[72px]' : 'lg:w-64'
       )}
       style={{ background: 'linear-gradient(160deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)', boxShadow: '4px 0 24px rgba(0,0,0,0.20)' }}
     >
       {/* Toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-shadow text-gray-500 hover:text-slate-800"
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="absolute -right-3 top-6 z-10 hidden w-6 h-6 bg-white border border-gray-200 rounded-full lg:flex items-center justify-center shadow-md hover:shadow-lg transition-shadow text-gray-500 hover:text-slate-800"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
@@ -95,6 +99,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
             <NavLink
               key={to}
               to={to}
+              onClick={onClose}
               title={collapsed ? label : undefined}
               className={clsx(
                 'flex items-center rounded-xl text-sm font-medium transition-all duration-150 relative group',
@@ -131,6 +136,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
       <div className={clsx('border-t border-white/10 py-3', collapsed ? 'px-2' : 'px-3')}>
         <button
           onClick={handleLogout}
+          aria-label="Sign out"
           title={collapsed ? 'Sign Out' : undefined}
           className={clsx(
             'flex items-center rounded-xl text-sm text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-150 w-full group relative',

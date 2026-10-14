@@ -80,7 +80,7 @@ class CustomerSubscriptionService {
     final data = response['data'] as Map<String, dynamic>;
     final url = data['checkoutUrl']?.toString();
     if (url == null || url.isEmpty) {
-      throw StateError('Stripe checkout was not returned for this plan.');
+      throw StateError('Paystack checkout was not returned for this plan.');
     }
     return url;
   }

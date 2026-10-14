@@ -118,7 +118,7 @@ class _CartScreenState extends State<CartScreen> {
                             ? 'Opening checkout...'
                             : _pendingCheckoutUrl != null
                             ? 'Continue to payment'
-                            : 'Pay securely with Stripe',
+                            : 'Pay securely with Paystack',
                         onPressed: _placing ? () {} : () => _placeOrder(cart),
                       ),
                     ),
@@ -634,7 +634,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Pay the full order total through Stripe. Supplier platform fees are included in your total.',
+                  'Pay the full order total through Paystack. Supplier platform fees are included in your total.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -692,7 +692,7 @@ class _CartScreenState extends State<CartScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => OnboardingFeeCheckoutScreen(
-            stripeUrl: checkout.checkoutUrl,
+            checkoutUrl: checkout.checkoutUrl,
             title: 'Pay for your order',
           ),
         ),
@@ -748,7 +748,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Stripe received your payment. We will confirm it and notify the supplier shortly.',
+              'Paystack received your payment. We will confirm it and notify the supplier shortly.',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
               ),

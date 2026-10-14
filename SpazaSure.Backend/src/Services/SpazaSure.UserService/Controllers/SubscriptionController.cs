@@ -6,7 +6,6 @@ using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 using System.Security.Claims;
-using Stripe;
 
 namespace SpazaSure.UserService.Controllers;
 
@@ -15,7 +14,7 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize]
 public class SubscriptionController(
     SpazaSureDbContext db,
-    StripePaymentService stripe) : ControllerBase
+    PaystackPaymentService paystack) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -119,19 +118,14 @@ public class SubscriptionController(
                     billingCycle,
                     nextBillingDate = pending.NextBillingDate,
                     amountDue = pendingAmount,
-                    paymentMethod = "stripe"
+                    paymentMethod = "paystack"
                 }));
             }
 
-            if (!string.IsNullOrWhiteSpace(pending.StripeCheckoutSessionId))
-            {
-                var pendingSession = await stripe.GetCheckoutSessionAsync(
-                    pending.StripeCheckoutSessionId);
-                if (pendingSession.Status is "open" or "complete")
-                    return Conflict(ApiResponse.Fail(
-                        "Finish or wait for your existing plan checkout before choosing another plan."));
-            }
-            else if (pending.CreatedAt > DateTime.UtcNow.AddMinutes(-5))
+            if (!string.IsNullOrWhiteSpace(pending.PaymentProviderCheckoutReference))
+                return Conflict(ApiResponse.Fail(
+                    "Finish or wait for your existing Paystack plan checkout before choosing another plan."));
+            if (pending.CreatedAt > DateTime.UtcNow.AddMinutes(-5))
             {
                 return Conflict(ApiResponse.Fail(
                     "A plan checkout is being prepared. Please retry shortly."));
@@ -143,17 +137,17 @@ public class SubscriptionController(
             await db.SaveChangesAsync();
         }
 
-        var currentStripeSubscription = await db.SupplierSubscriptions
+        var currentProviderSubscription = await db.SupplierSubscriptions
             .Where(s => s.SupplierId == supplier.Id &&
-                        s.StripeSubscriptionId != null &&
+                        s.PaymentProviderSubscriptionCode != null &&
                         (s.Status == "active" || s.Status == "past_due" ||
                          s.Status == "unpaid" || s.Status == "incomplete" ||
                          s.Status == "trialing"))
             .OrderByDescending(s => s.StartDate)
             .FirstOrDefaultAsync();
-        if (currentStripeSubscription is not null)
+        if (currentProviderSubscription is not null)
             return Conflict(ApiResponse.Fail(
-                "Cancel your current auto-renewing plan and wait until its billing period ends before changing tiers."));
+                "Cancel your current auto-renewing plan before changing tiers. Cancellation takes effect immediately."));
 
         // Retire legacy non-recurring subscriptions before activating or paying for a new tier.
         var existing = await db.SupplierSubscriptions
@@ -172,7 +166,7 @@ public class SubscriptionController(
 
         // For basic (free) tier  activate immediately, no payment needed
         var status = plan.MonthlyPrice == 0m ? "active" : "pending";
-        var paymentMethod = plan.MonthlyPrice == 0m ? "free" : "stripe";
+        var paymentMethod = plan.MonthlyPrice == 0m ? "free" : "paystack";
 
         var sub = new SupplierSubscription
         {
@@ -226,29 +220,38 @@ public class SubscriptionController(
 
         if (sub is null) return NotFound(ApiResponse.Fail("No active subscription found."));
 
-        if (!string.IsNullOrWhiteSpace(sub.StripeSubscriptionId))
+        if (string.IsNullOrWhiteSpace(sub.PaymentProviderSubscriptionCode))
         {
-            if (sub.CancelAtPeriodEnd)
-                return Ok(ApiResponse.Ok(
-                    $"Your plan will end on {sub.NextBillingDate:yyyy-MM-dd}."));
-
+            if (!string.Equals(sub.PaymentMethod, "free", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(StatusCodes.Status409Conflict,
+                    ApiResponse.Fail("This subscription is missing its payment-provider cancellation details. Contact support before cancelling."));
+        }
+        else
+        {
             try
             {
-                var updated = await stripe.CancelSubscriptionAtPeriodEndAsync(
-                    sub.StripeSubscriptionId);
-                sub.CancelAtPeriodEnd = updated.CancelAtPeriodEnd;
-                sub.NextBillingDate = updated.Items.Data.FirstOrDefault()?.CurrentPeriodEnd;
+                if (string.IsNullOrWhiteSpace(sub.PaymentProviderEmailToken))
+                    return StatusCode(StatusCodes.Status409Conflict,
+                        ApiResponse.Fail("Paystack has not yet returned the subscription cancellation token. Please try again shortly."));
+                await paystack.DisableSubscriptionAsync(
+                    sub.PaymentProviderSubscriptionCode,
+                    sub.PaymentProviderEmailToken);
+                sub.CancelAtPeriodEnd = false;
+                sub.Status = "cancelled";
+                sub.EndDate = DateTime.UtcNow;
+                sub.NextBillingDate = null;
                 sub.CancelledReason = req.Reason ?? "User cancelled";
+                supplier.Tier = "basic";
+                supplier.CommissionRate = 5m;
                 await db.SaveChangesAsync();
             }
-            catch (StripeException)
+            catch (Exception error) when (error is HttpRequestException or InvalidOperationException)
             {
                 return StatusCode(StatusCodes.Status502BadGateway,
-                    ApiResponse.Fail("Stripe could not update your subscription. Please try again."));
+                    ApiResponse.Fail("Paystack could not cancel your subscription. Please try again."));
             }
 
-            return Ok(ApiResponse.Ok(
-                "Your subscription will stay active until the current billing period ends."));
+            return Ok(ApiResponse.Ok("Your subscription has been cancelled and the plan has ended."));
         }
 
         sub.Status = "cancelled";
@@ -260,7 +263,7 @@ public class SubscriptionController(
         supplier.CommissionRate = 5m;
 
         await db.SaveChangesAsync();
-        return Ok(ApiResponse.Ok("Subscription cancelled. You will be on Basic tier from the end of your billing period."));
+        return Ok(ApiResponse.Ok("Subscription cancelled. You are now on the Basic tier."));
     }
 
     //  GET billing history 

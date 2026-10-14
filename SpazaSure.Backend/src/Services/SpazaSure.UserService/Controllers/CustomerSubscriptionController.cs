@@ -6,7 +6,6 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
-using Stripe;
 
 namespace SpazaSure.UserService.Controllers;
 
@@ -15,8 +14,9 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize(Roles = "customer")]
 public sealed class CustomerSubscriptionController(
     SpazaSureDbContext db,
-    StripePaymentService stripe) : ControllerBase
+    PaystackPaymentService paystack) : ControllerBase
 {
+    private const decimal CustomerPlusMonthlyPrice = 19.99m;
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
@@ -67,7 +67,7 @@ public sealed class CustomerSubscriptionController(
                 {
                     key = "plus",
                     name = "SpazaSure Plus",
-                    monthlyPrice = StripePaymentService.CustomerPlusMonthlyPrice,
+                    monthlyPrice = CustomerPlusMonthlyPrice,
                     isAvailable = true,
                     description = "Richer product information and personalised shopping tools.",
                     features = new[]
@@ -121,18 +121,14 @@ public sealed class CustomerSubscriptionController(
             subscription.Status is "active" or "past_due" or "unpaid" or "incomplete" or "trialing" or "paused")
             return Conflict(ApiResponse.Fail("Your SpazaSure Plus subscription is already active."));
 
-        if (subscription?.Status == "pending" && !string.IsNullOrWhiteSpace(subscription.StripeCheckoutSessionId))
+        if (subscription?.Status == "pending" &&
+            !string.IsNullOrWhiteSpace(subscription.PaymentProviderCheckoutUrl))
         {
-            var existingSession = await stripe.GetCheckoutSessionAsync(
-                subscription.StripeCheckoutSessionId, cancellationToken);
-            if (existingSession.Status == "open" && !string.IsNullOrWhiteSpace(existingSession.Url))
-                return Ok(ApiResponse<object>.Ok(new
-                {
-                    subscriptionId = subscription.Id,
-                    checkoutUrl = existingSession.Url
-                }));
-            if (existingSession.Status == "complete")
-                return Conflict(ApiResponse.Fail("Your payment is processing. Refresh your subscription status shortly."));
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                subscriptionId = subscription.Id,
+                checkoutUrl = subscription.PaymentProviderCheckoutUrl
+            }));
         }
 
         if (subscription is null || subscription.Status != "pending")
@@ -147,22 +143,32 @@ public sealed class CustomerSubscriptionController(
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        var idempotencyKey = subscription.StripeCheckoutSessionId is null
-            ? $"customer-plus:{subscription.Id}:initial"
-            : $"customer-plus:{subscription.Id}:after:{subscription.StripeCheckoutSessionId}";
-        var session = await stripe.CreateCustomerSubscriptionCheckoutSessionAsync(
-            UserId,
-            user.Email ?? string.Empty,
-            subscription.Id,
-            idempotencyKey,
+        var email = user.Email;
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(ApiResponse.Fail("An email address is required for subscription checkout."));
+        var planCode = paystack.GetPlanCode("CustomerPlusMonthly");
+        if (string.IsNullOrWhiteSpace(planCode))
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("The Paystack SpazaSure Plus subscription plan is not configured."));
+
+        var reference = $"CUS-{subscription.Id:N}-{Guid.NewGuid():N}";
+        var checkout = await paystack.CreateSubscriptionCheckoutAsync(
+            CustomerPlusMonthlyPrice,
+            email,
+            reference,
+            paystack.GetCallbackUrl("CustomerSubscription"),
+            planCode,
+            "monthly",
             cancellationToken);
-        subscription.StripeCheckoutSessionId = session.Id;
+        subscription.PaymentProviderCheckoutReference = reference;
+        subscription.PaymentProviderCheckoutUrl = checkout.AuthorizationUrl;
+        subscription.PaymentProviderPlanCode = planCode;
         await db.SaveChangesAsync(cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(new
         {
             subscriptionId = subscription.Id,
-            checkoutUrl = session.Url
+            checkoutUrl = checkout.AuthorizationUrl
         }));
     }
 
@@ -176,29 +182,35 @@ public sealed class CustomerSubscriptionController(
                         !s.CancelAtPeriodEnd)
             .OrderByDescending(s => s.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
-        if (subscription is null || string.IsNullOrWhiteSpace(subscription.StripeSubscriptionId))
+        if (subscription is null)
             return NotFound(ApiResponse.Fail("There is no active SpazaSure Plus subscription to cancel."));
+        if (string.IsNullOrWhiteSpace(subscription.PaymentProviderSubscriptionCode) ||
+            string.IsNullOrWhiteSpace(subscription.PaymentProviderEmailToken))
+            return Conflict(ApiResponse.Fail(
+                "Paystack has not returned the cancellation details for this subscription yet. Please try again shortly."));
 
         try
         {
-            var updated = await stripe.CancelSubscriptionAtPeriodEndAsync(
-                subscription.StripeSubscriptionId,
+            await paystack.DisableSubscriptionAsync(
+                subscription.PaymentProviderSubscriptionCode,
+                subscription.PaymentProviderEmailToken,
                 cancellationToken);
-            subscription.CancelAtPeriodEnd = updated.CancelAtPeriodEnd;
-            subscription.CurrentPeriodEnd = updated.Items.Data.FirstOrDefault()?.CurrentPeriodEnd;
+            subscription.Status = "cancelled";
+            subscription.CancelAtPeriodEnd = false;
+            subscription.CurrentPeriodEnd = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (StripeException)
+        catch (Exception error) when (error is HttpRequestException or InvalidOperationException)
         {
             return StatusCode(StatusCodes.Status502BadGateway,
-                ApiResponse.Fail("Stripe could not update your subscription. Please try again."));
+                ApiResponse.Fail("Paystack could not cancel your subscription. Please try again."));
         }
 
         return Ok(ApiResponse<object>.Ok(new
         {
-            cancelAtPeriodEnd = subscription.CancelAtPeriodEnd,
+            cancelAtPeriodEnd = false,
             currentPeriodEnd = subscription.CurrentPeriodEnd
-        }, "Your subscription will remain active until the current billing period ends."));
+        }, "Your subscription has been cancelled."));
     }
 }
 

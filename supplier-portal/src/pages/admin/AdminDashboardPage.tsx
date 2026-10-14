@@ -102,10 +102,10 @@ export default function AdminDashboardPage() {
   })();
 
   return (
-    <div className="p-6 space-y-7 animate-in">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-7 animate-in">
 
       {/* ═══ HEADER ═══ */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-5 sm:p-8 shadow-xl">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[80px] -translate-y-20 translate-x-20" />
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-emerald-500/10 rounded-full blur-[60px] translate-y-20 -translate-x-10" />
@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
           </p>
 
           {/* Quick action pills */}
-          <div className="flex items-center gap-2 mt-5">
+          <div className="flex flex-wrap items-start gap-2 mt-5">
             {d.pendingVerifications > 0 && (
               <button
                 onClick={() => navigate('/admin/suppliers')}
@@ -148,7 +148,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ═══ KPI CARDS — CLICKABLE ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: 'Total Suppliers',       value: d.totalSuppliers,       icon: Users,       gradient: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-50',  ring: 'hover:ring-blue-200',  path: '/admin/suppliers' },
           { label: 'Pending Verifications', value: d.pendingVerifications, icon: ShieldCheck, gradient: 'from-amber-500 to-orange-600',  bg: 'bg-amber-50', ring: 'hover:ring-amber-200', path: '/admin/suppliers', urgent: true },
@@ -161,7 +161,7 @@ export default function AdminDashboardPage() {
             key={label}
             onClick={() => navigate(path)}
             className={clsx(
-              'relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 text-left transition-all duration-200',
+              'relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 text-left transition-all duration-200',
               'shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:ring-2',
               ring,
               urgent && 'border-amber-200/60'
@@ -173,7 +173,7 @@ export default function AdminDashboardPage() {
             <div className="relative flex items-start justify-between">
               <div>
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-                <p className="text-3xl font-black text-gray-900 mt-2 tabular-nums">{value}</p>
+                <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-2 tabular-nums">{value}</p>
                 {urgent && value > 0 && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-2.5">
                     <AlertTriangle size={9} /> Needs attention
@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
       {/* ═══ QUICK NAVIGATION GRID ═══ */}
       <div>
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Navigation</h2>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Suppliers',   desc: 'Manage & verify',      icon: Users,       path: '/admin/suppliers',     color: 'from-blue-500 to-indigo-600' },
             { label: 'Documents',   desc: 'Review compliance',    icon: FileText,    path: '/admin/documents',     color: 'from-amber-500 to-orange-600' },
@@ -225,7 +225,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ═══ TWO COLUMN: RECENT SUPPLIERS + ACTIVITY ═══ */}
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         {/* Recent Suppliers */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
