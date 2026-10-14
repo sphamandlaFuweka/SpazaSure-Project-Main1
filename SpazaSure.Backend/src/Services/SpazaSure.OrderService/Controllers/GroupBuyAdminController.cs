@@ -18,7 +18,8 @@ public record NewGroupBuyRequest(
     string? Description,
     int DurationDays,
     List<NewGroupBuyProduct>? Products,
-    Guid? SupplierId = null);
+    Guid? SupplierId = null,
+    string? BannerImageUrl = null);
 
 public record RejectGroupBuyRequest(string? Note);
 
@@ -36,6 +37,13 @@ internal static class GroupBuyFactory
         if (req.Products.Select(p => p.ProductId).Distinct().Count() != req.Products.Count)
             return (null, "Each product can only be added once.");
 
+        var banner = req.BannerImageUrl?.Trim();
+        if (!string.IsNullOrEmpty(banner) &&
+            (banner.Length > 500 ||
+             !(banner.StartsWith("/uploads/", StringComparison.Ordinal) ||
+               banner.StartsWith("https://", StringComparison.OrdinalIgnoreCase))))
+            return (null, "The banner image must be an uploaded image.");
+
         var ids = req.Products.Select(p => p.ProductId).ToList();
         var products = await db.Products
             .Where(p => ids.Contains(p.Id) && p.SupplierId == supplierId && p.IsApproved && p.IsAvailable)
@@ -48,6 +56,7 @@ internal static class GroupBuyFactory
         {
             Title = title,
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
+            BannerImageUrl = string.IsNullOrEmpty(banner) ? null : banner,
             SupplierId = supplierId,
             ExpiresAt = now.AddDays(req.DurationDays),
             Status = status,
@@ -263,6 +272,8 @@ public class GroupBuyAdvertController(SpazaSureDbContext db) : ControllerBase
             var left = Math.Max((int)Math.Ceiling((groupBuy!.ExpiresAt - DateTime.UtcNow).TotalDays), 0);
             html.Append("<div class=\"head\"><h1>").Append(E(groupBuy.Title)).Append("</h1><p>From ")
                 .Append(E(groupBuy.Supplier.CompanyName)).Append(" &middot; ").Append(left).Append(" day(s) left</p></div><div class=\"body\">");
+            if (!string.IsNullOrWhiteSpace(groupBuy.BannerImageUrl))
+                html.Append("<img src=\"").Append(E(groupBuy.BannerImageUrl)).Append("\" alt=\"\" style=\"width:100%;border-radius:12px;margin-bottom:12px\">");
             if (!string.IsNullOrWhiteSpace(groupBuy.Description))
                 html.Append("<p>").Append(E(groupBuy.Description)).Append("</p>");
             foreach (var p in groupBuy.Products)

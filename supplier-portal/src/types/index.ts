@@ -133,6 +133,7 @@ export interface NewGroupBuyRequest {
   supplierId?: string;
   title: string;
   description?: string;
+  bannerImageUrl?: string;
   durationDays: number;
   products: { productId: string; targetQty: number; discountPct: number }[];
 }
@@ -180,6 +181,7 @@ export interface GroupBuy {
   id: string;
   title: string;
   description: string;
+  bannerImageUrl?: string | null;
   supplierId: string;
   supplierName: string;
   createdByShopName: string;

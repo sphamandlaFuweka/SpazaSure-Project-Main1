@@ -150,6 +150,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
         .clamp(0, 999);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -164,6 +165,15 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (group.bannerImageUrl != null)
+            AspectRatio(
+              aspectRatio: 16 / 7,
+              child: Image.network(
+                group.bannerImageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

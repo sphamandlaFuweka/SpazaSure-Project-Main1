@@ -14,7 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { groupBuyApi } from '../../services/api';
+import { groupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter, GroupBuyProduct } from '../../types';
 import GroupBuyCreateModal from './GroupBuyCreateModal';
 
@@ -245,6 +245,7 @@ function GroupCard({
 
   return (
     <article className="card overflow-hidden">
+      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full h-36 object-cover" />}
       <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="min-w-0">

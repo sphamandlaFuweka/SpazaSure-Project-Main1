@@ -510,6 +510,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("approved_by_user_id");
 
+                    b.Property<string>("BannerImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("banner_image_url");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

@@ -8,6 +8,7 @@ import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/services/notification_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _rating = '--';
   double? _walletBalance;
   int _unreadNotifications = 0;
-
+  GroupBuy? _featuredGroup;
   @override
   void initState() {
     super.initState();
@@ -66,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen>
         _loadOrders(),
         _loadWalletBalance(),
         _loadUnreadCount(),
+        _loadFeaturedGroup(),
       ]);
 
       // Load profile for compliance and rating
@@ -90,6 +92,15 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() => _error = 'Unable to load data. Pull down to refresh.');
       }
     }
+  }
+
+  Future<void> _loadFeaturedGroup() async {
+    try {
+      final groups = await GroupBuyService.getGroupBuys('active');
+      if (!mounted) return;
+      final withPoster = groups.where((g) => g.bannerImageUrl != null);
+      setState(() => _featuredGroup = withPoster.isEmpty ? null : withPoster.first);
+    } catch (_) {}
   }
 
   Future<void> _loadUnreadCount() async {
@@ -1039,11 +1050,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ─── PIECE 7: PROMO BANNER ───────────────────────────────────────────────────
   Widget _buildPromoBanner() {
+    final poster = _featuredGroup?.bannerImageUrl;
+    final hasPoster = poster != null;
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, '/group-buy'),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         height: 130,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFE8A510), Color(0xFFF8B217), Color(0xFFFAC44B)],
@@ -1061,8 +1075,30 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         child: Stack(
           children: [
-            Positioned(right: -20, top: -20, child: _decorCircle(110, 0.12)),
-            Positioned(right: 30, bottom: -30, child: _decorCircle(80, 0.1)),
+            if (hasPoster) ...[
+              Positioned.fill(
+                child: Image.network(
+                  poster,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.black.withValues(alpha: 0.1),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              Positioned(right: -20, top: -20, child: _decorCircle(110, 0.12)),
+              Positioned(right: 30, bottom: -30, child: _decorCircle(80, 0.1)),
+            ],
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -1091,17 +1127,22 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Save up to 20%',
+                        Text(
+                          hasPoster ? _featuredGroup!.title : 'Save up to 20%',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: hasPoster ? Colors.white : AppColors.primary,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'Join a group order now',
-                          style: TextStyle(color: AppColors.primaryDark, fontSize: 13),
+                          style: TextStyle(
+                            color: hasPoster ? Colors.white70 : AppColors.primaryDark,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),

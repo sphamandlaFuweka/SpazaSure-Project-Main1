@@ -52,6 +52,7 @@ class GroupBuy {
   final String id;
   final String title;
   final String description;
+  final String? bannerImageUrl;
   final String supplierId;
   final String supplierName;
   final String createdByShopName;
@@ -66,6 +67,7 @@ class GroupBuy {
     required this.id,
     required this.title,
     required this.description,
+    this.bannerImageUrl,
     required this.supplierId,
     required this.supplierName,
     required this.createdByShopName,
@@ -82,6 +84,9 @@ class GroupBuy {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? 'Group Buy',
       description: json['description']?.toString() ?? '',
+      bannerImageUrl: ApiService.resolveUploadUrl(
+        json['bannerImageUrl']?.toString(),
+      ),
       supplierId: json['supplierId']?.toString() ?? '',
       supplierName: json['supplierName']?.toString() ?? '',
       createdByShopName: json['createdByShopName']?.toString() ?? '',

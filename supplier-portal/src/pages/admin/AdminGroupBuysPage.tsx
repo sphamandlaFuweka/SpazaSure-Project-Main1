@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Ban, Plus, ChevronDown, ChevronUp, Users, Loader2 } from 'lucide-react';
-import { adminGroupBuyApi } from '../../services/api';
+import { adminGroupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
 
@@ -105,6 +105,7 @@ export default function AdminGroupBuysPage() {
             const busy = busyId === g.id;
             return (
               <article key={g.id} className="card overflow-hidden">
+                {g.bannerImageUrl && <img src={resolveUploadUrl(g.bannerImageUrl)} alt="" className="w-full h-32 object-cover" />}
                 <div className="p-5 flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

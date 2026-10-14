@@ -7,6 +7,8 @@ public class GroupBuy : BaseEntity
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    /// <summary>Poster shown on the group buy banner/card; uploaded when the campaign is created.</summary>
+    public string? BannerImageUrl { get; set; }
     public Guid ProductId { get; set; }
     public Guid SupplierId { get; set; }
     public int TargetQty { get; set; }

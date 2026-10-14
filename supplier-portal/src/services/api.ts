@@ -269,6 +269,13 @@ export const adminProductsApi = {
 };
 
 // Group buys
+const uploadGroupBuyBanner = (url: string, file: File): Promise<string> => {
+  const form = new FormData();
+  form.append('banner', file);
+  return api.post(url, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((r) => (r.data?.data ?? r.data).bannerImageUrl as string);
+};
+
 export const groupBuyApi = {
   list: async (status: GroupBuyFilter = 'all'): Promise<GroupBuy[]> => {
     const res = await api.get('/supplier/group-buy', { params: { status } });
@@ -281,6 +288,7 @@ export const groupBuyApi = {
     api.post('/supplier/group-buy', body).then((r) => r.data),
   withdraw: (id: string) =>
     api.post(`/supplier/group-buy/${id}/cancel`).then((r) => r.data),
+  uploadBanner: (file: File) => uploadGroupBuyBanner('/supplier/profile/group-buy-banner', file),
 };
 
 export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number; isApproved?: boolean; isAvailable?: boolean }
@@ -295,6 +303,7 @@ export const adminGroupBuyApi = {
   supplierProducts: (supplierId: string) =>
     api.get(`/admin/group-buy/suppliers/${supplierId}/products`).then((r) => (r.data?.data ?? r.data ?? []) as SupplierProductOption[]),
   create: (body: NewGroupBuyRequest) => api.post('/admin/group-buy', body).then((r) => r.data),
+  uploadBanner: (file: File) => uploadGroupBuyBanner('/admin/group-buy-banner', file),
   approve: (id: string) => api.post(`/admin/group-buy/${id}/approve`).then((r) => r.data),
   reject: (id: string, note: string) => api.post(`/admin/group-buy/${id}/reject`, { note }).then((r) => r.data),
   cancel: (id: string, note?: string) => api.post(`/admin/group-buy/${id}/cancel`, { note }).then((r) => r.data),

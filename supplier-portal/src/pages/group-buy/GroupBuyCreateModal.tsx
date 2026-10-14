@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import {
   adminGroupBuyApi, adminProductsApi, adminSuppliersApi, groupBuyApi, productsApi,
@@ -26,7 +26,20 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
   const [days, setDays] = useState(7);
   const [lines, setLines] = useState<Line[]>([{ productId: '', targetQty: 50, discountPct: 10 }]);
   const [busy, setBusy] = useState(false);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
 
+  useEffect(() => () => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); }, [bannerPreview]);
+
+  const pickBanner = (file: File | undefined) => {
+    if (!file) return;
+    if (!/\.(jpe?g|png|webp)$/i.test(file.name)) { toast.error('Use a JPG, PNG or WEBP image'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    setBannerFile(file);
+    setBannerPreview(URL.createObjectURL(file));
+  };
+
+  const clearBanner = () => { setBannerFile(null); setBannerPreview(null); };
   useEffect(() => {
     if (mode !== 'admin') return;
     adminSuppliersApi.list({ pageSize: 200, status: 'verified' })
@@ -76,10 +89,15 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
     if (lines.some((l) => !l.productId)) { toast.error('Choose a product on every line'); return; }
     setBusy(true);
     try {
+      let bannerImageUrl: string | undefined;
+      if (bannerFile) {
+        bannerImageUrl = await (mode === 'admin' ? adminGroupBuyApi : groupBuyApi).uploadBanner(bannerFile);
+      }
       const body = {
         supplierId: mode === 'admin' ? supplierId : undefined,
         title: title.trim(),
         description: description.trim() || undefined,
+        bannerImageUrl,
         durationDays: days,
         products: lines,
       };
@@ -126,6 +144,25 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
         <div>
           <label className="label">Description (optional)</label>
           <textarea className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+
+        <div>
+          <label className="label">Banner image (optional)</label>
+          {bannerPreview ? (
+            <div className="relative rounded-xl overflow-hidden border border-gray-200">
+              <img src={bannerPreview} alt="Banner preview" className="w-full h-40 object-cover" />
+              <button type="button" className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 shadow hover:text-red-500" onClick={clearBanner} aria-label="Remove banner">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center gap-1 h-28 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 cursor-pointer hover:border-primary hover:text-primary">
+              <ImagePlus size={20} />
+              Upload a poster (JPG, PNG or WEBP, max 5MB)
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { pickBanner(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          )}
+          <p className="text-[11px] text-gray-400 mt-1">Shown on the group buy banner in the shop app. A wide image works best.</p>
         </div>
 
         <div className="space-y-2">

@@ -1427,8 +1427,12 @@ VALUES
     ('20261014120000_AddShopRegistrationDetails', '8.0.0'),
     ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0'),
     ('20261014152615_AddFaqs', '8.0.0'),
-    ('20261014154448_AddOrderPayoutTracking', '8.0.0')
+    ('20261014154448_AddOrderPayoutTracking', '8.0.0'),
+    ('20261014163407_AddGroupBuyBannerImage', '8.0.0')
 ON CONFLICT DO NOTHING;
+
+-- Group buy poster shown on the banner/card.
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS banner_image_url text;
 
 -- Supplier payout tracking: when an order was delivered and when the supplier was paid for it.
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
