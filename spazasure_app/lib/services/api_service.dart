@@ -152,8 +152,50 @@ class ApiService {
       );
     }
     if (res.statusCode >= 200 && res.statusCode < 300) return body;
-    final msg = body['message'] ?? body['error'] ?? 'Something went wrong';
-    throw ApiException(msg.toString(), res.statusCode);
+    final msg =
+        _errorMessage(body) ?? 'Request failed (HTTP ${res.statusCode}).';
+    throw ApiException(msg, res.statusCode);
+  }
+
+  static String? _errorMessage(Map<String, dynamic> body) {
+    for (final key in ['message', 'error', 'detail']) {
+      final value = body[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+      if (value is Map<String, dynamic>) {
+        final nestedMessage = _errorMessage(value);
+        if (nestedMessage != null) return nestedMessage;
+      }
+    }
+
+    final errors = body['errors'];
+    if (errors is List) {
+      final messages = errors
+          .whereType<String>()
+          .map((message) => message.trim())
+          .where((message) => message.isNotEmpty)
+          .toList();
+      if (messages.isNotEmpty) return messages.join(' ');
+    } else if (errors is Map) {
+      final messages = <String>[];
+      for (final entry in errors.entries) {
+        final values = entry.value is List
+            ? entry.value as List
+            : [entry.value];
+        for (final value in values) {
+          if (value is String && value.trim().isNotEmpty) {
+            messages.add('${entry.key}: ${value.trim()}');
+          }
+        }
+      }
+      if (messages.isNotEmpty) return messages.join(' ');
+    }
+
+    final title = body['title'];
+    if (title is String && title.trim().isNotEmpty) return title.trim();
+
+    final data = body['data'];
+    if (data is Map<String, dynamic>) return _errorMessage(data);
+    return null;
   }
 
   /// Upload a file using multipart form data

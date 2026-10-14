@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.OrderService.Services;
@@ -132,7 +133,9 @@ internal static class GroupBuyResponse
 [ApiController]
 [Route("api/shop/group-buy")]
 [Authorize(Roles = "spaza_owner")]
-public class ShopGroupBuyController(SpazaSureDbContext db) : ControllerBase
+public class ShopGroupBuyController(
+    SpazaSureDbContext db,
+    ILogger<ShopGroupBuyController> logger) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -276,7 +279,26 @@ public class ShopGroupBuyController(SpazaSureDbContext db) : ControllerBase
         }
         participant.Quantity = participant.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
         GroupBuyResponse.SyncLegacy(groupBuy);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            foreach (var entry in ex.Entries)
+            {
+                var key = entry.Metadata.FindPrimaryKey()?.Properties
+                    .Select(property => $"{property.Name}={entry.Property(property.Name).CurrentValue}");
+                logger.LogError(
+                    ex,
+                    "Group buy join concurrency failure for {EntityType} in state {EntityState}; key {EntityKey}",
+                    entry.Metadata.ClrType.Name,
+                    entry.State,
+                    key is null ? "unknown" : string.Join(", ", key));
+            }
+
+            throw;
+        }
         await transaction.CommitAsync();
 
         var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
