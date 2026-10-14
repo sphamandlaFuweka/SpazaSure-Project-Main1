@@ -13,6 +13,41 @@ public class PaystackPaymentServiceTests
     private const string SecretKey = "sk_test_unit_test_key";
     private const string CallbackUrl = "https://app.example.test/?payment=success";
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task MissingSecretKey_DisablesCheckoutAndRejectsWebhooks(string? secretKey)
+    {
+        var requestSent = false;
+        using var client = new HttpClient(new TestHttpMessageHandler((_, _) =>
+        {
+            requestSent = true;
+            return Task.FromResult(JsonResponse("{}"));
+        }));
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Paystack:SecretKey"] = secretKey
+            })
+            .Build();
+        var service = new PaystackPaymentService(client, configuration);
+        var payload = Encoding.UTF8.GetBytes("""{"event":"charge.success"}""");
+        var signature = Convert.ToHexString(HMACSHA512.HashData(
+            Encoding.UTF8.GetBytes(secretKey ?? string.Empty), payload));
+
+        Assert.False(service.IsConfigured);
+        Assert.False(service.IsValidWebhookSignature(payload, signature));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateOnboardingCheckoutAsync(
+                150m, "owner@example.test", "SS-test", CallbackUrl));
+        var orderService = new SpazaSure.OrderService.Services.OrderPaystackPaymentService(
+            client, configuration);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            orderService.CreateCheckoutAsync([], "owner@example.test", "SS-test"));
+        Assert.False(requestSent);
+    }
+
     [Fact]
     public async Task CreateOnboardingCheckoutAsync_InitializesInZarMinorUnits()
     {

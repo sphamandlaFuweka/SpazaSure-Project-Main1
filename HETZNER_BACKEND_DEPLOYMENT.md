@@ -104,6 +104,11 @@ endpoints stay disabled while other backend services can still be deployed.
 For local deployment, put the key in `.env.prod`; for QA, use
 `QA_PAYSTACK_SECRET_KEY` with a test-mode key.
 
+The backend can deploy without `PROD_PAYSTACK_SECRET_KEY`; online checkout
+remains unavailable and Paystack webhooks are rejected until a key is configured.
+Set the production environment secret and redeploy to enable payments. An unset
+or empty key must not be replaced with a placeholder key.
+
 Configure the Paystack webhook at
 `https://api.spazasure.co.za/api/supplier/payment/paystack/webhook`. The
 application verifies Paystack's HMAC signature and independently verifies each
