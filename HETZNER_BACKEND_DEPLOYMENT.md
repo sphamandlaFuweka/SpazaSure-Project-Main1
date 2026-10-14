@@ -97,10 +97,12 @@ default (development builds can override it with `--dart-define=API_URL=...`).
 ## Paystack
 
 All online payments use Paystack in ZAR: shop onboarding fees, shop orders,
-wallet top-ups, customer Plus, and supplier subscriptions. Add
-`PROD_PAYSTACK_SECRET_KEY` to the GitHub production environment. For local
-deployment, put it in `.env.prod`; for QA, use `QA_PAYSTACK_SECRET_KEY` with a
-test-mode key.
+wallet top-ups, customer Plus, and supplier subscriptions. When Paystack is
+approved and ready for live payments, add `PROD_PAYSTACK_SECRET_KEY` to the
+GitHub production environment. Until then, it may remain unset; checkout
+endpoints stay disabled while other backend services can still be deployed.
+For local deployment, put the key in `.env.prod`; for QA, use
+`QA_PAYSTACK_SECRET_KEY` with a test-mode key.
 
 Configure the Paystack webhook at
 `https://api.spazasure.co.za/api/supplier/payment/paystack/webhook`. The

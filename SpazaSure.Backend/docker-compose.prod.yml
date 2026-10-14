@@ -127,7 +127,7 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
-      Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:?PROD_PAYSTACK_SECRET_KEY must be set}
+      Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
     depends_on:
       postgres:
@@ -151,7 +151,7 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
-      Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:?PROD_PAYSTACK_SECRET_KEY must be set}
+      Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
       Paystack__CallbackUrls__CustomerSubscription: ${PROD_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
       Paystack__CallbackUrls__SupplierSubscription: ${PROD_PAYSTACK_SUPPLIER_CALLBACK_URL:-https://portal.spazasure.co.za/subscription?payment=success}
