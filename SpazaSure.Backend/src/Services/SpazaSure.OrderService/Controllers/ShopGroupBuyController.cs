@@ -253,6 +253,8 @@ public class ShopGroupBuyController(
                 ShopId = shop.Id,
                 Status = "joined"
             };
+            // Ids are pre-assigned, so EF would treat graph-discovered entities as existing rows (UPDATE) unless added explicitly.
+            db.GroupBuyParticipants.Add(participant);
             groupBuy.Participants.Add(participant);
         }
         else
@@ -272,6 +274,7 @@ public class ShopGroupBuyController(
                     GroupBuyProductId = product.Id,
                     GroupBuyProduct = product
                 };
+                db.GroupBuyParticipantItems.Add(item);
                 participant.Items.Add(item);
             }
             else if (item.Status != "cancelled")
