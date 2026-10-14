@@ -16,11 +16,28 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: spazasure_migration_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spazasure_migration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: SpazaSure.Backend
     steps:
       - uses: actions/checkout@v4
+      - name: Validate fresh and repeated database migrations
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d spazasure_migration_test -f migrate.sql
+          psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d spazasure_migration_test -f migrate.sql
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |

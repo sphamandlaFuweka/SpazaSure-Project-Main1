@@ -396,8 +396,6 @@ DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_checkout_session_id;
 DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_subscription_id;
 
 DO $$
-DECLARE
-    table_to_update text;
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -574,6 +572,8 @@ CREATE TABLE IF NOT EXISTS supplier_subscriptions (
     CONSTRAINT "FK_SupplierSubscriptions_SubscriptionPlans_PlanId" FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
 );
 DO $$
+DECLARE
+    table_to_update text;
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'stripe_checkout_id')
        AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'payment_checkout_id') THEN
