@@ -1,160 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/models/models.dart';
 
-class DeliveryTrackingScreen extends StatefulWidget {
+/// Delivery status for an order. Shows the shop's real delivery pin and the
+/// order's real progress — there is no live driver GPS feed, so none is faked.
+class DeliveryTrackingScreen extends StatelessWidget {
   const DeliveryTrackingScreen({super.key});
 
-  @override
-  State<DeliveryTrackingScreen> createState() => _DeliveryTrackingScreenState();
-}
+  static const _steps = [
+    ('pending', 'Order placed', Icons.receipt_long_rounded),
+    ('processing', 'Being prepared by the supplier', Icons.inventory_2_rounded),
+    ('dispatched', 'On the way to your shop', Icons.local_shipping_rounded),
+    ('delivered', 'Delivered', Icons.store_rounded),
+  ];
 
-class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
-  // Simulated positions (Johannesburg area)
-  // In production, these would come from real-time GPS data
-  final LatLng _driverPosition = const LatLng(-26.2041, 28.0473); // Driver
-  final LatLng _shopPosition = const LatLng(
-    -26.2121,
-    28.0539,
-  ); // Shop destination
-  final LatLng _supplierPosition = const LatLng(
-    -26.1952,
-    28.0348,
-  ); // Supplier origin
+  int _stepIndex(String status) {
+    if (status == 'confirmed') return 0;
+    final i = _steps.indexWhere((s) => s.$1 == status);
+    return i < 0 ? 0 : i;
+  }
 
   @override
   Widget build(BuildContext context) {
     final order = ModalRoute.of(context)!.settings.arguments as Order;
+    final shopPoint =
+        order.deliveryLatitude != null && order.deliveryLongitude != null
+        ? LatLng(order.deliveryLatitude!, order.deliveryLongitude!)
+        : null;
+    final current = _stepIndex(order.status);
+    final cancelled = order.status == 'cancelled';
+    final supplier = order.supplierName.isEmpty
+        ? 'The supplier'
+        : order.supplierName;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Map
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: _driverPosition,
-              initialZoom: 14.0,
-            ),
-            children: [
-              // OpenStreetMap tiles (free, no API key)
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.spazasure.app',
-              ),
-              // Route line
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: [_supplierPosition, _driverPosition, _shopPosition],
-                    color: AppColors.primary,
-                    strokeWidth: 4,
-                  ),
-                ],
-              ),
-              // Markers
-              MarkerLayer(
-                markers: [
-                  // Supplier (origin)
-                  Marker(
-                    point: _supplierPosition,
-                    width: 44,
-                    height: 44,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.info,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.info.withValues(alpha: 0.4),
-                            blurRadius: 8,
+          // Map (or a friendly placeholder when the order has no delivery pin)
+          Positioned.fill(
+            child: shopPoint == null
+                ? Container(
+                    color: const Color(0xFFE8ECF8),
+                    alignment: const Alignment(0, -0.45),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.map_outlined,
+                          size: 56,
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No map pin for this delivery',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : FlutterMap(
+                    options: MapOptions(
+                      initialCenter: shopPoint,
+                      initialZoom: 15,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.spazasure.app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: shopPoint,
+                            width: 48,
+                            height: 48,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.secondary.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.store,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.business,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
+                    ],
                   ),
-                  // Driver (moving)
-                  Marker(
-                    point: _driverPosition,
-                    width: 52,
-                    height: 52,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.5),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.local_shipping,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                  // Shop (destination)
-                  Marker(
-                    point: _shopPosition,
-                    width: 44,
-                    height: 44,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.secondary.withValues(alpha: 0.4),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.store,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
 
           // Back button
           Positioned(
             top: MediaQuery.of(context).padding.top + 12,
             left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                    ),
-                  ],
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              elevation: 2,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => Navigator.pop(context),
+                child: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    size: 20,
+                    semanticLabel: 'Back',
+                  ),
                 ),
-                child: const Icon(Icons.arrow_back_rounded, size: 20),
               ),
             ),
           ),
@@ -208,48 +185,62 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                 top: false,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Handle
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.divider,
-                        borderRadius: BorderRadius.circular(2),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // ETA
+                    // Headline: real ETA if the supplier set one, otherwise status
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: 0.08),
+                        color: (cancelled ? AppColors.error : AppColors.info)
+                            .withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: AppColors.info.withValues(alpha: 0.2),
+                          color: (cancelled ? AppColors.error : AppColors.info)
+                              .withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.access_time_rounded,
-                            color: AppColors.info,
+                          Icon(
+                            cancelled
+                                ? Icons.cancel_outlined
+                                : Icons.access_time_rounded,
+                            color: cancelled ? AppColors.error : AppColors.info,
                             size: 20,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Estimated arrival in ',
-                            style: AppTextStyles.body,
-                          ),
-                          Text(
-                            '25 min',
-                            style: AppTextStyles.subtitle.copyWith(
-                              color: AppColors.info,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              cancelled
+                                  ? 'This order was cancelled'
+                                  : order.status == 'delivered'
+                                  ? 'Delivered to your shop'
+                                  : order.estimatedDelivery != null
+                                  ? 'Expected by ${DateFormat('EEE d MMM, HH:mm').format(order.estimatedDelivery!)}'
+                                  : order.status == 'dispatched'
+                                  ? '$supplier has dispatched your order'
+                                  : '$supplier is preparing your order',
+                              style: AppTextStyles.subtitle.copyWith(
+                                color: cancelled
+                                    ? AppColors.error
+                                    : AppColors.info,
+                              ),
                             ),
                           ),
                         ],
@@ -257,103 +248,44 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Driver info
-                    Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primary,
-                            size: 28,
-                          ),
+                    // Real status timeline
+                    if (!cancelled)
+                      for (var i = 0; i < _steps.length; i++) ...[
+                        _buildStatusRow(
+                          _steps[i].$3,
+                          _steps[i].$2,
+                          i <= current,
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Driver Assigned',
-                                style: AppTextStyles.subtitle,
-                              ),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    size: 14,
-                                    color: AppColors.warning,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '4.8',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    ' • On the way to you',
-                                    style: AppTextStyles.caption,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.phone_rounded,
-                            color: AppColors.success,
-                            size: 20,
-                          ),
-                        ),
+                        if (i < _steps.length - 1) const SizedBox(height: 8),
                       ],
-                    ),
-                    const SizedBox(height: 16),
 
-                    // Status timeline
-                    _buildStatusRow(
-                      Icons.check_circle,
-                      'Order picked up from supplier',
-                      true,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStatusRow(
-                      Icons.local_shipping,
-                      'In transit to your shop',
-                      true,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStatusRow(
-                      Icons.store,
-                      'Arriving at ${order.supplierName.isNotEmpty ? "your shop" : "destination"}',
-                      false,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Legend
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _legendDot(AppColors.info, 'Supplier'),
-                        const SizedBox(width: 16),
-                        _legendDot(AppColors.primary, 'Driver'),
-                        const SizedBox(width: 16),
-                        _legendDot(AppColors.secondary, 'Your Shop'),
-                      ],
-                    ),
+                    if (order.deliveryAddress.isNotEmpty ||
+                        order.deliveryDistanceKm != null) ...[
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.place_outlined,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              [
+                                if (order.deliveryAddress.isNotEmpty)
+                                  order.deliveryAddress,
+                                if (order.deliveryDistanceKm != null)
+                                  '${order.deliveryDistanceKm!.toStringAsFixed(1)} km from $supplier',
+                              ].join(' • '),
+                              style: AppTextStyles.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -383,24 +315,7 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
           ),
         ),
         if (done)
-          Text(
-            '✓',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.success),
-          ),
-      ],
-    );
-  }
-
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: AppTextStyles.caption),
+          const Icon(Icons.check_rounded, size: 16, color: AppColors.success),
       ],
     );
   }

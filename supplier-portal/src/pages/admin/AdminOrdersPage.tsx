@@ -151,12 +151,12 @@ export default function AdminOrdersPage() {
           return (
             <button key={value} onClick={() => setStatusFilter(value)}
               className={clsx('flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap',
-                statusFilter === value ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                statusFilter === value ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}>
               {label}
               {count > 0 && (
                 <span className={clsx('text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center',
-                  statusFilter === value ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
+                  statusFilter === value ? 'bg-brand-blue text-white' : 'bg-white border border-brand-blue-light text-ink-2'
                 )}>{count}</span>
               )}
             </button>

@@ -310,7 +310,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
     ),
   );
 
-  static const _verifiedColor = Color(0xFF2E7D32);
+  static const _verifiedColor = Color(0xFF3F5DB0);
   static const _unverifiedColor = Color(0xFFD32F2F);
 
   Color _pinColor(CustomerShop shop) =>

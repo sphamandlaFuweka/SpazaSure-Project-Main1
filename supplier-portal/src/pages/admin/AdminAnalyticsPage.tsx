@@ -233,7 +233,7 @@ export default function AdminAnalyticsPage() {
       <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl p-1 w-fit" role="tablist" aria-label="Trend period">
         {(['week', 'month', 'year'] as const).map((p) => (
           <button key={p} role="tab" aria-selected={period === p} onClick={() => setPeriod(p)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition-all ${period === p ? 'bg-slate-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition-all ${period === p ? 'bg-brand-blue text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             {p}
           </button>
         ))}

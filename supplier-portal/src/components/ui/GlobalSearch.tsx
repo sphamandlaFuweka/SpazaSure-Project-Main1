@@ -168,30 +168,31 @@ export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supp
   const dropdownVisible = open && (showRecent || showResults || showEmpty || loading);
 
   const typeColor: Record<string, string> = {
-    product: 'bg-emerald-50 text-emerald-700',
-    order:   'bg-blue-50 text-blue-700',
-    page:    'bg-violet-50 text-violet-700',
+    product: 'bg-brand-green-light text-brand-green',
+    order:   'bg-brand-blue-light text-brand-blue',
+    page:    'bg-brand-yellow-light text-accent-700',
   };
 
   return (
-    <div ref={containerRef} className="relative hidden lg:block">
+    <div ref={containerRef} className="relative hidden md:block w-full max-w-md">
       {/* Input */}
       <div
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-200 cursor-text ${
+        className={`flex items-center gap-2.5 px-4 h-11 rounded-full border bg-white transition-all duration-200 cursor-text w-full ${
           open
-            ? 'bg-white border-primary/40 shadow-[0_0_0_3px_rgba(27,67,50,0.08)] w-72'
-            : 'bg-gray-50 border-gray-200 hover:border-gray-300 w-56'
+            ? 'border-brand-blue/40 ring-4 ring-brand-blue/10'
+            : 'border-brand-blue-light hover:border-brand-blue/30'
         }`}
         onClick={() => { setOpen(true); inputRef.current?.focus(); }}
       >
-        <Search size={14} className={`flex-shrink-0 transition-colors ${open ? 'text-primary' : 'text-gray-400'}`} />
+        <Search size={16} className={`flex-shrink-0 transition-colors ${open ? 'text-brand-blue' : 'text-ink-3'}`} />
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search anything..."
+          placeholder="Search orders, products, pages..."
+          aria-label="Search"
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 min-w-0"
         />
         {query ? (
@@ -199,8 +200,8 @@ export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supp
             <X size={13} />
           </button>
         ) : (
-          <kbd className="hidden lg:flex items-center gap-0.5 text-[10px] font-bold text-gray-400 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 flex-shrink-0">
-            ⌘K
+          <kbd className="hidden lg:flex items-center gap-0.5 text-[10px] font-bold text-ink-3 bg-surface border border-brand-blue-light rounded-md px-1.5 py-0.5 flex-shrink-0">
+            {/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}
           </kbd>
         )}
       </div>
@@ -208,7 +209,7 @@ export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supp
       {/* Dropdown */}
       {dropdownVisible && (
         <div
-          className="absolute top-full mt-2 right-0 w-80 bg-white rounded-2xl border border-gray-100 shadow-card-xl overflow-hidden z-50"
+          className="absolute top-full mt-2 left-0 w-full min-w-[320px] bg-white rounded-3xl border border-brand-blue-light shadow-card-xl overflow-hidden z-50"
           style={{ animation: 'searchDrop 0.18s cubic-bezier(0.16,1,0.3,1)' }}
         >
           {/* Loading skeletons */}

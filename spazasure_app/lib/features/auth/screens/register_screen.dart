@@ -320,7 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A2E0C), Color(0xFF144417), Color(0xFF1B5E20)],
+            colors: [Color(0xFF0A2E0C), Color(0xFF144417), Color(0xFF25449A)],
           ),
         ),
         child: SafeArea(
@@ -777,7 +777,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: const Color(0xFFE8F5E9),
+                  backgroundColor: const Color(0xFFE6F5EE),
                   foregroundColor: AppColors.primary,
                   child: Icon(icon),
                 ),
@@ -851,7 +851,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E6E2)),
+          borderSide: const BorderSide(color: Color(0xFFE2E7F5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -978,7 +978,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _hint(String text, IconData icon) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: const Color(0xFFF0F7F1),
+      color: const Color(0xFFF5F7FF),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
@@ -1004,7 +1004,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: BoxDecoration(
           border: Border.all(
             color: file == null
-                ? const Color(0xFFE0E5E0)
+                ? const Color(0xFFE2E7F5)
                 : AppColors.primary.withValues(alpha: 0.5),
           ),
           borderRadius: BorderRadius.circular(12),
@@ -1052,7 +1052,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8F7),
+        color: const Color(0xFFF5F7FF),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

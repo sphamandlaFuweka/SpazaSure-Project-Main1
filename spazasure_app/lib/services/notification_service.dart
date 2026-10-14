@@ -3,20 +3,28 @@ import '../models/models.dart';
 
 class NotificationService {
   /// Fetch notifications for the logged-in user (shop owner or supplier).
-  static Future<List<AppNotification>> getNotifications({int page = 1, int pageSize = 20}) async {
+  static Future<List<AppNotification>> getNotifications({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     try {
-      final res = await ApiService.get('/shop/notifications?page=$page&pageSize=$pageSize');
+      final res = await ApiService.get(
+        '/shop/notifications?page=$page&pageSize=$pageSize',
+      );
       final data = res['data'];
       if (data is List) {
         return data
-            .map((n) => AppNotification(
-                  id: n['id']?.toString() ?? '',
-                  title: n['title'] ?? '',
-                  body: n['message'] ?? n['body'] ?? '',
-                  type: n['type'] ?? 'system',
-                  createdAt: DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now(),
-                  isRead: n['isRead'] ?? false,
-                ))
+            .map(
+              (n) => AppNotification(
+                id: n['id']?.toString() ?? '',
+                title: n['title'] ?? '',
+                body: n['message'] ?? n['body'] ?? '',
+                type: n['type'] ?? 'system',
+                createdAt:
+                    DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now(),
+                isRead: n['isRead'] ?? false,
+              ),
+            )
             .toList();
       }
       return [];
@@ -29,11 +37,11 @@ class NotificationService {
   static Future<int> getUnreadCount() async {
     try {
       final res = await ApiService.get('/shop/notifications/unread-count');
+      // The endpoint returns { count } at the top level (not wrapped in data)
       final data = res['data'];
-      if (data is Map<String, dynamic>) {
-        return data['count'] ?? 0;
-      }
-      return 0;
+      final count =
+          res['count'] ?? (data is Map<String, dynamic> ? data['count'] : null);
+      return (count as num?)?.toInt() ?? 0;
     } catch (_) {
       return 0;
     }

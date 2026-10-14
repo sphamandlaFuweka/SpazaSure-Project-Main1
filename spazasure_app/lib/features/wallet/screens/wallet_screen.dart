@@ -125,7 +125,7 @@ class _WalletScreenState extends State<WalletScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0D3B0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
         ),
       ),
       child: SafeArea(

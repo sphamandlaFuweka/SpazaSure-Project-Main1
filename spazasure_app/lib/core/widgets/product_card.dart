@@ -132,7 +132,11 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   // Supplier tier badge (top-right) — only for paid tiers we actually know
-                  if (const {'gold', 'silver', 'bronze'}.contains(product.supplierTier))
+                  if (const {
+                    'gold',
+                    'silver',
+                    'bronze',
+                  }.contains(product.supplierTier))
                     Positioned(
                       top: 8,
                       right: 8,

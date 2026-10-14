@@ -28,17 +28,16 @@ class StatusBadge extends StatelessWidget {
   String get _label => status.replaceAll('_', ' ').toUpperCase();
 
   Color get _color => switch (status) {
-        'pending' => AppColors.statusPending,
-        'confirmed' => AppColors.statusConfirmed,
-        'processing' => AppColors.statusProcessing,
-        'dispatched' => AppColors.statusDispatched,
-        'delivered' => AppColors.statusDelivered,
-        'cancelled' => AppColors.statusCancelled,
-        'disputed' => AppColors.error,
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        'verified' => AppColors.success,
-        _ => AppColors.textSecondary,
-      };
+    'pending' => AppColors.statusPending,
+    'confirmed' => AppColors.statusConfirmed,
+    'processing' => AppColors.statusProcessing,
+    'dispatched' => AppColors.statusDispatched,
+    'delivered' => AppColors.statusDelivered,
+    'cancelled' => AppColors.statusCancelled,
+    'disputed' => AppColors.error,
+    'approved' => AppColors.success,
+    'rejected' => AppColors.error,
+    'verified' => AppColors.success,
+    _ => AppColors.textSecondary,
+  };
 }
-

@@ -225,7 +225,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         : 'C';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F0),
+      backgroundColor: const Color(0xFFF5F7FF),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -261,7 +261,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0D3B0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -20,12 +22,8 @@ class ReceiptScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Coming soon'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            ),
+            tooltip: 'Share receipt',
+            onPressed: () => _share(context, order),
           ),
         ],
       ),
@@ -79,7 +77,7 @@ class ReceiptScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomActions(context),
+      bottomNavigationBar: _buildBottomActions(context, order),
     );
   }
 
@@ -191,7 +189,11 @@ class ReceiptScreen extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.business, color: AppColors.primary, size: 18),
+                child: const Icon(
+                  Icons.business,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -204,7 +206,9 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                     Text(
                       'Verified Supplier',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.success),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.success,
+                      ),
                     ),
                   ],
                 ),
@@ -233,7 +237,11 @@ class ReceiptScreen extends StatelessWidget {
                   color: AppColors.secondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.store, color: AppColors.secondary, size: 18),
+                child: const Icon(
+                  Icons.store,
+                  color: AppColors.secondary,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -269,69 +277,80 @@ class ReceiptScreen extends StatelessWidget {
           // Table header
           Row(
             children: [
-              Expanded(
-                flex: 4,
-                child: Text('Item', style: _tableHeaderStyle),
-              ),
+              Expanded(flex: 4, child: Text('Item', style: _tableHeaderStyle)),
               Expanded(
                 flex: 1,
-                child: Text('Qty', style: _tableHeaderStyle, textAlign: TextAlign.center),
+                child: Text(
+                  'Qty',
+                  style: _tableHeaderStyle,
+                  textAlign: TextAlign.center,
+                ),
               ),
               Expanded(
                 flex: 2,
-                child: Text('Price', style: _tableHeaderStyle, textAlign: TextAlign.right),
+                child: Text(
+                  'Price',
+                  style: _tableHeaderStyle,
+                  textAlign: TextAlign.right,
+                ),
               ),
               Expanded(
                 flex: 2,
-                child: Text('Total', style: _tableHeaderStyle, textAlign: TextAlign.right),
+                child: Text(
+                  'Total',
+                  style: _tableHeaderStyle,
+                  textAlign: TextAlign.right,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           // Items
-          ...order.items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: Text(
-                    item.productName,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w500,
+          ...order.items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      item.productName,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Text(
-                    '${item.quantity}',
-                    style: _monoStyle,
-                    textAlign: TextAlign.center,
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '${item.quantity}',
+                      style: _monoStyle,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'R${item.price.toStringAsFixed(2)}',
-                    style: _monoStyle,
-                    textAlign: TextAlign.right,
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'R${item.price.toStringAsFixed(2)}',
+                      style: _monoStyle,
+                      textAlign: TextAlign.right,
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'R${item.total.toStringAsFixed(2)}',
-                    style: _monoStyle.copyWith(fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.right,
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'R${item.total.toStringAsFixed(2)}',
+                      style: _monoStyle.copyWith(fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.right,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -404,7 +423,9 @@ class ReceiptScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _paymentStatusColor(order.paymentStatus).withValues(alpha: 0.1),
+                  color: _paymentStatusColor(
+                    order.paymentStatus,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -463,17 +484,57 @@ class ReceiptScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'SpazaSure — Empowering Spaza Shops',
-            style: GoogleFonts.nunito(
-              fontSize: 11,
-              color: AppColors.textHint,
-            ),
+            style: GoogleFonts.nunito(fontSize: 11, color: AppColors.textHint),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomActions(BuildContext context) {
+  /// Plain-text version of the receipt for sharing or copying
+  String _receiptText(Order order) {
+    final date = DateFormat('d MMM yyyy, HH:mm').format(order.createdAt);
+    final lines = <String>[
+      'SpazaSure receipt',
+      'Order: ${order.orderNumber}',
+      'Date: $date',
+      if (order.supplierName.isNotEmpty) 'Supplier: ${order.supplierName}',
+      '',
+      for (final item in order.items)
+        '${item.quantity} x ${item.productName} — R${item.total.toStringAsFixed(2)}',
+      '',
+      'Subtotal: R${order.subtotal.toStringAsFixed(2)}',
+      if (order.deliveryFee > 0)
+        'Delivery: R${order.deliveryFee.toStringAsFixed(2)}',
+      'Total: R${order.total.toStringAsFixed(2)}',
+    ];
+    return lines.join('\n');
+  }
+
+  Future<void> _copy(BuildContext context, Order order) async {
+    await Clipboard.setData(ClipboardData(text: _receiptText(order)));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Receipt copied. Paste it into WhatsApp, SMS or email.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Opens WhatsApp with the receipt; falls back to copying if it isn't available
+  Future<void> _share(BuildContext context, Order order) async {
+    final uri = Uri.parse(
+      'https://wa.me/?text=${Uri.encodeComponent(_receiptText(order))}',
+    );
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+    if (!opened && context.mounted) await _copy(context, order);
+  }
+
+  Widget _buildBottomActions(BuildContext context, Order order) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -491,14 +552,12 @@ class ReceiptScreen extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Coming soon'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                ),
+                onPressed: () => _share(context, order),
                 icon: const Icon(Icons.share_outlined, size: 18),
-                label: Text('Share', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
+                label: Text(
+                  'Share',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
@@ -512,14 +571,12 @@ class ReceiptScreen extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Coming soon'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                onPressed: () => _copy(context, order),
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: Text(
+                  'Copy receipt',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
                 ),
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: Text('Download PDF', style: GoogleFonts.nunito(fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -545,7 +602,8 @@ class ReceiptScreen extends StatelessWidget {
         builder: (context, constraints) {
           final dashWidth = 4.0;
           final dashSpace = 4.0;
-          final dashCount = (constraints.maxWidth / (dashWidth + dashSpace)).floor();
+          final dashCount = (constraints.maxWidth / (dashWidth + dashSpace))
+              .floor();
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(dashCount, (_) {
@@ -568,10 +626,7 @@ class ReceiptScreen extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: _labelStyle),
-        Text(
-          'R${amount.toStringAsFixed(2)}',
-          style: _monoStyle,
-        ),
+        Text('R${amount.toStringAsFixed(2)}', style: _monoStyle),
       ],
     );
   }
@@ -654,27 +709,27 @@ class ReceiptScreen extends StatelessWidget {
   // ─── Shared Styles ────────────────────────────────────────────────────
 
   TextStyle get _labelStyle => GoogleFonts.nunito(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
-      );
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+  );
 
   TextStyle get _sectionLabelStyle => GoogleFonts.nunito(
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textHint,
-        letterSpacing: 1.5,
-      );
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textHint,
+    letterSpacing: 1.5,
+  );
 
   TextStyle get _tableHeaderStyle => GoogleFonts.nunito(
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textHint,
-      );
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textHint,
+  );
 
   TextStyle get _monoStyle => GoogleFonts.sourceCodePro(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
-      );
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textPrimary,
+  );
 }

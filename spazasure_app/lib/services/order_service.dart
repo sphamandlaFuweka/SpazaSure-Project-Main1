@@ -68,7 +68,9 @@ class OrderService {
     if (!raw.trimLeft().startsWith('[')) return raw;
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is List && decoded.isNotEmpty) return decoded.first.toString();
+      if (decoded is List && decoded.isNotEmpty) {
+        return decoded.first.toString();
+      }
     } catch (_) {}
     return '';
   }
@@ -111,6 +113,8 @@ class OrderService {
       isGroupBuy: o['isGroupBuy'] == true || o['groupBuyId'] != null,
       deliveryAddress: o['deliveryAddress']?.toString() ?? '',
       deliveryDistanceKm: (o['deliveryDistanceKm'] as num?)?.toDouble(),
+      deliveryLatitude: (o['deliveryLatitude'] as num?)?.toDouble(),
+      deliveryLongitude: (o['deliveryLongitude'] as num?)?.toDouble(),
       createdAt: DateTime.tryParse(o['createdAt'] ?? '') ?? DateTime.now(),
       estimatedDelivery: o['estimatedDelivery'] != null
           ? DateTime.tryParse(o['estimatedDelivery'])

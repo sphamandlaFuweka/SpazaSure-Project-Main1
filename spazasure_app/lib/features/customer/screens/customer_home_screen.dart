@@ -62,8 +62,17 @@ class CustomerHomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Shop smarter. Stay safe.',
+                    // Website-style headline: punchline highlighted in brand yellow
+                    Text.rich(
+                      TextSpan(
+                        text: 'Shop smarter. ',
+                        children: const [
+                          TextSpan(
+                            text: 'Stay safe.',
+                            style: TextStyle(color: AppColors.accent),
+                          ),
+                        ],
+                      ),
                       style: AppTextStyles.h1.copyWith(
                         color: Colors.white,
                         fontSize: 24,

@@ -45,8 +45,9 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
           content: const Text('Please rate both delivery and supplier'),
           backgroundColor: AppColors.warning,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       return;
@@ -102,7 +103,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0D3B0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+            colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
           ),
         ),
         child: SafeArea(
@@ -129,18 +130,25 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                     color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15)),
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
                   ),
-                  child: const Icon(Icons.close_rounded,
-                      color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ),
               const Spacer(),
-              Text('Rate Your Experience',
-                  style: GoogleFonts.nunito(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
+              Text(
+                'Rate Your Experience',
+                style: GoogleFonts.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
               const Spacer(),
               const SizedBox(width: 44),
             ],
@@ -163,25 +171,32 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                             color: AppColors.success.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.check_circle_rounded,
-                              color: AppColors.success, size: 26),
+                          child: const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.success,
+                            size: 26,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Order Delivered!',
-                                  style: GoogleFonts.nunito(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white)),
                               Text(
-                                  '${order.orderNumber} • ${order.supplierName}',
-                                  style: GoogleFonts.nunito(
-                                      fontSize: 12,
-                                      color: Colors.white
-                                          .withValues(alpha: 0.6))),
+                                'Order Delivered!',
+                                style: GoogleFonts.nunito(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '${order.orderNumber} • ${order.supplierName}',
+                                style: GoogleFonts.nunito(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -205,33 +220,38 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                               color: AppColors.info.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.local_shipping_rounded,
-                                color: AppColors.info, size: 22),
+                            child: const Icon(
+                              Icons.local_shipping_rounded,
+                              color: AppColors.info,
+                              size: 22,
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          Text('Delivery Rating',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white)),
+                          Text(
+                            'Delivery Rating',
+                            style: GoogleFonts.nunito(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _buildStarRow(
                         rating: _deliveryRating,
-                        onRate: (r) =>
-                            setState(() => _deliveryRating = r),
+                        onRate: (r) => setState(() => _deliveryRating = r),
                       ),
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
                           _ratingLabel(_deliveryRating),
                           style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              color: _deliveryRating > 0
-                                  ? AppColors.warning
-                                  : Colors.white
-                                      .withValues(alpha: 0.4)),
+                            fontSize: 13,
+                            color: _deliveryRating > 0
+                                ? AppColors.warning
+                                : Colors.white.withValues(alpha: 0.4),
+                          ),
                         ),
                       ),
                     ],
@@ -251,37 +271,41 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color:
-                                  AppColors.secondary.withValues(alpha: 0.2),
+                              color: AppColors.secondary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.business_rounded,
-                                color: AppColors.secondary, size: 22),
+                            child: const Icon(
+                              Icons.business_rounded,
+                              color: AppColors.secondary,
+                              size: 22,
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          Text('Supplier Rating',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white)),
+                          Text(
+                            'Supplier Rating',
+                            style: GoogleFonts.nunito(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _buildStarRow(
                         rating: _supplierRating,
-                        onRate: (r) =>
-                            setState(() => _supplierRating = r),
+                        onRate: (r) => setState(() => _supplierRating = r),
                       ),
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
                           _ratingLabel(_supplierRating),
                           style: GoogleFonts.nunito(
-                              fontSize: 13,
-                              color: _supplierRating > 0
-                                  ? AppColors.warning
-                                  : Colors.white
-                                      .withValues(alpha: 0.4)),
+                            fontSize: 13,
+                            color: _supplierRating > 0
+                                ? AppColors.warning
+                                : Colors.white.withValues(alpha: 0.4),
+                          ),
                         ),
                       ),
                     ],
@@ -295,31 +319,37 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Leave a Comment (Optional)',
-                          style: GoogleFonts.nunito(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white)),
+                      Text(
+                        'Leave a Comment (Optional)',
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12)),
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
                         ),
                         child: TextField(
                           controller: _commentController,
                           maxLines: 3,
                           style: GoogleFonts.nunito(
-                              color: Colors.white, fontSize: 14),
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
                           decoration: InputDecoration(
                             hintText:
                                 'Share your experience with this order...',
                             hintStyle: GoogleFonts.nunito(
-                                color:
-                                    Colors.white.withValues(alpha: 0.35),
-                                fontSize: 13),
+                              color: Colors.white.withValues(alpha: 0.35),
+                              fontSize: 13,
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
@@ -347,13 +377,16 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                             ),
                           )
                         : const Icon(Icons.star_rounded, size: 22),
-                    label: Text(_submitting ? 'Sending...' : 'Submit Rating',
-                        style: AppTextStyles.button),
+                    label: Text(
+                      _submitting ? 'Sending...' : 'Submit Rating',
+                      style: AppTextStyles.button,
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryLight,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       elevation: 0,
                     ),
                   ),
@@ -362,12 +395,15 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                 const SizedBox(height: 12),
 
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pushNamedAndRemoveUntil(
-                          context, '/home', (r) => false),
-                  child: Text('Skip for now',
-                      style: AppTextStyles.body
-                          .copyWith(color: Colors.white54)),
+                  onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    (r) => false,
+                  ),
+                  child: Text(
+                    'Skip for now',
+                    style: AppTextStyles.body.copyWith(color: Colors.white54),
+                  ),
                 ),
               ],
             ),
@@ -377,8 +413,10 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
     );
   }
 
-  Widget _buildStarRow(
-      {required int rating, required ValueChanged<int> onRate}) {
+  Widget _buildStarRow({
+    required int rating,
+    required ValueChanged<int> onRate,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (i) {
@@ -421,20 +459,27 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
                     color: AppColors.success.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: AppColors.success.withValues(alpha: 0.4),
-                        width: 3),
+                      color: AppColors.success.withValues(alpha: 0.4),
+                      width: 3,
+                    ),
                   ),
-                  child: const Icon(Icons.star_rounded,
-                      color: AppColors.warning, size: 64),
+                  child: const Icon(
+                    Icons.star_rounded,
+                    color: AppColors.warning,
+                    size: 64,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 28),
-            Text('Thank You!',
-                style: GoogleFonts.nunito(
+            Text(
+                  'Thank You!',
+                  style: GoogleFonts.nunito(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white))
+                    color: Colors.white,
+                  ),
+                )
                 .animate()
                 .fadeIn(delay: 400.ms)
                 .slideY(begin: 0.3, end: 0, delay: 400.ms),
@@ -442,8 +487,9 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
             Text(
               'Your feedback helps improve the SpazaSure experience for everyone.',
               style: GoogleFonts.nunito(
-                  fontSize: 14,
-                  color: Colors.white.withValues(alpha: 0.7)),
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(delay: 500.ms),
             const SizedBox(height: 24),
@@ -465,12 +511,13 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
               }),
             ).animate().fadeIn(delay: 600.ms),
             const SizedBox(height: 8),
-            Text('Redirecting to home...',
-                style: GoogleFonts.nunito(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.4)))
-                .animate()
-                .fadeIn(delay: 700.ms),
+            Text(
+              'Redirecting to home...',
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.4),
+              ),
+            ).animate().fadeIn(delay: 700.ms),
           ],
         ),
       ),
@@ -487,9 +534,10 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 6))
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: child,

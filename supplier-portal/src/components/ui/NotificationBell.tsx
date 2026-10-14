@@ -96,15 +96,15 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
     navigate(variant === 'admin' ? '/admin/notifications' : '/notifications');
   }
 
-  const accentRing = variant === 'admin' ? 'hover:text-blue-600 hover:bg-blue-50' : 'hover:text-primary hover:bg-primary-50';
-  const badgeBg    = variant === 'admin' ? 'bg-blue-500' : 'bg-red-500';
+    const badgeBg    = 'bg-brand-red';
 
   return (
     <div ref={ref} className="relative">
       {/* Bell button */}
       <button
         onClick={handleOpen}
-        className={clsx('relative p-2.5 text-gray-500 rounded-xl transition-all', accentRing, open && (variant === 'admin' ? 'text-blue-600 bg-blue-50' : 'text-primary bg-primary-50'))}
+        aria-label="Notifications"
+        className={clsx('relative inline-flex h-11 w-11 items-center justify-center rounded-full bg-white border border-brand-blue-light text-ink-2 transition-colors hover:text-brand-blue hover:border-brand-blue/30', open && 'text-brand-blue border-brand-blue/40')}
       >
         <Bell
           size={17}

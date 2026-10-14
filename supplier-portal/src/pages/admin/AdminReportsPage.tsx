@@ -124,7 +124,7 @@ export default function AdminReportsPage() {
         {statusTabs.map(({ value, label }) => (
           <button key={value} onClick={() => setStatusFilter(value)}
             className={clsx('flex items-center px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap',
-              statusFilter === value ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')}>
+              statusFilter === value ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')}>
             {label}
           </button>
         ))}

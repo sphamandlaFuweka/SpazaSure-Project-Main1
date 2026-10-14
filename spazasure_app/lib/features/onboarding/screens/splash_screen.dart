@@ -69,10 +69,10 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0D3B0F),
-              Color(0xFF1B5E20),
-              Color(0xFF2E7D32),
-              Color(0xFF1B5E20),
+              Color(0xFF1A3278),
+              Color(0xFF25449A),
+              Color(0xFF3F5DB0),
+              Color(0xFF25449A),
             ],
             stops: [0.0, 0.3, 0.7, 1.0],
           ),
@@ -139,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen>
                           boxShadow: [
                             BoxShadow(
                               color: const Color(
-                                0xFF4CAF50,
+                                0xFF078C50,
                               ).withValues(alpha: 0.4),
                               blurRadius: 40,
                               spreadRadius: 5,
@@ -239,7 +239,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 alpha: 0.15,
                               ),
                               valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF4CAF50),
+                                Color(0xFF078C50),
                               ),
                               minHeight: 5,
                             ),

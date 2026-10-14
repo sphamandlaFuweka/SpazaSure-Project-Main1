@@ -17,9 +17,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   late AnimationController _bgController;
 
   static const _pages = [
-    _PageData(Icons.storefront_rounded, 'Order from Verified Suppliers', 'Browse products from trusted, verified suppliers.\nGet wholesale prices delivered to your shop.', Color(0xFF4CAF50)),
+    _PageData(Icons.storefront_rounded, 'Order from Verified Suppliers', 'Browse products from trusted, verified suppliers.\nGet wholesale prices delivered to your shop.', Color(0xFF078C50)),
     _PageData(Icons.verified_user_rounded, 'Stay Compliant', 'Upload your permits and documents.\nWe help you stay compliant and verified.', Color(0xFF00897B)),
-    _PageData(Icons.local_shipping_rounded, 'Track Deliveries', 'Real-time delivery tracking.\nKnow exactly when your stock arrives.', Color(0xFFF57C00)),
+    _PageData(Icons.local_shipping_rounded, 'Track Deliveries', 'Real-time delivery tracking.\nKnow exactly when your stock arrives.', Color(0xFFE8A510)),
     _PageData(Icons.qr_code_scanner_rounded, 'Authentic Products', 'Every product has a QR code.\nYour customers can verify authenticity.', Color(0xFF1565C0)),
   ];
 
@@ -49,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                 gradient: LinearGradient(
                   begin: Alignment(sin(_bgController.value * 2 * pi) * 0.5, -1),
                   end: Alignment(-sin(_bgController.value * 2 * pi) * 0.5, 1),
-                  colors: const [Color(0xFF0D3B0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+                  colors: const [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
                 ),
               ),
             ),
@@ -128,12 +128,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                         children: [
                           Text(
                             _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                            style: GoogleFonts.nunito(color: const Color(0xFF1B5E20), fontSize: 16, fontWeight: FontWeight.w700),
+                            style: GoogleFonts.nunito(color: const Color(0xFF25449A), fontSize: 16, fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(width: 8),
                           Icon(
                             _currentPage == _pages.length - 1 ? Icons.rocket_launch_rounded : Icons.arrow_forward_rounded,
-                            color: const Color(0xFF1B5E20),
+                            color: const Color(0xFF25449A),
                             size: 22,
                           ),
                         ],

@@ -1,8 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2, User,
-  LogOut, CheckCircle, ChevronLeft, ChevronRight,
-  AlertTriangle, Crown, Users,
+  LogOut, ChevronLeft, ChevronRight, Crown, Users, Bell, Sparkles, BadgeCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -11,14 +10,27 @@ import { useOrderStore } from '../../store/orderStore';
 import { TierBadge } from '../ui';
 import { resolveUploadUrl } from '../../services/api';
 
-const baseNavItems = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/products',      icon: Package,          label: 'Products' },
-  { to: '/orders',        icon: ShoppingCart,     label: 'Orders' },
-  { to: '/group-buy',     icon: Users,            label: 'Group Buy' },
-  { to: '/analytics',     icon: BarChart2,        label: 'Analytics' },
-  { to: '/subscription',  icon: Crown,            label: 'Upgrade',  highlight: true },
-  { to: '/profile',       icon: User,             label: 'Profile' },
+type NavItem = { to: string; icon: typeof LayoutDashboard; label: string };
+
+const navSections: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Main menu',
+    items: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/orders',    icon: ShoppingCart,    label: 'Orders' },
+      { to: '/products',  icon: Package,         label: 'Products' },
+      { to: '/group-buy', icon: Users,           label: 'Group Buy' },
+    ],
+  },
+  {
+    title: 'Business',
+    items: [
+      { to: '/analytics',     icon: BarChart2, label: 'Analytics' },
+      { to: '/notifications', icon: Bell,      label: 'Notifications' },
+      { to: '/subscription',  icon: Crown,     label: 'Subscription' },
+      { to: '/profile',       icon: User,      label: 'Profile & Documents' },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -42,141 +54,128 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
   }, [fetchPendingCount]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
-
-  // Build nav items with dynamic badge
   const onTopTier = user?.tier === 'gold';
-  const navItems = baseNavItems.map((item) => ({
-    ...item,
-    // Gold suppliers have nothing to upgrade to, so show a plain "Subscription" link
-    label: item.to === '/subscription' && onTopTier ? 'Subscription' : item.label,
-    highlight: item.highlight && !onTopTier,
-    badge: item.to === '/orders' && pendingCount > 0 ? pendingCount : undefined,
-  }));
 
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col flex-shrink-0 bg-gradient-primary transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
-        mobileOpen ? 'translate-x-0' : '-translate-x-full',
-        collapsed ? 'lg:w-[72px]' : 'lg:w-64'
+        'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[264px] flex-col flex-shrink-0 bg-white border-r border-brand-blue-light',
+        'transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:translate-x-0 lg:transition-[width] lg:duration-300',
+        mobileOpen ? 'translate-x-0 shadow-card-xl' : '-translate-x-full',
+        collapsed ? 'lg:w-[84px]' : 'lg:w-[264px]'
       )}
-      style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.15)' }}
     >
-      {/* Toggle Button */}
+      {/* Collapse toggle */}
       <button
         onClick={onToggle}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="absolute -right-3 top-6 z-10 hidden w-6 h-6 bg-white border border-gray-200 rounded-full lg:flex items-center justify-center shadow-md hover:shadow-lg transition-shadow text-gray-500 hover:text-primary"
+        className="absolute -right-3 top-8 z-10 hidden w-6 h-6 bg-white border border-brand-blue-light rounded-full lg:flex items-center justify-center shadow-card text-ink-3 hover:text-brand-blue transition-colors"
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
 
       {/* Logo */}
-      <div className={clsx('px-5 py-5 compact:py-3 border-b border-white/10', collapsed && 'px-3')}>
-        {collapsed ? (
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center font-black text-white text-lg">S</div>
-        ) : (
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center font-black text-white text-sm">S</div>
-              <div>
-                <h1 className="text-base font-black text-white tracking-tight leading-none">SpazaSure</h1>
-                <p className="text-[10px] text-primary-200 font-medium mt-0.5 tracking-wide uppercase">Supplier Portal</p>
-              </div>
-            </div>
+      <div className={clsx('flex items-center gap-3 h-[76px] flex-shrink-0', collapsed ? 'justify-center px-3' : 'px-6')}>
+        <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SpazaSure</p>
+            <p className="text-[11px] font-bold text-ink-3 mt-1">Supplier Portal</p>
           </div>
         )}
       </div>
 
-      {/* Supplier Info */}
-      {user && !collapsed && (
-        <div className="px-4 py-4 compact:py-2.5 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/20 flex items-center justify-center font-bold text-white text-sm flex-shrink-0">
-              {user.logoUrl ? (
-                <img src={resolveUploadUrl(user.logoUrl)} alt={user.companyName} className="w-full h-full object-cover" />
-              ) : (
-                user.companyName.charAt(0)
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate leading-tight">{user.companyName}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <TierBadge tier={user.tier} />
-                {user.isVerified && (
-                  <span className="flex items-center gap-0.5 text-[10px] text-primary-200 font-medium">
-                    <CheckCircle size={10} /> Verified
-                  </span>
-                )}
-              </div>
+      {/* Nav */}
+      <nav className={clsx('flex-1 overflow-y-auto pb-4', collapsed ? 'px-3' : 'px-4')} aria-label="Main navigation">
+        {navSections.map((section) => (
+          <div key={section.title} className="mt-4 first:mt-1">
+            {!collapsed && (
+              <p className="px-3 mb-2 text-[11px] font-extrabold uppercase tracking-wider text-ink-3">{section.title}</p>
+            )}
+            <div className="space-y-1">
+              {section.items.map(({ to, icon: Icon, label }) => {
+                const isActive = location.pathname.startsWith(to);
+                const badge = to === '/orders' && pendingCount > 0 ? pendingCount : undefined;
+                return (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={onClose}
+                    title={collapsed ? label : undefined}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={clsx(
+                      'relative flex items-center rounded-2xl text-sm font-bold transition-colors duration-150',
+                      collapsed ? 'justify-center h-11' : 'gap-3 px-3 h-11',
+                      isActive
+                        ? 'bg-brand-blue text-white shadow-glow'
+                        : 'text-ink-2 hover:bg-brand-blue-light/60 hover:text-brand-blue'
+                    )}
+                  >
+                    <Icon size={18} className="flex-shrink-0" />
+                    {!collapsed && <span className="flex-1 truncate">{label}</span>}
+                    {!collapsed && badge && (
+                      <span className={clsx(
+                        'text-[11px] font-black px-2 py-0.5 rounded-full min-w-[22px] text-center',
+                        isActive ? 'bg-white text-brand-blue' : 'bg-brand-yellow text-brand-blue'
+                      )}>
+                        {badge}
+                      </span>
+                    )}
+                    {collapsed && badge && (
+                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-brand-yellow rounded-full ring-2 ring-white" />
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
+        ))}
+      </nav>
+
+      {/* Upgrade card (reference: "Upgrade to Pro") */}
+      {!collapsed && !onTopTier && (
+        <div className="mx-4 mb-3 rounded-3xl bg-gradient-hero p-4 text-white relative overflow-hidden">
+          <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10" aria-hidden="true" />
+          <Sparkles size={18} className="text-brand-yellow" />
+          <p className="mt-2 text-sm font-black leading-snug">Pay less commission</p>
+          <p className="text-xs text-white/70 mt-1 leading-relaxed">Upgrade your plan to keep more of every order.</p>
+          <button
+            onClick={() => { onClose(); navigate('/subscription'); }}
+            className="mt-3 w-full rounded-full bg-brand-yellow text-brand-blue text-xs font-extrabold py-2 hover:bg-accent-400 transition-colors"
+          >
+            View plans
+          </button>
         </div>
       )}
 
-      {/* Nav */}
-      <nav className={clsx('flex-1 py-4 compact:py-2 space-y-0.5 overflow-y-auto', collapsed ? 'px-2' : 'px-3')}>
-        {navItems.map(({ to, icon: Icon, label, badge, highlight }) => {
-          const isActive = location.pathname.startsWith(to);
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onClose}
-              title={collapsed ? label : undefined}
-              className={clsx(
-                'flex items-center rounded-xl text-sm font-medium transition-all duration-150 relative group',
-                collapsed ? 'justify-center p-3 compact:p-2.5' : 'gap-3 px-3.5 py-2.5 compact:py-2',
-                isActive
-                  ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/20'
-                  : highlight
-                    ? 'text-accent hover:bg-accent/15 hover:text-accent border border-accent/20'
-                    : 'text-primary-200/80 hover:bg-white/10 hover:text-white'
-              )}
-            >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white rounded-r-full" />
-              )}
-              <Icon size={18} className="flex-shrink-0" />
-              {!collapsed && <span className="flex-1">{label}</span>}
-              {!collapsed && badge && (
-                <span className="bg-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse shadow-sm shadow-accent/50">
-                  {badge}
-                </span>
-              )}
-              {collapsed && badge && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-accent rounded-full animate-pulse shadow-sm shadow-accent/50 ring-2 ring-white/20" />
-              )}
-              {/* Tooltip for collapsed */}
-              {collapsed && (
-                <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
-                  {label}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Compliance Alert — removed: this is now dynamic based on actual document status */}
-
-      {/* Logout */}
-      <div className={clsx('border-t border-white/10 py-3', collapsed ? 'px-2' : 'px-3')}>
+      {/* Account */}
+      <div className={clsx('border-t border-brand-blue-light py-3', collapsed ? 'px-3' : 'px-4')}>
+        {user && !collapsed && (
+          <div className="flex items-center gap-3 px-2 mb-2">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-blue-light flex items-center justify-center font-black text-brand-blue flex-shrink-0">
+              {user.logoUrl
+                ? <img src={resolveUploadUrl(user.logoUrl)} alt="" className="w-full h-full object-cover" />
+                : user.companyName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-gray-900 truncate flex items-center gap-1">
+                {user.companyName}
+                {user.isVerified && <BadgeCheck size={14} className="text-brand-green flex-shrink-0" aria-label="Verified" />}
+              </p>
+              <div className="mt-0.5"><TierBadge tier={user.tier} /></div>
+            </div>
+          </div>
+        )}
         <button
           onClick={handleLogout}
-          title={collapsed ? 'Sign Out' : undefined}
+          title={collapsed ? 'Sign out' : undefined}
           className={clsx(
-            'flex items-center rounded-xl text-sm text-primary-200/70 hover:bg-white/10 hover:text-white transition-all duration-150 w-full group relative',
-            collapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5'
+            'flex items-center rounded-2xl text-sm font-bold text-ink-2 hover:bg-brand-red-light hover:text-brand-red transition-colors w-full h-10',
+            collapsed ? 'justify-center' : 'gap-3 px-3'
           )}
         >
-          <LogOut size={18} className="flex-shrink-0" />
-          {!collapsed && <span>Sign Out</span>}
-          {collapsed && (
-            <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
-              Sign Out
-            </span>
-          )}
+          <LogOut size={17} className="flex-shrink-0" />
+          {!collapsed && <span>Sign out</span>}
         </button>
       </div>
     </aside>

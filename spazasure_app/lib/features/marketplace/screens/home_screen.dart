@@ -8,6 +8,7 @@ import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/notification_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:spazasure_app/models/models.dart';
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _complianceStatus = '--';
   String _rating = '--';
   double? _walletBalance;
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
@@ -60,7 +62,11 @@ class _HomeScreenState extends State<HomeScreen>
         await productProvider.loadInitial();
       }
 
-      await Future.wait([_loadOrders(), _loadWalletBalance()]);
+      await Future.wait([
+        _loadOrders(),
+        _loadWalletBalance(),
+        _loadUnreadCount(),
+      ]);
 
       // Load profile for compliance and rating
       try {
@@ -84,6 +90,11 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() => _error = 'Unable to load data. Pull down to refresh.');
       }
     }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final count = await NotificationService.getUnreadCount();
+    if (mounted) setState(() => _unreadNotifications = count);
   }
 
   Future<void> _loadWalletBalance() async {
@@ -122,7 +133,11 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() => _error = 'Unable to load data. Pull down to refresh.');
       }
     }
-    await Future.wait([_loadOrders(), _loadWalletBalance()]);
+    await Future.wait([
+      _loadOrders(),
+      _loadWalletBalance(),
+      _loadUnreadCount(),
+    ]);
   }
 
   @override
@@ -131,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen>
     final products = productProvider.homeProducts;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F0),
+      backgroundColor: const Color(0xFFF5F7FF),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,
@@ -246,15 +261,9 @@ class _HomeScreenState extends State<HomeScreen>
               .join()
         : 'SP';
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0D3B0F), Color(0xFF1B5E20)],
-        ),
-      ),
+    // Light header (greeting + round icon buttons) so the blue wallet card is the hero
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Row(
         children: [
           // Avatar
@@ -262,14 +271,13 @@ class _HomeScreenState extends State<HomeScreen>
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)],
-              ),
-              borderRadius: BorderRadius.circular(16),
+              gradient: AppColors.heroGradient,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 8,
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -279,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen>
                 initials,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   fontSize: 16,
                 ),
               ),
@@ -292,37 +300,33 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Text(
                   _getGreeting(),
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.ink3,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
                   shopName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w900),
                 ),
                 Row(
                   children: [
                     Container(
-                      width: 6,
-                      height: 6,
+                      width: 7,
+                      height: 7,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF69F0AE),
+                        color: AppColors.secondary,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Active',
-                      style: TextStyle(
-                        color: Color(0xFF69F0AE),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 5),
+                    Text(
+                      'Shop active',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -330,64 +334,68 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-          // Search button
-          GestureDetector(
+          _headerButton(
+            icon: Icons.search_rounded,
+            label: 'Search products',
             onTap: () => Navigator.pushNamed(context, '/marketplace'),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.search_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
           ),
           const SizedBox(width: 8),
-          // Notifications
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/notifications'),
-            child: Stack(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF1B5E20),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _headerButton(
+            icon: Icons.notifications_none_rounded,
+            label: 'Notifications',
+            showDot: _unreadNotifications > 0,
+            onTap: () async {
+              await Navigator.pushNamed(context, '/notifications');
+              _loadUnreadCount();
+            },
           ),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _headerButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool showDot = false,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(side: BorderSide(color: AppColors.primaryTint)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, color: AppColors.primary, size: 22),
+                if (showDot)
+                  Positioned(
+                    right: 11,
+                    top: 11,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: AppColors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── PIECE 2: PREMIUM WALLET CARD ───────────────────────────────────────────
@@ -401,16 +409,16 @@ class _HomeScreenState extends State<HomeScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF0D3B0F),
-                  Color(0xFF1B5E20),
-                  Color(0xFF2E7D32),
+                  Color(0xFF1A3278),
+                  Color(0xFF25449A),
+                  Color(0xFF3F5DB0),
                 ],
                 stops: [0.0, 0.5, 1.0],
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1B5E20).withValues(alpha: 0.4),
+                  color: const Color(0xFF25449A).withValues(alpha: 0.4),
                   blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),
@@ -516,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen>
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.secondary,
+                              color: AppColors.accent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
@@ -524,15 +532,15 @@ class _HomeScreenState extends State<HomeScreen>
                                 Text(
                                   'Manage',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.primary,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
                                 SizedBox(width: 4),
                                 Icon(
                                   Icons.arrow_forward_rounded,
-                                  color: Colors.white,
+                                  color: AppColors.primary,
                                   size: 14,
                                 ),
                               ],
@@ -634,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen>
               label: 'Rating',
               color: AppColors.success,
               icon: Icons.star_rounded,
-              trend: _rating == 'New' ? 'No ratings yet' : 'Good',
+              trend: _rating == 'New' || _rating == '--' ? 'No ratings yet' : 'From shop reviews',
               onTap: () => Navigator.pushNamed(context, '/orders'),
             ),
           ),
@@ -1038,14 +1046,14 @@ class _HomeScreenState extends State<HomeScreen>
         height: 130,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFF57C00), Color(0xFFFF8F00), Color(0xFFFFB300)],
+            colors: [Color(0xFFE8A510), Color(0xFFF8B217), Color(0xFFFAC44B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.secondary.withValues(alpha: 0.35),
+              color: AppColors.accent.withValues(alpha: 0.35),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -1070,13 +1078,13 @@ class _HomeScreenState extends State<HomeScreen>
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
+                            color: AppColors.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
                             '🔥 LIMITED TIME',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.primary,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1086,14 +1094,14 @@ class _HomeScreenState extends State<HomeScreen>
                         const Text(
                           'Save up to 20%',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.primary,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const Text(
                           'Join a group order now',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          style: TextStyle(color: AppColors.primaryDark, fontSize: 13),
                         ),
                       ],
                     ),
@@ -1104,13 +1112,13 @@ class _HomeScreenState extends State<HomeScreen>
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Text(
                       'Join Now',
                       style: TextStyle(
-                        color: Color(0xFFF57C00),
+                        color: Colors.white,
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                       ),

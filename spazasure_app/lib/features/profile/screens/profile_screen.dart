@@ -75,7 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : 'SP';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F0),
+      backgroundColor: const Color(0xFFF5F7FF),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -151,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0D3B0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
@@ -223,11 +223,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: isVerified
                       ? Colors.white.withValues(alpha: 0.2)
-                      : const Color(0xFFFF8F00).withValues(alpha: 0.25),
+                      : const Color(0xFFF8B217).withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isVerified
-                        ? const Color(0xFF69F0AE)
+                        ? const Color(0xFF4DD898)
                         : const Color(0xFFFFD54F),
                     width: 1,
                   ),
@@ -239,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isVerified ? Icons.verified : Icons.pending_outlined,
                       size: 16,
                       color: isVerified
-                          ? const Color(0xFF69F0AE)
+                          ? const Color(0xFF4DD898)
                           : const Color(0xFFFFD54F),
                     ),
                     const SizedBox(width: 6),
@@ -247,7 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isVerified ? 'Verified Account' : 'Pending Verification',
                       style: TextStyle(
                         color: isVerified
-                            ? const Color(0xFF69F0AE)
+                            ? const Color(0xFF4DD898)
                             : const Color(0xFFFFD54F),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -752,7 +752,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           }
                           await _loadProfile();
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(
                               content: const Text('Profile updated!'),
                               backgroundColor: AppColors.success,
@@ -764,9 +764,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         } catch (e) {
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(
-                              content: Text('Failed: $e'),
+                              content: Text(
+                                'Could not save your profile: ${e.toString().replaceFirst('Exception: ', '')}',
+                              ),
                               backgroundColor: AppColors.error,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
@@ -1089,7 +1091,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Icons.phone_rounded,
                 'Call',
                 '0800 123 456',
-                const Color(0xFF4CAF50),
+                const Color(0xFF078C50),
               ),
               const SizedBox(height: 10),
               _supportItem(
@@ -1197,7 +1199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 height: 70,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)],
+                    colors: [Color(0xFF078C50), Color(0xFF3F5DB0)],
                   ),
                   shape: BoxShape.circle,
                 ),

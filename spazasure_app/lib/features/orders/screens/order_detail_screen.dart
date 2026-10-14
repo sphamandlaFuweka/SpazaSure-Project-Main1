@@ -24,7 +24,8 @@ class OrderDetailScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
-            onPressed: () => Navigator.pushNamed(context, '/receipt', arguments: order),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/receipt', arguments: order),
           ),
         ],
       ),
@@ -73,7 +74,9 @@ class OrderDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          order.supplierName.isEmpty ? 'Supplier' : order.supplierName,
+                          order.supplierName.isEmpty
+                              ? 'Supplier'
+                              : order.supplierName,
                           style: AppTextStyles.subtitle,
                         ),
                         Text(
@@ -90,33 +93,58 @@ class OrderDetailScreen extends StatelessWidget {
             _buildSection(
               'Items (${order.items.length})',
               Column(
-                children: order.items.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
+                children: order.items
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.inventory_2_outlined,
+                                color: AppColors.primary.withValues(alpha: 0.4),
+                                size: 24,
+                              ),
                             ),
-                            child: Icon(Icons.inventory_2_outlined, color: AppColors.primary.withValues(alpha: 0.4), size: 24),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(item.productName, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                Text('Qty: ${item.quantity}', style: AppTextStyles.caption),
-                              ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.productName,
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Qty: ${item.quantity}',
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Text('R${item.total.toStringAsFixed(2)}', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
-                        ],
+                            Text(
+                              'R${item.total.toStringAsFixed(2)}',
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    )).toList(),
+                    )
+                    .toList(),
               ),
             ),
             // Payment summary
@@ -124,30 +152,53 @@ class OrderDetailScreen extends StatelessWidget {
               'Payment Summary',
               Column(
                 children: [
-                  _summaryRow('Subtotal', 'R${order.subtotal.toStringAsFixed(2)}'),
-                  _summaryRow('Delivery (${order.deliveryOption})', 'R${order.deliveryFee.toStringAsFixed(2)}'),
-                  _summaryRow('Platform Fee', 'R${order.platformFee.toStringAsFixed(2)}'),
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider()),
+                  _summaryRow(
+                    'Subtotal',
+                    'R${order.subtotal.toStringAsFixed(2)}',
+                  ),
+                  _summaryRow(
+                    'Delivery (${order.deliveryOption})',
+                    'R${order.deliveryFee.toStringAsFixed(2)}',
+                  ),
+                  _summaryRow(
+                    'Platform Fee',
+                    'R${order.platformFee.toStringAsFixed(2)}',
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Total', style: AppTextStyles.h3),
-                      Text('R${order.total.toStringAsFixed(2)}', style: AppTextStyles.price),
+                      Text(
+                        'R${order.total.toStringAsFixed(2)}',
+                        style: AppTextStyles.price,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       Icon(
-                        order.paymentStatus == 'released' ? Icons.check_circle : Icons.schedule,
+                        order.paymentStatus == 'released'
+                            ? Icons.check_circle
+                            : Icons.schedule,
                         size: 16,
-                        color: order.paymentStatus == 'released' ? AppColors.success : AppColors.warning,
+                        color: order.paymentStatus == 'released'
+                            ? AppColors.success
+                            : AppColors.warning,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        order.paymentStatus == 'released' ? 'Payment completed' : 'Payment held in escrow',
+                        order.paymentStatus == 'released'
+                            ? 'Payment completed'
+                            : 'Payment held in escrow',
                         style: AppTextStyles.caption.copyWith(
-                          color: order.paymentStatus == 'released' ? AppColors.success : AppColors.warning,
+                          color: order.paymentStatus == 'released'
+                              ? AppColors.success
+                              : AppColors.warning,
                         ),
                       ),
                     ],
@@ -170,21 +221,29 @@ class OrderDetailScreen extends StatelessWidget {
                             color: AppColors.info.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.local_shipping, color: AppColors.info),
+                          child: const Icon(
+                            Icons.local_shipping,
+                            color: AppColors.info,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('On the way to your shop', style: AppTextStyles.subtitle),
+                              Text(
+                                'On the way to your shop',
+                                style: AppTextStyles.subtitle,
+                              ),
                               Text(
                                 order.estimatedDelivery != null
                                     ? 'Expected by ${DateFormat('HH:mm').format(order.estimatedDelivery!)}'
                                     : order.deliveryDistanceKm != null
                                     ? '${order.deliveryDistanceKm!.toStringAsFixed(1)} km from ${order.supplierName.isEmpty ? 'the supplier' : order.supplierName}'
                                     : 'Dispatched by ${order.supplierName.isEmpty ? 'the supplier' : order.supplierName}',
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.info),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.info,
+                                ),
                               ),
                             ],
                           ),
@@ -196,7 +255,11 @@ class OrderDetailScreen extends StatelessWidget {
                       text: 'Track on Map',
                       icon: Icons.map_outlined,
                       backgroundColor: AppColors.info,
-                      onPressed: () => Navigator.pushNamed(context, '/delivery-tracking', arguments: order),
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/delivery-tracking',
+                        arguments: order,
+                      ),
                     ),
                   ],
                 ),
@@ -210,7 +273,13 @@ class OrderDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, -4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
               ),
               child: SafeArea(
                 child: CustomButton(
@@ -225,8 +294,20 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _buildTimeline(String currentStatus) {
-    final steps = ['pending', 'confirmed', 'processing', 'dispatched', 'delivered'];
-    final labels = ['Pending', 'Confirmed', 'Processing', 'Dispatched', 'Delivered'];
+    final steps = [
+      'pending',
+      'confirmed',
+      'processing',
+      'dispatched',
+      'delivered',
+    ];
+    final labels = [
+      'Pending',
+      'Confirmed',
+      'Processing',
+      'Dispatched',
+      'Delivered',
+    ];
     final currentIndex = steps.indexOf(currentStatus);
 
     return SizedBox(
@@ -248,15 +329,25 @@ class OrderDetailScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isCompleted ? AppColors.primary : AppColors.divider,
                     shape: BoxShape.circle,
-                    border: isCurrent ? Border.all(color: AppColors.primary, width: 3) : null,
+                    border: isCurrent
+                        ? Border.all(color: AppColors.primary, width: 3)
+                        : null,
                   ),
                   child: isCompleted && !isCurrent
                       ? const Icon(Icons.check, size: 14, color: Colors.white)
                       : null,
                 ),
               ),
-              beforeLineStyle: LineStyle(color: i <= currentIndex ? AppColors.primary : AppColors.divider, thickness: 2),
-              afterLineStyle: LineStyle(color: i < currentIndex ? AppColors.primary : AppColors.divider, thickness: 2),
+              beforeLineStyle: LineStyle(
+                color: i <= currentIndex
+                    ? AppColors.primary
+                    : AppColors.divider,
+                thickness: 2,
+              ),
+              afterLineStyle: LineStyle(
+                color: i < currentIndex ? AppColors.primary : AppColors.divider,
+                thickness: 2,
+              ),
               endChild: Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
@@ -300,7 +391,10 @@ class OrderDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          ),
           Text(value, style: AppTextStyles.body),
         ],
       ),
@@ -313,14 +407,20 @@ class OrderDetailScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Confirm Delivery', style: AppTextStyles.h3),
-        content: Text('Have you received all items in good condition?', style: AppTextStyles.body),
+        content: Text(
+          'Have you received all items in good condition?',
+          style: AppTextStyles.body,
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _showReportIssue(context, order);
             },
-            child: Text('Report Issue', style: AppTextStyles.body.copyWith(color: AppColors.error)),
+            child: Text(
+              'Report Issue',
+              style: AppTextStyles.body.copyWith(color: AppColors.error),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -330,17 +430,25 @@ class OrderDetailScreen extends StatelessWidget {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Delivery confirmed! Payment released to supplier.'),
+                    content: Text(
+                      'Delivery confirmed! Payment released to supplier.',
+                    ),
                     backgroundColor: AppColors.success,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
-                Navigator.pushReplacementNamed(context, '/rate-delivery',
-                    arguments: order);
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/rate-delivery',
+                  arguments: order,
+                );
               } catch (e) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+                  SnackBar(
+                    content: Text(e.toString()),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
               }
             },
@@ -352,7 +460,13 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   void _showReportIssue(BuildContext context, Order order) {
-    final issueTypes = ['Damaged Items', 'Missing Items', 'Wrong Items', 'Late Delivery', 'Other'];
+    final issueTypes = [
+      'Damaged Items',
+      'Missing Items',
+      'Wrong Items',
+      'Late Delivery',
+      'Other',
+    ];
     String selectedType = issueTypes[0];
     final descController = TextEditingController();
 
@@ -360,10 +474,16 @@ class OrderDetailScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
-              const Icon(Icons.report_problem_outlined, color: AppColors.error, size: 24),
+              const Icon(
+                Icons.report_problem_outlined,
+                color: AppColors.error,
+                size: 24,
+              ),
               const SizedBox(width: 8),
               Text('Report Issue', style: AppTextStyles.h3),
             ],
@@ -372,23 +492,30 @@ class OrderDetailScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('What went wrong?', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                'What went wrong?',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 12),
-              ...issueTypes.map((type) => RadioListTile<String>(
-                title: Text(type, style: AppTextStyles.bodySmall),
-                value: type,
-                groupValue: selectedType,
-                onChanged: (v) => setDialogState(() => selectedType = v!),
-                dense: true,
-                activeColor: AppColors.primary,
-              )),
+              ...issueTypes.map(
+                (type) => RadioListTile<String>(
+                  title: Text(type, style: AppTextStyles.bodySmall),
+                  value: type,
+                  groupValue: selectedType,
+                  onChanged: (v) => setDialogState(() => selectedType = v!),
+                  dense: true,
+                  activeColor: AppColors.primary,
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Describe the issue...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   contentPadding: const EdgeInsets.all(12),
                 ),
               ),
@@ -404,16 +531,21 @@ class OrderDetailScreen extends StatelessWidget {
               onPressed: () async {
                 Navigator.pop(ctx);
                 try {
-                  await ApiService.post('/shop/orders/${order.id}/report-issue', {
-                    'issueType': selectedType,
-                    'description': descController.text.trim().isNotEmpty
-                        ? descController.text.trim()
-                        : selectedType,
-                  });
+                  await ApiService.post(
+                    '/shop/orders/${order.id}/report-issue',
+                    {
+                      'issueType': selectedType,
+                      'description': descController.text.trim().isNotEmpty
+                          ? descController.text.trim()
+                          : selectedType,
+                    },
+                  );
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Issue reported. We will investigate and contact you.'),
+                      content: Text(
+                        'Issue reported. We will investigate and contact you.',
+                      ),
                       backgroundColor: AppColors.info,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -421,11 +553,17 @@ class OrderDetailScreen extends StatelessWidget {
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+                    SnackBar(
+                      content: Text('Failed: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
                   );
                 }
               },
-              child: const Text('Submit Report', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Submit Report',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -433,4 +571,3 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 }
-

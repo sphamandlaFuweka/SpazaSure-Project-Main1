@@ -53,12 +53,18 @@ class _LogoOverlay extends StatelessWidget {
 
     final logoScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.4, end: 1.0).chain(CurveTween(curve: Curves.elasticOut)),
+        tween: Tween(
+          begin: 0.4,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
         weight: 50,
       ),
       TweenSequenceItem(tween: ConstantTween(1.0), weight: 30),
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.8).chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.8,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 20,
       ),
     ]).animate(animation);
@@ -85,7 +91,9 @@ class _LogoOverlay extends StatelessWidget {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF4CAF50).withValues(alpha: 0.5),
+                            color: const Color(
+                              0xFF078C50,
+                            ).withValues(alpha: 0.5),
                             blurRadius: 40,
                             spreadRadius: 4,
                           ),
@@ -102,7 +110,10 @@ class _LogoOverlay extends StatelessWidget {
                     const SizedBox(height: 16),
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: List.generate(3, (i) => _Dot(index: i, animation: animation)),
+                      children: List.generate(
+                        3,
+                        (i) => _Dot(index: i, animation: animation),
+                      ),
                     ),
                   ],
                 ),
@@ -125,11 +136,17 @@ class _Dot extends StatelessWidget {
     final offset = TweenSequence<double>([
       TweenSequenceItem(tween: ConstantTween(0.0), weight: 20.0 + index * 10),
       TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: -6.0).chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween(
+          begin: 0.0,
+          end: -6.0,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 15,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: -6.0, end: 0.0).chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween(
+          begin: -6.0,
+          end: 0.0,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 15,
       ),
       TweenSequenceItem(tween: ConstantTween(0.0), weight: 50.0 - index * 10),
@@ -144,7 +161,7 @@ class _Dot extends StatelessWidget {
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 3),
           decoration: const BoxDecoration(
-            color: Color(0xFF4CAF50),
+            color: Color(0xFF078C50),
             shape: BoxShape.circle,
           ),
         ),

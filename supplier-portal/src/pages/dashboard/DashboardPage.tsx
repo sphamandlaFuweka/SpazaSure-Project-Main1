@@ -57,10 +57,10 @@ function ChartEmpty({ height, message }: { height: number; message: string }) {
 }
 
 const quickActions = [
-  { label: 'Add Product',   icon: Plus,        to: '/products?new=1', color: 'bg-primary-50 text-primary hover:bg-primary-100 border-primary-100' },
-  { label: 'View Orders',   icon: ShoppingCart, to: '/orders',        color: 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100' },
-  { label: 'Analytics',     icon: BarChart2,    to: '/analytics',     color: 'bg-violet-50 text-violet-600 hover:bg-violet-100 border-violet-100' },
-  { label: 'Notifications', icon: Bell,         to: '/notifications', color: 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-100' },
+  { label: 'Add product',   hint: 'List a new item',        icon: Plus,         to: '/products?new=1', tone: 'bg-brand-blue-light text-brand-blue' },
+  { label: 'Orders',        hint: 'Accept & dispatch',      icon: ShoppingCart, to: '/orders',         tone: 'bg-brand-yellow-light text-accent-700' },
+  { label: 'Analytics',     hint: 'Sales & commission',     icon: BarChart2,    to: '/analytics',      tone: 'bg-brand-green-light text-brand-green' },
+  { label: 'Notifications', hint: 'Updates & approvals',    icon: Bell,         to: '/notifications',  tone: 'bg-brand-red-light text-brand-red' },
 ];
 
 const PIPELINE_META = [
@@ -224,118 +224,63 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 compact:p-4 compact:space-y-3 animate-in">
-      {/* ══════════════════════════════════════════════════════════════
-          HERO WELCOME BANNER — World Class with Animations
-         ══════════════════════════════════════════════════════════════ */}
-      <div className="bg-gradient-to-br from-primary-800 via-primary-700 to-primary-600 rounded-2xl sm:rounded-3xl p-5 sm:p-8 compact:p-5 compact:rounded-2xl text-white relative overflow-hidden shadow-2xl group">
-        {/* Animated floating particles */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-6 right-20 w-3 h-3 bg-primary-300/30 rounded-full animate-float-slow" />
-          <div className="absolute top-16 right-48 w-2 h-2 bg-primary-300/20 rounded-full animate-float-medium" />
-          <div className="absolute bottom-8 right-36 w-4 h-4 bg-accent/20 rounded-full animate-float-fast" />
-          <div className="absolute top-1/2 right-8 w-2 h-2 bg-white/10 rounded-full animate-float-slow" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-12 left-1/3 w-2 h-2 bg-primary-300/15 rounded-full animate-float-medium" style={{ animationDelay: '0.5s' }} />
-        </div>
+      {/* Brand hero — mirrors the spazasure.co.za hero */}
+      <section className="hero-banner p-6 sm:p-8">
+        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full border-[28px] border-white/[0.06]" aria-hidden="true" />
+        <img src="/spazasure_logo.jpg" alt="" aria-hidden="true" className="hidden md:block absolute right-8 top-1/2 -translate-y-1/2 w-36 h-36 rounded-[2rem] object-cover opacity-[0.12]" />
 
-        {/* Decorative gradient orbs */}
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-primary-300/10 to-transparent rounded-full blur-3xl group-hover:scale-110 transition-transform duration-1000" />
-        <div className="absolute -bottom-16 -left-16 w-60 h-60 bg-gradient-to-tr from-accent/10 to-transparent rounded-full blur-2xl" />
-        <div className="absolute top-0 left-1/2 w-96 h-1 bg-gradient-to-r from-transparent via-primary-300/30 to-transparent" />
-
-        <div className="relative z-10">
-          {/* Top bar with date and live indicator */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6 compact:mb-3">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="text-[10px] sm:text-xs font-bold text-primary-200/80 uppercase tracking-[0.15em] sm:tracking-[0.2em]">
-                {format(new Date(), 'EEEE, d MMMM yyyy')}
-              </span>
-              <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-2.5 py-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                </span>
-                <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Live</span>
-              </div>
-            </div>
-            <div className="hidden md:flex items-center gap-2.5">
-              <button
-                onClick={() => navigate('/products?new=1')}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all duration-300 border border-white/15 backdrop-blur-sm hover:scale-105 hover:shadow-lg"
-              >
-                <Plus size={15} /> Add Product
-              </button>
-              <button
-                onClick={() => navigate('/orders')}
-                className="flex items-center gap-2 bg-white text-primary text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-              >
-                View Orders <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            </div>
-          </div>
-
-          {/* Main greeting */}
-          <div className="mb-8 compact:mb-3">
-            <h1 className="text-4xl md:text-5xl compact:md:text-3xl font-black text-white leading-tight tracking-tight">
-              {greeting}, <span className="bg-gradient-to-r from-white via-primary-100 to-accent-400 bg-clip-text text-transparent">{user?.companyName?.split(' ')[0]}</span>
-            </h1>
-            <p className="text-primary-200/70 text-base compact:text-sm mt-2 compact:mt-1 max-w-lg">Here's your real-time business performance.</p>
-          </div>
-
-          {/* Hero Stats Row — Big animated numbers */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 compact:gap-3">
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 compact:p-3 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02] group/stat">
-              <div className="flex items-center gap-2 mb-3 compact:mb-1.5">
-                <div className="p-2 bg-emerald-500/20 rounded-lg">
-                  <DollarSign size={16} className="text-emerald-300" />
-                </div>
-                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Revenue</span>
-              </div>
-              <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">
-                R{animRevenue.toLocaleString()}
-              </p>
-              {s?.revenueChange !== undefined && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${s.revenueChange >= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
-                    {s.revenueChange >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                    {Math.abs(s.revenueChange)}%
-                  </span>
-                  <span className="text-[11px] text-primary-200/50">this month</span>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 compact:p-3 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
-              <div className="flex items-center gap-2 mb-3 compact:mb-1.5">
-                <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <ShoppingCart size={16} className="text-blue-300" />
-                </div>
-                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Orders</span>
-              </div>
-              <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">{animOrders}</p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-                  <Flame size={10} /> {pendingCount} pending
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white/[0.07] backdrop-blur-sm border border-white/10 rounded-2xl p-5 compact:p-3 hover:bg-white/[0.12] transition-all duration-300 hover:scale-[1.02]">
-              <div className="flex items-center gap-2 mb-3 compact:mb-1.5">
-                <div className="p-2 bg-violet-500/20 rounded-lg">
-                  <Package size={16} className="text-violet-300" />
-                </div>
-                <span className="text-xs font-semibold text-primary-200/60 uppercase tracking-wider">Products</span>
-              </div>
-              <p className="text-3xl compact:text-2xl font-black text-white tabular-nums">{animProducts}</p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
-                  <Target size={10} /> Active
-                </span>
-              </div>
-            </div>
+        <div className="relative max-w-3xl">
+          <span className="hero-pill">
+            <span className="w-2 h-2 rounded-full bg-brand-yellow" />
+            {format(new Date(), 'EEEE, d MMMM')}
+          </span>
+          <h1 className="mt-4 text-3xl sm:text-[40px] font-black leading-[1.08] text-white">
+            {greeting}, <span className="text-brand-yellow">{user?.companyName?.split(' ')[0] ?? 'there'}</span>
+          </h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-white/75 max-w-xl">
+            {pendingCount > 0
+              ? `You have ${pendingCount} new order${pendingCount === 1 ? '' : 's'} waiting for you. Accept them quickly to keep shops stocked.`
+              : 'Your orders are up to date. Keep your catalogue fresh so spaza shops can find you.'}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => navigate('/orders')} className="btn-accent px-6 py-3">
+              {pendingCount > 0 ? 'Review new orders' : 'View orders'} <ArrowRight size={15} />
+            </button>
+            <button
+              onClick={() => navigate('/products?new=1')}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-white/35 px-6 py-2.5 text-sm font-bold text-white hover:border-white hover:bg-white/10 transition-colors"
+            >
+              <Plus size={15} /> Add product
+            </button>
           </div>
         </div>
-      </div>
+
+        {/* Stat row with coloured icon squares (website "hero-badges") */}
+        <div className="relative mt-8 pt-6 border-t border-white/15 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          {[
+            { label: 'Revenue', value: `R${animRevenue.toLocaleString()}`, icon: DollarSign, square: 'bg-brand-green text-white', change: s?.revenueChange },
+            { label: 'Orders', value: animOrders.toLocaleString(), icon: ShoppingCart, square: 'bg-brand-yellow text-brand-blue', note: `${pendingCount} pending` },
+            { label: 'Live products', value: animProducts.toLocaleString(), icon: Package, square: 'bg-brand-red text-white', note: 'On the marketplace' },
+          ].map(({ label, value, icon: Icon, square, change, note }) => (
+            <div key={label} className="flex items-center gap-3">
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${square}`}>
+                <Icon size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-black leading-none tabular-nums">{value}</p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-white/55 flex items-center gap-1.5">
+                  {label}
+                  {change !== undefined ? (
+                    <span className={change >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                      {change >= 0 ? '▲' : '▼'} {Math.abs(change)}%
+                    </span>
+                  ) : note ? <span className="normal-case tracking-normal font-semibold text-white/45">· {note}</span> : null}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {loadFailed && (
         <AlertBanner
@@ -363,20 +308,22 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Quick Actions — Premium Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 compact:gap-3">
-        {quickActions.map(({ label, icon: Icon, to, color }, i) => (
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {quickActions.map(({ label, hint, icon: Icon, to, tone }) => (
           <button
             key={label}
             onClick={() => navigate(to)}
-            className={`group relative flex flex-col items-start gap-3 compact:gap-1.5 p-5 compact:p-3 rounded-2xl font-semibold text-sm transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] border hover:shadow-xl ${color}`}
-            style={{ animationDelay: `${i * 0.05}s` }}
+            className="group card flex items-center gap-3 p-4 text-left hover:shadow-card-hover hover:border-brand-blue/20 transition-all"
           >
-            <div className="p-2.5 bg-white/80 rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-110">
-              <Icon size={20} />
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${tone}`}>
+              <Icon size={19} />
             </div>
-            <span className="font-bold">{label}</span>
-            <ArrowRight size={14} className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-gray-900 truncate">{label}</p>
+              <p className="text-xs font-semibold text-ink-3 truncate">{hint}</p>
+            </div>
+            <ArrowRight size={15} className="text-ink-3 group-hover:text-brand-blue group-hover:translate-x-0.5 transition-all flex-shrink-0" />
           </button>
         ))}
       </div>
@@ -387,7 +334,7 @@ export default function DashboardPage() {
         <div className="card p-4 sm:p-6 compact:p-4 lg:col-span-2 group hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between mb-6 compact:mb-3">
             <div>
-              <h3 className="text-lg font-black text-gray-900">Revenue Trend</h3>
+              <h3 className="section-title">Revenue Trend</h3>
               <p className="text-xs text-gray-400 mt-1">Last 6 months performance overview</p>
             </div>
             <div className="flex items-center gap-3">
@@ -412,8 +359,8 @@ export default function DashboardPage() {
               <AreaChart data={revenue}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1B4332" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#1B4332" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#25449A" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#25449A" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -423,7 +370,7 @@ export default function DashboardPage() {
                   contentStyle={{ borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 12px 40px rgba(0,0,0,0.12)', fontSize: '13px', padding: '12px 16px' }}
                   formatter={(v: number) => [`R${v.toLocaleString()}`, 'Revenue']}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#1B4332" fill="url(#revGrad)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#1B4332', strokeWidth: 3, stroke: '#fff' }} />
+                <Area type="monotone" dataKey="revenue" stroke="#25449A" fill="url(#revGrad)" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#25449A', strokeWidth: 3, stroke: '#fff' }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -434,7 +381,7 @@ export default function DashboardPage() {
         <div className="card p-6 compact:p-4 hover:shadow-xl transition-shadow duration-300">
           <div className="flex items-center justify-between mb-6 compact:mb-3">
             <div>
-              <h3 className="text-lg font-black text-gray-900">Order Pipeline</h3>
+              <h3 className="section-title">Order Pipeline</h3>
               <p className="text-xs text-gray-400 mt-1">Active order flow</p>
             </div>
             <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
@@ -498,7 +445,7 @@ export default function DashboardPage() {
                 contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: '12px' }}
                 formatter={(v: number) => [v, 'Units Sold']}
               />
-              <Bar dataKey="totalSold" fill="#2E7D52" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="totalSold" fill="#078C50" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
           )}
@@ -564,7 +511,7 @@ export default function DashboardPage() {
       <div className="card p-6 compact:p-4 hover:shadow-xl transition-shadow duration-300">
         <div className="flex items-center justify-between mb-5 compact:mb-3">
           <div>
-            <h3 className="text-lg font-black text-gray-900">Compliance Status</h3>
+            <h3 className="section-title">Compliance Status</h3>
             <p className="text-xs text-gray-400 mt-1">Keep your documents up to date to avoid restrictions</p>
           </div>
           <button onClick={() => navigate('/profile')} className="flex items-center gap-2 text-sm text-primary font-bold bg-primary-50 px-4 py-2 rounded-xl border border-primary-100 hover:bg-primary-100 transition-colors">
@@ -603,27 +550,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Upgrade CTA Banner — Premium with shimmer */}
-      {user?.tier !== 'gold' && (
-      <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary-800 via-primary-700 to-primary-600 p-4 sm:p-6 compact:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden shadow-2xl animate-upgrade-shimmer group">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative z-10 flex items-center gap-3 sm:gap-5">
-          <div className="w-12 h-12 bg-accent/20 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-            <Sparkles size={24} className="text-accent" />
-          </div>
-          <div>
-            <p className="font-black text-white text-base">Upgrade to Gold and pay lower commission</p>
-            <p className="text-primary-200/70 text-sm mt-1">Compare tiers to see how much you could save at your current volume</p>
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/subscription')}
-          className="relative z-10 flex items-center justify-center gap-2 bg-accent hover:bg-accent-600 text-white text-sm font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0 w-full sm:w-auto"
-        >
-          Upgrade Now <ArrowRight size={14} />
-        </button>
-      </div>
-      )}
     </div>
   );
 }

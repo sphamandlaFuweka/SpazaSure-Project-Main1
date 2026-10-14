@@ -152,7 +152,7 @@ export default function AdminNotificationsPage() {
           {(['all', ...presentTypes] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)}
               className={clsx('px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
-                typeFilter === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400 hover:text-slate-700')}>
+                typeFilter === t ? 'bg-brand-blue text-white border-brand-blue' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400 hover:text-slate-700')}>
               {t === 'all' ? 'All' : typeConfig[t].label}
             </button>
           ))}

@@ -226,7 +226,7 @@ export default function AdminSettingsPage() {
         {tabs.map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={clsx('flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap',
-              activeTab === tab ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+              activeTab === tab ? 'border-brand-blue text-brand-blue' : 'border-transparent text-gray-500 hover:text-gray-700'
             )}>
             {tab === 'Subscription Tiers' && <Zap size={14} />}
             {tab === 'Platform Fees' && <DollarSign size={14} />}
@@ -304,7 +304,7 @@ export default function AdminSettingsPage() {
                 className="input"
               />
               <p className="text-xs text-gray-400 mt-1.5">Once-off amount charged to new shop owners. R0 waives the fee.</p>
-              <button onClick={handleSave} disabled={saving || settingsLoading} className="mt-3 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm inline-flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm">
+              <button onClick={handleSave} disabled={saving || settingsLoading} className="mt-3 bg-brand-blue hover:bg-brand-blue-dark text-white px-4 py-2 rounded-full font-semibold text-sm inline-flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {saving ? 'Saving...' : 'Save onboarding fee'}
               </button>
             </div>
@@ -395,7 +395,7 @@ export default function AdminSettingsPage() {
               <button
                 onClick={handleSaveFaqs}
                 disabled={faqSaving}
-                className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-xs flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm"
+                className="bg-brand-blue hover:bg-brand-blue-dark text-white px-4 py-2 rounded-full font-semibold text-xs flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm"
               >
                 {faqSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 Save Order

@@ -4,6 +4,17 @@ import clsx from 'clsx';
 import type { OrderStatus, PaymentStatus } from '../../types';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
+// Soft tinted KPI card (brand palette) with an icon chip and an optional trend chip.
+type StatTone = 'default' | 'green' | 'amber' | 'blue' | 'red';
+
+const STAT_TONES: Record<StatTone, { card: string; chip: string; label: string }> = {
+  default: { card: 'bg-white border-brand-blue-light',                                   chip: 'bg-brand-blue-light text-brand-blue',   label: 'text-ink-3' },
+  blue:    { card: 'bg-gradient-to-br from-brand-blue-light to-white border-brand-blue-light', chip: 'bg-brand-blue text-white',        label: 'text-brand-blue/70' },
+  green:   { card: 'bg-gradient-to-br from-brand-green-light to-white border-emerald-100', chip: 'bg-brand-green text-white',         label: 'text-brand-green/80' },
+  amber:   { card: 'bg-gradient-to-br from-brand-yellow-light to-white border-amber-100', chip: 'bg-brand-yellow text-brand-blue',    label: 'text-accent-700/90' },
+  red:     { card: 'bg-gradient-to-br from-brand-red-light to-white border-red-100',      chip: 'bg-brand-red text-white',           label: 'text-brand-red/80' },
+};
+
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -11,105 +22,53 @@ interface StatCardProps {
   icon: ReactNode;
   prefix?: string;
   suffix?: string;
-  variant?: 'default' | 'green' | 'amber';
+  variant?: StatTone;
   description?: string;
 }
 
 export function StatCard({ title, value, change, icon, prefix = '', suffix = '', variant = 'default', description }: StatCardProps) {
   const isPositive = (change ?? 0) >= 0;
-
-  if (variant === 'green') {
-    return (
-      <div className="stat-card-green animate-in">
-        <div className="absolute inset-0 bg-gradient-mesh opacity-30 pointer-events-none rounded-2xl" />
-        <div className="flex items-start justify-between relative z-10">
-          <div>
-            <p className="text-primary-200/80 text-xs font-semibold uppercase tracking-wider">{title}</p>
-            <p className="kpi-value text-white mt-1.5">
-              {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
-            </p>
-            {change !== undefined && (
-              <div className="flex items-center gap-1 text-xs mt-2">
-                <span className="flex items-center gap-1 bg-white/15 text-white font-bold px-2 py-0.5 rounded-full">
-                  {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {Math.abs(change)}%
-                </span>
-                <span className="text-primary-200/70 text-[11px]">vs last month</span>
-              </div>
-            )}
-            {description && <p className="text-xs text-primary-200/60 mt-1">{description}</p>}
-          </div>
-          <div className="p-2.5 bg-white/15 rounded-xl ring-1 ring-white/10">{icon}</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'amber') {
-    return (
-      <div className="stat-card-amber animate-in">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-amber-100/80 text-xs font-semibold uppercase tracking-wider">{title}</p>
-            <p className="kpi-value text-white mt-1.5">
-              {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
-            </p>
-            {change !== undefined && (
-              <div className="flex items-center gap-1 text-xs mt-2">
-                <span className="flex items-center gap-1 bg-white/15 text-white font-bold px-2 py-0.5 rounded-full">
-                  {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {Math.abs(change)}%
-                </span>
-                <span className="text-amber-200/70 text-[11px]">vs last month</span>
-              </div>
-            )}
-          </div>
-          <div className="p-2.5 bg-white/15 rounded-xl ring-1 ring-white/10">{icon}</div>
-        </div>
-      </div>
-    );
-  }
+  const tone = STAT_TONES[variant];
 
   return (
-    <div className="card p-5 animate-in hover:shadow-card-hover transition-shadow duration-200">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{title}</p>
-          <p className="kpi-value text-gray-900 mt-1.5">
-            {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
-          </p>
-          {change !== undefined && (
-            <div className={clsx('flex items-center gap-1 text-xs mt-2 font-bold', isPositive ? 'text-emerald-600' : 'text-red-500')}>
-              {isPositive
-                ? <span className="metric-up"><TrendingUp size={10} /> {Math.abs(change)}%</span>
-                : <span className="metric-down"><TrendingDown size={10} /> {Math.abs(change)}%</span>
-              }
-              <span className="text-gray-400 font-normal text-[11px]">vs last month</span>
-            </div>
-          )}
-          {description && <p className="text-xs text-gray-400 mt-1">{description}</p>}
+    <div className={clsx('rounded-3xl border p-5 shadow-card animate-in', tone.card)}>
+      <div className="flex items-center justify-between gap-3">
+        <div className={clsx('w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 [&>svg]:w-[18px] [&>svg]:h-[18px]', tone.chip)}>
+          {icon}
         </div>
-        <div className="p-2.5 bg-primary-50 rounded-xl text-primary flex-shrink-0 ring-1 ring-primary-100">{icon}</div>
+        {change !== undefined && (
+          <span className={isPositive ? 'metric-up' : 'metric-down'}>
+            {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+            {isPositive ? '+' : '-'}{Math.abs(change)}%
+          </span>
+        )}
       </div>
+      <p className={clsx('mt-4 text-xs font-extrabold uppercase tracking-wider', tone.label)}>{title}</p>
+      <p className="kpi-value text-gray-900 mt-1">
+        {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
+      </p>
+      {(description || change !== undefined) && (
+        <p className="text-xs font-semibold text-ink-3 mt-1">{description ?? 'vs last month'}</p>
+      )}
     </div>
   );
 }
 
 // ─── Order Status Badge ───────────────────────────────────────────────────────
 const orderStatusMap: Record<OrderStatus, { label: string; className: string; dot: string }> = {
-  pending:    { label: 'Pending',    className: 'bg-amber-50 text-amber-700 border border-amber-200',     dot: 'bg-amber-400' },
-  confirmed:  { label: 'Confirmed',  className: 'bg-blue-50 text-blue-700 border border-blue-200',        dot: 'bg-blue-400' },
+  pending:    { label: 'Pending',    className: 'bg-brand-yellow-light text-accent-700',  dot: 'bg-brand-yellow' },
+  confirmed:  { label: 'Confirmed',  className: 'bg-brand-blue-light text-brand-blue',   dot: 'bg-brand-blue' },
   processing: { label: 'Processing', className: 'bg-violet-50 text-violet-700 border border-violet-200',  dot: 'bg-violet-400' },
   dispatched: { label: 'Dispatched', className: 'bg-indigo-50 text-indigo-700 border border-indigo-200',  dot: 'bg-indigo-400' },
-  delivered:  { label: 'Delivered',  className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-400' },
+  delivered:  { label: 'Delivered',  className: 'bg-brand-green-light text-brand-green', dot: 'bg-brand-green' },
   cancelled:  { label: 'Cancelled',  className: 'bg-gray-100 text-gray-600 border border-gray-200',       dot: 'bg-gray-400' },
-  disputed:   { label: 'Disputed',   className: 'bg-red-50 text-red-700 border border-red-200',           dot: 'bg-red-400' },
+  disputed:   { label: 'Disputed',   className: 'bg-brand-red-light text-brand-red',     dot: 'bg-brand-red' },
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const { label, className, dot } = orderStatusMap[status] ?? { label: status, className: 'bg-gray-100 text-gray-600 border border-gray-200', dot: 'bg-gray-400' };
+  const { label, className, dot } = orderStatusMap[status] ?? { label: status, className: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
   return (
-    <span className={clsx('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full', className)}>
+    <span className={clsx('inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap', className)}>
       <span className={clsx('w-1.5 h-1.5 rounded-full', dot)} />
       {label}
     </span>
@@ -162,9 +121,9 @@ export function EmptyState({ title, description, action, icon }: {
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-      {icon && <div className="mb-4 text-gray-300">{icon}</div>}
-      <p className="text-base font-semibold text-gray-700">{title}</p>
-      <p className="text-sm text-gray-400 mt-1.5 max-w-xs leading-relaxed">{description}</p>
+      {icon && <div className="mb-4 w-16 h-16 rounded-3xl bg-brand-blue-light text-brand-blue flex items-center justify-center [&>svg]:w-7 [&>svg]:h-7">{icon}</div>}
+      <p className="text-base font-extrabold text-gray-900">{title}</p>
+      <p className="text-sm text-ink-3 mt-1.5 max-w-xs leading-relaxed">{description}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -188,14 +147,14 @@ export function Modal({ title, children, onClose, size = 'md' }: {
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-brand-blue-dark/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className={clsx(
-        'relative bg-white rounded-2xl shadow-card-lg w-full flex flex-col max-h-[90vh] overflow-hidden',
+        'relative bg-white rounded-3xl shadow-card-xl w-full flex flex-col max-h-[90vh] overflow-hidden',
         'animate-scale-in',
         widths[size]
       )}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-          <h2 className="text-base font-bold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-blue-light flex-shrink-0">
+          <h2 className="text-lg font-black text-gray-900">{title}</h2>
           <button onClick={onClose} className="btn-icon" aria-label="Close dialog"><X size={18} /></button>
         </div>
         <div className="overflow-y-auto flex-1 overscroll-contain">{children}</div>
@@ -245,8 +204,8 @@ export function Avatar({ name, size = 'md', src }: { name: string; size?: 'sm' |
 // ─── Section Header ───────────────────────────────────────────────────────────
 export function SectionHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-      <h3 className="font-bold text-gray-900">{title}</h3>
+    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-brand-blue-light">
+      <h3 className="section-title">{title}</h3>
       {action}
     </div>
   );

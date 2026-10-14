@@ -30,25 +30,71 @@ export default {
           600: '#D99508',
           700: '#AA7206',
         },
-        surface: '#F5F7FC',
+        // Tailwind's stock scales remapped onto the four logo colours, so every page
+        // (including older ones using emerald/blue/amber/red) stays on-brand.
+        blue: {
+          50: '#EEF2FF', 100: '#DCE4FF', 200: '#B9C8FF', 300: '#8EA6F0', 400: '#607CC8',
+          500: '#3F5DB0', 600: '#25449A', 700: '#1D367D', 800: '#172B63', 900: '#0E1B42',
+        },
+        indigo: {
+          50: '#EEF2FF', 100: '#DCE4FF', 200: '#B9C8FF', 300: '#8EA6F0', 400: '#607CC8',
+          500: '#3F5DB0', 600: '#25449A', 700: '#1D367D', 800: '#172B63', 900: '#0E1B42',
+        },
+        emerald: {
+          50: '#E6F5EE', 100: '#C2E8D6', 200: '#8FD5B4', 300: '#4DBD8C', 400: '#22A56B',
+          500: '#0E9658', 600: '#078C50', 700: '#067442', 800: '#055C35', 900: '#034427',
+        },
+        green: {
+          50: '#E6F5EE', 100: '#C2E8D6', 200: '#8FD5B4', 300: '#4DBD8C', 400: '#22A56B',
+          500: '#0E9658', 600: '#078C50', 700: '#067442', 800: '#055C35', 900: '#034427',
+        },
+        amber: {
+          50: '#FEF5E0', 100: '#FDE7B3', 200: '#FBD47A', 300: '#FAC44B', 400: '#F9BA2E',
+          500: '#F8B217', 600: '#D99508', 700: '#AA7206', 800: '#7D5405', 900: '#5A3C03',
+        },
+        red: {
+          50: '#FCEAEA', 100: '#F9D0D0', 200: '#F2A3A3', 300: '#EA7171', 400: '#E44747',
+          500: '#E02526', 600: '#C81E1F', 700: '#A6191A', 800: '#7F1314', 900: '#5C0E0F',
+        },
+        // SpazaSure brand palette (matches spazasure.co.za)
+        brand: {
+          blue: '#25449A',
+          'blue-dark': '#1A3278',
+          'blue-light': '#E8ECF8',
+          green: '#078C50',
+          'green-light': '#E6F5EE',
+          red: '#E02526',
+          'red-light': '#FCEAEA',
+          yellow: '#F8B217',
+          'yellow-light': '#FEF5E0',
+        },
+        ink: {
+          DEFAULT: '#3A3A5E',
+          2: '#5A5A7A',
+          3: '#8888AA',
+        },
+        surface: '#F5F7FF',
         card: '#FFFFFF',
       },
       fontFamily: {
         sans: ['Nunito', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)',
-        'card-hover': '0 8px 24px 0 rgba(0,0,0,0.10), 0 2px 8px -1px rgba(0,0,0,0.06)',
-        'card-lg': '0 12px 32px 0 rgba(0,0,0,0.10)',
-        'card-xl': '0 20px 48px 0 rgba(0,0,0,0.12)',
-        sidebar: '4px 0 24px 0 rgba(0,0,0,0.12)',
-        glow: '0 0 20px rgba(27,67,50,0.25)',
+        // Soft, blue-tinted shadows (calm and even, like the reference dashboards)
+        card: '0 1px 2px 0 rgba(37,68,154,0.04), 0 1px 3px 0 rgba(37,68,154,0.05)',
+        'card-hover': '0 10px 30px -8px rgba(37,68,154,0.16)',
+        'card-lg': '0 16px 40px -12px rgba(37,68,154,0.18)',
+        'card-xl': '0 24px 60px -16px rgba(37,68,154,0.22)',
+        sidebar: '1px 0 0 0 #E8ECF8',
+        glow: '0 8px 24px -6px rgba(37,68,154,0.45)',
         'glow-accent': '0 0 20px rgba(245,158,11,0.30)',
         'inner-sm': 'inset 0 1px 3px rgba(0,0,0,0.06)',
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(135deg, #25449A 0%, #3F5DB0 55%, #078C50 100%)',
         'gradient-card': 'linear-gradient(135deg, #25449A 0%, #1D367D 100%)',
+        // Brand hero: deep blue with soft radial highlights, like the website hero
+        'gradient-hero': 'radial-gradient(120% 140% at 100% 0%, rgba(248,178,23,0.18) 0%, transparent 45%), radial-gradient(90% 120% at 0% 100%, rgba(7,140,80,0.22) 0%, transparent 50%), linear-gradient(135deg, #25449A 0%, #1A3278 100%)',
         'gradient-gold': 'linear-gradient(135deg, #D99508 0%, #F8B217 100%)',
         'gradient-surface': 'linear-gradient(180deg, #F5F7FC 0%, #FFFFFF 100%)',
         'gradient-mesh': 'radial-gradient(at 40% 20%, hsla(225,60%,45%,0.08) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(42,90%,55%,0.08) 0px, transparent 50%)',
@@ -179,6 +225,7 @@ export default {
       borderRadius: {
         xl: '0.875rem',
         '2xl': '1.25rem',
+        '3xl': '1.5rem',
       },
     },
   },

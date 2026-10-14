@@ -128,6 +128,8 @@ class Order {
   final bool isGroupBuy;
   final String deliveryAddress;
   final double? deliveryDistanceKm;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final DateTime createdAt;
   final DateTime? estimatedDelivery;
 
@@ -150,6 +152,8 @@ class Order {
     this.isGroupBuy = false,
     this.deliveryAddress = '',
     this.deliveryDistanceKm,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     required this.createdAt,
     this.estimatedDelivery,
   });

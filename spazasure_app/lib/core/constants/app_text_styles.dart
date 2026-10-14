@@ -5,25 +5,26 @@ import 'app_colors.dart';
 class AppTextStyles {
   static TextStyle get h1 => GoogleFonts.nunito(
     fontSize: 28,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w900,
+    height: 1.1,
     color: AppColors.textPrimary,
   );
 
   static TextStyle get h2 => GoogleFonts.nunito(
     fontSize: 22,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w900,
     color: AppColors.textPrimary,
   );
 
   static TextStyle get h3 => GoogleFonts.nunito(
     fontSize: 18,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
   );
 
   static TextStyle get subtitle => GoogleFonts.nunito(
     fontSize: 16,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
   );
 
@@ -41,19 +42,19 @@ class AppTextStyles {
 
   static TextStyle get button => GoogleFonts.nunito(
     fontSize: 16,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w800,
     color: Colors.white,
   );
 
   static TextStyle get caption => GoogleFonts.nunito(
     fontSize: 11,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w600,
     color: AppColors.textSecondary,
   );
 
   static TextStyle get price => GoogleFonts.nunito(
     fontSize: 18,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w900,
     color: AppColors.primary,
   );
 

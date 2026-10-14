@@ -14,7 +14,26 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       }}
     >
       <App />
-      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+      {/* Bottom-right so toasts never cover the header or page action buttons */}
+      <Toaster
+        position="bottom-right"
+        gutter={10}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            fontFamily: 'Nunito, system-ui, sans-serif',
+            fontWeight: 700,
+            fontSize: '14px',
+            color: '#3A3A5E',
+            borderRadius: '18px',
+            padding: '12px 16px',
+            border: '1px solid #E8ECF8',
+            boxShadow: '0 16px 40px -12px rgba(37,68,154,0.25)',
+          },
+          success: { iconTheme: { primary: '#078C50', secondary: '#fff' } },
+          error: { iconTheme: { primary: '#E02526', secondary: '#fff' } },
+        }}
+      />
     </BrowserRouter>
   </React.StrictMode>
 );

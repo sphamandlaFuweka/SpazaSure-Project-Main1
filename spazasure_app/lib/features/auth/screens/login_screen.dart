@@ -202,26 +202,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
 
                           const SizedBox(height: 20),
-                          SegmentedButton<bool>(
-                            segments: const [
-                              ButtonSegment(
-                                value: false,
-                                icon: Icon(Icons.storefront_outlined),
-                                label: Text('Retailer'),
-                              ),
-                              ButtonSegment(
-                                value: true,
-                                icon: Icon(Icons.person_outline),
-                                label: Text('Customer'),
-                              ),
-                            ],
-                            selected: {_customerLogin},
-                            onSelectionChanged: (selected) {
-                              setState(() {
-                                _customerLogin = selected.first;
-                                _phoneError = null;
-                              });
-                            },
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<bool>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(
+                                  value: false,
+                                  icon: Icon(Icons.storefront_outlined),
+                                  label: Text('Retailer'),
+                                ),
+                                ButtonSegment(
+                                  value: true,
+                                  icon: Icon(Icons.person_outline),
+                                  label: Text('Customer'),
+                                ),
+                              ],
+                              selected: {_customerLogin},
+                              onSelectionChanged: (selected) {
+                                setState(() {
+                                  _customerLogin = selected.first;
+                                  _phoneError = null;
+                                });
+                              },
+                            ),
                           ),
                           const SizedBox(height: 28),
 
@@ -391,9 +395,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     .withValues(alpha: 0.5),
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
+                                shape: const StadiumBorder(),
                               ),
                               child: _isLoading
                                   ? const SizedBox(

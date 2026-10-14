@@ -114,7 +114,7 @@ class _EditableAvatarState extends State<EditableAvatar> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                    colors: [Color(0xFF078C50), Color(0xFF81C784)],
                   ),
                   boxShadow: [
                     BoxShadow(
