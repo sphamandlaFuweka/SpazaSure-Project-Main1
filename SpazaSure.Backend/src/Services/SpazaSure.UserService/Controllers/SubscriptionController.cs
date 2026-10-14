@@ -242,7 +242,7 @@ public class SubscriptionController(
                 sub.NextBillingDate = null;
                 sub.CancelledReason = req.Reason ?? "User cancelled";
                 supplier.Tier = "basic";
-                supplier.CommissionRate = 5m;
+                supplier.CommissionRate = await BasicPlan.CommissionRateAsync(db);
                 await db.SaveChangesAsync();
             }
             catch (Exception error) when (error is HttpRequestException or InvalidOperationException)
@@ -260,7 +260,7 @@ public class SubscriptionController(
 
         // Downgrade to basic
         supplier.Tier = "basic";
-        supplier.CommissionRate = 5m;
+        supplier.CommissionRate = await BasicPlan.CommissionRateAsync(db);
 
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Subscription cancelled. You are now on the Basic tier."));

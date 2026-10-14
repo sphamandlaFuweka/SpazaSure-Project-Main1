@@ -430,7 +430,7 @@ public class PaymentController(
             supplier.EndDate = DateTime.UtcNow;
             supplier.NextBillingDate = null;
             supplier.Supplier.Tier = "basic";
-            supplier.Supplier.CommissionRate = 5m;
+            supplier.Supplier.CommissionRate = await BasicPlan.CommissionRateAsync(db, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         return Ok();
