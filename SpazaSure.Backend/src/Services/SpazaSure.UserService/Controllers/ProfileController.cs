@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.Shared.Storage;
 using System.Security.Claims;
@@ -12,7 +13,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/supplier/profile")]
 [Authorize]
-public class ProfileController(SpazaSureDbContext db, IFileStorageService storage) : ControllerBase
+public class ProfileController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -103,6 +104,8 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
                 });
             }
             await db.SaveChangesAsync();
+            await AdminAlerts.NotifyAdminsAsync(db, events, "compliance", "Document waiting for review",
+                $"{supplier.CompanyName} uploaded a {docType.Replace('_', ' ')} document.", supplier.Id.ToString());
             return Ok(ApiResponse<object>.Ok(new { docType, docUrl, status = "pending" }));
         }
     }

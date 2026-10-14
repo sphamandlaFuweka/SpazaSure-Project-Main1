@@ -225,6 +225,12 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         await db.SaveChangesAsync();
 
         Notify(groupBuy, "Group buy cancelled", $"An admin cancelled '{groupBuy.Title}'.");
+        // Shops that had joined lose their commitment, so tell them too
+        events.PublishNotificationToMany(
+            groupBuy.Participants.Where(p => p.Status == "cancelled").Select(p => p.Shop.UserId.ToString()),
+            "group_buy", "Group buy cancelled",
+            $"'{groupBuy.Title}' was cancelled, so your commitment was released.",
+            referenceId: groupBuy.Id.ToString(), routingKey: "notification.group_buy");
         return Ok(ApiResponse.Ok("Group buy cancelled."));
     }
 

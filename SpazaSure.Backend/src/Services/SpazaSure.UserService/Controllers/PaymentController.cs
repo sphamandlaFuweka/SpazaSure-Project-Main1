@@ -239,7 +239,14 @@ public class PaymentController(
             walletTransaction.Status = "approved";
             walletTransaction.ApprovedAt = DateTime.UtcNow;
             walletTransaction.Notes = "Payment confirmed by Paystack webhook.";
+            await ShopWallet.SyncTopUpAsync(db, walletTransaction, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
+            var shopUserId = await db.SpazaShops.Where(s => s.Id == walletTransaction.ShopId)
+                .Select(s => (Guid?)s.UserId).FirstOrDefaultAsync(cancellationToken);
+            if (shopUserId is not null)
+                events.PublishNotification(shopUserId.Value.ToString(), "wallet", "Wallet topped up",
+                    $"Your Paystack payment of R{walletTransaction.Amount:F2} has been added to your wallet.",
+                    referenceId: walletTransaction.Id.ToString(), routingKey: "wallet.topped_up");
             return Ok();
         }
 
@@ -270,6 +277,16 @@ public class PaymentController(
                         referenceId: order.Id.ToString(),
                         routingKey: "order.placed");
                 }
+                // Tell the shop its payment went through (one message per checkout)
+                var paidTotal = unpaidOrders.Sum(o => o.TotalAmount);
+                var orderNumbers = string.Join(", ", unpaidOrders.Select(o => o.OrderNumber));
+                events.PublishNotification(
+                    supplierId: unpaidOrders[0].Shop.UserId.ToString(),
+                    type: "order",
+                    title: "Payment received",
+                    message: $"We received your payment of R{paidTotal:F2} for {orderNumbers}. Your supplier has been notified.",
+                    referenceId: unpaidOrders[0].Id.ToString(),
+                    routingKey: "order.paid");
             }
             return Ok();
         }

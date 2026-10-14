@@ -1,10 +1,26 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.NotificationService.Data;
+using SpazaSure.NotificationService.Models;
 
 namespace SpazaSure.NotificationService.Controllers;
 
+internal static class NotificationUser
+{
+    /// <summary>
+    /// The signed-in user's id. JWT "sub" is mapped to ClaimTypes.NameIdentifier when the token is
+    /// read, so look there first (reading only "sub" returned an empty id and an empty inbox).
+    /// </summary>
+    public static string Get(ClaimsPrincipal user) =>
+        user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub") ?? user.FindFirstValue("id") ?? "";
+
+    public static IQueryable<Notification> Page(IQueryable<Notification> query, int page, int pageSize) =>
+        query.Skip((Math.Max(page, 1) - 1) * Math.Clamp(pageSize, 1, 100)).Take(Math.Clamp(pageSize, 1, 100));
+}
+
+/// <summary>Notifications for the dashboard (suppliers and admins).</summary>
 [ApiController]
 [Route("api/supplier/notifications")]
 [Authorize]
@@ -17,22 +33,17 @@ public class NotificationsController : ControllerBase
         _db = db;
     }
 
-    private string GetSupplierId() =>
-        User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? "";
-
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var supplierId = GetSupplierId();
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
         var query = _db.Notifications
-            .Where(n => n.SupplierId == supplierId)
+            .Where(n => n.SupplierId == userId)
             .OrderByDescending(n => n.CreatedAt);
 
         var total = await query.CountAsync();
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var items = await NotificationUser.Page(query, page, pageSize).ToListAsync();
 
         return Ok(new { data = items, total, page, pageSize });
     }
@@ -40,19 +51,18 @@ public class NotificationsController : ControllerBase
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount()
     {
-        var supplierId = GetSupplierId();
-        var count = await _db.Notifications
-            .CountAsync(n => n.SupplierId == supplierId && !n.IsRead);
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
+        var count = await _db.Notifications.CountAsync(n => n.SupplierId == userId && !n.IsRead);
         return Ok(new { count });
     }
 
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {
-        var supplierId = GetSupplierId();
+        var userId = NotificationUser.Get(User);
         var notification = await _db.Notifications
-            .FirstOrDefaultAsync(n => n.Id == id && n.SupplierId == supplierId);
-
+            .FirstOrDefaultAsync(n => n.Id == id && n.SupplierId == userId);
         if (notification == null) return NotFound();
 
         notification.IsRead = true;
@@ -63,9 +73,10 @@ public class NotificationsController : ControllerBase
     [HttpPut("read-all")]
     public async Task<IActionResult> MarkAllAsRead()
     {
-        var supplierId = GetSupplierId();
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
         await _db.Notifications
-            .Where(n => n.SupplierId == supplierId && !n.IsRead)
+            .Where(n => n.SupplierId == userId && !n.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
         return Ok(new { message = "All marked as read" });
     }
@@ -87,21 +98,17 @@ public class ShopNotificationsController : ControllerBase
         _db = db;
     }
 
-    private string GetUserId() =>
-        User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? "";
-
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var userId = GetUserId();
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
         var query = _db.Notifications
             .Where(n => n.SupplierId == userId)
             .OrderByDescending(n => n.CreatedAt);
 
         var total = await query.CountAsync();
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+        var items = await NotificationUser.Page(query, page, pageSize)
             .Select(n => new
             {
                 n.Id,
@@ -121,16 +128,16 @@ public class ShopNotificationsController : ControllerBase
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount()
     {
-        var userId = GetUserId();
-        var count = await _db.Notifications
-            .CountAsync(n => n.SupplierId == userId && !n.IsRead);
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
+        var count = await _db.Notifications.CountAsync(n => n.SupplierId == userId && !n.IsRead);
         return Ok(new { success = true, data = new { count } });
     }
 
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {
-        var userId = GetUserId();
+        var userId = NotificationUser.Get(User);
         var notification = await _db.Notifications
             .FirstOrDefaultAsync(n => n.Id == id && n.SupplierId == userId);
         if (notification == null) return NotFound();
@@ -142,7 +149,8 @@ public class ShopNotificationsController : ControllerBase
     [HttpPut("read-all")]
     public async Task<IActionResult> MarkAllAsRead()
     {
-        var userId = GetUserId();
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
         await _db.Notifications
             .Where(n => n.SupplierId == userId && !n.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));

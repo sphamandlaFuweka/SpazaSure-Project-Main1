@@ -19,6 +19,7 @@ import 'features/orders/screens/orders_screen.dart';
 import 'features/orders/screens/order_detail_screen.dart';
 import 'features/delivery/screens/delivery_tracking_screen.dart';
 import 'features/compliance/screens/compliance_screen.dart';
+import 'core/widgets/notification_popup_host.dart';
 import 'features/notifications/screens/notifications_screen.dart';
 import 'features/notifications/screens/report_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
@@ -49,6 +50,9 @@ void main() {
   );
 }
 
+/// Lets app-wide overlays (e.g. notification pop-ups) open screens.
+final appNavigatorKey = GlobalKey<NavigatorState>();
+
 class SpazaSureApp extends StatelessWidget {
   const SpazaSureApp({super.key});
 
@@ -58,6 +62,12 @@ class SpazaSureApp extends StatelessWidget {
       title: 'SpazaSure',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      navigatorKey: appNavigatorKey,
+      // New notifications pop up over every screen while someone is signed in
+      builder: (context, child) => NotificationPopupHost(
+        navigatorKey: appNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
       initialRoute: '/splash',
       onGenerateRoute: (settings) {
         final pages = <String, Widget Function()>{

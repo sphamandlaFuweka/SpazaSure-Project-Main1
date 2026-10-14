@@ -7,39 +7,61 @@ namespace SpazaSure.Shared.Helpers;
 /// <summary>
 /// Publishes events to RabbitMQ for the NotificationService to consume.
 /// Register as a singleton via DI: builder.Services.AddSingleton&lt;EventPublisher&gt;();
+/// Connects lazily and reconnects on its own, so a service that starts before RabbitMQ
+/// is ready (or loses its connection later) still delivers notifications afterwards.
 /// </summary>
 public class EventPublisher : IDisposable
 {
-    private readonly IConnection? _connection;
-    private readonly IModel? _channel;
+    private readonly ConnectionFactory _factory;
+    private readonly object _lock = new();
+    private IConnection? _connection;
+    private IModel? _channel;
+    private DateTime _nextConnectAttempt = DateTime.MinValue;
     private const string ExchangeName = "spazasure.events";
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(10);
 
     public EventPublisher(string host = "localhost", string username = "spazasure", string password = "guest")
     {
+        _factory = new ConnectionFactory
+        {
+            HostName = host,
+            UserName = username,
+            Password = password,
+            AutomaticRecoveryEnabled = true,
+            RequestedConnectionTimeout = TimeSpan.FromSeconds(5),
+        };
+        lock (_lock) EnsureChannel();
+    }
+
+    /// <summary>Opens the connection if needed. Must be called while holding _lock.</summary>
+    private bool EnsureChannel()
+    {
+        if (_channel is { IsOpen: true }) return true;
+        if (DateTime.UtcNow < _nextConnectAttempt) return false;
         try
         {
-            var factory = new ConnectionFactory
-            {
-                HostName = host,
-                UserName = username,
-                Password = password,
-            };
-            _connection = factory.CreateConnection();
+            _channel?.Dispose();
+            _connection?.Dispose();
+            _connection = _factory.CreateConnection();
             _channel = _connection.CreateModel();
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
+            return true;
         }
         catch
         {
-            // If RabbitMQ is unavailable, notifications just won't be sent
-            // The service continues to work without them
+            // RabbitMQ unavailable: try again on a later publish rather than on every call
+            _channel = null;
+            _connection = null;
+            _nextConnectAttempt = DateTime.UtcNow + RetryDelay;
+            return false;
         }
     }
 
     /// <summary>
     /// Publish a notification event that will be picked up by the NotificationService
     /// </summary>
-    /// <param name="supplierId">The target supplier's user ID (or shop userId for shop notifications)</param>
-    /// <param name="type">Notification type: order, product, compliance, system</param>
+    /// <param name="supplierId">The recipient's user ID (supplier, shop owner or admin)</param>
+    /// <param name="type">Notification type: order, product, compliance, wallet, payout, account, system</param>
     /// <param name="title">Short title</param>
     /// <param name="message">Notification message body</param>
     /// <param name="priority">normal or high</param>
@@ -54,40 +76,64 @@ public class EventPublisher : IDisposable
         string? referenceId = null,
         string routingKey = "notification.general")
     {
-        if (_channel == null) return;
+        if (string.IsNullOrWhiteSpace(supplierId)) return;
 
-        try
+        var evt = new
         {
-            var evt = new
+            SupplierId = supplierId,
+            Type = type,
+            Title = title,
+            Message = message.Length > 1000 ? message[..1000] : message,
+            Priority = priority,
+            ReferenceId = referenceId,
+        };
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(evt));
+
+        // IModel isn't thread-safe and this publisher is a singleton shared by all requests
+        lock (_lock)
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                SupplierId = supplierId,
-                Type = type,
-                Title = title,
-                Message = message,
-                Priority = priority,
-                ReferenceId = referenceId,
-            };
-
-            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(evt));
-            var props = _channel.CreateBasicProperties();
-            props.Persistent = true;
-            props.ContentType = "application/json";
-
-            _channel.BasicPublish(
-                exchange: ExchangeName,
-                routingKey: routingKey,
-                basicProperties: props,
-                body: body);
+                if (!EnsureChannel()) return;
+                try
+                {
+                    var props = _channel!.CreateBasicProperties();
+                    props.Persistent = true;
+                    props.ContentType = "application/json";
+                    _channel.BasicPublish(ExchangeName, routingKey, props, body);
+                    return;
+                }
+                catch
+                {
+                    // Stale channel: drop it and retry once on a fresh connection
+                    _channel = null;
+                    _nextConnectAttempt = DateTime.MinValue;
+                }
+            }
         }
-        catch
-        {
-            // Silently fail — notifications are non-critical
-        }
+    }
+
+    /// <summary>Sends the same notification to several users (e.g. every admin).</summary>
+    public void PublishNotificationToMany(
+        IEnumerable<string> userIds,
+        string type,
+        string title,
+        string message,
+        string priority = "normal",
+        string? referenceId = null,
+        string routingKey = "notification.general")
+    {
+        foreach (var userId in userIds.Distinct())
+            PublishNotification(userId, type, title, message, priority, referenceId, routingKey);
     }
 
     public void Dispose()
     {
-        _channel?.Close();
-        _connection?.Close();
+        lock (_lock)
+        {
+            try { _channel?.Close(); } catch { }
+            try { _connection?.Close(); } catch { }
+        }
+        GC.SuppressFinalize(this);
     }
 }

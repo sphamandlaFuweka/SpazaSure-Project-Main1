@@ -34,7 +34,7 @@ public sealed record PlatformRules
     public decimal CashOnDeliveryMaxOrderTotal { get; init; } = 5000m;
     /// <summary>SpazaSure's bank account that shops deposit into to top up their wallet.</summary>
     public string DepositBankName { get; init; } = "Capitec Business";
-    public string DepositAccountHolder { get; init; } = "SpazaSure";
+    public string DepositAccountHolder { get; init; } = "GEOTX PTY LTD";
     public string DepositAccountNumber { get; init; } = "10551015752";
     public string DepositBranchCode { get; init; } = "450105";
 

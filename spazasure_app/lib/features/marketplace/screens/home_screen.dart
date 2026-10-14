@@ -9,6 +9,7 @@ import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
+import 'package:spazasure_app/core/widgets/notification_popup_host.dart';
 import 'package:spazasure_app/services/notification_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
@@ -37,12 +38,14 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    NotificationPopupHost.unreadCount.addListener(_syncUnread);
     WidgetsBinding.instance.addObserver(this);
     _loadData();
   }
 
   @override
   void dispose() {
+    NotificationPopupHost.unreadCount.removeListener(_syncUnread);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -101,6 +104,11 @@ class _HomeScreenState extends State<HomeScreen>
       final withPoster = groups.where((g) => g.bannerImageUrl != null);
       setState(() => _featuredGroup = withPoster.isEmpty ? null : withPoster.first);
     } catch (_) {}
+  }
+
+  /// The pop-up host polls for notifications; keep the bell dot in step with it
+  void _syncUnread() {
+    if (mounted) setState(() => _unreadNotifications = NotificationPopupHost.unreadCount.value);
   }
 
   Future<void> _loadUnreadCount() async {

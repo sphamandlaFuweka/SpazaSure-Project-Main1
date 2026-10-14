@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.Shared.Storage;
 using System.Security.Claims;
@@ -21,7 +22,7 @@ namespace SpazaSure.ComplianceService.Controllers;
 [ApiController]
 [Route("api/customer/reports")]
 [Authorize]
-public class ReportsController(SpazaSureDbContext db, IFileStorageService storage) : ControllerBase
+public class ReportsController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -181,6 +182,9 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
 
         db.Reports.Add(report);
         await db.SaveChangesAsync();
+        await AdminAlerts.NotifyAdminsAsync(db, events, "report", "New report to review",
+            $"{report.ReportType}" + (string.IsNullOrWhiteSpace(report.ShopName) ? "" : $" at {report.ShopName}") + ".",
+            report.Id.ToString(), priority: "high");
 
         return Ok(ApiResponse<object>.Ok(new { report.Id, report.Status }, "Report submitted. Thanks for helping keep other shoppers safe."));
     }

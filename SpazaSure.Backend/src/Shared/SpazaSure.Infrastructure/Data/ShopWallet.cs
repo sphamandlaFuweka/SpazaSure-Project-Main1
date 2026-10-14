@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SpazaSure.Infrastructure.Entities;
 
 namespace SpazaSure.Infrastructure.Data;
 
@@ -13,20 +14,78 @@ public static class ShopWallet
     /// <summary>ShopWalletTransaction.Method for direct deposits into SpazaSure's bank account.</summary>
     public const string DirectDeposit = "eft";
 
-    /// <summary>
-    /// Approved top-ups minus orders paid from the wallet. Cancelled orders don't count,
-    /// so cancelling a wallet-paid order refunds it to the wallet automatically.
-    /// </summary>
-    public static async Task<decimal> BalanceAsync(SpazaSureDbContext db, Guid shopId, CancellationToken ct = default)
+    /// <summary>ShopWalletTransaction.Type for money a shop takes out of its wallet to its bank account.</summary>
+    public const string Withdrawal = "withdrawal";
+
+    /// <summary>Ledger entry types.</summary>
+    public static class Entry
     {
-        var credits = await db.ShopWalletTransactions
-            .Where(t => t.ShopId == shopId && t.Type == "top_up" && t.Status == "approved")
-            .SumAsync(t => (decimal?)t.Amount, ct) ?? 0m;
-        var debits = await db.Orders
-            .Where(o => o.ShopId == shopId && o.PaymentMethod == PaymentMethod && o.Status != "cancelled")
-            .SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0m;
-        return credits - debits;
+        public const string TopUp = "top_up";
+        public const string TopUpReversal = "top_up_reversal";
+        public const string OrderPayment = "order_payment";
+        public const string OrderRefund = "order_refund";
+        public const string WithdrawalDebit = "withdrawal";
+        public const string WithdrawalReversal = "withdrawal_reversal";
     }
+
+    /// <summary>The wallet balance: the sum of every ledger entry.</summary>
+    public static async Task<decimal> BalanceAsync(SpazaSureDbContext db, Guid shopId, CancellationToken ct = default) =>
+        await db.ShopWalletLedgerEntries
+            .Where(e => e.ShopId == shopId)
+            .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
+
+    /// <summary>
+    /// Makes the ledger say that <paramref name="sourceId"/> (a top-up, order or withdrawal) is worth
+    /// <paramref name="desiredAmount"/> to the wallet, by adding a correcting entry for the difference.
+    /// Safe to call repeatedly; nothing is added when the ledger is already right. Does not save.
+    /// </summary>
+    public static async Task SyncAsync(
+        SpazaSureDbContext db, Guid shopId, Guid sourceId, decimal desiredAmount,
+        string creditType, string debitType, string description, string? reference = null,
+        CancellationToken ct = default)
+    {
+        var current = await db.ShopWalletLedgerEntries
+            .Where(e => e.SourceId == sourceId)
+            .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
+        var delta = desiredAmount - current;
+        if (delta == 0m) return;
+        db.ShopWalletLedgerEntries.Add(new ShopWalletLedgerEntry
+        {
+            ShopId = shopId,
+            Amount = delta,
+            Type = delta > 0 ? creditType : debitType,
+            SourceId = sourceId,
+            Description = description,
+            Reference = reference,
+        });
+    }
+
+    /// <summary>An approved top-up credits the wallet; any other status leaves it untouched.</summary>
+    public static Task SyncTopUpAsync(SpazaSureDbContext db, ShopWalletTransaction t, CancellationToken ct = default) =>
+        SyncAsync(db, t.ShopId, t.Id, t.Status == "approved" ? t.Amount : 0m,
+            Entry.TopUp, Entry.TopUpReversal,
+            t.Method == DirectDeposit ? "Direct deposit"
+                : t.Method == "paystack" ? "Wallet top-up (Paystack)" : "Wallet top-up (" + t.Method + ")",
+            t.Reference, ct);
+
+    /// <summary>A wallet-paid order debits the wallet until it is cancelled, then it is refunded.</summary>
+    public static Task SyncOrderAsync(SpazaSureDbContext db, Order o, CancellationToken ct = default) =>
+        o.PaymentMethod != PaymentMethod
+            ? Task.CompletedTask
+            : SyncAsync(db, o.ShopId, o.Id, o.Status == "cancelled" ? 0m : -o.TotalAmount,
+                Entry.OrderRefund, Entry.OrderPayment,
+                (o.Status == "cancelled" ? "Refund for cancelled order " : "Order ") + o.OrderNumber,
+                o.OrderNumber, ct);
+
+    /// <summary>Withdrawal statuses that hold the money out of the wallet.</summary>
+    public static bool HoldsFunds(string status) => status is "pending" or "paid";
+
+    /// <summary>A pending or paid withdrawal debits the wallet; a rejected or cancelled one gives the money back.</summary>
+    public static Task SyncWithdrawalAsync(SpazaSureDbContext db, ShopWalletTransaction t, CancellationToken ct = default) =>
+        SyncAsync(db, t.ShopId, t.Id, HoldsFunds(t.Status) ? -t.Amount : 0m,
+            Entry.WithdrawalReversal, Entry.WithdrawalDebit,
+            t.Status is "rejected" or "cancelled" ? "Withdrawal returned to wallet" : "Withdrawal to bank account",
+            t.Reference, ct);
 
     /// <summary>
     /// Locks the shop's row until the current transaction ends, so two checkouts at the

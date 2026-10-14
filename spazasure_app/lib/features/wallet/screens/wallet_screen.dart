@@ -25,6 +25,9 @@ class _WalletScreenState extends State<WalletScreen> {
   double _pendingDeposits = 0;
   /// SpazaSure's bank account for direct deposits (bankName, accountHolder, accountNumber, branchCode)
   Map<String, dynamic>? _depositAccount;
+  /// Withdrawals already deducted from the balance but not yet paid out
+  double _pendingWithdrawals = 0;
+  double _minimumWithdrawal = 50;
 
   @override
   void initState() {
@@ -46,6 +49,8 @@ class _WalletScreenState extends State<WalletScreen> {
         _totalOrders = data['totalOrders'] ?? 0;
         _pendingDeposits = (data['pendingDeposits'] as num?)?.toDouble() ?? 0;
         _depositAccount = data['depositAccount'] as Map<String, dynamic>?;
+        _pendingWithdrawals = (data['pendingWithdrawals'] as num?)?.toDouble() ?? 0;
+        _minimumWithdrawal = (data['minimumWithdrawal'] as num?)?.toDouble() ?? 50;
         _transactions =
             (data['transactions'] as List?)
                 ?.map((t) => t as Map<String, dynamic>)
@@ -210,9 +215,11 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _pendingDeposits > 0
-                              ? 'R${_pendingDeposits.toStringAsFixed(2)} deposit awaiting confirmation'
-                              : 'Top up by card or direct deposit',
+                          _pendingWithdrawals > 0
+                              ? 'R${_pendingWithdrawals.toStringAsFixed(2)} withdrawal awaiting payout'
+                              : _pendingDeposits > 0
+                                  ? 'R${_pendingDeposits.toStringAsFixed(2)} deposit awaiting confirmation'
+                                  : 'Top up by card or direct deposit',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -240,8 +247,8 @@ class _WalletScreenState extends State<WalletScreen> {
             _showTopUpSheet();
           }),
           const SizedBox(width: 12),
-          _actionButton(Icons.send_rounded, 'Transfer', AppColors.info, () {
-            _showTransferSheet();
+          _actionButton(Icons.north_east_rounded, 'Withdraw', AppColors.info, () {
+            _showWithdrawSheet();
           }),
           const SizedBox(width: 12),
           _actionButton(
@@ -400,7 +407,20 @@ class _WalletScreenState extends State<WalletScreen> {
     final date = tx['date'] != null ? DateTime.tryParse(tx['date']) : null;
     final isDebit = tx['type'] == 'debit';
     final isPendingDeposit = !isDebit && tx['method'] == 'eft' && status == 'pending';
-    final String? statusLabel0 = isPendingDeposit ? 'Awaiting deposit' : null;
+    final isWithdrawal = tx['method'] == 'withdrawal';
+    final isPendingWithdrawal = isDebit && isWithdrawal && status == 'pending';
+    final balanceAfter = (tx['balanceAfter'] as num?)?.toDouble();
+    final String? statusLabel0 = isPendingDeposit
+        ? 'Awaiting deposit'
+        : isWithdrawal
+            ? switch (status) {
+                'pending' => 'Awaiting payout',
+                'paid' => 'Paid out',
+                'rejected' => 'Declined',
+                'cancelled' => 'Cancelled',
+                _ => null,
+              }
+            : null;
 
     Color statusColor;
     String statusLabel;
@@ -424,6 +444,14 @@ class _WalletScreenState extends State<WalletScreen> {
       case 'approved':
         statusColor = AppColors.success;
         statusLabel = 'Paid';
+        break;
+      case 'completed':
+        statusColor = AppColors.success;
+        statusLabel = 'Completed';
+        break;
+      case 'paid':
+        statusColor = AppColors.success;
+        statusLabel = 'Paid out';
         break;
       case 'failed':
         statusColor = AppColors.error;
@@ -518,20 +546,36 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
           // Amount
-          Text(
-            '${isDebit ? '-' : '+'}R ${amount.toStringAsFixed(2)}',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.w700,
-              color: isDebit ? AppColors.error : AppColors.success,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isDebit ? '-' : '+'}R ${amount.toStringAsFixed(2)}',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isDebit ? AppColors.error : AppColors.success,
+                ),
+              ),
+              if (balanceAfter != null)
+                Text(
+                  'Balance R ${balanceAfter.toStringAsFixed(2)}',
+                  style: AppTextStyles.caption.copyWith(fontSize: 10),
+                ),
+            ],
           ),
-          if (isPendingDeposit) ...[
+          if (isPendingDeposit || isPendingWithdrawal) ...[
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 18, color: AppColors.textHint),
           ],
         ],
       ),
     );
+    if (isPendingWithdrawal) {
+      return GestureDetector(
+        onTap: () => _confirmCancelWithdrawal(tx['id']?.toString(), amount),
+        child: item,
+      );
+    }
     if (!isPendingDeposit) return item;
     return GestureDetector(
       onTap: () => _showDepositDetails(
@@ -1109,161 +1153,220 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  void _showTransferSheet() {
-    final phoneCtrl = TextEditingController();
+  Future<void> _confirmCancelWithdrawal(String? id, double amount) async {
+    if (id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel withdrawal?'),
+        content: Text(
+          'R ${amount.toStringAsFixed(2)} will go back into your wallet. '
+          'You can only cancel before it has been paid out.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel withdrawal', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiService.delete('/shop/wallet/withdrawals/$id');
+      messenger.showSnackBar(const SnackBar(content: Text('Withdrawal cancelled. Your money is back in the wallet.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+    if (mounted) _loadWallet();
+  }
+
+  Widget _withdrawField(
+    String label,
+    TextEditingController ctrl, {
+    String? hint,
+    TextInputType? keyboardType,
+    String? prefixText,
+    int? maxLength,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: ctrl,
+            keyboardType: keyboardType,
+            maxLength: maxLength,
+            decoration: InputDecoration(
+              prefixText: prefixText,
+              hintText: hint,
+              counterText: '',
+              filled: true,
+              fillColor: const Color(0xFFF5F5F5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWithdrawSheet() {
     final amountCtrl = TextEditingController();
+    final bankCtrl = TextEditingController();
+    final holderCtrl = TextEditingController();
+    final accountCtrl = TextEditingController();
+    final branchCtrl = TextEditingController();
+    bool submitting = false;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.divider,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Container(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
                     width: 40,
-                    height: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.info.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: AppColors.info,
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text('Transfer Funds', style: AppTextStyles.h3),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Recipient Phone Number',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: '081 000 1234',
-                  prefixIcon: const Icon(
-                    Icons.phone,
-                    color: AppColors.info,
-                    size: 20,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Amount (ZAR)',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  prefixText: 'R ',
-                  hintText: '0.00',
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Note (optional)',
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'e.g. Payment for goods',
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  // Wallet transfers have no backend endpoint yet, so don't
-                  // tell the user money was sent.
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          'Wallet transfers are coming soon. No money was sent.',
-                        ),
-                        backgroundColor: AppColors.warning,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.info,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      child: const Icon(Icons.north_east_rounded, color: AppColors.info),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('Withdraw to Bank', style: AppTextStyles.h3),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Available: R ${_balance.toStringAsFixed(2)}. The amount is taken from your wallet now '
+                  'and paid into your bank account by SpazaSure. You can cancel until it is paid.',
+                  style: AppTextStyles.caption,
+                ),
+                const SizedBox(height: 16),
+                _withdrawField(
+                  'Amount (ZAR)',
+                  amountCtrl,
+                  hint: 'Minimum R ${_minimumWithdrawal.toStringAsFixed(0)}',
+                  prefixText: 'R ',
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                _withdrawField('Bank name', bankCtrl, hint: 'e.g. FNB'),
+                _withdrawField('Account holder', holderCtrl, hint: 'Name on the account'),
+                _withdrawField(
+                  'Account number',
+                  accountCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 20,
+                ),
+                _withdrawField(
+                  'Branch code',
+                  branchCtrl,
+                  hint: 'e.g. 250655',
+                  keyboardType: TextInputType.number,
+                  maxLength: 10,
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            final amount = double.tryParse(amountCtrl.text.trim().replaceAll(',', '.'));
+                            final messenger = ScaffoldMessenger.of(ctx);
+                            String? problem;
+                            if (amount == null || amount < _minimumWithdrawal) {
+                              problem = 'The minimum withdrawal is R ${_minimumWithdrawal.toStringAsFixed(0)}.';
+                            } else if (amount > _balance) {
+                              problem = 'You only have R ${_balance.toStringAsFixed(2)} available.';
+                            } else if (bankCtrl.text.trim().isEmpty ||
+                                holderCtrl.text.trim().isEmpty ||
+                                accountCtrl.text.trim().length < 5 ||
+                                branchCtrl.text.trim().isEmpty) {
+                              problem = 'Please fill in all your bank details.';
+                            }
+                            if (problem != null) {
+                              messenger.showSnackBar(SnackBar(content: Text(problem)));
+                              return;
+                            }
+                            setSheetState(() => submitting = true);
+                            final navigator = Navigator.of(ctx);
+                            try {
+                              await ApiService.post('/shop/wallet/withdrawals', {
+                                'amount': amount,
+                                'bankName': bankCtrl.text.trim(),
+                                'accountHolder': holderCtrl.text.trim(),
+                                'accountNumber': accountCtrl.text.trim(),
+                                'branchCode': branchCtrl.text.trim(),
+                              });
+                              navigator.pop();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Withdrawal requested. We will pay it into your bank account.'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              _loadWallet();
+                            } catch (error) {
+                              if (ctx.mounted) {
+                                messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+                              }
+                            } finally {
+                              if (ctx.mounted) setSheetState(() => submitting = false);
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.info,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text(
+                      submitting ? 'Submitting...' : 'Request Withdrawal',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  child: const Text(
-                    'Send Transfer (coming soon)',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

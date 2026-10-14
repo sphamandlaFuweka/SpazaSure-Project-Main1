@@ -418,6 +418,8 @@ public class SupplierGroupBuyController(
 
         db.GroupBuys.Add(groupBuy);
         await db.SaveChangesAsync();
+        await AdminAlerts.NotifyAdminsAsync(db, events, "group_buy", "Group buy waiting for approval",
+            $"{supplier.CompanyName} submitted '{groupBuy.Title}'. Review it so shops can join.", groupBuy.Id.ToString());
         return Ok(ApiResponse<object>.Ok(new { groupBuy.Id, groupBuy.Status },
             "Group buy submitted. It will go live once an admin approves it."));
     }

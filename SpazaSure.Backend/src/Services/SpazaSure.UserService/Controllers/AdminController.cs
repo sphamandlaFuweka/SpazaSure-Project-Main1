@@ -83,6 +83,9 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
         supplier.Status = "verified";
         await db.SaveChangesAsync();
+        events.PublishNotification(supplier.UserId.ToString(), "account", "Your account is verified",
+            "SpazaSure verified your business. Your products are now visible to shops.",
+            priority: "high", referenceId: supplier.Id.ToString(), routingKey: "account.verified");
         return Ok(ApiResponse.Ok("Supplier verified successfully."));
     }
 
@@ -207,6 +210,9 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
         if (shop is null) return NotFound(ApiResponse.Fail("Spaza shop not found."));
         shop.Status = "verified";
         await db.SaveChangesAsync();
+        events.PublishNotification(shop.UserId.ToString(), "account", "Your shop is verified",
+            $"SpazaSure verified {shop.ShopName}. Your shop now shows as verified to suppliers and customers.",
+            referenceId: shop.Id.ToString(), routingKey: "account.verified");
         return Ok(ApiResponse.Ok("Spaza owner verified successfully."));
     }
 
@@ -224,7 +230,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
     [HttpGet("wallet-top-ups")]
     public async Task<IActionResult> GetWalletTopUps([FromQuery] string status = "pending")
     {
-        var query = db.ShopWalletTransactions.Include(t => t.Shop).AsQueryable();
+        var query = db.ShopWalletTransactions.Include(t => t.Shop).Where(t => t.Type == "top_up");
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(t => t.Status == status);
         var items = await query.OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new {
             t.Id, t.Amount, t.Method, t.Status, t.Reference, t.Notes,
@@ -244,6 +250,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
             return BadRequest(ApiResponse.Fail("Paystack top-ups are confirmed automatically by Paystack."));
         transaction.Status = "approved";
         transaction.ApprovedAt = DateTime.UtcNow;
+        await ShopWallet.SyncTopUpAsync(db, transaction);
         await db.SaveChangesAsync();
         await NotifyShopAsync(transaction.ShopId, "Wallet topped up",
             $"Your deposit of R{transaction.Amount:F2}{RefSuffix(transaction.Reference)} has been confirmed and added to your wallet.");
@@ -265,6 +272,59 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
             $"We couldn't confirm your deposit of R{transaction.Amount:F2}{RefSuffix(transaction.Reference)}."
             + (transaction.Notes == null ? " Please contact SpazaSure support." : $" Reason: {transaction.Notes}"));
         return Ok(ApiResponse.Ok("Wallet top-up rejected."));
+    }
+
+    /// <summary>Shop withdrawal requests: money the admin must pay into the shop's bank account.</summary>
+    [HttpGet("wallet-withdrawals")]
+    public async Task<IActionResult> GetWalletWithdrawals([FromQuery] string status = "pending")
+    {
+        var query = db.ShopWalletTransactions.Include(t => t.Shop).Where(t => t.Type == ShopWallet.Withdrawal);
+        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(t => t.Status == status);
+        var items = await query.OrderByDescending(t => t.CreatedAt).Take(100).Select(t => new {
+            t.Id, t.Amount, t.Status, t.Reference, t.Notes, t.CreatedAt, PaidAt = t.ApprovedAt,
+            t.BankName, t.AccountHolder, t.AccountNumber, t.BranchCode,
+            ShopId = t.ShopId, ShopName = t.Shop.ShopName, OwnerName = t.Shop.OwnerName, ShopPhone = t.Shop.Phone
+        }).ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    /// <summary>Record that the withdrawal was paid into the shop's bank account. The wallet was already debited when it was requested.</summary>
+    [HttpPatch("wallet-withdrawals/{id:guid}/paid")]
+    public async Task<IActionResult> MarkWalletWithdrawalPaid(Guid id, [FromBody] WalletWithdrawalPaidRequest req)
+    {
+        var withdrawal = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == ShopWallet.Withdrawal);
+        if (withdrawal is null) return NotFound(ApiResponse.Fail("Withdrawal not found."));
+        if (withdrawal.Status != "pending") return BadRequest(ApiResponse.Fail("Withdrawal is no longer pending."));
+        var bankReference = req.PaymentReference?.Trim();
+        if (string.IsNullOrEmpty(bankReference))
+            return BadRequest(ApiResponse.Fail("Enter the bank payment reference so the payment can be traced."));
+
+        withdrawal.Status = "paid";
+        withdrawal.ApprovedAt = DateTime.UtcNow;
+        withdrawal.Notes = $"Paid to bank account. Bank reference: {bankReference}";
+        await ShopWallet.SyncWithdrawalAsync(db, withdrawal);
+        await db.SaveChangesAsync();
+        await NotifyShopAsync(withdrawal.ShopId, "Withdrawal paid",
+            $"Your withdrawal of R{withdrawal.Amount:F2}{RefSuffix(withdrawal.Reference)} has been paid into your bank account.");
+        return Ok(ApiResponse.Ok("Withdrawal marked as paid."));
+    }
+
+    /// <summary>Decline a withdrawal; the money goes back into the shop's wallet.</summary>
+    [HttpPatch("wallet-withdrawals/{id:guid}/reject")]
+    public async Task<IActionResult> RejectWalletWithdrawal(Guid id, [FromBody] WalletTopUpRejectRequest req)
+    {
+        var withdrawal = await db.ShopWalletTransactions.FirstOrDefaultAsync(t => t.Id == id && t.Type == ShopWallet.Withdrawal);
+        if (withdrawal is null) return NotFound(ApiResponse.Fail("Withdrawal not found."));
+        if (withdrawal.Status != "pending") return BadRequest(ApiResponse.Fail("Withdrawal is no longer pending."));
+
+        withdrawal.Status = "rejected";
+        withdrawal.Notes = string.IsNullOrWhiteSpace(req.Reason) ? null : req.Reason.Trim();
+        await ShopWallet.SyncWithdrawalAsync(db, withdrawal);
+        await db.SaveChangesAsync();
+        await NotifyShopAsync(withdrawal.ShopId, "Withdrawal declined",
+            $"We couldn't pay your withdrawal of R{withdrawal.Amount:F2}{RefSuffix(withdrawal.Reference)}; the money is back in your wallet."
+            + (withdrawal.Notes == null ? "" : $" Reason: {withdrawal.Notes}"));
+        return Ok(ApiResponse.Ok("Withdrawal declined and the money returned to the wallet."));
     }
 
     private static string RefSuffix(string? reference) => reference == null ? "" : $" ({reference})";
@@ -366,3 +426,4 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
 }
 
 public record WalletTopUpRejectRequest(string? Reason);
+public record WalletWithdrawalPaidRequest(string? PaymentReference);

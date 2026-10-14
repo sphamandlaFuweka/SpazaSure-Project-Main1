@@ -1774,6 +1774,14 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AccountHolder")
+                        .HasColumnType("text")
+                        .HasColumnName("account_holder");
+
+                    b.Property<string>("AccountNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("account_number");
+
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric")
                         .HasColumnName("amount");
@@ -1781,6 +1789,14 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
+
+                    b.Property<string>("BankName")
+                        .HasColumnType("text")
+                        .HasColumnName("bank_name");
+
+                    b.Property<string>("BranchCode")
+                        .HasColumnType("text")
+                        .HasColumnName("branch_code");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1824,6 +1840,59 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_shop_wallet_transactions_shop_id");
 
                     b.ToTable("shop_wallet_transactions", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopWalletLedgerEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text")
+                        .HasColumnName("reference");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_wallet_ledger_entries");
+
+                    b.HasIndex("SourceId")
+                        .HasDatabaseName("ix_shop_wallet_ledger_entries_source_id");
+
+                    b.HasIndex("ShopId", "CreatedAt")
+                        .HasDatabaseName("ix_shop_wallet_ledger_entries_shop_id_created_at");
+
+                    b.ToTable("shop_wallet_ledger_entries", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SpazaShop", b =>
@@ -2761,6 +2830,18 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasConstraintName("fk_shop_reviews_spaza_shops_shop_id");
 
                     b.Navigation("Reviewer");
+
+                    b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopWalletLedgerEntry", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_wallet_ledger_entries_spaza_shops_shop_id");
 
                     b.Navigation("Shop");
                 });

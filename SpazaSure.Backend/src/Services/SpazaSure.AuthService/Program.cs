@@ -66,6 +66,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+// RabbitMQ Event Publisher for notifications
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new EventPublisher(
+        host: config["RabbitMQ:Host"] ?? "localhost",
+        username: config["RabbitMQ:Username"] ?? "spazasure",
+        password: config["RabbitMQ:Password"] ?? "guest");
+});
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<ShopAuthService>();

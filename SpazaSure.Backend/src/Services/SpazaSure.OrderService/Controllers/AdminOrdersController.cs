@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.OrderService.Controllers;
@@ -9,7 +10,7 @@ namespace SpazaSure.OrderService.Controllers;
 [ApiController]
 [Route("api/admin/orders")]
 [Authorize(Roles = "admin")]
-public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
+public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -161,6 +162,7 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
     {
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        var previousStatus = order.Status;
 
         var validStatuses = new[] { "pending", "processing", "dispatched", "delivered", "cancelled" };
         if (!validStatuses.Contains(req.Status))
@@ -169,6 +171,11 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
         // Once the supplier has been paid for an order, its status is locked for accounting
         if (order.PaidOutAt is not null && req.Status != order.Status)
             return BadRequest(ApiResponse.Fail("This order has already been paid out to the supplier, so its status can't be changed."));
+
+        // Reopening a cancelled wallet order charges the wallet again, so the shop must still have the money
+        if (order.PaymentMethod == ShopWallet.PaymentMethod && order.Status == "cancelled" && req.Status != "cancelled"
+            && await ShopWallet.BalanceAsync(db, order.ShopId) < order.TotalAmount)
+            return BadRequest(ApiResponse.Fail("The shop's wallet no longer has enough money to pay for this order again."));
 
         order.Status = req.Status;
         if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
@@ -179,7 +186,26 @@ public class AdminOrdersController(SpazaSureDbContext db) : ControllerBase
         // Cash on delivery is only paid once delivered (SpazaSure collects the cash)
         if (order.PaymentMethod == ShopOrdersController.CashOnDelivery)
             order.PaymentStatus = req.Status == "delivered" ? "paid" : "pending";
+        await ShopWallet.SyncOrderAsync(db, order);
         await db.SaveChangesAsync();
+
+        if (previousStatus != order.Status)
+        {
+            // Both sides hear about changes an admin makes to their order
+            var parties = await db.Orders.Where(o => o.Id == order.Id)
+                .Select(o => new { ShopUserId = o.Shop.UserId, SupplierUserId = o.Supplier.UserId })
+                .FirstAsync();
+            var detail = order.Status == "cancelled"
+                ? $"was cancelled by SpazaSure{(string.IsNullOrWhiteSpace(req.Reason) ? "." : $": {req.Reason!.Trim()}")}"
+                : $"was updated to {order.Status} by SpazaSure.";
+            var refund = order.Status == "cancelled" && order.PaymentMethod == ShopWallet.PaymentMethod
+                ? $" R{order.TotalAmount:F2} is back in your wallet." : "";
+            var priority = order.Status == "cancelled" ? "high" : "normal";
+            events.PublishNotification(parties.ShopUserId.ToString(), "order", $"Order {order.Status}",
+                $"Your order {order.OrderNumber} {detail}{refund}", priority, order.Id.ToString(), $"order.{order.Status}");
+            events.PublishNotification(parties.SupplierUserId.ToString(), "order", $"Order {order.Status}",
+                $"Order {order.OrderNumber} {detail}", priority, order.Id.ToString(), $"order.{order.Status}");
+        }
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));
     }

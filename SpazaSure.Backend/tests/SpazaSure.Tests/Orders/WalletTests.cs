@@ -51,7 +51,7 @@ public class WalletTests
         var config = new ConfigurationBuilder().Build();
         var events = new EventPublisher("__nonexistent__", "x", "x");
         return new Fixture(db, shop, product,
-            new ShopWalletController(db, new PaystackPaymentService(new HttpClient(), config)) { ControllerContext = new ControllerContext { HttpContext = http } },
+            new ShopWalletController(db, new PaystackPaymentService(new HttpClient(), config), events) { ControllerContext = new ControllerContext { HttpContext = http } },
             new ShopOrdersController(db, new OrderPaystackPaymentService(new HttpClient(), config), events) { ControllerContext = new ControllerContext { HttpContext = http } },
             new AdminController(db, null!, events));
     }
@@ -77,6 +77,7 @@ public class WalletTests
         var account = data.GetProperty("depositAccount");
         account.GetProperty("bankName").GetString().Should().Be("Capitec Business");
         account.GetProperty("accountNumber").GetString().Should().Be("10551015752");
+        account.GetProperty("accountHolder").GetString().Should().Be("GEOTX PTY LTD");
 
         (await Balance(f)).Should().Be(0m); // not credited until SpazaSure sees the money
         Data(await f.Wallet.GetWallet()).GetProperty("pendingDeposits").GetDecimal().Should().Be(500m);
@@ -109,8 +110,7 @@ public class WalletTests
     public async Task WalletCheckout_PaysImmediately_AndDeductsBalance()
     {
         var f = Create();
-        f.Db.ShopWalletTransactions.Add(new ShopWalletTransaction { ShopId = f.Shop.Id, Amount = 1000m, Method = "eft", Status = "approved" });
-        await f.Db.SaveChangesAsync();
+        await AddApprovedTopUp(f, 1000m);
 
         var result = await f.Checkout.PlaceOrder(Order(f.Product, 3)); // R300 + 5% commission, pickup = R315
 
@@ -127,8 +127,7 @@ public class WalletTests
     public async Task WalletCheckout_FailsWhenBalanceIsTooLow()
     {
         var f = Create();
-        f.Db.ShopWalletTransactions.Add(new ShopWalletTransaction { ShopId = f.Shop.Id, Amount = 100m, Method = "eft", Status = "approved" });
-        await f.Db.SaveChangesAsync();
+        await AddApprovedTopUp(f, 100m);
 
         var result = await f.Checkout.PlaceOrder(Order(f.Product, 3));
 
@@ -139,14 +138,20 @@ public class WalletTests
     public async Task CancelledWalletOrder_IsRefundedToTheWallet()
     {
         var f = Create();
-        f.Db.ShopWalletTransactions.Add(new ShopWalletTransaction { ShopId = f.Shop.Id, Amount = 1000m, Method = "eft", Status = "approved" });
-        await f.Db.SaveChangesAsync();
+        await AddApprovedTopUp(f, 1000m);
         await f.Checkout.PlaceOrder(Order(f.Product, 3));
+        (await Balance(f)).Should().Be(685m);
 
         var order = await f.Db.Orders.SingleAsync();
-        order.Status = "cancelled";
-        await f.Db.SaveChangesAsync();
+        var admin = new AdminOrdersController(f.Db, new EventPublisher("__nonexistent__", "x", "x"));
+        (await admin.UpdateStatus(order.Id, new UpdateStatusRequest("cancelled", "Out of stock"))).Should().BeOfType<OkObjectResult>();
 
+        (await Balance(f)).Should().Be(1000m);
+        var entries = await f.Db.ShopWalletLedgerEntries.OrderBy(e => e.CreatedAt).Select(e => e.Type).ToListAsync();
+        entries.Should().BeEquivalentTo(["top_up", "order_payment", "order_refund"]);
+
+        // Cancelling again doesn't refund twice
+        await admin.UpdateStatus(order.Id, new UpdateStatusRequest("cancelled", "Again"));
         (await Balance(f)).Should().Be(1000m);
     }
 
@@ -154,7 +159,7 @@ public class WalletTests
     public async Task OrdersPaidWithPaystack_DoNotReduceTheWallet()
     {
         var f = Create();
-        f.Db.ShopWalletTransactions.Add(new ShopWalletTransaction { ShopId = f.Shop.Id, Amount = 400m, Method = "eft", Status = "approved" });
+        await AddApprovedTopUp(f, 400m);
         f.Db.Orders.Add(new Order
         {
             ShopId = f.Shop.Id, SupplierId = f.Product.SupplierId, OrderNumber = "SPZ-PAYSTACK", Status = "delivered",
@@ -163,5 +168,89 @@ public class WalletTests
         await f.Db.SaveChangesAsync();
 
         (await Balance(f)).Should().Be(400m);
+    }
+
+    private static async Task AddApprovedTopUp(Fixture f, decimal amount)
+    {
+        var topUp = new ShopWalletTransaction { ShopId = f.Shop.Id, Amount = amount, Method = "eft", Status = "approved", ApprovedAt = DateTime.UtcNow };
+        f.Db.ShopWalletTransactions.Add(topUp);
+        await ShopWallet.SyncTopUpAsync(f.Db, topUp);
+        await f.Db.SaveChangesAsync();
+    }
+
+    private static WalletWithdrawalRequest Withdraw(decimal amount) =>
+        new(amount, "FNB", "Thandi Spaza", "6201 2345 678", "250655");
+
+    [Fact]
+    public async Task Withdrawal_TakesMoneyOutImmediately_AndIsPaidByAdmin()
+    {
+        var f = Create();
+        await AddApprovedTopUp(f, 1000m);
+
+        var data = Data(await f.Wallet.RequestWithdrawal(Withdraw(400m)));
+        data.GetProperty("reference").GetString().Should().MatchRegex("^WD[0-9A-F]{8}$");
+        (await Balance(f)).Should().Be(600m);
+        Data(await f.Wallet.GetWallet()).GetProperty("pendingWithdrawals").GetDecimal().Should().Be(400m);
+
+        // The held money can't be spent twice
+        (await f.Wallet.RequestWithdrawal(Withdraw(700m))).Should().BeOfType<BadRequestObjectResult>();
+
+        var id = data.GetProperty("id").GetGuid();
+        (await f.Admin.MarkWalletWithdrawalPaid(id, new WalletWithdrawalPaidRequest(" "))).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Admin.MarkWalletWithdrawalPaid(id, new WalletWithdrawalPaidRequest("FNB-778"))).Should().BeOfType<OkObjectResult>();
+
+        (await Balance(f)).Should().Be(600m); // paying out doesn't touch the wallet again
+        (await f.Db.ShopWalletTransactions.SingleAsync(t => t.Id == id)).Status.Should().Be("paid");
+        (await f.Admin.MarkWalletWithdrawalPaid(id, new WalletWithdrawalPaidRequest("FNB-778"))).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Withdrawal_ValidatesAmountAndBankDetails()
+    {
+        var f = Create();
+        await AddApprovedTopUp(f, 1000m);
+
+        (await f.Wallet.RequestWithdrawal(Withdraw(10m))).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Wallet.RequestWithdrawal(Withdraw(5000m))).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Wallet.RequestWithdrawal(Withdraw(100m) with { AccountNumber = "12" })).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Wallet.RequestWithdrawal(Withdraw(100m) with { BankName = " " })).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Wallet.RequestWithdrawal(Withdraw(100m) with { BranchCode = "12" })).Should().BeOfType<BadRequestObjectResult>();
+        (await Balance(f)).Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task DeclinedOrCancelledWithdrawal_ReturnsTheMoney_OnlyOnce()
+    {
+        var f = Create();
+        await AddApprovedTopUp(f, 1000m);
+        var first = Data(await f.Wallet.RequestWithdrawal(Withdraw(300m))).GetProperty("id").GetGuid();
+        var second = Data(await f.Wallet.RequestWithdrawal(Withdraw(200m))).GetProperty("id").GetGuid();
+        (await Balance(f)).Should().Be(500m);
+
+        (await f.Admin.RejectWalletWithdrawal(first, new WalletTopUpRejectRequest("Bank details bounced"))).Should().BeOfType<OkObjectResult>();
+        (await f.Wallet.CancelWithdrawal(second)).Should().BeOfType<OkObjectResult>();
+        (await Balance(f)).Should().Be(1000m);
+
+        (await f.Admin.RejectWalletWithdrawal(first, new WalletTopUpRejectRequest(null))).Should().BeOfType<BadRequestObjectResult>();
+        (await f.Wallet.CancelWithdrawal(second)).Should().BeOfType<BadRequestObjectResult>();
+        (await Balance(f)).Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task WalletActivity_ShowsLedgerWithRunningBalance_AndWithdrawalsAreNotListedAsTopUps()
+    {
+        var f = Create();
+        await AddApprovedTopUp(f, 1000m);
+        await f.Checkout.PlaceOrder(Order(f.Product, 3)); // -315
+        await f.Wallet.RequestWithdrawal(Withdraw(100m));
+
+        var activity = Data(await f.Wallet.GetWallet()).GetProperty("transactions").EnumerateArray().ToList();
+        activity.Should().HaveCount(3);
+        activity.Select(a => a.GetProperty("balanceAfter").GetDecimal()).Should().Equal(585m, 685m, 1000m);
+        activity.Select(a => a.GetProperty("type").GetString()).Should().Equal("debit", "debit", "credit");
+
+        var topUps = ((OkObjectResult)await f.Admin.GetWalletTopUps("")).Value!;
+        JsonSerializer.SerializeToElement(topUps, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            .GetProperty("data").GetArrayLength().Should().Be(1);
     }
 }

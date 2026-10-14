@@ -137,6 +137,7 @@ public class ShopOrdersController(
             };
 
             db.Orders.Add(order);
+            if (isWallet) await ShopWallet.SyncOrderAsync(db, order);
             await db.SaveChangesAsync();
             createdOrders.Add(order);
         }
@@ -405,6 +406,15 @@ public class ShopOrdersController(
         order.DeliveredAt ??= DateTime.UtcNow;
         if (order.PaymentMethod == CashOnDelivery) order.PaymentStatus = "paid";
         await db.SaveChangesAsync();
+
+        var supplierUserId = await db.Suppliers.Where(s => s.Id == order.SupplierId).Select(s => s.UserId).FirstOrDefaultAsync();
+        events.PublishNotification(
+            supplierId: supplierUserId.ToString(),
+            type: "order",
+            title: "Delivery confirmed",
+            message: $"{shop.ShopName} confirmed order {order.OrderNumber} was delivered. Your payout for it is now scheduled.",
+            referenceId: order.Id.ToString(),
+            routingKey: "order.delivered");
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));
     }

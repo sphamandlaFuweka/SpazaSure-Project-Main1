@@ -32,6 +32,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<Faq> Faqs => Set<Faq>();
     public DbSet<ShopOnboardingPayment> ShopOnboardingPayments => Set<ShopOnboardingPayment>();
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
+    public DbSet<ShopWalletLedgerEntry> ShopWalletLedgerEntries => Set<ShopWalletLedgerEntry>();
     public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<CustomerSubscription> CustomerSubscriptions => Set<CustomerSubscription>();
@@ -198,6 +199,14 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("shop_wallet_transactions");
             e.HasIndex(t => t.ShopId);
+            e.HasOne(t => t.Shop).WithMany().HasForeignKey(t => t.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopWalletLedgerEntry>(e =>
+        {
+            e.ToTable("shop_wallet_ledger_entries");
+            e.HasIndex(t => new { t.ShopId, t.CreatedAt });
+            e.HasIndex(t => t.SourceId);
             e.HasOne(t => t.Shop).WithMany().HasForeignKey(t => t.ShopId).OnDelete(DeleteBehavior.Cascade);
         });
 

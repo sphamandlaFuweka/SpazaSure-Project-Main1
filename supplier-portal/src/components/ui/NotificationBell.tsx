@@ -1,15 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ShoppingCart, AlertTriangle, Package, X, CheckCheck, ArrowRight } from 'lucide-react';
+import { Bell, X, CheckCheck, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 import { notificationsApi } from '../../services/api';
+import { notificationType, notificationRoute } from './notificationTypes';
 
-type NotifType = 'order' | 'compliance' | 'product' | 'system';
+/** How often new notifications are checked for (and popped up). */
+const POLL_MS = 20_000;
 
 interface Notification {
   id: string;
-  type: NotifType;
+  type: string;
   title: string;
   message: string;
   createdAt: string;
@@ -17,21 +20,51 @@ interface Notification {
   priority?: 'high' | 'normal';
 }
 
-const typeConfig: Record<NotifType, { icon: React.ReactNode; iconBg: string; iconColor: string }> = {
-  order:      { icon: <ShoppingCart size={14} />,  iconBg: 'bg-blue-100',    iconColor: 'text-blue-600' },
-  compliance: { icon: <AlertTriangle size={14} />, iconBg: 'bg-amber-100',   iconColor: 'text-amber-600' },
-  product:    { icon: <Package size={14} />,       iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-  system:     { icon: <Bell size={14} />,          iconBg: 'bg-gray-100',    iconColor: 'text-gray-500' },
-};
-
 export default function NotificationBell({ variant = 'supplier' }: { variant?: 'supplier' | 'admin' }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [justOpened, setJustOpened] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Ids already shown, so only notifications that arrive while the dashboard is open pop up
+  const seen = useRef<Set<string> | null>(null);
 
-  // Load notifications from API
+  const open_ = useCallback((n: Notification) => {
+    notificationsApi.markRead(n.id).catch(() => {});
+    setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x));
+    const route = notificationRoute(n.type, variant);
+    if (route) navigate(route);
+  }, [navigate, variant]);
+
+  const popUp = useCallback((n: Notification) => {
+    const { icon, iconBg, iconColor } = notificationType(n.type);
+    toast.custom((t) => (
+      <div
+        role="status"
+        className={clsx('pointer-events-auto w-[min(22rem,calc(100vw-2rem))] flex items-start gap-3 rounded-2xl bg-white border border-brand-blue-light shadow-card-xl p-4 transition-all',
+          t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2')}
+      >
+        <button className="flex flex-1 items-start gap-3 text-left min-w-0" onClick={() => { toast.dismiss(t.id); open_(n); }}>
+          <span className={clsx('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', iconBg, iconColor)}>{icon}</span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-bold text-gray-900">{n.title}</span>
+            <span className="block text-xs text-ink-2 mt-0.5 line-clamp-3">{n.message}</span>
+          </span>
+        </button>
+        <button onClick={() => toast.dismiss(t.id)} aria-label="Dismiss" className="text-gray-300 hover:text-gray-500"><X size={14} /></button>
+      </div>
+    ), { id: `notif-${n.id}`, duration: n.priority === 'high' ? 10_000 : 6_000, position: 'top-right' });
+
+    // Desktop alert when the dashboard is in a background tab (only if the user allowed it)
+    if (document.hidden && 'Notification' in window && window.Notification.permission === 'granted') {
+      try {
+        const desktop = new window.Notification(n.title, { body: n.message, tag: n.id, icon: '/spazasure_logo.jpg' });
+        desktop.onclick = () => { window.focus(); open_(n); desktop.close(); };
+      } catch { /* some browsers only allow this from a service worker */ }
+    }
+  }, [open_]);
+
+  // Load notifications, and pop up any that are new since the last check
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -39,23 +72,39 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
         const data = await notificationsApi.list({ page: 1, pageSize: 10 });
         if (!mounted) return;
         const items = Array.isArray(data) ? data : data?.items ?? data?.data ?? [];
-        setNotifications(items.map((n: any) => ({
-          id: n.id ?? String(Math.random()),
+        const mapped: Notification[] = items.map((n: any) => ({
+          id: String(n.id ?? Math.random()),
           type: n.type ?? 'system',
           title: n.title ?? '',
           message: n.message ?? '',
           createdAt: n.createdAt ?? new Date().toISOString(),
           read: n.isRead ?? n.read ?? false,
           priority: n.priority ?? 'normal',
-        })));
+        }));
+        if (seen.current) {
+          const fresh = mapped.filter((n) => !n.read && !seen.current!.has(n.id));
+          fresh.slice(0, 3).reverse().forEach(popUp);
+        }
+        seen.current = new Set([...(seen.current ?? []), ...mapped.map((n) => n.id)]);
+        setNotifications(mapped);
       } catch {
         // Silently fail — notifications are non-critical
       }
     };
     load();
-    const interval = setInterval(load, 30000);
-    return () => { mounted = false; clearInterval(interval); };
-  }, []);
+    const interval = setInterval(load, POLL_MS);
+    // Check straight away when the user comes back to the tab
+    const onVisible = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { mounted = false; clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, [popUp]);
+
+  // Keep the tab title showing the unread count, so new notifications are noticed from other tabs
+  const unreadForTitle = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\+?\) /, '');
+    document.title = unreadForTitle > 0 ? `(${unreadForTitle > 9 ? '9+' : unreadForTitle}) ${base}` : base;
+  }, [unreadForTitle]);
 
   const unread = notifications.filter((n) => !n.read);
   const unreadCount = unread.length;
@@ -71,14 +120,18 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
   }, []);
 
   function handleOpen() {
+    // Ask once for desktop alerts; this needs a user click in most browsers
+    if ('Notification' in window && window.Notification.permission === 'default') {
+      window.Notification.requestPermission().catch(() => {});
+    }
     setOpen((o) => !o);
     setJustOpened(true);
     setTimeout(() => setJustOpened(false), 600);
   }
 
-  function markRead(id: string) {
-    notificationsApi.markRead(id).catch(() => {});
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  function markRead(n: Notification) {
+    setOpen(false);
+    open_(n);
   }
 
   function markAllRead() {
@@ -159,11 +212,11 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
               </div>
             ) : (
               preview.map((n, i) => {
-                const { icon, iconBg, iconColor } = typeConfig[n.type];
+                const { icon, iconBg, iconColor } = notificationType(n.type);
                 return (
                   <div
                     key={n.id}
-                    onClick={() => markRead(n.id)}
+                    onClick={() => markRead(n)}
                     className={clsx(
                       'flex items-start gap-3 px-4 py-3 cursor-pointer transition-all duration-150 border-b border-gray-50 last:border-0',
                       !n.read ? 'bg-primary-50/40 hover:bg-primary-50/70' : 'hover:bg-gray-50',

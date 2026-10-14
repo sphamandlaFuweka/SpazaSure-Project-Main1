@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.ProductService.Services;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -13,7 +14,7 @@ namespace SpazaSure.ProductService.Controllers;
 [ApiController]
 [Route("api/supplier/products")]
 [Authorize]
-public class ProductsController(SpazaSureDbContext db) : ControllerBase
+public class ProductsController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     private Guid SupplierId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -84,6 +85,11 @@ public class ProductsController(SpazaSureDbContext db) : ControllerBase
         var qrCode = new ProductQrCode { ProductId = product.Id, QrCode = QrCodeService.GenerateToken() };
         db.ProductQrCodes.Add(qrCode);
         await db.SaveChangesAsync();
+
+        if (!product.IsApproved)
+            await AdminAlerts.NotifyAdminsAsync(db, events, "product", "Product waiting for review",
+                $"{supplier.CompanyName} added '{product.Name}' (R{product.Price:F2}). Review it so shops can order it.",
+                product.Id.ToString());
 
         return Ok(ApiResponse<object>.Ok(new {
             product.Id, product.Name, product.Sku, product.Barcode, product.Price,

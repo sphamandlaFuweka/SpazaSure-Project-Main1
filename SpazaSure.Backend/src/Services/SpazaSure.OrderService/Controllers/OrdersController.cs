@@ -226,6 +226,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             // Cash on delivery: SpazaSure collected the cash at delivery
             if (order.PaymentMethod == ShopOrdersController.CashOnDelivery) order.PaymentStatus = "paid";
         }
+        await ShopWallet.SyncOrderAsync(db, order);
         await db.SaveChangesAsync();
 
         // Notify the shop owner about the status change

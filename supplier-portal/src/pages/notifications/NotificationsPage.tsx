@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { notificationsApi } from '../../services/api';
+import { notificationRoute } from '../../components/ui/notificationTypes';
 
 type NotifType = 'order' | 'compliance' | 'product' | 'system';
 
@@ -34,12 +35,6 @@ const typeFilters: { value: string; label: string }[] = [
 ];
 
 // Where clicking a notification takes the supplier
-const TYPE_ROUTES: Partial<Record<NotifType, string>> = {
-  order: '/orders',
-  compliance: '/profile',
-  product: '/products',
-};
-
 function getDateLabel(dateStr: string): string {
   const date = new Date(dateStr);
   if (isToday(date)) return 'Today';
@@ -104,7 +99,7 @@ export default function NotificationsPage() {
 
   const open = (n: Notification) => {
     if (!n.isRead) void markRead(n.id);
-    const target = TYPE_ROUTES[n.type];
+    const target = notificationRoute(n.type, 'supplier');
     if (target) navigate(target);
   };
 
@@ -239,7 +234,7 @@ export default function NotificationsPage() {
                       <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{n.message}</p>
                     </div>
                     {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse-soft" />}
-                    {TYPE_ROUTES[n.type] && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
+                    {notificationRoute(n.type, 'supplier') && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
                   </div>
                 );
               })}

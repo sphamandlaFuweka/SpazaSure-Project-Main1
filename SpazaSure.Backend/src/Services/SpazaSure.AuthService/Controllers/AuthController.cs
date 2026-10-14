@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using SpazaSure.AuthService.DTOs;
 using SpazaSure.AuthService.Services;
+using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.AuthService.Controllers;
 
 [ApiController]
 [Route("api/supplier/auth")]
-public class AuthController(AuthenticationService authService) : ControllerBase
+public class AuthController(AuthenticationService authService, SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     private string IpAddress => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
@@ -16,6 +18,15 @@ public class AuthController(AuthenticationService authService) : ControllerBase
     {
         var (success, error, data) = await authService.RegisterAsync(req, IpAddress);
         if (!success) return BadRequest(ApiResponse.Fail(error!));
+
+        if (string.Equals(req.Role, "supplier", StringComparison.OrdinalIgnoreCase))
+        {
+            var rules = await PlatformSettingsStore.LoadAsync(db);
+            await AdminAlerts.NotifyAdminsAsync(db, events, "account",
+                rules.RequireSupplierApproval ? "New supplier to approve" : "New supplier registered",
+                $"{req.CompanyName ?? req.Email ?? "A supplier"} signed up"
+                + (rules.RequireSupplierApproval ? " and is waiting for verification." : "."));
+        }
         return Ok(ApiResponse<AuthResponse>.Ok(data!));
     }
 

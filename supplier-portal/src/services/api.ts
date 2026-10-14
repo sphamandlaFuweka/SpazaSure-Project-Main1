@@ -608,6 +608,101 @@ export const walletTopUpsApi = {
   reject: (id: string, reason: string) => api.patch(`/admin/wallet-top-ups/${id}/reject`, { reason }).then((r) => r.data),
 };
 
+// Shop wallet withdrawals: money a shop asks to have paid into its bank account
+export type WalletWithdrawalStatus = 'pending' | 'paid' | 'rejected' | 'cancelled';
+export interface WalletWithdrawal {
+  id: string;
+  amount: number;
+  status: WalletWithdrawalStatus;
+  reference?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  paidAt?: string | null;
+  bankName?: string | null;
+  accountHolder?: string | null;
+  accountNumber?: string | null;
+  branchCode?: string | null;
+  shopId: string;
+  shopName: string;
+  ownerName?: string | null;
+  shopPhone?: string | null;
+}
+
+export const walletWithdrawalsApi = {
+  list: (status: WalletWithdrawalStatus | '' = 'pending') =>
+    api.get('/admin/wallet-withdrawals', { params: { status } }).then((r) => (r.data?.data ?? r.data) as WalletWithdrawal[]),
+  markPaid: (id: string, paymentReference: string) =>
+    api.patch(`/admin/wallet-withdrawals/${id}/paid`, { paymentReference }).then((r) => r.data),
+  reject: (id: string, reason: string) => api.patch(`/admin/wallet-withdrawals/${id}/reject`, { reason }).then((r) => r.data),
+};
+
+// Admin finance: every money movement in one place
+export type FinanceCategory =
+  | 'wallet_top_up' | 'order_paystack' | 'order_cash_on_delivery'
+  | 'onboarding_fee' | 'supplier_subscription' | 'supplier_payout' | 'shop_withdrawal';
+export type FinanceStatus = 'confirmed' | 'pending' | 'rejected' | 'cancelled' | 'failed' | 'refund_due';
+
+export interface FinanceEntry {
+  id: string;
+  date: string;
+  direction: 'in' | 'out';
+  category: FinanceCategory;
+  amount: number;
+  status: FinanceStatus;
+  reference?: string | null;
+  party: string;
+  description: string;
+}
+
+export interface FinanceSummary {
+  from: string;
+  to: string;
+  moneyIn: number;
+  moneyOut: number;
+  net: number;
+  platformEarnings: number;
+  byCategory: { category: FinanceCategory; direction: 'in' | 'out'; count: number; amount: number }[];
+  walletBalancesHeld: number;
+  owedToSuppliers: number;
+  pendingDeposits: { count: number; amount: number };
+  pendingWithdrawals: { count: number; amount: number };
+  codOutstanding: { count: number; amount: number };
+  refundsDue: { count: number; amount: number };
+}
+
+export interface FinanceFilters {
+  from?: string;
+  to?: string;
+  direction?: 'in' | 'out' | '';
+  category?: FinanceCategory | '';
+  status?: FinanceStatus | '';
+}
+
+const cleanParams = (p: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(p).filter(([, v]) => v !== '' && v !== undefined));
+
+export interface WalletLedgerEntry {
+  id: string;
+  date: string;
+  shopId: string;
+  shopName: string;
+  type: string;
+  description: string;
+  reference?: string | null;
+  amount: number;
+}
+
+export const adminFinanceApi = {
+  walletLedger: (params: { search?: string } = {}, page = 1, pageSize = 25) =>
+    api.get('/admin/finance/wallet-ledger', { params: cleanParams({ ...params, page, pageSize }) })
+      .then((r) => (r.data?.data ?? r.data) as { total: number; page: number; pageSize: number; balance: number; items: WalletLedgerEntry[] }),
+  summary: (filters: Pick<FinanceFilters, 'from' | 'to'> = {}) =>
+    api.get('/admin/finance/summary', { params: cleanParams(filters) }).then((r) => (r.data?.data ?? r.data) as FinanceSummary),
+  transactions: (filters: FinanceFilters = {}, page = 1, pageSize = 25) =>
+    api.get('/admin/finance/transactions', { params: cleanParams({ ...filters, page, pageSize }) })
+      .then((r) => (r.data?.data ?? r.data) as { total: number; page: number; pageSize: number; items: FinanceEntry[] }),
+};
+
 // FAQs (Subscription page — admin-managed)
 export interface FaqItem {
   id: string;

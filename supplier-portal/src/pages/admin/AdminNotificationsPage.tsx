@@ -5,6 +5,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { notificationsApi } from '../../services/api';
+import { notificationRoute } from '../../components/ui/notificationTypes';
 
 type NotifType = 'system' | 'compliance' | 'order' | 'supplier' | 'product';
 
@@ -27,13 +28,6 @@ const typeConfig: Record<NotifType, { icon: React.ReactNode; color: string; bg: 
 };
 
 // Where clicking a notification takes the admin
-const TYPE_ROUTES: Partial<Record<NotifType, string>> = {
-  compliance: '/admin/documents',
-  order: '/admin/orders',
-  supplier: '/admin/suppliers',
-  product: '/admin/products',
-};
-
 function getDateLabel(d: string) {
   const date = new Date(d);
   if (isToday(date)) return 'Today';
@@ -95,7 +89,7 @@ export default function AdminNotificationsPage() {
 
   const open = (n: AdminNotification) => {
     if (!n.read) markRead(n.id);
-    const target = TYPE_ROUTES[n.type];
+    const target = notificationRoute(n.type, 'admin');
     if (target) navigate(target);
   };
 
@@ -153,7 +147,7 @@ export default function AdminNotificationsPage() {
             <button key={t} onClick={() => setTypeFilter(t)}
               className={clsx('px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border',
                 typeFilter === t ? 'bg-brand-blue text-white border-brand-blue' : 'bg-white text-gray-500 border-gray-200 hover:border-slate-400 hover:text-slate-700')}>
-              {t === 'all' ? 'All' : typeConfig[t].label}
+              {t === 'all' ? 'All' : typeConfig[t as NotifType]?.label ?? t.replace('_', ' ').replace(/^./, (c) => c.toUpperCase())}
             </button>
           ))}
         </div>
@@ -171,7 +165,7 @@ export default function AdminNotificationsPage() {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">{dateLabel}</p>
             <div className="space-y-2">
               {items.map((n) => {
-                const { icon, color, bg } = typeConfig[n.type];
+                const { icon, color, bg } = typeConfig[n.type as NotifType] ?? typeConfig.system;
                 return (
                   <div key={n.id} onClick={() => open(n)} role="button" tabIndex={0}
                     onKeyDown={(e) => { if (e.key === 'Enter') open(n); }}
@@ -196,7 +190,7 @@ export default function AdminNotificationsPage() {
                       </div>
                       <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{n.message}</p>
                     </div>
-                    {TYPE_ROUTES[n.type] && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
+                    {notificationRoute(n.type, 'admin') && <ChevronRight size={16} className="text-gray-300 flex-shrink-0 self-center" />}
                   </div>
                 );
               })}

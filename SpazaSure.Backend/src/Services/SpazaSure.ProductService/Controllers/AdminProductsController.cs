@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.ProductService.Controllers;
@@ -9,7 +10,7 @@ namespace SpazaSure.ProductService.Controllers;
 [ApiController]
 [Route("api/admin/products")]
 [Authorize(Roles = "admin")]
-public class AdminProductsController(SpazaSureDbContext db) : ControllerBase
+public class AdminProductsController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -76,23 +77,28 @@ public class AdminProductsController(SpazaSureDbContext db) : ControllerBase
     [HttpPatch("{id:guid}/approve")]
     public async Task<IActionResult> Approve(Guid id)
     {
-        var product = await db.Products.FindAsync(id);
+        var product = await db.Products.Include(p => p.Supplier).FirstOrDefaultAsync(p => p.Id == id);
         if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
 
         product.IsApproved = true;
         await db.SaveChangesAsync();
+        events.PublishNotification(product.Supplier.UserId.ToString(), "product", "Product approved",
+            $"'{product.Name}' is approved and visible to shops.", referenceId: product.Id.ToString(), routingKey: "product.approved");
         return Ok(ApiResponse<object>.Ok(new { product.Id, product.IsApproved }));
     }
 
     [HttpPatch("{id:guid}/reject")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectProductRequest? req)
     {
-        var product = await db.Products.FindAsync(id);
+        var product = await db.Products.Include(p => p.Supplier).FirstOrDefaultAsync(p => p.Id == id);
         if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
 
         product.IsApproved = false;
         product.IsAvailable = false;
         await db.SaveChangesAsync();
+        events.PublishNotification(product.Supplier.UserId.ToString(), "product", "Product not approved",
+            $"'{product.Name}' was not approved" + (string.IsNullOrWhiteSpace(req?.Reason) ? "." : $": {req!.Reason!.Trim()}"),
+            priority: "high", referenceId: product.Id.ToString(), routingKey: "product.rejected");
         return Ok(ApiResponse<object>.Ok(new { product.Id, product.IsApproved, reason = req?.Reason }));
     }
 
