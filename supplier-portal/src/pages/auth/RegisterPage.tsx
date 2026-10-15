@@ -117,9 +117,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 flex flex-col h-full p-12">
           <div className="flex items-center gap-3.5 mb-12">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden ring-2 ring-white/20 shadow-lg flex-shrink-0">
-              <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-full h-full object-cover" />
-            </div>
+            <img src="/spazasure_logo.png" alt="SpazaSure" className="w-12 h-12 object-contain flex-shrink-0" />
             <div>
               <h1 className="text-xl font-black text-white tracking-tight leading-none">SpazaSure</h1>
               <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#4CAF50] mt-0.5">Supplier Portal</p>
@@ -169,9 +167,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-10 bg-[#F4F7F5] overflow-y-auto">
         <div className="w-full max-w-lg animate-slide-up">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-[#1B4332]/20 shadow-md flex-shrink-0">
-              <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-full h-full object-cover" />
-            </div>
+            <img src="/spazasure_logo.png" alt="SpazaSure" className="w-10 h-10 object-contain flex-shrink-0" />
             <div>
               <h1 className="text-lg font-black text-[#1B4332] leading-none">SpazaSure</h1>
               <p className="text-[10px] font-bold tracking-widest uppercase text-[#4CAF50]">Supplier Portal</p>

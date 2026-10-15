@@ -171,9 +171,7 @@ export default function LoginPage() {
 
           {/* Logo */}
           <div style={stagger(0)} className="flex flex-col items-center mb-6">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-primary/20 shadow-lg mb-3">
-              <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-full h-full object-cover" />
-            </div>
+            <img src="/spazasure_logo.png" alt="SpazaSure" className="w-14 h-14 object-contain mb-3" />
             <h1 className="text-xl font-black text-gray-900 tracking-tight">SpazaSure</h1>
             <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-400">Supplier Portal</p>
           </div>

@@ -367,10 +367,10 @@ class _AskSpazaSureSheetState extends State<_AskSpazaSureSheet> {
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.asset(
-                'assets/images/spazasure_logo.jpg',
+                'assets/images/spazasure_logo.png',
                 width: 44,
                 height: 44,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(width: 12),

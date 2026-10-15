@@ -76,7 +76,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
 
       {/* Logo */}
       <div className={clsx('flex items-center gap-3 h-[76px] flex-shrink-0', collapsed ? 'justify-center px-3' : 'px-6')}>
-        <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+        <img src="/spazasure_logo.png" alt="SpazaSure" className="w-10 h-10 object-contain flex-shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
             <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SpazaSure</p>

@@ -44,7 +44,7 @@ export default function VerifyShopPage() {
   return (
     <div className="min-h-[100dvh] bg-[#F5F7FF] flex flex-col items-center px-4 py-8 sm:py-14">
       <a href="https://spazasure.co.za" className="flex items-center gap-3 mb-8">
-        <img src="/spazasure_logo.jpg" alt="" className="w-11 h-11 rounded-2xl border border-brand-blue-light object-cover" />
+        <img src="/spazasure_logo.png" alt="" className="w-11 h-11 object-contain" />
         <span>
           <span className="block text-lg font-black text-gray-900 leading-tight">SpazaSure</span>
           <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-brand-blue">Shop verification</span>

@@ -58,7 +58,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
     // Desktop alert when the dashboard is in a background tab (only if the user allowed it)
     if (document.hidden && 'Notification' in window && window.Notification.permission === 'granted') {
       try {
-        const desktop = new window.Notification(n.title, { body: n.message, tag: n.id, icon: '/spazasure_logo.jpg' });
+        const desktop = new window.Notification(n.title, { body: n.message, tag: n.id, icon: '/spazasure_logo.png' });
         desktop.onclick = () => { window.focus(); open_(n); desktop.close(); };
       } catch { /* some browsers only allow this from a service worker */ }
     }

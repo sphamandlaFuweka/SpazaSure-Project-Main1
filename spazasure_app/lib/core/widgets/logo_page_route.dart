@@ -83,28 +83,12 @@ class _LogoOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
+                    SizedBox(
                       width: 100,
                       height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF078C50,
-                            ).withValues(alpha: 0.5),
-                            blurRadius: 40,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: Image.asset(
-                          'assets/images/spazasure_logo.jpg',
-                          fit: BoxFit.cover,
-                        ),
+                      child: Image.asset(
+                        'assets/images/spazasure_logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 16),

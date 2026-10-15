@@ -192,27 +192,12 @@ class _OnboardingFeeCheckoutScreenState
                       ),
                     ),
                     const SizedBox(width: 14),
-                    Container(
+                    SizedBox(
                       width: 66,
                       height: 66,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.asset(
-                          'assets/images/spazasure_logo.jpg',
-                          fit: BoxFit.cover,
-                        ),
+                      child: Image.asset(
+                        'assets/images/spazasure_logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ],

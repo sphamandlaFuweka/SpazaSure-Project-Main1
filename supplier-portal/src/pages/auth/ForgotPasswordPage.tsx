@@ -85,9 +85,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-2xl overflow-hidden ring-2 ring-[#1B4332]/20 shadow-md flex-shrink-0">
-              <img src="/spazasure_logo.jpg" alt="SpazaSure" className="w-full h-full object-cover" />
-            </div>
+            <img src="/spazasure_logo.png" alt="SpazaSure" className="w-11 h-11 object-contain flex-shrink-0" />
             <div className="text-left">
               <h1 className="text-xl font-black text-[#1B4332] leading-none">SpazaSure</h1>
               <p className="text-[10px] font-bold tracking-widest uppercase text-[#4CAF50]">Supplier Portal</p>

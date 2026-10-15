@@ -104,27 +104,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 60),
 
                 // ── Logo ──
-                Container(
+                SizedBox(
                       width: 110,
                       height: 110,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryLight.withValues(
-                              alpha: 0.3,
-                            ),
-                            blurRadius: 40,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/spazasure_logo.jpg',
-                          fit: BoxFit.cover,
-                        ),
+                      child: Image.asset(
+                        'assets/images/spazasure_logo.png',
+                        fit: BoxFit.contain,
                       ),
                     )
                     .animate()

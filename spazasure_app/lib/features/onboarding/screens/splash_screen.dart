@@ -130,33 +130,12 @@ class _SplashScreenState extends State<SplashScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo container with glow
-                  Container(
+                  SizedBox(
                         width: 130,
                         height: 130,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(32),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFF078C50,
-                              ).withValues(alpha: 0.4),
-                              blurRadius: 40,
-                              spreadRadius: 5,
-                            ),
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(32),
-                          child: Image.asset(
-                            'assets/images/spazasure_logo.jpg',
-                            fit: BoxFit.cover,
-                          ),
+                        child: Image.asset(
+                          'assets/images/spazasure_logo.png',
+                          fit: BoxFit.contain,
                         ),
                       )
                       .animate()
