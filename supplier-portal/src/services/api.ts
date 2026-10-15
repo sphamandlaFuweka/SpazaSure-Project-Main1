@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import type { Product, ProductFormData, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, GroupBuyApprovalRequest, NewGroupBuyRequest } from '../types';
 import env from '../config/env';
 import type { AdminReport } from '../types/adminReport';
+import type { Kind, RawRecord } from '../pages/admin/projects/types';
 
 const BASE_URL = env.apiUrl;
 
@@ -756,4 +757,13 @@ export const faqApi = {
   /** Reorder FAQs */
   reorder: (ids: string[]) =>
     api.patch('/admin/faqs/reorder', { ids }).then((r) => r.data),
+};
+
+/** Projects & Impact module (admin-only jsonb record store) */
+export const adminProjectsApi = {
+  list: (): Promise<RawRecord[]> => api.get('/admin/projects/records').then((r) => r.data?.data ?? []),
+  create: (kind: Kind, data: object): Promise<RawRecord> => api.post('/admin/projects/records', { kind, data }).then((r) => r.data?.data),
+  createMany: (records: { kind: Kind; data: object }[]): Promise<RawRecord[]> => api.post('/admin/projects/records/bulk', { records }).then((r) => r.data?.data ?? []),
+  update: (id: string, data: object): Promise<RawRecord> => api.put(`/admin/projects/records/${id}`, { data }).then((r) => r.data?.data),
+  remove: (id: string): Promise<void> => api.delete(`/admin/projects/records/${id}`).then(() => undefined),
 };

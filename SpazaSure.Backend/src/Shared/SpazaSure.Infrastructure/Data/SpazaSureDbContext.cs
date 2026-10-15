@@ -42,6 +42,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<CustomerRewardTransaction> CustomerRewardTransactions => Set<CustomerRewardTransaction>();
     public DbSet<CustomerVoucher> CustomerVouchers => Set<CustomerVoucher>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<PmRecord> PmRecords => Set<PmRecord>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -383,6 +384,15 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("faqs");
             e.HasIndex(f => f.SortOrder);
+        });
+
+        // Admin Projects & Impact workspace: one row per record, fields in a jsonb document
+        model.Entity<PmRecord>(e =>
+        {
+            e.ToTable("pm_records");
+            e.Property(r => r.Kind).HasMaxLength(40);
+            e.Property(r => r.Data).HasColumnType("jsonb");
+            e.HasIndex(r => r.Kind);
         });
 
         model.Entity<ShopOnboardingPayment>(e =>

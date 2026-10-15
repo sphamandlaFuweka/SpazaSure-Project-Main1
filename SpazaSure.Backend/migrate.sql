@@ -1420,6 +1420,19 @@ CREATE TABLE IF NOT EXISTS device_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_DeviceTokens_Token" ON device_tokens(token);
 CREATE INDEX IF NOT EXISTS "IX_DeviceTokens_UserId" ON device_tokens(user_id);
 
+-- Admin Projects & Impact workspace (project management, MEL and reporting).
+CREATE TABLE IF NOT EXISTS pm_records (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    kind character varying(40) NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_by uuid,
+    updated_by uuid,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_pm_records PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_pm_records_kind ON pm_records (kind);
+
 -- Verify the authentication schema before marking this baseline as applied.
 DO $$
 DECLARE
@@ -1459,7 +1472,8 @@ VALUES
     ('20261015000000_AddOrderDeliveryCode', '8.0.0'),
     ('20261015085023_AddShopCode', '8.0.0'),
     ('20261015120000_AddShopWalletLedger', '8.0.0'),
-    ('20261015095400_AddShopChats', '8.0.0')
+    ('20261015095400_AddShopChats', '8.0.0'),
+    ('20261015130000_AddProjectManagementRecords', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Group buy poster shown on the banner/card.

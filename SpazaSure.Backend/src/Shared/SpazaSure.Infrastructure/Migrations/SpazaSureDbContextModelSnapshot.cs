@@ -1122,6 +1122,49 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("platform_settings", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.PmRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pm_records");
+
+                    b.HasIndex("Kind")
+                        .HasDatabaseName("ix_pm_records_kind");
+
+                    b.ToTable("pm_records", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")

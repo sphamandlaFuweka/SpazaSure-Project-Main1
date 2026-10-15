@@ -31,6 +31,7 @@ const adminPages: SearchResult[] = [
   { id: 'ap6', type: 'page', label: 'Reports',       sub: 'Customer reports',         to: '/admin/reports',    icon: <Flag size={14} /> },
   { id: 'ap7', type: 'page', label: 'Analytics',     sub: 'Platform insights',        to: '/admin/analytics',  icon: <BarChart2 size={14} /> },
   { id: 'ap8', type: 'page', label: 'Settings',      sub: 'Fees & configuration',     to: '/admin/settings',   icon: <Settings size={14} /> },
+  { id: 'ap9', type: 'page', label: 'Projects & Impact', sub: 'Projects, MEL & reports', to: '/admin/projects', icon: <BarChart2 size={14} /> },
 ];
 
 const RECENT_KEY = 'spaza_recent_searches';

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
-  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine,
+  BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine, ClipboardList,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -57,6 +57,12 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         { to: '/admin/deposits',   icon: Landmark,     label: 'Wallet Deposits', badge: pendingDeposits || undefined },
         { to: '/admin/withdrawals', icon: ArrowUpFromLine, label: 'Wallet Withdrawals', badge: pendingWithdrawals || undefined },
         { to: '/admin/finance',    icon: Banknote,     label: 'Finance' },
+      ],
+    },
+    {
+      title: 'Management',
+      items: [
+        { to: '/admin/projects', icon: ClipboardList, label: 'Projects & Impact' },
       ],
     },
     {
