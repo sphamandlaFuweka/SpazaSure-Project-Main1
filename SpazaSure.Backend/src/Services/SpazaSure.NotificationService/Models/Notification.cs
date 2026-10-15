@@ -22,3 +22,15 @@ public class NotificationEvent
     public string Priority { get; set; } = "normal";
     public string? ReferenceId { get; set; }
 }
+
+/// <summary>A phone registered for push notifications (Firebase Cloud Messaging token).</summary>
+public class DeviceToken
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>The signed-in user the phone belongs to (same id as Notification.SupplierId).</summary>
+    public string UserId { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+    public string Platform { get; set; } = "android";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}

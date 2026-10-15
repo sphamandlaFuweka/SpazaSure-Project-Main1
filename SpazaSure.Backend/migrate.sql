@@ -1393,6 +1393,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_shop_onboarding_payments_provider_payment_i
 CREATE INDEX IF NOT EXISTS "IX_Notifications_SupplierId" ON notifications(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_Notifications_SupplierId_IsRead" ON notifications(supplier_id, is_read);
 
+-- Phones registered for push notifications (Firebase Cloud Messaging), one row per device token
+CREATE TABLE IF NOT EXISTS device_tokens (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id varchar(64) NOT NULL,
+    token varchar(512) NOT NULL,
+    platform varchar(20) NOT NULL DEFAULT 'android',
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_DeviceTokens" PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_DeviceTokens_Token" ON device_tokens(token);
+CREATE INDEX IF NOT EXISTS "IX_DeviceTokens_UserId" ON device_tokens(user_id);
+
 -- Verify the authentication schema before marking this baseline as applied.
 DO $$
 DECLARE

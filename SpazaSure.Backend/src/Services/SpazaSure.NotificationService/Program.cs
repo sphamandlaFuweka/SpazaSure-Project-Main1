@@ -50,6 +50,9 @@ builder.Services.AddAuthorization();
 // SignalR
 builder.Services.AddSignalR();
 
+// Phone push notifications (Firebase Cloud Messaging)
+builder.Services.AddSingleton<SpazaSure.NotificationService.Services.PushSender>();
+
 // RabbitMQ Consumer (Background Service)
 builder.Services.AddHostedService<RabbitMqConsumer>();
 

@@ -8,6 +8,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/notification_service.dart';
+import 'package:spazasure_app/services/push_service.dart';
 
 /// Checks for new notifications while someone is signed in and the app is open, and shows
 /// each new one as a banner over whatever screen is showing. Tapping it opens the
@@ -44,10 +45,16 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
   AppNotification? _showing;
   Timer? _hideTimer;
 
+  /// A push tapped before the user was signed in (app cold start)
+  String? _pendingPushType;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Phone notifications: a push received while the app is open triggers an immediate
+    // check (which shows the banner); tapping a push opens the screen it is about
+    PushService.init(onOpen: _openFromPush, onForeground: _check);
   }
 
   @override
@@ -58,6 +65,16 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
       _loggedIn = loggedIn;
       if (loggedIn) {
         _start();
+        PushService.register();
+        final pending = _pendingPushType;
+        if (pending != null) {
+          _pendingPushType = null;
+          // Let the splash screen finish routing to home first
+          Future.delayed(
+            const Duration(seconds: 2),
+            () => _navigateFor(pending),
+          );
+        }
       } else {
         _stop();
         _seen = null;
@@ -139,13 +156,28 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
     if (NotificationPopupHost.unreadCount.value > 0) {
       NotificationPopupHost.unreadCount.value--;
     }
-    final route = switch (n.type) {
+    _navigateFor(n.type);
+  }
+
+  void _navigateFor(String type) {
+    final route = switch (type) {
       'order' || 'delivery' => '/orders',
       'wallet' => '/wallet',
       'group_buy' => '/group-buy',
       _ => '/notifications',
     };
     widget.navigatorKey.currentState?.pushNamed(route);
+  }
+
+  /// The user tapped a phone notification
+  void _openFromPush(Map<String, dynamic> data) {
+    final type = data['type']?.toString() ?? 'system';
+    if (!_loggedIn) {
+      _pendingPushType = type; // opened once the session has loaded
+      return;
+    }
+    _check();
+    _navigateFor(type);
   }
 
   @override

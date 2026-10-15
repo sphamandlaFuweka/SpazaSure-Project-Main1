@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/push_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthSession? _session;
@@ -153,6 +154,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Unlink this phone from push notifications while the session is still valid
+    await PushService.unregister();
     await AuthService.logout();
     _session = null;
     notifyListeners();

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "645017092986",
+    "project_id": "spazasure-portal",
+    "storage_bucket": "spazasure-portal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:645017092986:android:e1827c6b57e4f008658cc3",
+        "android_client_info": {
+          "package_name": "com.spazasure.spazasure_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHIpYIqpmtUwk5bfcIj7UFzWbhqK02uE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -81,3 +81,8 @@ supplier-portal/.env.*.local
 **/out/
 **/.gradle/
 **/ephemeral/
+
+# Firebase service account key (server only, never commit)
+secrets/
+*firebase-service-account*.json
+*-firebase-adminsdk-*.json

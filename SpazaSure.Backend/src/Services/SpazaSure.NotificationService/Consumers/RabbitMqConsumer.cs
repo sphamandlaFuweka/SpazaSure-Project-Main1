@@ -6,6 +6,7 @@ using RabbitMQ.Client.Events;
 using SpazaSure.NotificationService.Data;
 using SpazaSure.NotificationService.Hubs;
 using SpazaSure.NotificationService.Models;
+using SpazaSure.NotificationService.Services;
 
 namespace SpazaSure.NotificationService.Consumers;
 
@@ -20,6 +21,7 @@ public class RabbitMqConsumer : BackgroundService
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly IConfiguration _config;
+    private readonly PushSender _push;
     private IConnection? _connection;
     private IModel? _channel;
 
@@ -31,8 +33,10 @@ public class RabbitMqConsumer : BackgroundService
         IServiceScopeFactory scopeFactory,
         IHubContext<NotificationHub> hubContext,
         ILogger<RabbitMqConsumer> logger,
-        IConfiguration config)
+        IConfiguration config,
+        PushSender push)
     {
+        _push = push;
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
         _logger = logger;
@@ -159,6 +163,23 @@ public class RabbitMqConsumer : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "SignalR push failed for {UserId}", evt.SupplierId);
+            }
+
+            // Phone notification (works while the app is closed). Already acked, so a failure
+            // here never stores the notification twice.
+            if (_push.Enabled)
+            {
+                try
+                {
+                    using var pushScope = _scopeFactory.CreateScope();
+                    var pushDb = pushScope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+                    await _push.SendAsync(pushDb, evt.SupplierId, notification.Title, notification.Message,
+                        notification.Type, notification.ReferenceId, notification.Priority == "high");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Phone push failed for {UserId}", evt.SupplierId);
+                }
             }
 
             _logger.LogInformation("Notification stored for user {UserId}: {Title}", evt.SupplierId, evt.Title);

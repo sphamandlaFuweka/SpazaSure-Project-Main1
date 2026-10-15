@@ -8,6 +8,7 @@ public class NotificationDbContext : DbContext
     public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
 
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,20 @@ public class NotificationDbContext : DbContext
 
             entity.HasIndex(e => e.SupplierId);
             entity.HasIndex(e => new { e.SupplierId, e.IsRead });
+        });
+
+        modelBuilder.Entity<DeviceToken>(entity =>
+        {
+            entity.ToTable("device_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Token).HasColumnName("token").HasMaxLength(512).IsRequired();
+            entity.Property(e => e.Platform).HasColumnName("platform").HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => e.UserId);
         });
     }
 }

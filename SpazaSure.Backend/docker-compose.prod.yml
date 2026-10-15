@@ -205,6 +205,12 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
+      # Phone push notifications. Put the Firebase service account key on the server at
+      # /opt/spazasure/secrets/firebase-service-account.json (never in git). Without it,
+      # push is simply off and in-app notifications still work.
+      Firebase__CredentialsPath:            /app/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets:/app/secrets:ro
     depends_on:
       postgres:
         condition: service_healthy

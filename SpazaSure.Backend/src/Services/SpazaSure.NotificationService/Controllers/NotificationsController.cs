@@ -156,4 +156,39 @@ public class ShopNotificationsController : ControllerBase
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
         return Ok(new { success = true, message = "All marked as read" });
     }
+
+    /// <summary>Links this phone to the signed-in account for push notifications.</summary>
+    [HttpPost("devices")]
+    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest req)
+    {
+        var userId = NotificationUser.Get(User);
+        if (userId.Length == 0) return Unauthorized();
+        var token = req.Token?.Trim() ?? "";
+        if (token.Length is < 20 or > 512) return BadRequest(new { success = false, message = "Invalid device token." });
+        var platform = req.Platform?.Trim().ToLowerInvariant() is "ios" ? "ios" : "android";
+
+        // A phone belongs to whoever signed in on it last
+        var device = await _db.DeviceTokens.FirstOrDefaultAsync(d => d.Token == token);
+        if (device is null)
+            _db.DeviceTokens.Add(new DeviceToken { UserId = userId, Token = token, Platform = platform });
+        else
+        {
+            device.UserId = userId;
+            device.Platform = platform;
+            device.UpdatedAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    /// <summary>Stops push notifications to this phone (called when signing out).</summary>
+    [HttpDelete("devices")]
+    public async Task<IActionResult> RemoveDevice([FromQuery] string token)
+    {
+        var userId = NotificationUser.Get(User);
+        await _db.DeviceTokens.Where(d => d.Token == token && d.UserId == userId).ExecuteDeleteAsync();
+        return Ok(new { success = true });
+    }
 }
+
+public record RegisterDeviceRequest(string? Token, string? Platform);
