@@ -1456,7 +1456,9 @@ VALUES
     ('20261014152615_AddFaqs', '8.0.0'),
     ('20261014154448_AddOrderPayoutTracking', '8.0.0'),
     ('20261014163407_AddGroupBuyBannerImage', '8.0.0'),
-    ('20261015085023_AddShopCode', '8.0.0')
+    ('20261015000000_AddOrderDeliveryCode', '8.0.0'),
+    ('20261015085023_AddShopCode', '8.0.0'),
+    ('20261015120000_AddShopWalletLedger', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Group buy poster shown on the banner/card.
@@ -1529,6 +1531,63 @@ BEGIN
         END LOOP;
         UPDATE spaza_shops SET shop_code = candidate WHERE id = shop.id;
     END LOOP;
+END $$;
+
+-- Cash-on-delivery confirmation code: the shop must enter it to confirm delivery.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_code text;
+-- Cash orders already out for delivery need a code too, or the shop could never confirm them.
+UPDATE orders SET delivery_code = lpad(floor(random() * 1000000)::int::text, 6, '0')
+WHERE payment_method = 'cash_on_delivery' AND status = 'dispatched' AND delivery_code IS NULL;
+
+-- Shop withdrawals: bank details are stored on the wallet transaction.
+ALTER TABLE shop_wallet_transactions ADD COLUMN IF NOT EXISTS account_holder text;
+ALTER TABLE shop_wallet_transactions ADD COLUMN IF NOT EXISTS account_number text;
+ALTER TABLE shop_wallet_transactions ADD COLUMN IF NOT EXISTS bank_name text;
+ALTER TABLE shop_wallet_transactions ADD COLUMN IF NOT EXISTS branch_code text;
+
+-- Wallet ledger: a shop's balance is the sum of its signed entries.
+CREATE TABLE IF NOT EXISTS shop_wallet_ledger_entries (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    shop_id uuid NOT NULL,
+    amount numeric NOT NULL,
+    type text NOT NULL,
+    source_id uuid,
+    description text NOT NULL,
+    reference text,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone,
+    CONSTRAINT pk_shop_wallet_ledger_entries PRIMARY KEY (id),
+    CONSTRAINT fk_shop_wallet_ledger_entries_spaza_shops_shop_id FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_shop_wallet_ledger_entries_source_id ON shop_wallet_ledger_entries(source_id);
+CREATE INDEX IF NOT EXISTS ix_shop_wallet_ledger_entries_shop_id_created_at ON shop_wallet_ledger_entries(shop_id, created_at);
+
+-- Replay the history the old balance formula used (approved top-ups minus non-cancelled wallet
+-- orders) so every balance is unchanged. Only runs while the ledger is empty, i.e. once.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM shop_wallet_ledger_entries) THEN
+        INSERT INTO shop_wallet_ledger_entries (id, shop_id, amount, type, source_id, description, reference, created_at)
+        SELECT gen_random_uuid(), t.shop_id, t.amount, 'top_up', t.id,
+               CASE WHEN t.method = 'paystack' THEN 'Wallet top-up (Paystack)'
+                    WHEN t.method = 'eft' THEN 'Direct deposit'
+                    ELSE 'Wallet top-up (' || t.method || ')' END,
+               t.reference, COALESCE(t.approved_at, t.created_at)
+        FROM shop_wallet_transactions t
+        WHERE t.type = 'top_up' AND t.status = 'approved';
+
+        INSERT INTO shop_wallet_ledger_entries (id, shop_id, amount, type, source_id, description, reference, created_at)
+        SELECT gen_random_uuid(), o.shop_id, -o.total_amount, 'order_payment', o.id,
+               'Order ' || o.order_number, o.order_number, o.created_at
+        FROM orders o
+        WHERE o.payment_method = 'wallet';
+
+        INSERT INTO shop_wallet_ledger_entries (id, shop_id, amount, type, source_id, description, reference, created_at)
+        SELECT gen_random_uuid(), o.shop_id, o.total_amount, 'order_refund', o.id,
+               'Refund for cancelled order ' || o.order_number, o.order_number, COALESCE(o.updated_at, o.created_at)
+        FROM orders o
+        WHERE o.payment_method = 'wallet' AND o.status = 'cancelled';
+    END IF;
 END $$;
 
 -- Seed a default category idempotently by slug.
