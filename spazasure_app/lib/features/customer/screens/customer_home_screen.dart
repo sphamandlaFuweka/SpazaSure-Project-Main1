@@ -34,13 +34,13 @@ class CustomerHomeScreen extends StatelessWidget {
         const SizedBox(width: 4),
       ],
     ),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton.small(
       onPressed: () => showAskSpazaSure(context),
-      icon: const Icon(Icons.support_agent_rounded),
-      label: const Text('Ask SpazaSure'),
+      tooltip: 'Ask SpazaSure',
+      child: const Icon(Icons.support_agent_rounded),
     ),
     body: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 84),
       children: [
         Container(
           height: 210,
