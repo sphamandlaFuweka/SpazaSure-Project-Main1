@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -18,8 +19,10 @@ class MarketplaceScreen extends StatefulWidget {
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final _searchController = TextEditingController();
+
   /// Waits for a pause in typing before searching
   Timer? _searchDebounce;
+
   /// Only the newest request may update the list; older, slower responses are ignored
   int _requestId = 0;
   String? _selectedCategory;
@@ -267,15 +270,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             '/product',
                             arguments: product,
                           ),
-                          onAddToCart: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${product.name} added to cart'),
-                                backgroundColor: AppColors.primary,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
+                          onAddToCart: () => CartToast.add(context, product, 1),
                         );
                       },
                     ),

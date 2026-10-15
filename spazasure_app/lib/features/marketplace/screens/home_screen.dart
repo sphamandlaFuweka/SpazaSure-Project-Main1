@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/product_card.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
-import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
@@ -102,13 +102,18 @@ class _HomeScreenState extends State<HomeScreen>
       final groups = await GroupBuyService.getGroupBuys('active');
       if (!mounted) return;
       final withPoster = groups.where((g) => g.bannerImageUrl != null);
-      setState(() => _featuredGroup = withPoster.isEmpty ? null : withPoster.first);
+      setState(
+        () => _featuredGroup = withPoster.isEmpty ? null : withPoster.first,
+      );
     } catch (_) {}
   }
 
   /// The pop-up host polls for notifications; keep the bell dot in step with it
   void _syncUnread() {
-    if (mounted) setState(() => _unreadNotifications = NotificationPopupHost.unreadCount.value);
+    if (!mounted) return;
+    setState(
+      () => _unreadNotifications = NotificationPopupHost.unreadCount.value,
+    );
   }
 
   Future<void> _loadUnreadCount() async {
@@ -224,38 +229,8 @@ class _HomeScreenState extends State<HomeScreen>
                               '/product',
                               arguments: product,
                             ),
-                            onAddToCart: () {
-                              final added = context.read<CartProvider>().add(
-                                product,
-                                1,
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    added
-                                        ? '${product.name} added to cart'
-                                        : 'This product is out of stock or has no remaining stock available.',
-                                  ),
-                                  backgroundColor: added
-                                      ? AppColors.primary
-                                      : AppColors.error,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  action: added
-                                      ? SnackBarAction(
-                                          label: 'VIEW CART',
-                                          textColor: Colors.white,
-                                          onPressed: () => Navigator.pushNamed(
-                                            context,
-                                            '/cart',
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              );
-                            },
+                            onAddToCart: () =>
+                                CartToast.add(context, product, 1),
                           );
                         }, childCount: products.length),
                       ),
@@ -384,7 +359,9 @@ class _HomeScreenState extends State<HomeScreen>
       label: label,
       child: Material(
         color: Colors.white,
-        shape: const CircleBorder(side: BorderSide(color: AppColors.primaryTint)),
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.primaryTint),
+        ),
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
@@ -661,7 +638,9 @@ class _HomeScreenState extends State<HomeScreen>
               label: 'Rating',
               color: AppColors.success,
               icon: Icons.star_rounded,
-              trend: _rating == 'New' || _rating == '--' ? 'No ratings yet' : 'From shop reviews',
+              trend: _rating == 'New' || _rating == '--'
+                  ? 'No ratings yet'
+                  : 'From shop reviews',
               onTap: () => Navigator.pushNamed(context, '/orders'),
             ),
           ),
@@ -1148,7 +1127,9 @@ class _HomeScreenState extends State<HomeScreen>
                         Text(
                           'Join a group order now',
                           style: TextStyle(
-                            color: hasPoster ? Colors.white70 : AppColors.primaryDark,
+                            color: hasPoster
+                                ? Colors.white70
+                                : AppColors.primaryDark,
                             fontSize: 13,
                           ),
                         ),

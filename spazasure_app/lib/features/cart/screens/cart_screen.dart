@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -30,6 +31,8 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    // Already looking at the cart: the "added" card is no longer needed
+    CartToast.hide();
     // Fees and cash-on-delivery rules come from admin settings
     PlatformSettingsService.fetch().then((settings) {
       if (mounted) context.read<CartProvider>().applySettings(settings);
