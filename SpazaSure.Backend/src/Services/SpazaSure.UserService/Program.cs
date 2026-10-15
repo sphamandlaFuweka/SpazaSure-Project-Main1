@@ -43,7 +43,9 @@ builder.Services.AddHttpClient<GeocodingService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (support@spazasure.co.za)");
 });
 builder.Services.AddHttpClient<PaystackPaymentService>();
-builder.Services.AddHttpClient<PaystackPaymentService>();
+// Gives every saved shop/supplier address map coordinates, in the background
+builder.Services.AddSingleton<AddressGeocodingSignal>();
+builder.Services.AddHostedService<AddressGeocodingWorker>();
 builder.Services.AddSingleton(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();

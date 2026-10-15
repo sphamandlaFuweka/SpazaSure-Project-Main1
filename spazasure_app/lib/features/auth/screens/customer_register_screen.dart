@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
+import 'package:spazasure_app/services/address_service.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 
 class CustomerRegisterScreen extends StatefulWidget {
@@ -23,6 +25,10 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   final _otherLanguageController = TextEditingController();
   final _cityController = TextEditingController();
   final _suburbController = TextEditingController();
+
+  /// "Find your area" search; picking a result fills province, city, suburb and the map point
+  final _areaController = TextEditingController();
+  bool _areaConfirmed = false;
   final _ageController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -107,6 +113,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     _otherLanguageController.dispose();
     _cityController.dispose();
     _suburbController.dispose();
+    _areaController.dispose();
     _ageController.dispose();
     super.dispose();
   }
@@ -126,6 +133,21 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)
         ? null
         : 'Enter a valid email address';
+  }
+
+  void _applyArea(AddressSuggestion place) {
+    setState(() {
+      _areaConfirmed = true;
+      final province = _provinces.cast<String?>().firstWhere(
+        (p) => p!.toLowerCase() == place.province.toLowerCase(),
+        orElse: () => null,
+      );
+      if (province != null) _province = province;
+      if (place.city.isNotEmpty) _cityController.text = place.city;
+      if (place.suburb.isNotEmpty) _suburbController.text = place.suburb;
+      _latitude = place.latitude;
+      _longitude = place.longitude;
+    });
   }
 
   Future<void> _useDeviceLocation() async {
@@ -157,6 +179,23 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
         _longitude = position.longitude;
         _nearbyRecommendations = true;
       });
+      // Also fill in the area names for this spot
+      try {
+        final place = await AddressService.reverse(
+          position.latitude,
+          position.longitude,
+        );
+        if (place != null && mounted) {
+          _areaController.text = [
+            place.suburb,
+            place.city,
+          ].where((p) => p.isNotEmpty).join(', ');
+          _applyArea(place);
+        }
+      } catch (_) {
+        // The coordinates are enough for nearby recommendations
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Your location is ready to use.')),
       );
@@ -385,7 +424,20 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
                   'Optional. Choose your area or use your current location.',
               icon: Icons.location_on_outlined,
               children: [
+                AddressAutocompleteField(
+                  controller: _areaController,
+                  label: 'Find your area',
+                  hint: 'Start typing your suburb, township or town',
+                  confirmed: _areaConfirmed,
+                  onSelected: _applyArea,
+                  onEdited: () {
+                    if (_areaConfirmed) setState(() => _areaConfirmed = false);
+                  },
+                ),
+                const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
+                  // Rebuild when a picked area sets the province
+                  key: ValueKey(_province),
                   initialValue: _province,
                   decoration: const InputDecoration(
                     labelText: 'Province',

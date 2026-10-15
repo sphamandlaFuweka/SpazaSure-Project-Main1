@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/services/address_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/auth_service.dart';
@@ -43,6 +44,9 @@ class _ReportScreenState extends State<ReportScreen> {
 
   final _shopNameController = TextEditingController();
   final _locationController = TextEditingController();
+
+  /// The shop's place once picked from suggestions or pinned on the map
+  AddressSuggestion? _shopPlace;
   final _productController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _serialController = TextEditingController();
@@ -130,7 +134,10 @@ class _ReportScreenState extends State<ReportScreen> {
       if (!mounted) return;
       setState(() {
         _fix = fix;
-        if (place != null) _locationController.text = place.label;
+        if (place != null) {
+          _locationController.text = place.label;
+          _shopPlace = place;
+        }
       });
     } catch (_) {
       if (mounted) {
@@ -211,7 +218,11 @@ class _ReportScreenState extends State<ReportScreen> {
         if (_scratchIntact != null) 'scratchPanelIntact': _scratchIntact,
         if (_sealTampered != null) 'sealTampered': _sealTampered,
         'deviceId': deviceId,
-        if (fix != null) ...{
+        // Where the shop is: the picked/pinned address, else where the phone is
+        if (_shopPlace != null) ...{
+          'latitude': _shopPlace!.latitude,
+          'longitude': _shopPlace!.longitude,
+        } else if (fix != null) ...{
           'latitude': fix.latitude,
           'longitude': fix.longitude,
         },
@@ -563,11 +574,15 @@ class _ReportScreenState extends State<ReportScreen> {
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: 12),
-            _field(
-              _locationController,
-              'Shop address',
-              'Street address or area',
-              Icons.place_outlined,
+            AddressAutocompleteField(
+              controller: _locationController,
+              label: 'Shop address',
+              hint: 'Start typing the street or area',
+              confirmed: _shopPlace != null,
+              onSelected: (place) => setState(() => _shopPlace = place),
+              onEdited: () {
+                if (_shopPlace != null) setState(() => _shopPlace = null);
+              },
             ),
             const SizedBox(height: 4),
             TextButton.icon(

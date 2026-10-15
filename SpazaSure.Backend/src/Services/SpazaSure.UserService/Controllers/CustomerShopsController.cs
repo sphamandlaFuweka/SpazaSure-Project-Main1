@@ -18,7 +18,7 @@ namespace SpazaSureUserService.Controllers;
 [ApiController]
 [Route("api/customer/shops")]
 [Authorize]
-public class CustomerShopsController(SpazaSureDbContext db, GeocodingService geocoder) : ControllerBase
+public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSignal geocoding) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -62,20 +62,8 @@ public class CustomerShopsController(SpazaSureDbContext db, GeocodingService geo
             .ThenByDescending(s => s.RatingAvg)
             .ToListAsync();
 
-        // Backfill missing map locations a few at a time (Nominatim allows 1 request/second).
-        var missing = shops.Where(s => s.Latitude is null || s.Longitude is null).Take(2).ToList();
-        foreach (var shop in missing)
-        {
-            var point = await geocoder.GeocodeAsync(shop.Address, shop.City, shop.Province, shop.PostalCode);
-            if (point is { } p)
-            {
-                shop.Latitude = p.Lat;
-                shop.Longitude = p.Lng;
-            }
-            await Task.Delay(1100);
-        }
-        if (missing.Any(s => s.Latitude is not null))
-            await db.SaveChangesAsync();
+        // Shops without map coordinates are looked up by the background geocoding worker
+        if (shops.Any(s => s.Latitude is null || s.Longitude is null)) geocoding.RequestRun();
 
         return Ok(ApiResponse<object>.Ok(shops.Select(ToDto).ToList()));
     }

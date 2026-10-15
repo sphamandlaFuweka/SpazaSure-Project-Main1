@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:spazasure_app/features/chat/screens/chat_thread_screen.dart';
+import 'package:spazasure_app/services/chat_service.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
@@ -105,6 +107,26 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to open map directions.')),
       );
+    }
+  }
+
+  Future<void> _openChat() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final chatId = await ChatService.startWithShop(shop.id);
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => ChatThreadScreen(
+            chatId: chatId,
+            title: shop.name,
+            asShop: false,
+            verified: shop.isVerified,
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -229,6 +251,11 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
             spacing: 10,
             runSpacing: 10,
             children: [
+              FilledButton.icon(
+                onPressed: _openChat,
+                icon: const Icon(Icons.forum_rounded),
+                label: const Text('Chat in app'),
+              ),
               if (shop.phone.isNotEmpty)
                 FilledButton.icon(
                   onPressed: () => _launch(

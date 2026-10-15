@@ -32,6 +32,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<Faq> Faqs => Set<Faq>();
     public DbSet<ShopOnboardingPayment> ShopOnboardingPayments => Set<ShopOnboardingPayment>();
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
+    public DbSet<ShopConversation> ShopConversations => Set<ShopConversation>();
+    public DbSet<ShopMessage> ShopMessages => Set<ShopMessage>();
     public DbSet<ShopWalletLedgerEntry> ShopWalletLedgerEntries => Set<ShopWalletLedgerEntry>();
     public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
@@ -195,6 +197,26 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(r => new { r.ShopId, r.ReviewerUserId }).IsUnique();
             e.HasOne(r => r.Shop).WithMany().HasForeignKey(r => r.ShopId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.Reviewer).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // In-app chat between customers and shops
+        model.Entity<ShopConversation>(e =>
+        {
+            e.ToTable("shop_conversations");
+            e.HasIndex(c => new { c.ShopId, c.CustomerUserId }).IsUnique();
+            e.HasIndex(c => c.CustomerUserId);
+            e.Property(c => c.LastMessagePreview).HasMaxLength(200);
+            e.HasOne(c => c.Shop).WithMany().HasForeignKey(c => c.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.CustomerUser).WithMany().HasForeignKey(c => c.CustomerUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopMessage>(e =>
+        {
+            e.ToTable("shop_messages");
+            e.HasIndex(m => new { m.ConversationId, m.CreatedAt });
+            e.Property(m => m.SenderRole).HasMaxLength(20);
+            e.Property(m => m.Body).HasMaxLength(1000);
+            e.HasOne(m => m.Conversation).WithMany(c => c.Messages).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<ShopWalletTransaction>(e =>

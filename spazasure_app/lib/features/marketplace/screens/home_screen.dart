@@ -360,11 +360,11 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           const SizedBox(width: 8),
           _headerButton(
-            icon: Icons.notifications_none_rounded,
-            label: 'Notifications',
+            icon: Icons.forum_outlined,
+            label: 'Messages and alerts',
             showDot: _unreadNotifications > 0,
             onTap: () async {
-              await Navigator.pushNamed(context, '/notifications');
+              await Navigator.pushNamed(context, '/inbox');
               _loadUnreadCount();
             },
           ),

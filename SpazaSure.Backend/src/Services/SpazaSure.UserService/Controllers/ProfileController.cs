@@ -5,6 +5,7 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using SpazaSure.Shared.Storage;
 using System.Security.Claims;
 
@@ -13,7 +14,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/supplier/profile")]
 [Authorize]
-public class ProfileController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events) : ControllerBase
+public class ProfileController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events, AddressGeocodingSignal geocoding) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -53,6 +54,10 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
         var addressError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return BadRequest(ApiResponse.Fail(addressError));
 
+        var addressChanged = (req.Address != null && req.Address != supplier.Address)
+            || (req.City != null && req.City != supplier.City)
+            || (req.Province != null && req.Province != supplier.Province);
+
         supplier.CompanyName        = req.CompanyName        ?? supplier.CompanyName;
         supplier.ContactPerson      = req.ContactPerson      ?? supplier.ContactPerson;
         supplier.Phone              = req.Phone              ?? supplier.Phone;
@@ -68,7 +73,14 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
         supplier.BankBranchCode     = req.BankBranchCode     ?? supplier.BankBranchCode;
         if (hasLatitude) supplier.Latitude = req.Latitude;
         if (hasLongitude) supplier.Longitude = req.Longitude;
+        if (addressChanged && !hasLatitude)
+        {
+            // New address typed without picking it on the map: look it up again
+            supplier.Latitude = null;
+            supplier.Longitude = null;
+        }
         await db.SaveChangesAsync();
+        if (supplier.Latitude is null) geocoding.RequestRun();
         return Ok(ApiResponse<object>.Ok(new
         {
             supplier.Latitude,

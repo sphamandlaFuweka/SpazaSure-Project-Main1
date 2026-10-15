@@ -1601,6 +1601,59 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CustomerUnread")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_unread");
+
+                    b.Property<Guid>("CustomerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_user_id");
+
+                    b.Property<DateTime>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_message_at");
+
+                    b.Property<string>("LastMessagePreview")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("last_message_preview");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<int>("ShopUnread")
+                        .HasColumnType("integer")
+                        .HasColumnName("shop_unread");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_conversations");
+
+                    b.HasIndex("CustomerUserId")
+                        .HasDatabaseName("ix_shop_conversations_customer_user_id");
+
+                    b.HasIndex("ShopId", "CustomerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_shop_conversations_shop_id_customer_user_id");
+
+                    b.ToTable("shop_conversations", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1661,6 +1714,50 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_shop_documents_shop_id");
 
                     b.ToTable("shop_documents", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("SenderRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sender_role");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sender_user_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_messages");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("ix_shop_messages_conversation_id_created_at");
+
+                    b.ToTable("shop_messages", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopOnboardingPayment", b =>
@@ -2798,6 +2895,27 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.User", "CustomerUser")
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_conversations_users_customer_user_id");
+
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_conversations_spaza_shops_shop_id");
+
+                    b.Navigation("CustomerUser");
+
+                    b.Navigation("Shop");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopDocument", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
@@ -2808,6 +2926,18 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasConstraintName("fk_shop_documents_spaza_shops_shop_id");
 
                     b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopMessage", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.ShopConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_messages_shop_conversations_conversation_id");
+
+                    b.Navigation("Conversation");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopOnboardingPayment", b =>
@@ -2978,6 +3108,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SpazaShop", b =>

@@ -164,7 +164,8 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
       'order' || 'delivery' => '/orders',
       'wallet' => '/wallet',
       'group_buy' => '/group-buy',
-      _ => '/notifications',
+      'chat' => '/inbox',
+      _ => '/inbox',
     };
     widget.navigatorKey.currentState?.pushNamed(route);
   }

@@ -20,6 +20,7 @@ import 'features/orders/screens/order_detail_screen.dart';
 import 'features/delivery/screens/delivery_tracking_screen.dart';
 import 'features/compliance/screens/compliance_screen.dart';
 import 'core/widgets/notification_popup_host.dart';
+import 'features/chat/screens/inbox_screen.dart';
 import 'features/shop_verification/my_sticker_screen.dart';
 import 'features/shop_verification/shop_verify_screen.dart';
 import 'features/notifications/screens/notifications_screen.dart';
@@ -96,6 +97,17 @@ class SpazaSureApp extends StatelessWidget {
           '/receipt': () => const ReceiptScreen(),
           '/verify-shop': () => const ShopVerifyScreen(),
           '/my-sticker': () => const MyStickerScreen(),
+          '/inbox': () => Builder(
+            builder: (ctx) {
+              // Wait for the saved session so customers don't get the shop's inbox
+              final auth = ctx.watch<AuthProvider>();
+              if (!auth.initialized) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              final asShop = auth.session?.role != 'customer';
+              return InboxScreen(key: ValueKey(asShop), asShop: asShop);
+            },
+          ),
         };
         final builder = pages[settings.name];
         if (builder == null) return null;

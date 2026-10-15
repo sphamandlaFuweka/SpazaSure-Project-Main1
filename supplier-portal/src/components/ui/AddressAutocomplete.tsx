@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, CheckCircle2, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle2, Loader2, Pin } from 'lucide-react';
 import { searchAddresses, type AddressSuggestion } from '../../services/address';
+import MapPinPicker from './MapPinPicker';
 
 interface Props {
   value: string;
@@ -11,13 +12,20 @@ interface Props {
   error?: string;
 }
 
-/** Text input that suggests real South African addresses. Only a picked suggestion counts as confirmed. */
+/**
+ * Text input that suggests real South African addresses. Only a picked suggestion counts as
+ * confirmed, or a spot pinned on the map for places search can't find, so every address
+ * can be shown on the map.
+ */
 export default function AddressAutocomplete({ value, confirmed, onTextChange, onSelect, placeholder, error }: Props) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [pinning, setPinning] = useState(false);
+  /** Closest match from the last search, so the map opens near it */
+  const [nearest, setNearest] = useState<[number, number] | undefined>();
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const abort = useRef<AbortController>();
   const box = useRef<HTMLDivElement>(null);
@@ -41,7 +49,9 @@ export default function AddressAutocomplete({ value, confirmed, onTextChange, on
       setLoading(true);
       setFailed(false);
       try {
-        setSuggestions(await searchAddresses(text, controller.signal));
+        const results = await searchAddresses(text, controller.signal);
+        setSuggestions(results);
+        if (results.length > 0) setNearest([results[0].latitude, results[0].longitude]);
         setSearched(true);
         setOpen(true);
       } catch (e) {
@@ -57,7 +67,7 @@ export default function AddressAutocomplete({ value, confirmed, onTextChange, on
     : confirmed
       ? 'Address confirmed on the map'
       : searched && suggestions.length === 0
-        ? 'No matches. Try adding the suburb or city.'
+        ? 'No matches. Add the suburb or town, or pin it on the map.'
         : 'Choose a suggestion to confirm the address';
 
   return (
@@ -90,11 +100,31 @@ export default function AddressAutocomplete({ value, confirmed, onTextChange, on
               </button>
             </li>
           ))}
+          <li className="border-t border-gray-100">
+            <button type="button" onClick={() => { setOpen(false); setPinning(true); }}
+              className="w-full text-left px-3 py-2.5 text-sm font-bold text-brand-blue hover:bg-primary-50 flex items-center gap-2">
+              <Pin size={14} /> Not listed? Pin it on the map
+            </button>
+          </li>
         </ul>
       )}
-      <p className={`text-xs mt-1.5 font-medium ${error || failed ? 'text-red-500' : confirmed ? 'text-emerald-600' : 'text-gray-400'}`}>
-        {error ?? hint}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-1.5">
+        <p className={`text-xs font-medium ${error || failed ? 'text-red-500' : confirmed ? 'text-emerald-600' : 'text-gray-400'}`}>
+          {error ?? hint}
+        </p>
+        <button type="button" onClick={() => setPinning(true)}
+          className={`text-xs font-bold text-brand-blue inline-flex items-center gap-1 rounded-full px-2 py-0.5 hover:bg-primary-50 ${searched && !confirmed && suggestions.length === 0 ? 'bg-brand-blue-light' : ''}`}>
+          <Pin size={12} /> {confirmed ? 'Adjust pin on map' : 'Pin it on the map'}
+        </button>
+      </div>
+      {pinning && (
+        <MapPinPicker
+          initial={nearest}
+          typedAddress={value}
+          onClose={() => setPinning(false)}
+          onPick={(place) => { setPinning(false); setSuggestions([]); onSelect(place); }}
+        />
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "admin")]
-public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, EventPublisher events) : ControllerBase
+public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geocoding, EventPublisher events) : ControllerBase
 {
     //  SUPPLIERS 
 
@@ -153,23 +153,9 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
                  !string.IsNullOrWhiteSpace(s.City) ||
                  !string.IsNullOrWhiteSpace(s.Province) ||
                  !string.IsNullOrWhiteSpace(s.PostalCode)))
-            .Take(2)
             .ToList();
-        foreach (var shop in missingLocations)
-        {
-            var point = await geocoder.GeocodeAsync(
-                shop.Address, shop.City, shop.Province, shop.PostalCode, HttpContext.RequestAborted);
-            if (point is { } location)
-            {
-                shop.Latitude = location.Lat;
-                shop.Longitude = location.Lng;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(1100), HttpContext.RequestAborted);
-        }
-
-        if (missingLocations.Any(s => s.Latitude is not null && s.Longitude is not null))
-            await db.SaveChangesAsync(HttpContext.RequestAborted);
+        // Shops without map coordinates are looked up by the background geocoding worker
+        if (missingLocations.Count > 0) geocoding.RequestRun();
 
         var result = items.Select(s => new
         {

@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/map_pin_picker_screen.dart';
 import 'package:spazasure_app/services/address_service.dart';
 
 /// Text field that suggests real South African addresses as the user types.
-/// The address only counts as valid once a suggestion is picked.
+/// The address only counts as valid once a suggestion is picked, or once the user
+/// pins it on the map (for places search can't find), so it can always be mapped.
 class AddressAutocompleteField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
@@ -35,6 +38,9 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   bool _loading = false;
   String? _error;
   bool _searched = false;
+
+  /// Closest match from the last search, so the map picker opens near it
+  LatLng? _nearest;
 
   @override
   void dispose() {
@@ -66,6 +72,9 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
       setState(() {
         _suggestions = results;
         _searched = true;
+        if (results.isNotEmpty) {
+          _nearest = LatLng(results.first.latitude, results.first.longitude);
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -75,6 +84,17 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _pinOnMap() async {
+    FocusScope.of(context).unfocus();
+    final picked = await MapPinPickerScreen.open(
+      context,
+      initial: _nearest,
+      typedAddress: widget.controller.text,
+    );
+    if (picked == null || !mounted) return;
+    _pick(picked);
   }
 
   void _pick(AddressSuggestion s) {
@@ -151,6 +171,23 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
                     title: Text(s.label),
                     onTap: () => _pick(s),
                   ),
+                const Divider(height: 1),
+                ListTile(
+                  dense: true,
+                  leading: const Icon(
+                    Icons.push_pin_outlined,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Not listed? Pin it on the map',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: _pinOnMap,
+                ),
               ],
             ),
           ),
@@ -161,7 +198,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
                 (widget.confirmed
                     ? 'Address confirmed on the map'
                     : _searched && _suggestions.isEmpty
-                    ? 'No matches. Try adding the suburb or city.'
+                    ? 'No matches. Add the suburb or town, or pin it on the map.'
                     : 'Choose a suggestion to confirm your address'),
             style: TextStyle(
               fontSize: 12,
@@ -173,6 +210,26 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
             ),
           ),
         ),
+        if (_suggestions.isEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _pinOnMap,
+              icon: const Icon(Icons.push_pin_outlined, size: 18),
+              label: Text(
+                widget.confirmed
+                    ? 'Adjust the pin on the map'
+                    : 'Pin it on the map instead',
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: _searched && !widget.confirmed
+                    ? AppColors.primaryTint
+                    : null,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -1458,7 +1458,8 @@ VALUES
     ('20261014163407_AddGroupBuyBannerImage', '8.0.0'),
     ('20261015000000_AddOrderDeliveryCode', '8.0.0'),
     ('20261015085023_AddShopCode', '8.0.0'),
-    ('20261015120000_AddShopWalletLedger', '8.0.0')
+    ('20261015120000_AddShopWalletLedger', '8.0.0'),
+    ('20261015095400_AddShopChats', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Group buy poster shown on the banner/card.
@@ -1589,6 +1590,37 @@ BEGIN
         WHERE o.payment_method = 'wallet' AND o.status = 'cancelled';
     END IF;
 END $$;
+
+-- In-app chat between customers and spaza shops.
+CREATE TABLE IF NOT EXISTS shop_conversations (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    shop_id uuid NOT NULL,
+    customer_user_id uuid NOT NULL,
+    last_message_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    last_message_preview varchar(200),
+    customer_unread integer NOT NULL DEFAULT 0,
+    shop_unread integer NOT NULL DEFAULT 0,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone,
+    CONSTRAINT pk_shop_conversations PRIMARY KEY (id),
+    CONSTRAINT fk_shop_conversations_spaza_shops_shop_id FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    CONSTRAINT fk_shop_conversations_users_customer_user_id FOREIGN KEY (customer_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_shop_conversations_customer_user_id ON shop_conversations(customer_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_shop_conversations_shop_id_customer_user_id ON shop_conversations(shop_id, customer_user_id);
+
+CREATE TABLE IF NOT EXISTS shop_messages (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    conversation_id uuid NOT NULL,
+    sender_user_id uuid NOT NULL,
+    sender_role varchar(20) NOT NULL,
+    body varchar(1000) NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone,
+    CONSTRAINT pk_shop_messages PRIMARY KEY (id),
+    CONSTRAINT fk_shop_messages_shop_conversations_conversation_id FOREIGN KEY (conversation_id) REFERENCES shop_conversations(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_shop_messages_conversation_id_created_at ON shop_messages(conversation_id, created_at);
 
 -- Seed a default category idempotently by slug.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

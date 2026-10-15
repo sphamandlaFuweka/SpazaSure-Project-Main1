@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using SpazaSure.Shared.Storage;
 using System.Globalization;
 using System.Security.Claims;
@@ -13,7 +14,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/shop/profile")]
 [Authorize(Roles = "spaza_owner")]
-public class ShopProfileController(SpazaSureDbContext db, IFileStorageService storage) : ControllerBase
+public class ShopProfileController(SpazaSureDbContext db, IFileStorageService storage, AddressGeocodingSignal geocoding) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -94,6 +95,11 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         var addressError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return BadRequest(ApiResponse.Fail(addressError));
 
+        var addressChanged = (req.Address != null && req.Address != shop.Address)
+            || (req.City != null && req.City != shop.City)
+            || (req.Province != null && req.Province != shop.Province)
+            || (req.PostalCode != null && req.PostalCode != shop.PostalCode);
+
         if (req.ShopName != null) shop.ShopName = req.ShopName;
         if (req.OwnerName != null) shop.OwnerName = req.OwnerName;
         if (req.Phone != null) shop.Phone = req.Phone;
@@ -104,8 +110,15 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         if (req.PostalCode != null) shop.PostalCode = req.PostalCode;
         if (hasLatitude) shop.Latitude = req.Latitude;
         if (hasLongitude) shop.Longitude = req.Longitude;
+        if (addressChanged && !hasLatitude)
+        {
+            // New address typed without picking it on the map: look it up again
+            shop.Latitude = null;
+            shop.Longitude = null;
+        }
 
         await db.SaveChangesAsync();
+        if (shop.Latitude is null) geocoding.RequestRun();
         return Ok(ApiResponse<object>.Ok(new
         {
             shop.Latitude,

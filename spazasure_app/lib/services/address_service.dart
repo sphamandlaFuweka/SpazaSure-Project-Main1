@@ -87,9 +87,24 @@ class AddressService {
   }
 
   /// Autocomplete for South African addresses via OpenStreetMap Nominatim.
+  /// OpenStreetMap often lacks township house numbers, so when nothing matches it
+  /// retries without the leading stand/house number to at least find the street.
   static Future<List<AddressSuggestion>> search(String query) async {
     final q = query.trim();
     if (q.length < 3) return const [];
+    final results = await _search(q);
+    if (results.isNotEmpty) return results;
+    final withoutNumber = q.replaceFirst(
+      RegExp(r'^\s*(no\.?\s*)?\d+[a-zA-Z]?[\s,]+', caseSensitive: false),
+      '',
+    );
+    if (withoutNumber != q && withoutNumber.length >= 3) {
+      return _search(withoutNumber);
+    }
+    return results;
+  }
+
+  static Future<List<AddressSuggestion>> _search(String q) async {
     final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
       'q': q,
       'format': 'jsonv2',

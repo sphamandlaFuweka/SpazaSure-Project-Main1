@@ -4,6 +4,8 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
+import 'package:spazasure_app/core/widgets/notification_popup_host.dart';
+import 'package:spazasure_app/features/customer/screens/ask_spazasure_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dart';
 
@@ -16,16 +18,25 @@ class CustomerHomeScreen extends StatelessWidget {
     appBar: AppBar(
       title: const Text('SpazaSure'),
       actions: [
-        IconButton(
-          tooltip: 'Ask SpazaSure',
-          onPressed: () => showKwaziChat(context),
-          icon: const Icon(Icons.chat_bubble_outline_rounded),
+        // Chats with shops + news & alerts, with a dot for anything unread
+        ValueListenableBuilder<int>(
+          valueListenable: NotificationPopupHost.unreadCount,
+          builder: (context, unread, _) => IconButton(
+            tooltip: 'Inbox: chats and alerts',
+            onPressed: () => Navigator.pushNamed(context, '/inbox'),
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 9 ? '9+' : '$unread'),
+              child: const Icon(Icons.forum_outlined),
+            ),
+          ),
         ),
+        const SizedBox(width: 4),
       ],
     ),
     floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => showKwaziChat(context),
-      icon: const Icon(Icons.smart_toy_rounded),
+      onPressed: () => showAskSpazaSure(context),
+      icon: const Icon(Icons.support_agent_rounded),
       label: const Text('Ask SpazaSure'),
     ),
     body: ListView(
