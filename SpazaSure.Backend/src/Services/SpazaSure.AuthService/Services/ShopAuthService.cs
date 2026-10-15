@@ -84,6 +84,8 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
             RegistrationDetails = registrationDetails,
             Status = "pending"
         };
+        // Public shop number for the SpazaSure sticker and QR code
+        await ShopVerification.EnsureCodeAsync(db, shop);
         db.SpazaShops.Add(shop);
 
         // Save user and shop first so FK constraint is satisfied

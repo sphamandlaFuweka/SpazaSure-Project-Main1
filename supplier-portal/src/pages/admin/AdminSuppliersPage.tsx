@@ -39,6 +39,8 @@ interface Supplier {
 
 interface SpazaOwner {
   id: string;
+  /** Public shop number on the SpazaSure sticker, e.g. SS482913 */
+  shopNumber: string;
   shopName: string;
   ownerName: string;
   email: string;
@@ -122,6 +124,7 @@ export default function AdminSuppliersPage() {
       // Map backend fields to frontend interface
       setSpazaOwners(items.map((o: any) => ({
         id: o.id,
+        shopNumber: o.shopNumber ?? '',
         shopName: o.shopName ?? '',
         ownerName: o.ownerName ?? '',
         email: o.email ?? '',
@@ -213,6 +216,7 @@ export default function AdminSuppliersPage() {
   const filteredSpazaOwners = spazaOwners.filter((o) => {
     const matchSearch = !spazaSearch ||
       o.shopName.toLowerCase().includes(spazaSearch.toLowerCase()) ||
+      o.shopNumber.toLowerCase().includes(spazaSearch.toLowerCase()) ||
       o.ownerName.toLowerCase().includes(spazaSearch.toLowerCase()) ||
       o.email.toLowerCase().includes(spazaSearch.toLowerCase());
     const matchFilter = spazaFilter === 'all' ||
@@ -579,7 +583,7 @@ export default function AdminSuppliersPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{o.shopName}</p>
-                              <p className="text-xs text-gray-400">{o.email}</p>
+                              <p className="text-xs text-gray-400">{o.shopNumber && <span className="font-mono font-bold text-brand-blue mr-1.5">{o.shopNumber}</span>}{o.email}</p>
                             </div>
                           </div>
                         </td>
@@ -854,7 +858,7 @@ export default function AdminSuppliersPage() {
                     </div>
                     <div>
                       <p className="font-bold text-white text-lg">{selectedSpaza.shopName}</p>
-                      <p className="text-sm text-purple-100">{selectedSpaza.ownerName}</p>
+                      <p className="text-sm text-purple-100">{selectedSpaza.ownerName}{selectedSpaza.shopNumber ? ` · ${selectedSpaza.shopNumber}` : ''}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

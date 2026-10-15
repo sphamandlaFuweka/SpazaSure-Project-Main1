@@ -364,6 +364,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       _menuTile(
+        Icons.verified_rounded,
+        'My SpazaSure sticker',
+        'Shop number, QR code & verification',
+        const Color(0xFF078C50),
+        () => Navigator.pushNamed(context, '/my-sticker'),
+      ),
+      _menuTile(
         Icons.account_balance_wallet_rounded,
         'SpazaSure Wallet',
         'Balance & transactions',

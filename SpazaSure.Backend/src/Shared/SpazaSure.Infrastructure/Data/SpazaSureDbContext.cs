@@ -185,6 +185,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(s => s.User).WithOne(u => u.SpazaShop)
              .HasForeignKey<SpazaShop>(s => s.UserId);
             e.Property(s => s.RatingAvg).HasPrecision(3, 2);
+            e.Property(s => s.ShopCode).HasMaxLength(12);
+            e.HasIndex(s => s.ShopCode).IsUnique();
         });
 
         model.Entity<ShopReview>(e =>

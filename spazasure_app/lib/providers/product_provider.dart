@@ -31,7 +31,7 @@ class ProductProvider extends ChangeNotifier {
       _error = null;
       // Products are the primary content. Optional filters and supplier
       // metadata must not make the catalog disappear when one endpoint fails.
-      final products = await ProductService.getProducts(pageSize: 50);
+      final products = await ProductService.getAllProducts();
       // Keep the last successful catalogue if the server briefly responds
       // with no items; a real first load can still show an empty state.
       if (products.isNotEmpty || _products.isEmpty) {
@@ -74,15 +74,13 @@ class ProductProvider extends ChangeNotifier {
     String? categoryId,
     String? supplierId,
     String sort = 'popular',
-    int pageSize = 50,
   }) async {
     try {
-      final products = await ProductService.getProducts(
+      final products = await ProductService.getAllProducts(
         search: search,
         categoryId: categoryId,
         supplierId: supplierId,
         sort: sort,
-        pageSize: pageSize,
       );
       return products;
     } catch (e) {

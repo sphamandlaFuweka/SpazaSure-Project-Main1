@@ -703,6 +703,26 @@ export const adminFinanceApi = {
       .then((r) => (r.data?.data ?? r.data) as { total: number; page: number; pageSize: number; items: FinanceEntry[] }),
 };
 
+// Public shop verification (no sign-in): the green SpazaSure Verified sticker
+export interface ShopVerificationResult {
+  shopNumber: string;
+  shopName: string;
+  area: string;
+  verified: boolean;
+  message: string;
+  validUntil?: string | null;
+  ratingAvg?: number | null;
+  checkedAt: string;
+}
+
+export const publicShopsApi = {
+  /** Uses a plain request so the page can show its own messages instead of error toasts. */
+  verify: async (code: string): Promise<ShopVerificationResult> => {
+    const res = await axios.get(`${BASE_URL}/public/shops/${encodeURIComponent(code.trim())}`, { timeout: env.apiTimeout });
+    return res.data?.data ?? res.data;
+  },
+};
+
 // FAQs (Subscription page — admin-managed)
 export interface FaqItem {
   id: string;

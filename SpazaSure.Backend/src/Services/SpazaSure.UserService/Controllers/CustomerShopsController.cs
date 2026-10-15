@@ -43,6 +43,7 @@ public class CustomerShopsController(SpazaSureDbContext db, GeocodingService geo
         s.ComplianceStatus,
         s.Status,
         IsVerified = s.Status == "verified",
+        ShopNumber = s.ShopCode,
         RegisteredAt = s.CreatedAt,
     };
 

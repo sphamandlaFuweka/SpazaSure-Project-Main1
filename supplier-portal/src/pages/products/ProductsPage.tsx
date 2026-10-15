@@ -234,6 +234,17 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Shops only see products that are in stock */}
+      {outOfStock > 0 && (
+        <div role="status" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-brand-yellow-light p-4">
+          <Package size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="flex-1 text-sm text-amber-900">
+            <strong>{outOfStock} product{outOfStock === 1 ? ' is' : 's are'} out of stock and hidden from shops.</strong>{' '}
+            Edit {outOfStock === 1 ? 'it' : 'them'} and enter the stock you have, so retailers can see and order {outOfStock === 1 ? 'it' : 'them'} again.
+          </p>
+        </div>
+      )}
+
       {/* Compliance Warning Banner (always visible when not compliant) */}
       {complianceChecked && !isCompliant && (
         <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 animate-in">

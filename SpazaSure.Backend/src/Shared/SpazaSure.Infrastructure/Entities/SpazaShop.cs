@@ -19,6 +19,8 @@ public class SpazaShop : BaseEntity
     public string? RegistrationDetails { get; set; }
     public string Status { get; set; } = "pending";
     public string ComplianceStatus { get; set; } = "incomplete";  // green, orange, red
+    /// <summary>Public shop number (e.g. SS482913) printed on the SpazaSure sticker and QR code.</summary>
+    public string? ShopCode { get; set; }
     public bool OnboardingFeePaid { get; set; } = false;
     public string? OnboardingFeeRef { get; set; }
     public decimal RatingAvg { get; set; } = 0;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -16,6 +18,10 @@ class MarketplaceScreen extends StatefulWidget {
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final _searchController = TextEditingController();
+  /// Waits for a pause in typing before searching
+  Timer? _searchDebounce;
+  /// Only the newest request may update the list; older, slower responses are ignored
+  int _requestId = 0;
   String? _selectedCategory;
   String _sortBy = 'popular';
   List<Product> _filteredProducts = [];
@@ -42,17 +48,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _filterProducts);
+  }
+
   Future<void> _filterProducts() async {
+    final requestId = ++_requestId;
     setState(() => _loading = true);
     try {
-      final products = await ProductService.getProducts(
-        search: _searchController.text.isNotEmpty
-            ? _searchController.text
+      final products = await ProductService.getAllProducts(
+        search: _searchController.text.trim().isNotEmpty
+            ? _searchController.text.trim()
             : null,
         categoryId: _selectedCategory,
         sort: _sortBy,
-        pageSize: 50,
       );
+      // A newer search started while this one was loading: its results win
+      if (!mounted || requestId != _requestId) return;
       setState(() {
         // A transient empty server response must not wipe an already visible
         // catalogue. Empty is still shown normally on a first load or after
@@ -65,7 +85,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted && requestId == _requestId) setState(() => _loading = false);
     }
   }
 
@@ -104,7 +124,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: TextField(
                 controller: _searchController,
-                onChanged: (_) => _filterProducts(),
+                onChanged: (_) => _onSearchChanged(),
                 decoration: InputDecoration(
                   hintText: 'Search products...',
                   prefixIcon: const Icon(

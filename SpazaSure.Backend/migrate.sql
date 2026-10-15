@@ -411,7 +411,21 @@ BEGIN
             WHERE first_name IS NULL OR last_name IS NULL
         $sql$;
     END IF;
-END $$;
+END $;
+
+-- The legacy full_name column was NOT NULL, but customers now register with first and
+-- last name only, so every new customer insert failed ("Something went wrong" in the app).
+-- Relax it wherever it still exists; old values are kept.
+DO $
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'customer_profiles' AND column_name = 'full_name'
+    ) THEN
+        ALTER TABLE customer_profiles ALTER COLUMN full_name DROP NOT NULL;
+        ALTER TABLE customer_profiles ALTER COLUMN full_name SET DEFAULT '';
+    END IF;
+END $;
 ALTER TABLE customer_profiles ALTER COLUMN first_name SET DEFAULT '';
 ALTER TABLE customer_profiles ALTER COLUMN last_name SET DEFAULT '';
 UPDATE customer_profiles SET first_name = '' WHERE first_name IS NULL;
@@ -1441,7 +1455,8 @@ VALUES
     ('20261014130000_ReplaceProviderSpecificPaymentReferences', '8.0.0'),
     ('20261014152615_AddFaqs', '8.0.0'),
     ('20261014154448_AddOrderPayoutTracking', '8.0.0'),
-    ('20261014163407_AddGroupBuyBannerImage', '8.0.0')
+    ('20261014163407_AddGroupBuyBannerImage', '8.0.0'),
+    ('20261015085023_AddShopCode', '8.0.0')
 ON CONFLICT DO NOTHING;
 
 -- Group buy poster shown on the banner/card.
@@ -1497,6 +1512,24 @@ FROM (VALUES
   ('customer', 'Consumer / customer role')
 ) AS seed(name, description)
 WHERE NOT EXISTS (SELECT 1 FROM roles existing WHERE existing.name = seed.name);
+
+-- Public shop numbers (e.g. SS482913) for the SpazaSure Verified sticker and QR code.
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS shop_code varchar(12);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_spaza_shops_shop_code ON spaza_shops(shop_code);
+-- Give every existing shop a unique number (new shops get one when they register).
+DO $$
+DECLARE
+    shop record;
+    candidate text;
+BEGIN
+    FOR shop IN SELECT id FROM spaza_shops WHERE shop_code IS NULL LOOP
+        LOOP
+            candidate := 'SS' || (100000 + floor(random() * 900000))::int::text;
+            EXIT WHEN NOT EXISTS (SELECT 1 FROM spaza_shops WHERE shop_code = candidate);
+        END LOOP;
+        UPDATE spaza_shops SET shop_code = candidate WHERE id = shop.id;
+    END LOOP;
+END $$;
 
 -- Seed a default category idempotently by slug.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

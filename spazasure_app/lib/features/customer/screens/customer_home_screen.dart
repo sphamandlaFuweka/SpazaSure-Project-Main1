@@ -106,6 +106,15 @@ class CustomerHomeScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _action(
           context,
+          Icons.verified_rounded,
+          'Verify a shop',
+          'Scan the shop sticker or enter its shop number',
+          AppColors.success,
+          () => Navigator.pushNamed(context, '/verify-shop'),
+        ),
+        const SizedBox(height: 12),
+        _action(
+          context,
           Icons.card_giftcard_rounded,
           'My rewards',
           'Earn 5 points per scan and redeem R20 vouchers',

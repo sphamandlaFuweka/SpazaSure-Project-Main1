@@ -39,6 +39,34 @@ class ProductService {
     }
   }
 
+  /// Fetch every matching product, page by page (the API returns at most 100 at a time).
+  /// Only loading the first page made products beyond it disappear from the app.
+  static Future<List<Product>> getAllProducts({
+    String? search,
+    String? categoryId,
+    String? supplierId,
+    String sort = 'popular',
+    int maxPages = 20,
+  }) async {
+    const pageSize = 100;
+    final all = <Product>[];
+    final seen = <String>{};
+    for (var page = 1; page <= maxPages; page++) {
+      final batch = await getProducts(
+        page: page,
+        pageSize: pageSize,
+        search: search,
+        categoryId: categoryId,
+        supplierId: supplierId,
+        sort: sort,
+      );
+      // Guard against duplicates if the catalogue changes while paging
+      all.addAll(batch.where((p) => seen.add(p.id)));
+      if (batch.length < pageSize) break;
+    }
+    return all;
+  }
+
   /// Fetch a single product by ID.
   static Future<Product> getProduct(String id) async {
     final res = await ApiService.get('/shop/marketplace/products/$id');

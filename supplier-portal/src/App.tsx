@@ -34,6 +34,7 @@ const AdminGroupBuysPage = lazy(() => import('./pages/admin/AdminGroupBuysPage')
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'));
 const AdminNotificationsPage = lazy(() => import('./pages/admin/AdminNotificationsPage'));
 const AdminPayoutsPage = lazy(() => import('./pages/admin/AdminPayoutsPage'));
+const VerifyShopPage = lazy(() => import('./pages/public/VerifyShopPage'));
 const AdminWalletDepositsPage = lazy(() => import('./pages/admin/AdminWalletDepositsPage'));
 const AdminWalletWithdrawalsPage = lazy(() => import('./pages/admin/AdminWalletWithdrawalsPage'));
 const AdminWalletLedgerPage = lazy(() => import('./pages/admin/AdminWalletLedgerPage'));
@@ -59,6 +60,10 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Public: anyone can check a shop's SpazaSure sticker (QR code or shop number) */}
+      <Route path="/verify" element={<VerifyShopPage />} />
+      <Route path="/verify/:code" element={<VerifyShopPage />} />
 
       {/* Supplier Portal */}
       <Route path="/" element={<RequireAuth role="supplier"><AppLayout /></RequireAuth>}>

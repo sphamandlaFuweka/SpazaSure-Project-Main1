@@ -21,7 +21,21 @@ BEGIN
             WHERE first_name IS NULL OR last_name IS NULL
         $sql$;
     END IF;
-END $$;
+END $;
+
+-- The legacy full_name column was NOT NULL, but customers now register with first and
+-- last name only, so every new customer insert failed ("Something went wrong" in the app).
+-- Relax it wherever it still exists; old values are kept.
+DO $
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'customer_profiles' AND column_name = 'full_name'
+    ) THEN
+        ALTER TABLE customer_profiles ALTER COLUMN full_name DROP NOT NULL;
+        ALTER TABLE customer_profiles ALTER COLUMN full_name SET DEFAULT '';
+    END IF;
+END $;
 
 ALTER TABLE customer_profiles ALTER COLUMN first_name SET DEFAULT '';
 ALTER TABLE customer_profiles ALTER COLUMN last_name SET DEFAULT '';

@@ -126,6 +126,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
             var term = search.ToLower();
             query = query.Where(s =>
                 s.ShopName.ToLower().Contains(term) ||
+                (s.ShopCode != null && s.ShopCode.ToLower().Contains(term)) ||
                 s.OwnerName.ToLower().Contains(term) ||
                 (s.Email != null && s.Email.ToLower().Contains(term)));
         }
@@ -173,6 +174,7 @@ public class AdminController(SpazaSureDbContext db, GeocodingService geocoder, E
         var result = items.Select(s => new
         {
             s.Id,
+            ShopNumber = s.ShopCode,
             s.ShopName,
             s.OwnerName,
             Email = s.Email != null ? s.Email : (s.User != null ? s.User.Email ?? "" : ""),

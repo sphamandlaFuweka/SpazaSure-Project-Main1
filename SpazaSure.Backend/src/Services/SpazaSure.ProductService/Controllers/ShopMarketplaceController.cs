@@ -25,23 +25,34 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var shopCity = shop?.City?.ToLower() ?? "";
         var shopProvince = shop?.Province?.ToLower() ?? "";
 
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var query = db.Products
             .Include(p => p.Category).Include(p => p.Supplier)
             .Where(p => p.IsAvailable && p.IsApproved && p.StockQty > 0)
             .Where(p => p.Supplier.Status == "active" || p.Supplier.Status == "verified");
 
-        if (!string.IsNullOrEmpty(search))
-            query = query.Where(p => p.Name.Contains(search) || p.Supplier.CompanyName.Contains(search));
+        // Case-insensitive, so "maize" finds "Maize Meal"
+        var term = search?.Trim().ToLower();
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(p => p.Name.ToLower().Contains(term)
+                || p.Supplier.CompanyName.ToLower().Contains(term)
+                || (p.Barcode != null && p.Barcode == term) || p.Sku.ToLower() == term);
         if (categoryId.HasValue)
             query = query.Where(p => p.CategoryId == categoryId);
         if (supplierId.HasValue)
             query = query.Where(p => p.SupplierId == supplierId);
 
-        // Sort: "nearby" prioritizes suppliers in same city/province
-        query = sort switch {
+        // Sort: "nearby" prioritizes suppliers in same city/province.
+        // Every order ends with Name then Id: without a unique tie-breaker the database may
+        // return tied products in a different order on each request, so products jumped
+        // between pages and seemed to disappear.
+        var ordered = sort switch {
             "price_low" => query.OrderBy(p => p.Price),
             "price_high" => query.OrderByDescending(p => p.Price),
             "newest" => query.OrderByDescending(p => p.CreatedAt),
+            "name" => query.OrderBy(p => p.Name),
             "nearby" => query
                 .OrderByDescending(p => p.Supplier.City != null && p.Supplier.City.ToLower() == shopCity)
                 .ThenByDescending(p => p.Supplier.Province != null && p.Supplier.Province.ToLower() == shopProvince)
@@ -52,9 +63,10 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
                 .ThenByDescending(p => p.Supplier.Province != null && p.Supplier.Province.ToLower() == shopProvince)
                 .ThenByDescending(p => p.StockQty)
         };
+        var stable = ordered.ThenBy(p => p.Name).ThenBy(p => p.Id);
 
         var total = await query.CountAsync();
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+        var items = await stable.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new {
                 p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
                 p.StockQty, p.Unit, p.Images, p.IsFoodItem,
@@ -74,7 +86,8 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     public async Task<IActionResult> ProductDetail(Guid id)
     {
         var p = await db.Products.Include(x => x.Category).Include(x => x.Supplier)
-            .FirstOrDefaultAsync(x => x.Id == id && x.IsAvailable && x.IsApproved);
+            .FirstOrDefaultAsync(x => x.Id == id && x.IsAvailable && x.IsApproved
+                && (x.Supplier.Status == "active" || x.Supplier.Status == "verified"));
         if (p is null) return NotFound(ApiResponse.Fail("Product not found."));
         return Ok(ApiResponse<object>.Ok(new {
             p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
@@ -92,7 +105,8 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var items = await db.Set<SpazaSure.Infrastructure.Entities.Category>()
             .Where(c => c.IsActive).OrderBy(c => c.SortOrder)
             .Select(c => new { c.Id, c.Name, c.Slug, c.ParentId, c.IconUrl,
-                ProductCount = c.Products.Count(p => p.IsAvailable && p.IsApproved) })
+                ProductCount = c.Products.Count(p => p.IsAvailable && p.IsApproved && p.StockQty > 0
+                    && (p.Supplier.Status == "active" || p.Supplier.Status == "verified")) })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
@@ -111,7 +125,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             .ThenBy(s => s.CompanyName)
             .Select(s => new {
                 s.Id, s.CompanyName, s.Tier, s.LogoUrl, s.City, s.Province,
-                ProductCount = s.Products.Count(p => p.IsAvailable && p.IsApproved),
+                ProductCount = s.Products.Count(p => p.IsAvailable && p.IsApproved && p.StockQty > 0),
                 IsNearby = (s.City != null && s.City.ToLower() == shopCity) ||
                            (s.Province != null && s.Province.ToLower() == shopProvince),
             })

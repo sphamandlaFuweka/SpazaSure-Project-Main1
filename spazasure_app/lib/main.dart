@@ -20,6 +20,8 @@ import 'features/orders/screens/order_detail_screen.dart';
 import 'features/delivery/screens/delivery_tracking_screen.dart';
 import 'features/compliance/screens/compliance_screen.dart';
 import 'core/widgets/notification_popup_host.dart';
+import 'features/shop_verification/my_sticker_screen.dart';
+import 'features/shop_verification/shop_verify_screen.dart';
 import 'features/notifications/screens/notifications_screen.dart';
 import 'features/notifications/screens/report_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
@@ -92,6 +94,8 @@ class SpazaSureApp extends StatelessWidget {
           '/report': () => const ReportScreen(),
           '/rate-delivery': () => const RateDeliveryScreen(),
           '/receipt': () => const ReceiptScreen(),
+          '/verify-shop': () => const ShopVerifyScreen(),
+          '/my-sticker': () => const MyStickerScreen(),
         };
         final builder = pages[settings.name];
         if (builder == null) return null;

@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/features/shop_verification/shop_verify_screen.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
@@ -186,6 +187,20 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     _lastScanned = code;
     setState(() => _scanning = false);
+    // A SpazaSure shop sticker, not a product: show whether the shop is verified
+    if (isShopStickerCode(code)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ShopVerifyScreen(initialCode: code)),
+      ).then((_) {
+        if (!mounted) return;
+        setState(() {
+          _scanning = true;
+          _lastScanned = null;
+        });
+      });
+      return;
+    }
     _lookupProduct(code);
   }
 
