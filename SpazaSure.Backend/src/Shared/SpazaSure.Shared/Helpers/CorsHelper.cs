@@ -17,6 +17,7 @@ public static class CorsHelper
     private static readonly string[] DefaultDevOrigins =
     [
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:5173",
     ];
 

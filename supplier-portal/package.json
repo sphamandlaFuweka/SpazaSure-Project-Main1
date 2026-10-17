@@ -34,10 +34,15 @@
   },
   "scripts": {
     "dev": "vite --mode development",
+    "dev:admin": "vite --config vite.admin.config.ts --mode development",
     "build": "tsc && vite build --mode production",
     "build:qa": "tsc && vite build --mode qa",
     "build:prod": "tsc && vite build --mode production",
+    "build:admin": "tsc && vite build --config vite.admin.config.ts --mode production",
+    "build:admin:qa": "tsc && vite build --config vite.admin.config.ts --mode qa",
+    "build:admin:prod": "tsc && vite build --config vite.admin.config.ts --mode production",
     "preview": "vite preview",
+    "preview:admin": "vite preview --config vite.admin.config.ts",
     "preview:qa": "vite preview --mode qa",
     "preview:prod": "vite preview --mode production"
   }

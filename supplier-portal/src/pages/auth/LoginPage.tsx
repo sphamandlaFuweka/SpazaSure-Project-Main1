@@ -4,10 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ArrowRight, Package, TrendingUp, ShieldCheck, Users, Store, Lock, BadgeCheck } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Package, TrendingUp, ShieldCheck, Users, Lock, BadgeCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Spinner } from '../../components/ui';
 import { authApi, profileApi } from '../../services/api';
+import { APP_TARGET } from '../../config/target';
 import clsx from 'clsx';
 import ConnectivityMap from '../../components/ui/ConnectivityMap';
 
@@ -30,22 +31,16 @@ const features = [
 export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeRole, setActiveRole] = useState<'supplier' | 'admin'>('supplier');
+  const activeRole = APP_TARGET;
   const [ready, setReady] = useState(false);
   const { setUser } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => { const t = setTimeout(() => setReady(true), 50); return () => clearTimeout(t); }, []);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
-
-  const switchRole = (role: 'supplier' | 'admin') => {
-    setActiveRole(role);
-    setValue('email', '');
-    setValue('password', '');
-  };
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -55,11 +50,8 @@ export default function LoginPage() {
       const { accessToken, refreshToken, expiresAt, role, userId } = res.data;
       const userRole: 'supplier' | 'admin' = role === 'admin' ? 'admin' : 'supplier';
       if (userRole !== activeRole) {
-        toast.error(
-          activeRole === 'admin'
-            ? 'This account is not an admin. Please use the Supplier Login tab.'
-            : 'This account is an admin. Please use the Admin Login tab.'
-        );
+        // The server already refuses these; this only guards against an unexpected response
+        toast.error('Invalid credentials. Please try again.');
         return;
       }
       setUser({
@@ -140,7 +132,9 @@ export default function LoginPage() {
             .
           </h2>
           <p className="text-white/80 text-sm leading-relaxed mt-5 max-w-sm">
-            Connect with thousands of verified spaza shops. Manage products, orders and payments in one place.
+            {activeRole === 'admin'
+              ? 'Verify suppliers, review compliance documents and keep the SpazaSure marketplace running smoothly.'
+              : 'Connect with thousands of verified spaza shops. Manage products, orders and payments in one place.'}
           </p>
           <div className="flex flex-wrap gap-2 mt-5">
             {features.map(({ icon: Icon, title }) => (
@@ -173,26 +167,7 @@ export default function LoginPage() {
           <div style={stagger(0)} className="flex flex-col items-center mb-6">
             <img src="/spazasure_logo.png" alt="SpazaSure" className="w-14 h-14 object-contain mb-3" />
             <h1 className="text-xl font-black text-gray-900 tracking-tight">SpazaSure</h1>
-            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-400">Supplier Portal</p>
-          </div>
-
-          {/* Role toggle pills */}
-          <div style={stagger(80)} className="flex bg-gray-100 rounded-xl p-1 mb-6">
-            {(['supplier', 'admin'] as const).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => switchRole(role)}
-                className={clsx(
-                  'flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300',
-                  activeRole === role
-                    ? 'bg-gradient-to-r from-[#25449A] to-[#3F5DB0] text-white shadow-lg shadow-[#25449A]/20'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <span className="inline-flex items-center justify-center gap-1.5">{role === 'supplier' ? <Store size={15} /> : <ShieldCheck size={15} />}{role === 'supplier' ? 'Supplier' : 'Admin'}</span>
-              </button>
-            ))}
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-400">{activeRole === 'admin' ? 'Admin Console' : 'Supplier Portal'}</p>
           </div>
 
           {/* Form card */}

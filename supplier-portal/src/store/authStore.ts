@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthUser } from '../types';
 import type { AdminProfile } from '../utils/adminAccess';
+import { AUTH_STORAGE_KEY } from '../config/target';
 
 interface AuthState {
   user: AuthUser | null;
@@ -21,6 +22,6 @@ export const useAuthStore = create<AuthState>()(
       setAdminProfile: (adminProfile) => set({ adminProfile }),
       logout: () => set({ user: null, adminProfile: null }),
     }),
-    { name: 'spazasure-auth-v2' }
+    { name: AUTH_STORAGE_KEY }
   )
 );

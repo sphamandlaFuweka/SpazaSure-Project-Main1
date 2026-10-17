@@ -40,11 +40,21 @@ jobs:
       - name: Build for Production
         run: npm run build:prod
 
+      - name: Build admin console for Production
+        run: npm run build:admin:prod
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: supplier-portal-prod-build
           path: supplier-portal/dist/
+          retention-days: 30
+
+      - name: Upload admin console build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-console-prod-build
+          path: supplier-portal/dist-admin/
           retention-days: 30
 
   deploy:
@@ -78,3 +88,29 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: test -s /var/www/spazasure-supplier/index.html
+
+      - name: Download admin console build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-console-prod-build
+          path: dist-admin/
+
+      - name: Deploy admin console static site
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "dist-admin/*"
+          target: /var/www/spazasure-admin
+          strip_components: 1
+          overwrite: true
+          rm: true
+
+      - name: Verify deployed admin console files
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: test -s /var/www/spazasure-admin/index.html

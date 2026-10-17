@@ -23,7 +23,9 @@ public record RegisterRequest(
 public record LoginRequest(
     string? Email,
     string? Phone,
-    [Required] string Password
+    [Required] string Password,
+    // Which portal is signing in: "admin" for the admin console, anything else for the supplier portal
+    string? Role = null
 );
 
 public record RefreshRequest([Required] string RefreshToken);

@@ -12,9 +12,14 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application: APP_TARGET=supplier (default) or admin
 ARG BUILD_MODE=production
-RUN npm run build -- --mode ${BUILD_MODE}
+ARG APP_TARGET=supplier
+RUN if [ "$APP_TARGET" = "admin" ]; then \
+      npx tsc && npx vite build --config vite.admin.config.ts --mode ${BUILD_MODE} && mv dist-admin dist; \
+    else \
+      npm run build -- --mode ${BUILD_MODE}; \
+    fi
 
 # Production stage
 FROM nginx:alpine AS production

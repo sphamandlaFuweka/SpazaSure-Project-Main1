@@ -89,6 +89,42 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task Login_AdminAccount_IsRefusedByTheSupplierPortal()
+    {
+        var svc = CreateService(out var db);
+        var adminRole = db.Roles.First(r => r.Name == "admin");
+        db.Users.Add(new SpazaSure.Infrastructure.Entities.User
+        {
+            Email = "boss@test.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+            RoleId = adminRole.Id, Status = "active"
+        });
+        await db.SaveChangesAsync();
+
+        var viaSupplier = await svc.LoginAsync(new LoginRequest("boss@test.com", null, "Password123!", "supplier"), "127.0.0.1");
+        var viaAdmin = await svc.LoginAsync(new LoginRequest("boss@test.com", null, "Password123!", "admin"), "127.0.0.1");
+
+        viaSupplier.Success.Should().BeFalse();
+        viaSupplier.Error.Should().Be("Invalid credentials.");
+        viaAdmin.Success.Should().BeTrue();
+        viaAdmin.Data!.Role.Should().Be("admin");
+    }
+
+    [Fact]
+    public async Task Login_SupplierAccount_IsRefusedByTheAdminConsole()
+    {
+        var svc = CreateService(out _);
+        await svc.RegisterAsync(new RegisterRequest("supplier", "sup@test.com",
+            "0820000003", "Password123!", "Z Co", "Sam", null, null, null), "127.0.0.1");
+
+        var viaAdmin = await svc.LoginAsync(new LoginRequest("sup@test.com", null, "Password123!", "admin"), "127.0.0.1");
+        var viaSupplier = await svc.LoginAsync(new LoginRequest("sup@test.com", null, "Password123!", "supplier"), "127.0.0.1");
+
+        viaAdmin.Success.Should().BeFalse();
+        viaAdmin.Error.Should().Be("Invalid credentials.");
+        viaSupplier.Success.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Login_WithWrongPassword_ReturnsInvalidCredentials()
     {
         var svc = CreateService(out _);

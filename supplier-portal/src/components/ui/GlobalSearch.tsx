@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { canOpenAdminPath } from '../../utils/adminAccess';
 import { productsApi, ordersApi, adminProductsApi, adminOrdersApi } from '../../services/api';
+import { IS_ADMIN_APP } from '../../config/target';
 
 interface SearchResult {
   id: string;
@@ -48,7 +49,7 @@ function saveRecent(q: string) {
 }
 
 export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supplier' | 'admin' }) {
-  const isAdmin = variant === 'admin';
+  const isAdmin = IS_ADMIN_APP && variant === 'admin';
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);

@@ -66,6 +66,7 @@ spazasure_app/*.iml
 # =============================================
 supplier-portal/node_modules/
 supplier-portal/dist/
+supplier-portal/dist-admin/
 supplier-portal/.env
 supplier-portal/.env.local
 supplier-portal/.env.*.local

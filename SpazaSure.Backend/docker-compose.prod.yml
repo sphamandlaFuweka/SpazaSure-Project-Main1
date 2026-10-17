@@ -283,6 +283,9 @@ services:
       # Overrides the AllowedOrigins list baked into appsettings.Production.json —
       Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL:-https://app.spazasure.co.za}
       Cors__AllowedOrigins__1: ${PROD_SUPPLIER_PORTAL_URL:-https://portal.spazasure.co.za}
+      Cors__AllowedOrigins__2: ${PROD_ADMIN_CONSOLE_URL:-https://admin.spazasure.co.za}
+    depends_on:
+      - auth-service
     depends_on:
       - auth-service
       - product-service

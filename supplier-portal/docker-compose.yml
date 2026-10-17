@@ -20,6 +20,24 @@ services:
     networks:
       - spazasure-network
 
+  # Admin Console Frontend: a separate build and site, so suppliers never receive admin code
+  admin-console:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_MODE: production
+        APP_TARGET: admin
+    container_name: spazasure-admin-console
+    ports:
+      - "3001:80"
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - spazasure-network
+
   # .NET Backend API
   backend-api:
     build:

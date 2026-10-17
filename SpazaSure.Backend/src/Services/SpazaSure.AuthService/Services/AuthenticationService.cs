@@ -121,6 +121,13 @@ public class AuthenticationService(
         if (user.LockedUntil > DateTime.UtcNow)
             return (false, "Account locked. Try again later.", null);
 
+        // The admin console and supplier portal are separate apps: an account only signs in to its own.
+        // The same generic error is returned so neither portal reveals what kind of account it is.
+        var adminPortal = string.Equals(req.Role, "admin", StringComparison.OrdinalIgnoreCase);
+        var isAdminAccount = string.Equals(user.Role.Name, "admin", StringComparison.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(req.Role) && adminPortal != isAdminAccount)
+            return (false, "Invalid credentials.", null);
+
         // Checked only after the password matches, so suspension isn't revealed to guessers
         if (await IsSuspendedAsync(user))
             return (false, SuspendedMessage, null);

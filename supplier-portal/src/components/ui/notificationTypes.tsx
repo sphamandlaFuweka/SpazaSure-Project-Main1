@@ -1,4 +1,5 @@
 import { Bell, ShoppingCart, AlertTriangle, Package, Wallet, BadgeCheck, Flag, UsersRound } from 'lucide-react';
+import { IS_ADMIN_APP } from '../../config/target';
 
 /** Look and destination for each notification type the backend sends. Unknown types fall back to "system". */
 export const NOTIFICATION_TYPES: Record<string, { icon: React.ReactNode; iconBg: string; iconColor: string }> = {
@@ -28,4 +29,4 @@ const ADMIN_ROUTES: Record<string, string> = {
 
 /** Page a notification opens, or undefined if it has none. */
 export const notificationRoute = (type: string | undefined, variant: 'supplier' | 'admin') =>
-  (variant === 'admin' ? ADMIN_ROUTES : SUPPLIER_ROUTES)[type ?? ''];
+  (IS_ADMIN_APP && variant === 'admin' ? ADMIN_ROUTES : SUPPLIER_ROUTES)[type ?? ''];

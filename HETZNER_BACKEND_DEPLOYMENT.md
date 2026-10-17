@@ -43,6 +43,7 @@ ConnectionStrings__DefaultConnection=<Hetzner PostgreSQL connection string>
 Jwt__Secret=<random secret of at least 32 characters>
 Cors__AllowedOrigins__0=https://app.spazasure.co.za
 Cors__AllowedOrigins__1=https://portal.spazasure.co.za
+Cors__AllowedOrigins__2=https://admin.spazasure.co.za
 ```
 
 Mobile app accounts for shop owners and customers use a phone number and
@@ -61,11 +62,15 @@ Use these hostnames:
 
 - `portal.spazasure.co.za` serves the Supplier Portal from
   `/var/www/spazasure-supplier`.
+- `admin.spazasure.co.za` serves the Admin Console from
+  `/var/www/spazasure-admin`. It is a separate build of the same codebase, so the
+  supplier portal contains no admin pages or code, and each site only accepts
+  its own kind of account at sign-in.
 - `api.spazasure.co.za` proxies API requests to the Gateway on local port 5181.
 - `app.spazasure.co.za` remains the main app origin and serves its current web
   files from `/var/www/spazasure`.
 
-Create DNS A records for `portal` and `api` pointing to the Hetzner server's
+Create DNS A records for `portal`, `admin` and `api` pointing to the Hetzner server's
 public IPv4 address. Keep `app` pointed at its current host. If you use AAAA
 records, they must point to a working IPv6 endpoint as well.
 
@@ -81,12 +86,12 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-After `api` and `portal` DNS resolve to this server, provision HTTPS certificates
-for those two hostnames (Certbot's Nginx plugin will add their TLS listeners
+After `api`, `portal` and `admin` DNS resolve to this server, provision HTTPS certificates
+for those hostnames (Certbot's Nginx plugin will add their TLS listeners
 and HTTP redirects). The existing `app` host's TLS setup is left unchanged:
 
 ```sh
-sudo certbot --nginx --redirect -d api.spazasure.co.za -d portal.spazasure.co.za
+sudo certbot --nginx --redirect -d api.spazasure.co.za -d portal.spazasure.co.za -d admin.spazasure.co.za
 ```
 
 The production Compose file binds port 5181 to loopback; Nginx is the public
@@ -144,6 +149,7 @@ dashboard. Their provider subscription IDs cannot be migrated into Paystack.
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and
 `PROD_SSH_KEY` GitHub secrets to deploy to `/opt/spazasure` and
-`/var/www/spazasure-supplier`. This repository change cannot create DNS records
+`/var/www/spazasure-supplier` (supplier portal) and `/var/www/spazasure-admin`
+(admin console). This repository change cannot create DNS records
 or issue certificates; complete those server/provider steps before expecting
 the HTTPS domains to resolve.

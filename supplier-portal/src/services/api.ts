@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { emptyProductInfo } from '../types';
 import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest } from '../types';
 import env from '../config/env';
+import { AUTH_STORAGE_KEY } from '../config/target';
 import type { AccessLevel, AdminArea, AdminProfile } from '../utils/adminAccess';
 import type { AdminReport } from '../types/adminReport';
 import type { Kind, RawRecord } from '../pages/admin/projects/types';
@@ -17,7 +18,7 @@ const productApi = api; // products route through the same Gateway
 
 // Attach JWT to both instances
 const attachToken = (config: any) => {
-  const stored = localStorage.getItem('spazasure-auth-v2');
+  const stored = localStorage.getItem(AUTH_STORAGE_KEY);
   if (stored) {
     try {
       const { state } = JSON.parse(stored);
@@ -103,7 +104,7 @@ const handleError = async (err: any) => {
   if (err.response?.status === 401 && original && !original._retry) {
     original._retry = true;
     try {
-      const stored = localStorage.getItem('spazasure-auth-v2');
+      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         const refreshToken = parsed?.state?.user?.refreshToken;
@@ -121,7 +122,7 @@ const handleError = async (err: any) => {
 
           parsed.state.user.token = newToken;
           parsed.state.user.refreshToken = newRefresh;
-          localStorage.setItem('spazasure-auth-v2', JSON.stringify(parsed));
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
 
           // Retry original request with new token
           original.headers = original.headers ?? {};
@@ -132,7 +133,7 @@ const handleError = async (err: any) => {
     } catch {
       // Refresh failed — clear session and redirect to login
     }
-    localStorage.removeItem('spazasure-auth-v2');
+    localStorage.removeItem(AUTH_STORAGE_KEY);
     if (window.location.pathname !== '/login') {
       window.location.href = '/login';
     }

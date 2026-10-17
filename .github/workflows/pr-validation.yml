@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run build:qa
+      - run: npm run build:admin:qa
 
   # Backend validation
   backend:
