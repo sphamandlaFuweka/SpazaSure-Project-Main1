@@ -37,6 +37,29 @@ public class Product : BaseEntity
     /// <summary>JSON array of allergen tags, e.g. ["peanuts","dairy"] — used by the Customer app's allergen warning feature.</summary>
     public string Allergens { get; set; } = "[]";
 
+    // ── Product information shown to shops and customers (like a retail product page) ──
+    public string? Brand { get; set; }
+    /// <summary>Pack size as printed, e.g. "10 kg" or "6 x 500 ml".</summary>
+    public string? PackSize { get; set; }
+    public string? CountryOfOrigin { get; set; }
+    /// <summary>Manufacturer or importer named on the pack.</summary>
+    public string? Manufacturer { get; set; }
+    public string? Ingredients { get; set; }
+    /// <summary>e.g. "100 g" or "1 cup (250 ml)".</summary>
+    public string? ServingSize { get; set; }
+    public string? ServingsPerPack { get; set; }
+    /// <summary>JSON array of {nutrient, per100, perServing}, e.g. Energy 1490 kJ.</summary>
+    public string NutritionInfo { get; set; } = "[]";
+    /// <summary>Preparation, usage and serving suggestions.</summary>
+    public string? UsageInstructions { get; set; }
+    public string? StorageInstructions { get; set; }
+    /// <summary>Safety warnings, e.g. "Keep out of reach of children".</summary>
+    public string? Warnings { get; set; }
+    /// <summary>JSON array of {label, value}, e.g. Shelf life / 12 months.</summary>
+    public string Specifications { get; set; } = "[]";
+    /// <summary>JSON array of supplier tips for telling the genuine product from a counterfeit.</summary>
+    public string AuthenticityTips { get; set; } = "[]";
+
     public Supplier Supplier { get; set; } = null!;
     public Category? Category { get; set; }
     public ICollection<ProductQrCode> QrCodes { get; set; } = [];

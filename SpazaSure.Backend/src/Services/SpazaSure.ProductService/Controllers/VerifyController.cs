@@ -340,6 +340,10 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             productId = product.Id,
             name = product.Name,
             description = product.Description,
+            ingredients = product.Ingredients,
+            info = ProductInfo.Project(product),
+            // The supplier's own "how to spot a fake" checks for this product.
+            authenticityTips = ProductInfo.Tips(product),
             images = DeserializeList(product.Images),
             allergens = productAllergens,
             isFoodItem = product.IsFoodItem,

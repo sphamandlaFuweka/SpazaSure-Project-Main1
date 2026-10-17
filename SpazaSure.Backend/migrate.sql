@@ -1636,6 +1636,54 @@ CREATE TABLE IF NOT EXISTS shop_messages (
 );
 CREATE INDEX IF NOT EXISTS ix_shop_messages_conversation_id_created_at ON shop_messages(conversation_id, created_at);
 
+-- Dashboard staff roles: a master admin registers staff and grants each one view or manage
+-- access per admin area. Existing admin accounts become master admins so nobody loses access.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name varchar(120);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_title varchar(80);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_access varchar(500);
+UPDATE users SET admin_access = 'master', admin_title = COALESCE(admin_title, 'Master admin')
+WHERE admin_access IS NULL AND role_id IN (SELECT id FROM roles WHERE name = 'admin');
+
+-- Richer product information for shops and customers: specifications, nutrition and serving,
+-- ingredients, usage, storage, warnings, and the supplier's tips for spotting counterfeits.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS brand varchar(120);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS pack_size varchar(60);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS country_of_origin varchar(80);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS manufacturer varchar(160);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS serving_size varchar(60);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS servings_per_pack varchar(60);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS ingredients text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS usage_instructions text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS storage_instructions text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS warnings text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS nutrition_info text NOT NULL DEFAULT '[]';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications text NOT NULL DEFAULT '[]';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS authenticity_tips text NOT NULL DEFAULT '[]';
+
+-- Product categories shops browse and filter by. Seeded once by slug; admins rename,
+-- reorder or hide them from the admin console afterwards, so existing rows are never touched.
+INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
+SELECT gen_random_uuid(), seed.name, seed.slug, seed.sort_order, true, NOW(), NOW()
+FROM (VALUES
+  ('maize-flour', 'Maize meal, flour & rice', 1),
+  ('cooking-oil', 'Cooking oil & fats', 2),
+  ('canned-goods', 'Tinned & packaged food', 3),
+  ('spices-condiments', 'Spices, sauces & condiments', 4),
+  ('bread-bakery', 'Bread & bakery', 5),
+  ('dairy-eggs', 'Dairy & eggs', 6),
+  ('meat-frozen', 'Meat & frozen', 7),
+  ('fresh-produce', 'Fresh fruit & vegetables', 8),
+  ('snacks', 'Snacks & sweets', 9),
+  ('beverages', 'Cold drinks & juice', 10),
+  ('hot-drinks', 'Tea, coffee & hot drinks', 11),
+  ('baby-infant', 'Baby care', 12),
+  ('personal-care', 'Toiletries & personal care', 13),
+  ('household-cleaning', 'Household & cleaning', 14),
+  ('laundry', 'Laundry', 15),
+  ('fuel-energy', 'Paraffin, gas & candles', 16)
+) AS seed(slug, name, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM categories existing WHERE existing.slug = seed.slug);
+
 -- Seed a default category idempotently by slug.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Groceries', 'groceries', 1, true, NOW(), NOW()

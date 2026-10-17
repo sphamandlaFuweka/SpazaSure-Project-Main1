@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/services/api_service.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
@@ -41,10 +42,31 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  final auth = AuthProvider()..init();
+  // When a session can't be renewed, sign out and go back to login instead of leaving
+  // every screen failing while the app still looks signed in.
+  var expiring = false;
+  ApiService.onSessionExpired = () async {
+    if (expiring || auth.session == null) return;
+    expiring = true;
+    try {
+      await auth.sessionExpired();
+      final nav = appNavigatorKey.currentState;
+      if (nav == null || !nav.mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(nav.context);
+      nav.pushNamedAndRemoveUntil('/login', (_) => false);
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Your session has ended. Please sign in again.')),
+      );
+    } finally {
+      expiring = false;
+    }
+  };
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+        ChangeNotifierProvider.value(value: auth),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()..loadInitial()),
       ],

@@ -62,7 +62,7 @@ internal static class GroupBuyResponse
         };
     }
 
-    internal static object ProjectSupplier(GroupBuy groupBuy)
+    internal static object ProjectSupplier(GroupBuy groupBuy, IEnumerable<Order>? orders = null)
     {
         var isExpired = groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active";
         return new
@@ -98,7 +98,17 @@ internal static class GroupBuyResponse
                     Math.Round((decimal)p.CurrentQty / p.TargetQty * 100m, 1), 0m, 100m),
                 Status = isExpired && p.Status is "active" or "qualified" ? "expired" : p.Status
             }).ToList(),
-            Participants = ProjectParticipants(groupBuy)
+            Participants = ProjectParticipants(groupBuy),
+            Orders = orders?.Select(o => new
+            {
+                o.Id,
+                o.OrderNumber,
+                o.ShopId,
+                ShopName = o.Shop?.ShopName ?? "",
+                o.Status,
+                o.PaymentStatus,
+                o.TotalAmount
+            }).ToList()
         };
     }
 
@@ -366,6 +376,11 @@ public class ShopGroupBuyController(
 
 }
 
+/// <summary>
+/// Suppliers no longer create group buys: admins run the campaigns. A supplier sees the campaigns
+/// for its products, accepts the request once products hit their target (which creates one order
+/// per shop at the advertised group price) and then dispatches those orders.
+/// </summary>
 [ApiController]
 [Route("api/supplier/group-buy")]
 [Authorize(Roles = "supplier")]
@@ -376,70 +391,42 @@ public class SupplierGroupBuyController(
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    /// <summary>Order states a supplier can still move to dispatched in one step.</summary>
+    private static readonly string[] Dispatchable = ["pending", "confirmed", "processing"];
+
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string status = "all")
     {
         status = status.Trim().ToLowerInvariant();
-        if (status is not ("all" or "active" or "completed" or "expired" or "pending" or "rejected" or "cancelled"))
-            return BadRequest(ApiResponse.Fail("Status must be all, active, pending, completed, expired, rejected, or cancelled."));
+        if (status is not ("all" or "requests" or "active" or "to_dispatch" or "completed" or "expired" or "cancelled"))
+            return BadRequest(ApiResponse.Fail("Status must be all, requests, active, to_dispatch, completed, expired, or cancelled."));
 
         var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
+        // Proposals that never went live are an admin matter, not a supplier request.
         var query = GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
-            .Where(g => g.SupplierId == supplier.Id);
+            .Where(g => g.SupplierId == supplier.Id && g.Status != "pending_approval" && g.Status != "rejected");
         var now = DateTime.UtcNow;
         query = status switch
         {
+            "requests" => query.Where(g => g.Status == "active" && g.ExpiresAt > now &&
+                g.Products.Any(p => p.Status == "qualified")),
             "active" => query.Where(g => g.Status == "active" && g.ExpiresAt > now),
+            "to_dispatch" => query.Where(g => db.Orders.Any(o =>
+                o.GroupBuyId == g.Id && o.SupplierId == supplier.Id && Dispatchable.Contains(o.Status))),
             "expired" => query.Where(g => g.Status == "expired" ||
                 (g.Status == "active" && g.ExpiresAt <= now)),
             "completed" => query.Where(g => g.Status == "completed"),
-            "pending" => query.Where(g => g.Status == "pending_approval"),
-            "rejected" => query.Where(g => g.Status == "rejected"),
             "cancelled" => query.Where(g => g.Status == "cancelled"),
             _ => query
         };
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
-        return Ok(ApiResponse<object>.Ok(campaigns.Select(GroupBuyResponse.ProjectSupplier).ToList()));
-    }
-
-    /// <summary>Suppliers propose a campaign; it only goes live after an admin approves it.</summary>
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] NewGroupBuyRequest req)
-    {
-        var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
-
-        var (groupBuy, error) = await GroupBuyFactory.BuildAsync(
-            db, supplier.Id, req, "supplier", UserId, "pending_approval");
-        if (groupBuy is null) return BadRequest(ApiResponse.Fail(error!));
-
-        db.GroupBuys.Add(groupBuy);
-        await db.SaveChangesAsync();
-        await AdminAlerts.NotifyAdminsAsync(db, events, "group_buy", "Group buy waiting for approval",
-            $"{supplier.CompanyName} submitted '{groupBuy.Title}'. Review it so shops can join.", groupBuy.Id.ToString());
-        return Ok(ApiResponse<object>.Ok(new { groupBuy.Id, groupBuy.Status },
-            "Group buy submitted. It will go live once an admin approves it."));
-    }
-
-    [HttpPost("{id:guid}/cancel")]
-    public async Task<IActionResult> Cancel(Guid id)
-    {
-        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
-
-        var groupBuy = await db.GroupBuys.Include(g => g.Products)
-            .FirstOrDefaultAsync(g => g.Id == id && g.SupplierId == supplier.Id);
-        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
-        if (groupBuy.Status != "pending_approval")
-            return BadRequest(ApiResponse.Fail("Only campaigns waiting for approval can be withdrawn. Ask an admin to cancel a live one."));
-
-        groupBuy.Status = "cancelled";
-        foreach (var p in groupBuy.Products) p.Status = "cancelled";
-        await db.SaveChangesAsync();
-        return Ok(ApiResponse.Ok("Group buy withdrawn."));
+        var orders = await LoadOrdersAsync(supplier.Id, campaigns.Select(g => g.Id).ToList());
+        return Ok(ApiResponse<object>.Ok(campaigns
+            .Select(g => GroupBuyResponse.ProjectSupplier(g, orders.GetValueOrDefault(g.Id) ?? []))
+            .ToList()));
     }
 
     [HttpGet("{id:guid}")]
@@ -450,21 +437,93 @@ public class SupplierGroupBuyController(
 
         var groupBuy = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
             .FirstOrDefaultAsync(g => g.Id == id && g.SupplierId == supplier.Id);
-        return groupBuy is null
-            ? NotFound(ApiResponse.Fail("Group buy not found."))
-            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy)));
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+
+        var orders = await LoadOrdersAsync(supplier.Id, [id]);
+        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy, orders.GetValueOrDefault(id) ?? [])));
     }
 
-    [HttpPost("{id:guid}/approve")]
-    public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveGroupBuyRequest? req)
+    /// <summary>
+    /// Dispatches every order this campaign produced that has not left yet, and tells each shop.
+    /// Orders the supplier already moved on (or cancelled) are left alone.
+    /// </summary>
+    [HttpPost("{id:guid}/dispatch")]
+    public async Task<IActionResult> Dispatch(Guid id)
     {
-        if (req?.Products is null || req.Products.Count == 0)
-            return BadRequest(ApiResponse.Fail("At least one qualified product discount is required."));
-        if (req.Products.Select(p => p.GroupBuyProductId).Distinct().Count() != req.Products.Count)
-            return BadRequest(ApiResponse.Fail("Group buy product IDs must be unique."));
-        if (req.Products.Any(p => p.DiscountPct is < 1 or > 99))
-            return BadRequest(ApiResponse.Fail("Discount percentages must be integers between 1 and 99."));
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        if (!await db.GroupBuys.AnyAsync(g => g.Id == id && g.SupplierId == supplier.Id))
+            return NotFound(ApiResponse.Fail("Group buy not found."));
 
+        var orders = await db.Orders
+            .Where(o => o.GroupBuyId == id && o.SupplierId == supplier.Id && Dispatchable.Contains(o.Status))
+            .ToListAsync();
+        // Same rule as single orders: card payments must clear before goods leave.
+        var waitingForPayment = orders
+            .Where(o => o.PaymentMethod == "paystack" && o.PaymentStatus != "paid")
+            .ToList();
+        var ready = orders.Except(waitingForPayment).ToList();
+        if (ready.Count == 0)
+            return BadRequest(ApiResponse.Fail(orders.Count == 0
+                ? "There are no group buy orders waiting to be dispatched. Accept the request first."
+                : "Every remaining order is still waiting for payment."));
+
+        foreach (var order in ready)
+        {
+            order.Status = "dispatched";
+            if (order.PaymentMethod == ShopOrdersController.CashOnDelivery)
+                order.DeliveryCode ??= DeliveryCodes.Generate();
+            await ShopWallet.SyncOrderAsync(db, order);
+        }
+        await db.SaveChangesAsync();
+
+        var shopIds = ready.Select(o => o.ShopId).Distinct().ToList();
+        var shopUsers = await db.SpazaShops.AsNoTracking()
+            .Where(s => shopIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.UserId);
+        foreach (var order in ready)
+        {
+            if (!shopUsers.TryGetValue(order.ShopId, out var shopUserId)) continue;
+            events.PublishNotification(
+                supplierId: shopUserId.ToString(),
+                type: "delivery",
+                title: "Order Dispatched",
+                message: $"Your group buy order {order.OrderNumber} has been dispatched and is on its way!",
+                priority: "normal",
+                referenceId: order.Id.ToString(),
+                routingKey: "order.dispatched");
+        }
+
+        var message = $"{ready.Count} order{(ready.Count == 1 ? "" : "s")} dispatched.";
+        if (waitingForPayment.Count > 0)
+            message += $" {waitingForPayment.Count} still waiting for payment.";
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            Message = message,
+            DispatchedCount = ready.Count,
+            WaitingForPaymentCount = waitingForPayment.Count
+        }, message));
+    }
+
+    private async Task<Dictionary<Guid, List<Order>>> LoadOrdersAsync(Guid supplierId, List<Guid> groupBuyIds)
+    {
+        if (groupBuyIds.Count == 0) return [];
+        var orders = await db.Orders.AsNoTracking()
+            .Include(o => o.Shop)
+            .Where(o => o.SupplierId == supplierId && o.GroupBuyId != null && groupBuyIds.Contains(o.GroupBuyId.Value))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync();
+        return orders.GroupBy(o => o.GroupBuyId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    /// <summary>
+    /// Accepts the shops' request: qualified products are confirmed at the discount advertised to
+    /// shops when the admin created the campaign, and each shop gets one order to dispatch.
+    /// </summary>
+    [HttpPost("{id:guid}/accept")]
+    [HttpPost("{id:guid}/approve")] // older portal builds
+    public async Task<IActionResult> Accept(Guid id)
+    {
         var notifications = new List<(Guid UserId, Guid OrderId, string OrderNumber)>();
         List<Guid> orderIds;
         PlatformRules? rules = null; // loaded once, on first use
@@ -494,10 +553,10 @@ public class SupplierGroupBuyController(
                 GroupBuyResponse.SyncLegacy(groupBuy);
                 await db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be approved."));
+                return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
             }
             if (groupBuy.Status is not ("active" or "completed"))
-                return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be approved."));
+                return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
 
             foreach (var product in groupBuy.Products.Where(p => p.Status is "active" or "qualified"))
             {
@@ -516,24 +575,17 @@ public class SupplierGroupBuyController(
                     await transaction.CommitAsync();
                     return Ok(ApiResponse<object>.Ok(new
                     {
-                        Message = "Qualified group buy products were already approved.",
+                        Message = "This request was already accepted.",
                         OrderCount = existingOrderIds.Count,
                         OrderIds = existingOrderIds
                     }));
                 }
-                return BadRequest(ApiResponse.Fail("At least one product must be qualified before approval."));
+                return BadRequest(ApiResponse.Fail("No product has reached its target yet, so there is nothing to accept."));
             }
 
-            var requestedDiscounts = req.Products.ToDictionary(p => p.GroupBuyProductId, p => p.DiscountPct);
-            if (!qualified.Keys.ToHashSet().SetEquals(requestedDiscounts.Keys))
-                return BadRequest(ApiResponse.Fail(
-                    "Products must exactly match the current qualified group buy product set."));
-
+            // Shops committed at the advertised group price, so that is the price they are charged.
             foreach (var product in qualified.Values)
-            {
-                product.DiscountPct = requestedDiscounts[product.Id];
                 product.DiscountPrice = Discounted(product.OriginalPrice, product.DiscountPct);
-            }
             GroupBuyResponse.SyncLegacy(groupBuy);
 
             var eligible = groupBuy.Participants
@@ -609,7 +661,7 @@ public class SupplierGroupBuyController(
                 .ToList();
             if (omittedItems.Count > 0)
                 return BadRequest(ApiResponse.Fail(
-                    "All joined quantities for qualified products must be included in approval.", omittedItems));
+                    "All joined quantities for qualified products must be included.", omittedItems));
 
             var newOrders = new List<Order>();
             foreach (var entry in eligible)
@@ -747,8 +799,8 @@ public class SupplierGroupBuyController(
             events.PublishNotification(
                 supplierId: notification.UserId.ToString(),
                 type: "order",
-                title: "Group Buy Approved",
-                message: $"Your group buy order {notification.OrderNumber} has been approved.",
+                title: "Group Buy Accepted",
+                message: $"The supplier accepted your group buy order {notification.OrderNumber}. It will be dispatched soon.",
                 priority: "normal",
                 referenceId: notification.OrderId.ToString(),
                 routingKey: "order.group_buy_approved");
@@ -756,7 +808,7 @@ public class SupplierGroupBuyController(
 
         return Ok(ApiResponse<object>.Ok(new
         {
-            Message = "Qualified group buy products approved successfully.",
+            Message = "Request accepted. The shop orders are ready to dispatch.",
             OrderCount = orderIds.Count,
             OrderIds = orderIds
         }));
@@ -769,17 +821,6 @@ public class SupplierGroupBuyController(
         latitude.HasValue && longitude.HasValue &&
         double.IsFinite(latitude.Value) && double.IsFinite(longitude.Value) &&
         latitude.Value is >= -90d and <= 90d && longitude.Value is >= -180d and <= 180d;
-}
-
-public record ApproveGroupBuyRequest
-{
-    public List<ApproveGroupBuyProductRequest> Products { get; init; } = [];
-}
-
-public record ApproveGroupBuyProductRequest
-{
-    public Guid GroupBuyProductId { get; init; }
-    public int DiscountPct { get; init; }
 }
 
 public record JoinGroupBuyRequest

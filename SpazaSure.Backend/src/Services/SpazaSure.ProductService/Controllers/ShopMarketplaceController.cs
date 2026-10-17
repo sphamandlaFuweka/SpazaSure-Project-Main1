@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using SpazaSure.ProductService.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
@@ -94,6 +95,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
             SupplierTier = p.Supplier.Tier,
+            p.IsFoodItem, Info = ProductInfo.Project(p),
             SupplierCommissionRate = p.Supplier.CommissionRate,
             SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
         }));
@@ -184,7 +186,9 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             IsExpired = expired, IsRecalled = recalled,
             FirstScan = qr is not null && firstScan,
             RepeatScan = qr is not null && !firstScan,
-            ScannedAt = scannedAt
+            ScannedAt = scannedAt,
+            // Shops check deliveries against the supplier's own description of the genuine product.
+            Info = ProductInfo.Project(p)
         }));
     }
 }

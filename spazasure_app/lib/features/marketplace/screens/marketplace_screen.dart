@@ -26,6 +26,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   /// Only the newest request may update the list; older, slower responses are ignored
   int _requestId = 0;
   String? _selectedCategory;
+  String? _selectedSupplier;
   String _sortBy = 'popular';
   List<Product> _filteredProducts = [];
   bool _loading = true;
@@ -72,6 +73,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ? _searchController.text.trim()
             : null,
         categoryId: _selectedCategory,
+        supplierId: _selectedSupplier,
         sort: _sortBy,
       );
       // A newer search started while this one was loading: its results win
@@ -80,8 +82,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         // A transient empty server response must not wipe an already visible
         // catalogue. Empty is still shown normally on a first load or after
         // an explicit search/filter produces no matches.
-        final hasFilter =
-            _searchController.text.isNotEmpty || _selectedCategory != null;
+        final hasFilter = _searchController.text.isNotEmpty ||
+            _selectedCategory != null ||
+            _selectedSupplier != null;
         if (products.isNotEmpty || _filteredProducts.isEmpty || hasFilter) {
           _filteredProducts = products;
         }
@@ -102,7 +105,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
     final categories = productProvider.categories;
-    final suppliers = productProvider.suppliers;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -190,6 +192,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 },
               ),
             ),
+            // An active supplier filter, so it can't silently hide products
+            if (_selectedSupplier != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InputChip(
+                    avatar: const Icon(Icons.storefront_outlined, size: 18),
+                    label: Text(
+                      'Supplier: ${productProvider.suppliers.where((s) => s.id == _selectedSupplier).map((s) => s.companyName).firstOrNull ?? 'selected'}',
+                    ),
+                    onDeleted: () {
+                      setState(() => _selectedSupplier = null);
+                      _filterProducts();
+                    },
+                  ),
+                ),
+              ),
             // Results count & sort
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -320,10 +340,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  /// Category and supplier filters. Choices apply when the shop taps "Show products".
   void _showFilterSheet() {
     final productProvider = context.read<ProductProvider>();
     final categories = productProvider.categories;
     final suppliers = productProvider.suppliers;
+    var category = _selectedCategory;
+    var supplier = _selectedSupplier;
 
     showModalBottomSheet(
       context: context,
@@ -331,68 +354,93 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Filters', style: AppTextStyles.h3),
-                  TextButton(
-                    onPressed: () {
-                      _selectedCategory = null;
-                      _filterProducts();
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Clear All'),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) => DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) => Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Filters', style: AppTextStyles.h3),
+                    TextButton(
+                      onPressed: () => setSheet(() {
+                        category = null;
+                        supplier = null;
+                      }),
+                      child: const Text('Clear all'),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      const SizedBox(height: 8),
+                      Text('Categories', style: AppTextStyles.subtitle),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final cat in categories)
+                            FilterChip(
+                              label: Text(
+                                cat.productCount > 0 ? '${cat.name} (${cat.productCount})' : cat.name,
+                              ),
+                              selected: category == cat.id,
+                              onSelected: (_) => setSheet(
+                                () => category = category == cat.id ? null : cat.id,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Text('Suppliers', style: AppTextStyles.subtitle),
+                      const SizedBox(height: 12),
+                      if (suppliers.isEmpty)
+                        Text('No suppliers to show yet.', style: AppTextStyles.caption)
+                      else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final s in suppliers)
+                              FilterChip(
+                                label: Text(s.companyName),
+                                selected: supplier == s.id,
+                                onSelected: (_) => setSheet(
+                                  () => supplier = supplier == s.id ? null : s.id,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text('Categories', style: AppTextStyles.subtitle),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: categories
-                    .map(
-                      (cat) => FilterChip(
-                        label: Text(cat.name),
-                        selected: _selectedCategory == cat.id,
-                        onSelected: (_) {
-                          setState(
-                            () => _selectedCategory =
-                                _selectedCategory == cat.id ? null : cat.id,
-                          );
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 24),
-              Text('Suppliers', style: AppTextStyles.subtitle),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: suppliers
-                    .map(
-                      (s) => FilterChip(
-                        label: Text(s.companyName),
-                        selected: false,
-                        onSelected: (_) {},
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      setState(() {
+                        _selectedCategory = category;
+                        _selectedSupplier = supplier;
+                      });
+                      _filterProducts();
+                    },
+                    child: const Text('Show products'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

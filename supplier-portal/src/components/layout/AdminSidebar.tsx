@@ -2,11 +2,13 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
   BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine, ClipboardList,
+  KeyRound,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useAdminBadgeStore } from '../../store/adminBadgeStore';
+import { canOpenAdminPath } from '../../utils/adminAccess';
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -16,7 +18,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose }: AdminSidebarProps) {
-  const { user, logout } = useAuthStore();
+  const { user, adminProfile, logout } = useAuthStore();
   const { pendingSuppliers, pendingDocuments, pendingReports, pendingDeposits, pendingWithdrawals, fetchBadges } = useAdminBadgeStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,7 +32,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const sections: { title: string; items: { to: string; icon: typeof Users; label: string; badge?: number }[] }[] = [
+  const allSections: { title: string; items: { to: string; icon: typeof Users; label: string; badge?: number }[] }[] = [
     {
       title: 'Overview',
       items: [
@@ -70,9 +72,15 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
       items: [
         { to: '/admin/notifications', icon: Bell,     label: 'Notifications' },
         { to: '/admin/settings',      icon: Settings, label: 'Settings' },
+        { to: '/admin/team',          icon: KeyRound, label: 'Team & Access' },
       ],
     },
   ];
+
+  // Each staff member only sees the areas their role includes (master admins see everything).
+  const sections = allSections
+    .map((section) => ({ ...section, items: section.items.filter((item) => canOpenAdminPath(adminProfile, item.to)) }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <aside
@@ -155,11 +163,13 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         {!collapsed && (
           <div className="flex items-center gap-3 px-2 mb-2">
             <div className="w-10 h-10 rounded-full bg-brand-blue text-white flex items-center justify-center font-black flex-shrink-0">
-              {(user?.email ?? 'A').charAt(0).toUpperCase()}
+              {(adminProfile?.displayName || user?.email || 'A').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-extrabold text-gray-900 truncate">Platform Admin</p>
-              <p className="text-[11px] font-semibold text-ink-3 truncate">{user?.email}</p>
+              <p className="text-sm font-extrabold text-gray-900 truncate">{adminProfile?.displayName || 'Platform Admin'}</p>
+              <p className="text-[11px] font-semibold text-ink-3 truncate">
+                {adminProfile?.title || (adminProfile?.isMaster ? 'Master admin' : user?.email)}
+              </p>
             </div>
           </div>
         )}

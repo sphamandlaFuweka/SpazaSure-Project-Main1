@@ -39,7 +39,7 @@ public class WalletTests
         var shopUser = new User { Email = "wallet@test.com", Phone = "0820007000", PasswordHash = "h", RoleId = ownerRole.Id };
         var shop = new SpazaShop { UserId = shopUser.Id, ShopName = "Wallet Spaza", OwnerName = "Thandi", Phone = "0820007000", Address = "7 Test St", Email = "wallet@test.com" };
         var supplierUser = new User { Email = "sup@test.com", Phone = "0820008000", PasswordHash = "h", RoleId = supplierRole.Id };
-        var supplier = new Supplier { UserId = supplierUser.Id, CompanyName = "Bulk Co", ContactPerson = "Sipho", Phone = "0820008000", Email = "sup@test.com", CommissionRate = 5m };
+        var supplier = new Supplier { UserId = supplierUser.Id, CompanyName = "Bulk Co", ContactPerson = "Sipho", Phone = "0820008000", Email = "sup@test.com", CommissionRate = 5m, Status = "verified" };
         var product = new Product { SupplierId = supplier.Id, Name = "Maize meal 10kg", Sku = "MM10", Price = 100m, StockQty = 50, IsAvailable = true, IsApproved = true };
         db.AddRange(shopUser, shop, supplierUser, supplier, product);
         db.SaveChanges();

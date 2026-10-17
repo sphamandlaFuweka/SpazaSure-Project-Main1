@@ -1,4 +1,5 @@
 import 'api_service.dart';
+import 'package:spazasure_app/models/product_info.dart';
 import '../models/models.dart';
 
 /// Service to fetch products from the backend marketplace API.
@@ -71,6 +72,15 @@ class ProductService {
   static Future<Product> getProduct(String id) async {
     final res = await ApiService.get('/shop/marketplace/products/$id');
     return _mapProduct(res['data'] as Map<String, dynamic>);
+  }
+
+  /// The supplier's product page information: specifications, nutrition, ingredients,
+  /// usage, storage, warnings and how to spot a fake.
+  static Future<ProductInfo> getProductInfo(String id) async {
+    final res = await ApiService.get('/shop/marketplace/products/$id');
+    final data = res['data'];
+    final info = data is Map ? data['info'] : null;
+    return ProductInfo.fromJson(info is Map ? Map<String, dynamic>.from(info) : null);
   }
 
   /// Fetch all categories.
@@ -185,6 +195,10 @@ class ProductService {
       'tobacco-vaping': 'shopping_basket',
       'airtime-data': 'shopping_basket',
       'baby-infant': 'child_care',
+      'meat-frozen': 'ac_unit',
+      'fresh-produce': 'eco',
+      'hot-drinks': 'coffee',
+      'fuel-energy': 'local_fire_department',
     };
     return map[slug] ?? 'category';
   }

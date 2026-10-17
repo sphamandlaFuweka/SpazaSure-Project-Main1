@@ -260,8 +260,11 @@ public class PaymentController(
             var unpaidOrders = orders.Where(o => o.PaymentStatus != "paid").ToList();
             foreach (var order in unpaidOrders)
             {
+                var heldStock = OrderStock.Holds(order);
                 order.PaymentMethod = "paystack";
                 order.PaymentStatus = "paid";
+                // Card orders take their stock once the payment is confirmed
+                await OrderStock.SyncAsync(db, order, heldStock, cancellationToken);
             }
             if (unpaidOrders.Count > 0)
             {

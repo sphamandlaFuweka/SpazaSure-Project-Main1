@@ -16,6 +16,18 @@ public class User : BaseEntity
     public DateTime? LastLoginAt { get; set; }
     public string? ProfilePhotoUrl { get; set; }
 
+    // Dashboard staff (role "admin") only.
+    /// <summary>Name shown in the admin console and team list.</summary>
+    public string? DisplayName { get; set; }
+    /// <summary>Job title chosen by the master admin, e.g. "Finance officer". Display only.</summary>
+    public string? AdminTitle { get; set; }
+    /// <summary>
+    /// What this staff member can do in the admin console: "master", or a comma-separated list of
+    /// area:level grants such as "trust:manage,finance:view". See SpazaSure.Shared.Helpers.AdminAccess.
+    /// Null on admin accounts that predate staff roles; those are treated as master admins.
+    /// </summary>
+    public string? AdminAccess { get; set; }
+
     public Role Role { get; set; } = null!;
     public Supplier? Supplier { get; set; }
     public SpazaShop? SpazaShop { get; set; }

@@ -32,6 +32,11 @@ public class ShopOrdersController(
 
         if (req.Items is null || req.Items.Count == 0)
             return BadRequest(ApiResponse.Fail("Order must have at least one item."));
+        // The same product added twice (e.g. from two screens) counts as one line.
+        var lines = req.Items
+            .GroupBy(i => i.ProductId)
+            .Select(g => new PlaceOrderItemRequest(g.Key, g.Sum(i => i.Quantity), 0m))
+            .ToList();
 
         // Payment method: Paystack (pay now), the shop's SpazaSure wallet (pay now from its
         // prepaid balance) or cash on delivery (the shop pays SpazaSure on arrival)
@@ -46,17 +51,19 @@ public class ShopOrdersController(
             return BadRequest(ApiResponse.Fail("Choose Paystack, your SpazaSure wallet or cash on delivery."));
 
         // Load products and validate
-        var productIds = req.Items.Select(i => i.ProductId).ToList();
+        var productIds = lines.Select(i => i.ProductId).ToList();
+        // Same rule as the marketplace: only approved, listed products from active suppliers.
         var products = await db.Products
             .Include(p => p.Supplier)
-            .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved)
+            .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved
+                && (p.Supplier.Status == "active" || p.Supplier.Status == "verified"))
             .ToListAsync();
 
-        if (products.Count != req.Items.Count)
-            return BadRequest(ApiResponse.Fail("One or more products are unavailable."));
+        if (products.Count != lines.Count)
+            return BadRequest(ApiResponse.Fail("One or more products are no longer available. Refresh your cart and try again."));
 
         // Group items by supplier (one order per supplier)
-        var grouped = req.Items.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
+        var grouped = lines.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var isCashOnDelivery = paymentMethod == CashOnDelivery;
         var isWallet = paymentMethod == ShopWallet.PaymentMethod;
@@ -111,9 +118,8 @@ public class ShopOrdersController(
                 subtotal * ((supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m), 2);
             var totalAmount = subtotal + deliveryFee + platformCommission;
 
-            // Generate order number
-            var orderCount = await db.Orders.CountAsync() + 1;
-            var orderNumber = $"SPZ-{DateTime.UtcNow:yyyy}-{orderCount:D4}";
+            // Random, so two shops checking out at the same moment can't get the same number
+            var orderNumber = await OrderNumbers.NewAsync(db);
 
             var order = new Order
             {
@@ -137,6 +143,8 @@ public class ShopOrdersController(
             };
 
             db.Orders.Add(order);
+            // Wallet and cash orders take stock now; card orders once Paystack confirms payment.
+            await OrderStock.SyncAsync(db, order, heldBefore: false);
             if (isWallet) await ShopWallet.SyncOrderAsync(db, order);
             await db.SaveChangesAsync();
             createdOrders.Add(order);

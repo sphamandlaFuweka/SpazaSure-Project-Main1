@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/product_info_sections.dart';
+import 'package:spazasure_app/models/product_info.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -798,6 +800,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     final isRecalled = p['isRecalled'] == true;
     final isExpired = p['isExpired'] == true;
     final repeatScan = p['repeatScan'] == true;
+    final info = ProductInfo.fromJson(
+      p['info'] is Map ? Map<String, dynamic>.from(p['info'] as Map) : null,
+    );
     final batchNumber = p['batchNumber']?.toString();
     final expiryDate = p['expiryDate']?.toString();
     final description = p['description']?.toString() ?? '';
@@ -1116,6 +1121,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ],
           ),
         ),
+        // The supplier's own description of the genuine product, to check deliveries against.
+        if (!info.isEmpty) ...[
+          const SizedBox(height: 12),
+          ProductInfoSections(info: info, expandAuthenticity: !isVerified),
+        ],
       ],
     );
   }

@@ -1177,6 +1177,67 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("allergens");
 
+                    b.Property<string>("Brand")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("brand");
+
+                    b.Property<string>("PackSize")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pack_size");
+
+                    b.Property<string>("CountryOfOrigin")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("country_of_origin");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("manufacturer");
+
+                    b.Property<string>("ServingSize")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("serving_size");
+
+                    b.Property<string>("ServingsPerPack")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("servings_per_pack");
+
+                    b.Property<string>("Ingredients")
+                        .HasColumnType("text")
+                        .HasColumnName("ingredients");
+
+                    b.Property<string>("UsageInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("usage_instructions");
+
+                    b.Property<string>("StorageInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("storage_instructions");
+
+                    b.Property<string>("Warnings")
+                        .HasColumnType("text")
+                        .HasColumnName("warnings");
+
+                    b.Property<string>("NutritionInfo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nutrition_info");
+
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("specifications");
+
+                    b.Property<string>("AuthenticityTips")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("authenticity_tips");
+
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
@@ -2537,9 +2598,24 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AdminAccess")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("admin_access");
+
+                    b.Property<string>("AdminTitle")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("admin_title");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("display_name");
 
                     b.Property<string>("Email")
                         .HasColumnType("text")

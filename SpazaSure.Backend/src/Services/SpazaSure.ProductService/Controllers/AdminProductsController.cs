@@ -1,3 +1,4 @@
+using SpazaSure.ProductService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,15 +18,20 @@ public class AdminProductsController(SpazaSureDbContext db, EventPublisher event
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
-        [FromQuery] string? status = null)
+        [FromQuery] string? status = null,
+        [FromQuery] string? categoryId = null)
     {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 1000);
         var query = db.Products
             .Include(p => p.Category)
             .Include(p => p.Supplier)
             .AsQueryable();
 
-        if (!string.IsNullOrEmpty(search))
-            query = query.Where(p => p.Name.Contains(search) || p.Sku.Contains(search) || p.Supplier.CompanyName.Contains(search));
+        var term = search?.Trim().ToLower();
+        if (!string.IsNullOrEmpty(term))
+            query = query.Where(p => p.Name.ToLower().Contains(term) || p.Sku.ToLower().Contains(term) || p.Supplier.CompanyName.ToLower().Contains(term));
+        query = ProductCategoryFilter.Apply(query, categoryId);
 
         if (status == "active") query = query.Where(p => p.IsAvailable && p.IsApproved);
         else if (status == "pending_approval") query = query.Where(p => !p.IsApproved);
@@ -70,7 +76,8 @@ public class AdminProductsController(SpazaSureDbContext db, EventPublisher event
             Category = product.Category?.Name,
             SupplierId = product.SupplierId,
             SupplierName = product.Supplier.CompanyName,
-            product.CreatedAt
+            product.CreatedAt,
+            Info = ProductInfo.Project(product)
         }));
     }
 

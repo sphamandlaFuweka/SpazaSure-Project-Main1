@@ -43,8 +43,8 @@ SELECT '00000000-0000-0000-0008-000000000001', 'zanele@example.co.za', '+2781000
        (SELECT id FROM roles WHERE name = 'customer'), 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'zanele@example.co.za');
 
-INSERT INTO customer_profiles (user_id, full_name, allergies)
-SELECT (SELECT id FROM users WHERE email = 'zanele@example.co.za'), 'Zanele Mthembu', '["peanuts","dairy"]'
+INSERT INTO customer_profiles (user_id, first_name, last_name, allergies)
+SELECT (SELECT id FROM users WHERE email = 'zanele@example.co.za'), 'Zanele', 'Mthembu', '["Peanuts","Dairy"]'
 WHERE NOT EXISTS (
     SELECT 1 FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE email = 'zanele@example.co.za')
 );
@@ -110,43 +110,43 @@ WHERE NOT EXISTS (SELECT 1 FROM spaza_shops WHERE id = '00000000-0000-0000-0005-
 -- =========================================================================
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'White Star Maize Meal 10kg', 'Premium super maize meal', 'WS-MM-10', 89.99, 500, 10, 'bag', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'maize-flour'), 'White Star Maize Meal 10kg', 'Premium super maize meal', 'WS-MM-10', 89.99, 500, 10, 'bag', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'WS-MM-10');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Tastic Rice 2kg', 'Long grain parboiled rice', 'TR-2K', 42.99, 300, 12, 'pack', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'maize-flour'), 'Tastic Rice 2kg', 'Long grain parboiled rice', 'TR-2K', 42.99, 300, 12, 'pack', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'TR-2K');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Sunfoil Cooking Oil 2L', 'Pure sunflower cooking oil', 'SF-CO-2L', 54.99, 200, 6, 'bottle', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'cooking-oil'), 'Sunfoil Cooking Oil 2L', 'Pure sunflower cooking oil', 'SF-CO-2L', 54.99, 200, 6, 'bottle', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'SF-CO-2L');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Coca-Cola 2L (6-Pack)', 'Original taste. 6 bottles', 'CC-2L-6', 89.99, 150, 4, 'pack', '[]', true, true, false, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'beverages'), 'Coca-Cola 2L (6-Pack)', 'Original taste. 6 bottles', 'CC-2L-6', 89.99, 150, 4, 'pack', '[]', true, true, false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'CC-2L-6');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Simba Chips Assorted 36s', 'Mixed flavour chips', 'SC-36', 149.99, 100, 2, 'box', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'snacks'), 'Simba Chips Assorted 36s', 'Mixed flavour chips', 'SC-36', 149.99, 100, 2, 'box', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'SC-36');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Lucky Star Pilchards 400g (24-Pack)', 'Pilchards in tomato sauce', 'LS-400-24', 299.99, 60, 1, 'box', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'canned-goods'), 'Lucky Star Pilchards 400g (24-Pack)', 'Pilchards in tomato sauce', 'LS-400-24', 299.99, 60, 1, 'box', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'LS-400-24');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Sunlight Dishwashing 750ml (12-Pack)', 'Grease-cutting formula', 'SDL-750-12', 179.99, 120, 2, 'box', '[]', true, true, false, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'household-cleaning'), 'Sunlight Dishwashing 750ml (12-Pack)', 'Grease-cutting formula', 'SDL-750-12', 179.99, 120, 2, 'box', '[]', true, true, false, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'SDL-750-12');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Albany Bread (20 Loaves)', 'White sliced bread bulk', 'AB-WB-20', 259.99, 30, 1, 'case', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'bread-bakery'), 'Albany Bread (20 Loaves)', 'White sliced bread bulk', 'AB-WB-20', 259.99, 30, 1, 'case', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'AB-WB-20');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'KOO Baked Beans 410g (12-Pack)', 'Rich tomato sauce beans', 'KOO-BB-12', 129.99, 200, 2, 'case', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'canned-goods'), 'KOO Baked Beans 410g (12-Pack)', 'Rich tomato sauce beans', 'KOO-BB-12', 129.99, 200, 2, 'case', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'KOO-BB-12');
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
-SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories LIMIT 1), 'Clover Fresh Milk 2L (6-Pack)', 'Full cream fresh milk', 'CM-2L-6', 119.99, 80, 2, 'pack', '[]', true, true, true, NOW(), NOW()
+SELECT gen_random_uuid(), '00000000-0000-0000-0003-000000000001', (SELECT id FROM categories WHERE slug = 'dairy-eggs'), 'Clover Fresh Milk 2L (6-Pack)', 'Full cream fresh milk', 'CM-2L-6', 119.99, 80, 2, 'pack', '[]', true, true, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM products WHERE sku = 'CM-2L-6');
 
 -- Tag a couple of products with allergens and a real barcode, so the

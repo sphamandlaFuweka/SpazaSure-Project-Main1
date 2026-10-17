@@ -17,6 +17,9 @@ public class AuthenticationService(
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
     private readonly int _refreshExpiry = int.Parse(config["Jwt:RefreshExpiryDays"] ?? "30");
 
+    /// <summary>Account types anyone may sign up for. Everything else (admin staff) is created by a master admin.</summary>
+    private static readonly HashSet<string> PublicRoles = ["supplier", "spaza_owner", "customer"];
+
     public async Task<(bool Success, string? Error, AuthResponse? Data)> RegisterAsync(RegisterRequest req, string ipAddress)
     {
         var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
@@ -29,6 +32,10 @@ public class AuthenticationService(
             (email != null && u.Email != null && u.Email.ToLower() == email.ToLower()) ||
             (phone != null && u.Phone == phone)))
             return (false, "Email or phone already registered.", null);
+
+        // Admin console accounts are only created by a master admin (Team page), never by self sign-up.
+        if (!PublicRoles.Contains(req.Role))
+            return (false, "That account type can't be registered here.", null);
 
         // Look up role by name from DB — no hardcoding
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == req.Role && r.IsActive);

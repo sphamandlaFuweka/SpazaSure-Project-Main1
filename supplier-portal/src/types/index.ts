@@ -61,6 +61,30 @@ export interface ProductQrCodeData {
   barcodeSvg: string;
 }
 
+/** Product page information: specifications, nutrition, ingredients and counterfeit checks. */
+export interface ProductInfo {
+  brand: string;
+  packSize: string;
+  countryOfOrigin: string;
+  manufacturer: string;
+  ingredients: string;
+  allergens: string[];
+  servingSize: string;
+  servingsPerPack: string;
+  nutrition: { nutrient: string; per100: string; perServing: string }[];
+  usageInstructions: string;
+  storageInstructions: string;
+  warnings: string;
+  specifications: { label: string; value: string }[];
+  authenticityTips: string[];
+}
+
+export const emptyProductInfo = (): ProductInfo => ({
+  brand: '', packSize: '', countryOfOrigin: '', manufacturer: '', ingredients: '', allergens: [],
+  servingSize: '', servingsPerPack: '', nutrition: [], usageInstructions: '', storageInstructions: '',
+  warnings: '', specifications: [], authenticityTips: [],
+});
+
 export interface ProductFormData {
   name: string;
   description: string;
@@ -71,6 +95,9 @@ export interface ProductFormData {
   stockQuantity: number;
   minOrderQty: number;
   imageUrl: string;
+  isFoodItem?: boolean;
+  /** Sent only when the form edited it; otherwise the server keeps what it has. */
+  info?: ProductInfo;
 }
 
 // Category
@@ -129,7 +156,10 @@ export interface Order {
 }
 
 // Group Buy
+/** Admin list filters. */
 export type GroupBuyFilter = 'all' | 'active' | 'pending' | 'completed' | 'rejected' | 'cancelled';
+/** Supplier list filters: requests are campaigns with a product at target, waiting for the supplier to accept. */
+export type SupplierGroupBuyFilter = 'all' | 'requests' | 'active' | 'to_dispatch' | 'completed' | 'cancelled';
 
 export interface NewGroupBuyRequest {
   supplierId?: string;
@@ -138,15 +168,6 @@ export interface NewGroupBuyRequest {
   bannerImageUrl?: string;
   durationDays: number;
   products: { productId: string; targetQty: number; discountPct: number }[];
-}
-
-export interface GroupBuyApprovalProduct {
-  groupBuyProductId: string;
-  discountPct: number;
-}
-
-export interface GroupBuyApprovalRequest {
-  products: GroupBuyApprovalProduct[];
 }
 
 export interface GroupBuyProduct {
@@ -196,6 +217,18 @@ export interface GroupBuy {
   createdAt: string;
   products: GroupBuyProduct[];
   participants: GroupBuyParticipant[];
+  /** Orders created when the supplier accepted the request. */
+  orders?: GroupBuyOrder[] | null;
+}
+
+export interface GroupBuyOrder {
+  id: string;
+  orderNumber: string;
+  shopId: string;
+  shopName: string;
+  status: string;
+  paymentStatus: string;
+  totalAmount: number;
 }
 
 // Analytics

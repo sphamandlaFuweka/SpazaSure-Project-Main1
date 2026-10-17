@@ -6,13 +6,26 @@ import type { GroupBuy, GroupBuyFilter } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
 
 const filters: { value: GroupBuyFilter; label: string }[] = [
-  { value: 'pending', label: 'Awaiting approval' },
   { value: 'active', label: 'Active' },
   { value: 'completed', label: 'Completed' },
-  { value: 'rejected', label: 'Rejected' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'all', label: 'All' },
+  // Suppliers can no longer propose campaigns; these tabs only clear out older proposals.
+  { value: 'pending', label: 'Older supplier proposals' },
+  { value: 'rejected', label: 'Rejected' },
 ];
+
+/** Where the supplier is with the request: waiting to accept, dispatching, or done. */
+const supplierProgress = (g: GroupBuy) => {
+  const orders = g.orders ?? [];
+  if (orders.length === 0) {
+    return g.products.some((p) => p.status === 'qualified') ? 'Target reached, waiting for supplier to accept' : null;
+  }
+  const waiting = orders.filter((o) => ['pending', 'confirmed', 'processing'].includes(o.status)).length;
+  return waiting > 0
+    ? `Supplier accepted, ${waiting} of ${orders.length} order${orders.length === 1 ? '' : 's'} still to dispatch`
+    : `All ${orders.length} order${orders.length === 1 ? '' : 's'} dispatched`;
+};
 
 const statusStyle = (status: string) => {
   if (status === 'active' || status === 'completed') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -23,7 +36,7 @@ const statusStyle = (status: string) => {
 const label = (status: string) => (status === 'pending_approval' ? 'Awaiting approval' : status);
 
 export default function AdminGroupBuysPage() {
-  const [filter, setFilter] = useState<GroupBuyFilter>('pending');
+  const [filter, setFilter] = useState<GroupBuyFilter>('active');
   const [groups, setGroups] = useState<GroupBuy[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -72,7 +85,7 @@ export default function AdminGroupBuysPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Group Buys</h1>
-          <p className="page-subtitle">Approve supplier proposals, create deals, and monitor how many shops have joined.</p>
+          <p className="page-subtitle">Create deals for suppliers' products and follow them until the supplier accepts and dispatches.</p>
         </div>
         <button className="btn-primary flex items-center gap-2" onClick={() => setShowCreate(true)}>
           <Plus size={16} /> Create group buy
@@ -120,6 +133,7 @@ export default function AdminGroupBuysPage() {
                     </p>
                     {g.description && <p className="text-sm text-gray-500 mt-1">{g.description}</p>}
                     {g.rejectionNote && <p className="text-sm text-red-700 mt-2">Note: {g.rejectionNote}</p>}
+                    {supplierProgress(g) && <p className="text-sm font-semibold text-brand-blue mt-2">{supplierProgress(g)}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2 flex-shrink-0">
                     {isPending && (
@@ -181,7 +195,7 @@ export default function AdminGroupBuysPage() {
         </div>
       )}
 
-      {showCreate && <GroupBuyCreateModal mode="admin" onClose={() => setShowCreate(false)} onCreated={() => { setFilter('active'); load(); }} />}
+      {showCreate && <GroupBuyCreateModal onClose={() => setShowCreate(false)} onCreated={() => { setFilter('active'); load(); }} />}
     </div>
   );
 }

@@ -20,13 +20,18 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
 
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null, [FromQuery] string? status = null)
+        [FromQuery] string? search = null, [FromQuery] string? status = null,
+        [FromQuery] string? categoryId = null)
     {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 500);
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
         if (supplier is null) return Ok(ApiResponse<object>.Ok(new { total = 0, page, pageSize, items = Array.Empty<object>() }));
 
         var query = db.Products.Include(p => p.Category).Where(p => p.SupplierId == supplier.Id);
-        if (!string.IsNullOrEmpty(search)) query = query.Where(p => p.Name.Contains(search) || p.Sku.Contains(search));
+        var term = search?.Trim().ToLower();
+        if (!string.IsNullOrEmpty(term)) query = query.Where(p => p.Name.ToLower().Contains(term) || p.Sku.ToLower().Contains(term));
+        query = ProductCategoryFilter.Apply(query, categoryId);
         if (status == "active") query = query.Where(p => p.IsAvailable && p.IsApproved);
         else if (status == "pending_approval") query = query.Where(p => !p.IsApproved);
         else if (status == "archived") query = query.Where(p => !p.IsAvailable && p.IsApproved);
@@ -66,10 +71,11 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
 
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        if (await ValidateRequestAsync(req, supplier.Id, null) is { } invalid) return BadRequest(ApiResponse.Fail(invalid));
 
         var product = new Product {
-            SupplierId = supplier.Id, CategoryId = req.CategoryId, Name = req.Name,
-            Description = req.Description, Sku = req.Sku, Barcode = req.Barcode,
+            SupplierId = supplier.Id, CategoryId = req.CategoryId, Name = req.Name.Trim(),
+            Description = req.Description, Sku = req.Sku.Trim(), Barcode = req.Barcode,
             Price = req.Price, MinOrderQty = req.MinOrderQty, StockQty = req.StockQty,
             Unit = req.Unit, Images = req.Images ?? "[]", IsAvailable = req.IsAvailable,
             IsFoodItem = req.IsFoodItem,
@@ -77,6 +83,8 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
             IsApproved = supplier.Status == "verified"
                 && (await PlatformSettingsStore.LoadAsync(db)).AutoApproveVerifiedSupplierProducts
         };
+        if (req.Info is not null && ProductInfo.Apply(product, req.Info) is { } infoError)
+            return BadRequest(ApiResponse.Fail(infoError));
         db.Products.Add(product);
         await db.SaveChangesAsync();
 
@@ -104,11 +112,13 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
         var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
         if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
+        // A product can keep a category an admin later hid; only a change must pick an active one.
+        if (await ValidateRequestAsync(req, supplier.Id, product) is { } invalid) return BadRequest(ApiResponse.Fail(invalid));
 
         product.CategoryId = req.CategoryId;
-        product.Name = req.Name;
+        product.Name = req.Name.Trim();
         product.Description = req.Description;
-        product.Sku = req.Sku;
+        product.Sku = req.Sku.Trim();
         if (req.Barcode is not null) product.Barcode = req.Barcode;
         product.Price = req.Price;
         product.MinOrderQty = req.MinOrderQty;
@@ -117,8 +127,23 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         product.Images = req.Images ?? product.Images;
         product.IsAvailable = req.IsAvailable;
         product.IsFoodItem = req.IsFoodItem;
+        // Older clients don't send product information; leave it as it is.
+        if (req.Info is not null && ProductInfo.Apply(product, req.Info) is { } infoError)
+            return BadRequest(ApiResponse.Fail(infoError));
         await db.SaveChangesAsync();
         return Ok(ApiResponse<Product>.Ok(product));
+    }
+
+    /// <summary>The product information block, for editing in the supplier portal.</summary>
+    [HttpGet("{id:guid}/info")]
+    public async Task<IActionResult> GetInfo(Guid id)
+    {
+        var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
+        return product is null
+            ? NotFound(ApiResponse.Fail("Product not found."))
+            : Ok(ApiResponse<object>.Ok(ProductInfo.Project(product)));
     }
 
     [HttpPatch("{id:guid}/toggle")]
@@ -197,6 +222,23 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         return Ok(ApiResponse.Ok("Product deleted."));
     }
 
+    /// <summary>Checks the request makes business sense before it reaches the database.</summary>
+    private async Task<string?> ValidateRequestAsync(ProductRequest req, Guid supplierId, Product? existing)
+    {
+        if (string.IsNullOrWhiteSpace(req.Name) || req.Name.Trim().Length > 200) return "Give the product a name (up to 200 characters).";
+        if (string.IsNullOrWhiteSpace(req.Sku) || req.Sku.Trim().Length > 60) return "Give the product a SKU (up to 60 characters).";
+        if (req.Price <= 0 || req.Price > 1_000_000) return "The price must be more than R0.";
+        if (req.StockQty < 0) return "Stock can't be negative.";
+        if (req.MinOrderQty < 1) return "The minimum order must be at least 1.";
+        var sku = req.Sku.Trim();
+        if (await db.Products.AnyAsync(p => p.SupplierId == supplierId && p.Sku == sku && (existing == null || p.Id != existing.Id)))
+            return $"You already have a product with SKU {sku}.";
+        if (req.CategoryId is { } categoryId && categoryId != existing?.CategoryId &&
+            !await db.Categories.AnyAsync(c => c.Id == categoryId && c.IsActive))
+            return "Choose one of the listed categories.";
+        return null;
+    }
+
     private async Task<ProductQrCode> GetOrCreateDefaultQrCode(Guid productId)
     {
         var existing = await db.ProductQrCodes.FirstOrDefaultAsync(q => q.ProductId == productId && q.OrderItemId == null);
@@ -225,5 +267,6 @@ public record ProductRequest(
     string Unit = "unit",
     string? Images = null,
     bool IsAvailable = true,
-    bool IsFoodItem = false
+    bool IsFoodItem = false,
+    ProductInfoRequest? Info = null
 );

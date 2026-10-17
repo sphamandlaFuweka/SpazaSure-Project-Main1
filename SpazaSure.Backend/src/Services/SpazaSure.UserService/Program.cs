@@ -78,6 +78,9 @@ builder.Services.AddCors(opt =>
          .AllowAnyMethod()
          .AllowCredentials()));
 
+// Dashboard staff roles: which admin areas each staff member may view or manage.
+builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
+
 var app = builder.Build();
 
 app.UseSpazaSureExceptionHandling();
@@ -128,6 +131,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthentication();
 app.UseAuthorization();
+SpazaSure.Shared.Helpers.AdminAccessExtensions.UseAdminAccess(app);
 app.MapControllers();
 
 app.Run();

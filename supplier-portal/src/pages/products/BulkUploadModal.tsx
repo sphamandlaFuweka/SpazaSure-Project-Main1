@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, FileSpreadsheet, X, CheckCircle2, AlertCircle, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../components/ui';
@@ -13,6 +13,7 @@ interface ParsedRow {
   price: number;
   discountPrice?: number;
   categoryId: string;
+  categoryName: string;
   stockQuantity: number;
   minOrderQty: number;
   imageUrl: string;
@@ -32,11 +33,12 @@ interface Props {
   onComplete: () => void;
 }
 
-const TEMPLATE_HEADERS = ['name', 'description', 'sku', 'price', 'discountPrice', 'categoryId', 'stockQuantity', 'minOrderQty', 'imageUrl'];
+// "category" takes the category name exactly as listed below (not case sensitive).
+const TEMPLATE_HEADERS = ['name', 'description', 'sku', 'price', 'category', 'stockQuantity', 'minOrderQty', 'imageUrl'];
 
 const SAMPLE_DATA = [
-  ['Sunflower Oil 2L', 'Pure sunflower cooking oil 2 litre bottle', 'OIL-SUN-2L', '45.99', '', 'c1', '500', '12', 'https://example.com/oil.jpg'],
-  ['White Sugar 2.5kg', 'Fine white sugar 2.5kg bag', 'SUG-WHT-25', '39.99', '34.99', 'c3', '300', '6', 'https://example.com/sugar.jpg'],
+  ['Sunflower Oil 2L', 'Pure sunflower cooking oil 2 litre bottle', 'OIL-SUN-2L', '45.99', 'Cooking oil & fats', '500', '12', 'https://example.com/oil.jpg'],
+  ['White Sugar 2.5kg', 'Fine white sugar 2.5kg bag', 'SUG-WHT-25', '39.99', 'Maize meal, flour & rice', '300', '6', 'https://example.com/sugar.jpg'],
 ];
 
 export default function BulkUploadModal({ onClose, onComplete }: Props) {
@@ -47,6 +49,8 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { productsApi.categories().then(setCategories).catch(() => {}); }, []);
 
   // Download CSV template
   const downloadTemplate = () => {
@@ -77,8 +81,8 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
     const descIdx = header.indexOf('description');
     const skuIdx = header.indexOf('sku');
     const priceIdx = header.indexOf('price');
-    const discountIdx = header.indexOf('discountprice');
-    const catIdx = header.indexOf('categoryid');
+    // Older templates used a categoryId column; names are easier, so both are accepted.
+    const catIdx = header.indexOf('category') >= 0 ? header.indexOf('category') : header.indexOf('categoryid');
     const stockIdx = header.indexOf('stockquantity');
     const moqIdx = header.indexOf('minorderqty');
     const imgIdx = header.indexOf('imageurl');
@@ -96,26 +100,34 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
       const priceStr = cells[priceIdx]?.trim() ?? '';
       const price = parseFloat(priceStr);
 
+      const categoryText = catIdx >= 0 ? (cells[catIdx]?.trim() ?? '') : '';
+      const category = categories.find((c) =>
+        c.id === categoryText || c.name.toLowerCase() === categoryText.toLowerCase());
+      const imageUrl = imgIdx >= 0 ? (cells[imgIdx]?.trim() ?? '') : '';
+
       let error: string | undefined;
       if (!name) error = 'Name is required';
       else if (!sku) error = 'SKU is required';
       else if (isNaN(price) || price <= 0) error = 'Invalid price';
+      else if (!categoryText) error = 'Category is required';
+      else if (!category) error = `Unknown category "${categoryText}"`;
+      else if (!/^https?:\/\//i.test(imageUrl)) error = 'An image URL (https://...) is required';
 
       rows.push({
         name,
         description: cells[descIdx]?.trim() ?? '',
         sku,
         price: isNaN(price) ? 0 : price,
-        discountPrice: discountIdx >= 0 ? parseFloat(cells[discountIdx]) || undefined : undefined,
-        categoryId: cells[catIdx]?.trim() ?? '',
+        categoryId: category?.id ?? '',
+        categoryName: category?.name ?? categoryText,
         stockQuantity: stockIdx >= 0 ? parseInt(cells[stockIdx]) || 0 : 0,
         minOrderQty: moqIdx >= 0 ? parseInt(cells[moqIdx]) || 1 : 1,
-        imageUrl: cells[imgIdx]?.trim() ?? '',
+        imageUrl,
         error,
       });
     }
     return rows;
-  }, []);
+  }, [categories]);
 
   // Parse a single CSV line respecting quoted fields
   function parseCSVLine(line: string): string[] {
@@ -185,7 +197,6 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
           description: row.description,
           sku: row.sku,
           price: row.price,
-          discountPrice: row.discountPrice,
           categoryId: row.categoryId,
           stockQuantity: row.stockQuantity,
           minOrderQty: row.minOrderQty,
@@ -268,24 +279,12 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
             {/* Category reference */}
             <details className="text-xs">
               <summary className="cursor-pointer text-gray-500 font-semibold hover:text-gray-700">
-                View Category IDs for the CSV
+                Category names for the "category" column
               </summary>
-              <div className="mt-2 bg-gray-50 rounded-lg p-3 grid grid-cols-3 gap-1.5">
-                {[
-                  { id: 'c1', name: 'Cooking Oils' },
-                  { id: 'c2', name: 'Grains & Cereals' },
-                  { id: 'c3', name: 'Sugar & Sweeteners' },
-                  { id: 'c4', name: 'Sauces & Condiments' },
-                  { id: 'c5', name: 'Beverages' },
-                  { id: 'c6', name: 'Dairy' },
-                  { id: 'c7', name: 'Snacks' },
-                  { id: 'c8', name: 'Personal Care' },
-                  { id: 'c9', name: 'Cleaning Products' },
-                ].map((c) => (
-                  <div key={c.id} className="flex items-center gap-1.5">
-                    <code className="bg-white px-1.5 py-0.5 rounded border border-gray-200 text-primary font-bold">{c.id}</code>
-                    <span className="text-gray-600">{c.name}</span>
-                  </div>
+              <div className="mt-2 bg-gray-50 rounded-lg p-3 grid grid-cols-2 gap-1.5">
+                {categories.length === 0 && <span className="text-gray-400">Categories could not be loaded.</span>}
+                {categories.map((c) => (
+                  <code key={c.id} className="bg-white px-1.5 py-0.5 rounded border border-gray-200 text-primary font-bold">{c.name}</code>
                 ))}
               </div>
             </details>
@@ -318,6 +317,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                     <th className="px-3 py-2 text-left font-bold text-gray-500">#</th>
                     <th className="px-3 py-2 text-left font-bold text-gray-500">Name</th>
                     <th className="px-3 py-2 text-left font-bold text-gray-500">SKU</th>
+                    <th className="px-3 py-2 text-left font-bold text-gray-500">Category</th>
                     <th className="px-3 py-2 text-right font-bold text-gray-500">Price</th>
                     <th className="px-3 py-2 text-right font-bold text-gray-500">Stock</th>
                     <th className="px-3 py-2 text-center font-bold text-gray-500">Status</th>
@@ -329,6 +329,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                       <td className="px-3 py-2 text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 font-medium text-gray-900 max-w-[180px] truncate">{row.name || '—'}</td>
                       <td className="px-3 py-2 font-mono text-gray-500">{row.sku || '—'}</td>
+                      <td className="px-3 py-2 text-gray-600 max-w-[140px] truncate">{row.categoryName || '—'}</td>
                       <td className="px-3 py-2 text-right font-semibold text-gray-900">
                         {row.price > 0 ? `R${row.price.toFixed(2)}` : '—'}
                       </td>

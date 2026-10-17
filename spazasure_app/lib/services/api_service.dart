@@ -53,90 +53,110 @@ class ApiService {
     return headers;
   }
 
-  static Future<Map<String, dynamic>> get(String path) async {
+  /// Called when the session can't be renewed (refresh token expired or revoked), so the app
+  /// can sign the person out and return to the login screen. Set in main.dart.
+  static Future<void> Function()? onSessionExpired;
+
+  static Future<bool>? _refreshing;
+
+  /// Access tokens are short-lived (30 minutes in production). When one expires, swap the
+  /// stored refresh token for a new pair once, shared by every request waiting on it.
+  static Future<bool> _refreshSession() {
+    return _refreshing ??= () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final refresh = prefs.getString('refresh_token');
+        if (refresh == null || refresh.isEmpty) return false;
+        final res = await http
+            .post(
+              Uri.parse('$baseUrl/supplier/auth/refresh'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'refreshToken': refresh}),
+            )
+            .timeout(const Duration(seconds: 10));
+        if (res.statusCode != 200) return false;
+        final body = jsonDecode(res.body);
+        final data = body is Map ? (body['data'] ?? body) : null;
+        final access = data is Map ? data['accessToken'] as String? : null;
+        final newRefresh = data is Map ? data['refreshToken'] as String? : null;
+        if (access == null || access.isEmpty) return false;
+        await prefs.setString('access_token', access);
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          await prefs.setString('refresh_token', newRefresh);
+        }
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }().whenComplete(() => _refreshing = null);
+  }
+
+  /// Sends a request; on 401 renews the session once and retries. If renewal fails the
+  /// person is signed out, so screens don't keep failing while looking signed in.
+  static Future<Map<String, dynamic>> _send(
+    String path,
+    Future<http.Response> Function(Map<String, String> headers) request, {
+    bool auth = true,
+    Duration timeout = const Duration(seconds: 15),
+    String offlineMessage = 'Unable to connect to server',
+  }) async {
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl$path'), headers: await _headers())
-          .timeout(const Duration(seconds: 10));
+      var res = await request(await _headers(auth: auth)).timeout(timeout);
+      final isAuthCall = path.contains('/auth/');
+      if (res.statusCode == 401 && auth && !isAuthCall) {
+        if (await _refreshSession()) {
+          res = await request(await _headers(auth: auth)).timeout(timeout);
+        }
+        if (res.statusCode == 401) {
+          final expired = onSessionExpired;
+          if (expired != null) await expired();
+          throw ApiException('Your session has ended. Please sign in again.', 401);
+        }
+      }
       return _handle(res);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Unable to connect to server', 0);
+      debugPrint('[API] $path error: $e');
+      throw ApiException(offlineMessage, 0);
     }
   }
+
+  static Future<Map<String, dynamic>> get(String path) =>
+      _send(path, (h) => http.get(Uri.parse('$baseUrl$path'), headers: h));
 
   static Future<Map<String, dynamic>> post(
     String path,
     Map<String, dynamic> body, {
     bool auth = true,
-  }) async {
-    try {
-      final url = '$baseUrl$path';
-      debugPrint('[API] POST $url');
-      final res = await http
-          .post(
-            Uri.parse(url),
-            headers: await _headers(auth: auth),
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 30));
-      return _handle(res);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      debugPrint('[API] POST error: $e');
-      throw ApiException('Unable to connect to server', 0);
-    }
-  }
+  }) => _send(
+    path,
+    (h) => http.post(Uri.parse('$baseUrl$path'), headers: h, body: jsonEncode(body)),
+    auth: auth,
+    timeout: const Duration(seconds: 30),
+  );
 
-  static Future<Map<String, dynamic>> delete(String path) async {
-    try {
-      final res = await http
-          .delete(Uri.parse('$baseUrl$path'), headers: await _headers())
-          .timeout(const Duration(seconds: 10));
-      return _handle(res);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException('Unable to connect to server', 0);
-    }
-  }
+  static Future<Map<String, dynamic>> delete(String path) =>
+      _send(path, (h) => http.delete(Uri.parse('$baseUrl$path'), headers: h));
 
   static Future<Map<String, dynamic>> patch(
     String path,
     Map<String, dynamic> body,
-  ) async {
-    try {
-      final res = await http
-          .patch(
-            Uri.parse('$baseUrl$path'),
-            headers: await _headers(),
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
-      return _handle(res);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException('Unable to connect to server', 0);
-    }
-  }
+  ) => _send(
+    path,
+    (h) => http.patch(Uri.parse('$baseUrl$path'), headers: h, body: jsonEncode(body)),
+  );
 
   static Future<Map<String, dynamic>> put(
     String path, [
     Map<String, dynamic>? body,
-  ]) async {
-    try {
-      final res = await http
-          .put(
-            Uri.parse('$baseUrl$path'),
-            headers: await _headers(),
-            body: body != null ? jsonEncode(body) : null,
-          )
-          .timeout(const Duration(seconds: 10));
-      return _handle(res);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException('Unable to connect to server', 0);
-    }
-  }
+  ]) => _send(
+    path,
+    (h) => http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: h,
+      body: body != null ? jsonEncode(body) : null,
+    ),
+  );
 
   static Map<String, dynamic> _handle(http.Response res) {
     if (res.statusCode >= 300 && res.statusCode < 400) {
@@ -217,33 +237,22 @@ class ApiService {
     required List<int> fileBytes,
     required String fileName,
     Map<String, String>? fields,
-  }) async {
-    try {
-      final uri = Uri.parse('$baseUrl$path');
-      final request = http.MultipartRequest('POST', uri);
-
-      // Add auth header
-      final token = await _getToken();
-      if (token != null) request.headers['Authorization'] = 'Bearer $token';
-
-      // Add file
+  }) => _send(
+    path,
+    (headers) async {
+      // A multipart request can only be sent once, so it is rebuilt for a retry.
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'));
+      final auth = headers['Authorization'];
+      if (auth != null) request.headers['Authorization'] = auth;
       request.files.add(
         http.MultipartFile.fromBytes(fieldName, fileBytes, filename: fileName),
       );
-
-      // Add extra fields
       if (fields != null) request.fields.addAll(fields);
-
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 30),
-      );
-      final res = await http.Response.fromStream(streamed);
-      return _handle(res);
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException('Upload failed: $e', 0);
-    }
-  }
+      return http.Response.fromStream(await request.send());
+    },
+    timeout: const Duration(seconds: 45),
+    offlineMessage: 'Upload failed. Check your connection and try again.',
+  );
 }
 
 class ApiException implements Exception {

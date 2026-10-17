@@ -153,6 +153,15 @@ class AuthProvider extends ChangeNotifier {
     return failedDocuments;
   }
 
+  /// The server no longer accepts this session (it expired or was revoked). Clear it locally
+  /// without calling the API, which would only be refused again.
+  Future<void> sessionExpired() async {
+    if (_session == null) return;
+    await AuthService.logout();
+    _session = null;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     // Unlink this phone from push notifications while the session is still valid
     await PushService.unregister();

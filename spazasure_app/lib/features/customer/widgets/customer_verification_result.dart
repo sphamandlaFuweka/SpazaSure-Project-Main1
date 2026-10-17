@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/product_info_sections.dart';
+import 'package:spazasure_app/models/product_info.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 
@@ -135,6 +137,10 @@ class CustomerVerificationResult extends StatelessWidget {
     final name = _text(p['name']) ?? 'Unknown product';
     final description = _text(p['description']);
     final ingredients = _text(p['ingredients']);
+    final authenticityTips = _list(p['authenticityTips']);
+    final info = ProductInfo.fromJson(
+      p['info'] is Map ? Map<String, dynamic>.from(p['info'] as Map) : null,
+    );
     final suspicious = level == 'suspicious' || level == 'high' || recalled;
     final needsExpiry = onCheckExpiry != null && expiryText == null;
 
@@ -333,6 +339,34 @@ class CustomerVerificationResult extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+        ],
+        if (authenticityTips.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _card(
+            tint: AppColors.secondary,
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              // Open straight away when something looks off, so the checks are right there.
+              initiallyExpanded: suspicious,
+              leading: const Icon(Icons.verified_user_outlined, color: AppColors.secondary),
+              title: Text(
+                'How to spot a fake',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [AuthenticityChecklist(tips: authenticityTips)],
+            ),
+          ),
+        ],
+        if (!info.isEmpty) ...[
+          const SizedBox(height: 12),
+          ProductInfoSections(
+            info: info,
+            highlightAllergens: matched,
+            // Ingredients and the fake checklist already have their own cards above.
+            showIngredients: false,
+            showAuthenticity: false,
           ),
         ],
         if (indicators.isNotEmpty) ...[

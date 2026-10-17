@@ -9,7 +9,10 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { adminProductsApi, resolveUploadUrl } from '../../services/api';
-import type { Product } from '../../types';
+import type { Product, ProductInfo } from '../../types';
+import ProductInfoView from '../products/ProductInfoView';
+import CategoriesModal from './CategoriesModal';
+import { adminCategoriesApi, type AdminCategory } from '../../services/api';
 import { Copy } from 'lucide-react';
 
 type StatusFilter = 'all' | 'pending_approval' | 'active' | 'archived';
@@ -44,22 +47,41 @@ export default function AdminProductsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [showCategories, setShowCategories] = useState(false);
+  const loadCategories = useCallback(() => {
+    adminCategoriesApi.list().then(setCategories).catch(() => {});
+  }, []);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('grouped');
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  // Specifications, ingredients, nutrition and counterfeit checks, loaded when a product is opened.
+  const [selectedInfo, setSelectedInfo] = useState<ProductInfo | null>(null);
+  useEffect(() => {
+    setSelectedInfo(null);
+    if (!selectedProduct) return;
+    let cancelled = false;
+    adminProductsApi.getInfo(selectedProduct.id)
+      .then((info) => { if (!cancelled) setSelectedInfo(info); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedProduct]);
   const pageSize = 50;
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params: { page: number; pageSize: number; search?: string; status?: string } = {
+      const params: { page: number; pageSize: number; search?: string; status?: string; categoryId?: string } = {
         page,
         pageSize,
       };
       if (search.trim()) params.search = search.trim();
       if (statusFilter !== 'all') params.status = statusFilter;
+      if (categoryFilter !== 'all') params.categoryId = categoryFilter;
 
       const result = await adminProductsApi.list(params);
       setProducts(result.data);
@@ -69,7 +91,7 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter, categoryFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -77,7 +99,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, categoryFilter]);
 
   // Group products by supplier
   const supplierGroups = useMemo((): SupplierGroup[] => {
@@ -359,6 +381,21 @@ export default function AdminProductsPage() {
           ))}
         </div>
 
+        {/* Category filter and management */}
+        <div className="flex items-center gap-2">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="select w-auto min-w-[170px]"
+            aria-label="Filter by category"
+          >
+            <option value="all">All categories</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}{c.isActive ? '' : ' (hidden)'}</option>)}
+            <option value="none">No category</option>
+          </select>
+          <button className="btn-secondary text-xs whitespace-nowrap" onClick={() => setShowCategories(true)}>Manage categories</button>
+        </div>
+
         {/* View Mode Toggle */}
         <div className="flex items-center gap-1 bg-gray-100/80 rounded-2xl p-1.5">
           <button
@@ -568,6 +605,10 @@ export default function AdminProductsPage() {
       )}
 
       {/* ═══ PRODUCT DETAIL MODAL ═══ */}
+      {showCategories && (
+        <CategoriesModal onClose={() => setShowCategories(false)} onChanged={() => { loadCategories(); fetchProducts(); }} />
+      )}
+
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedProduct(null)} />
@@ -662,6 +703,14 @@ export default function AdminProductsPage() {
                   <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl p-4 border border-gray-100">{selectedProduct.description}</p>
                 </div>
               )}
+
+              {/* Product information */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Product information</h3>
+                {selectedInfo
+                  ? <ProductInfoView info={selectedInfo} />
+                  : <p className="text-sm text-gray-400">Loading...</p>}
+              </div>
 
               {/* Barcode Section */}
               <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-gray-200 p-5">

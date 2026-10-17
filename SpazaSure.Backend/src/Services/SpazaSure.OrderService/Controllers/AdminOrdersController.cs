@@ -177,6 +177,11 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
             && await ShopWallet.BalanceAsync(db, order.ShopId) < order.TotalAmount)
             return BadRequest(ApiResponse.Fail("The shop's wallet no longer has enough money to pay for this order again."));
 
+        // Shipping an unpaid card order would hand over goods for free
+        if (order.PaymentMethod == "paystack" && order.PaymentStatus != "paid" && req.Status is "processing" or "dispatched" or "delivered")
+            return BadRequest(ApiResponse.Fail("This card order hasn't been paid yet."));
+
+        var heldStock = OrderStock.Holds(order);
         order.Status = req.Status;
         if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
             order.DeliveryCode ??= DeliveryCodes.Generate();
@@ -187,6 +192,7 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
         if (order.PaymentMethod == ShopOrdersController.CashOnDelivery)
             order.PaymentStatus = req.Status == "delivered" ? "paid" : "pending";
         await ShopWallet.SyncOrderAsync(db, order);
+        await OrderStock.SyncAsync(db, order, heldStock);
         await db.SaveChangesAsync();
 
         if (previousStatus != order.Status)

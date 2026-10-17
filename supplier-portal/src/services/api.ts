@@ -1,7 +1,9 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import type { Product, ProductFormData, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, GroupBuyApprovalRequest, NewGroupBuyRequest } from '../types';
+import { emptyProductInfo } from '../types';
+import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest } from '../types';
 import env from '../config/env';
+import type { AccessLevel, AdminArea, AdminProfile } from '../utils/adminAccess';
 import type { AdminReport } from '../types/adminReport';
 import type { Kind, RawRecord } from '../pages/admin/projects/types';
 
@@ -25,6 +27,28 @@ const attachToken = (config: any) => {
   return config;
 };
 api.interceptors.request.use(attachToken);
+
+/** Reads the product information block the API returns, tolerating missing fields. */
+export function mapProductInfo(d: any): ProductInfo {
+  const text = (v: unknown) => (typeof v === 'string' ? v : '');
+  d = d ?? {};
+  return {
+    ...emptyProductInfo(),
+    brand: text(d.brand), packSize: text(d.packSize), countryOfOrigin: text(d.countryOfOrigin),
+    manufacturer: text(d.manufacturer), ingredients: text(d.ingredients),
+    allergens: Array.isArray(d.allergens) ? d.allergens : [],
+    servingSize: text(d.servingSize), servingsPerPack: text(d.servingsPerPack),
+    nutrition: Array.isArray(d.nutrition)
+      ? d.nutrition.map((n: any) => ({ nutrient: text(n.nutrient), per100: text(n.per100), perServing: text(n.perServing) }))
+      : [],
+    usageInstructions: text(d.usageInstructions), storageInstructions: text(d.storageInstructions),
+    warnings: text(d.warnings),
+    specifications: Array.isArray(d.specifications)
+      ? d.specifications.map((x: any) => ({ label: text(x.label), value: text(x.value) }))
+      : [],
+    authenticityTips: Array.isArray(d.authenticityTips) ? d.authenticityTips : [],
+  };
+}
 
 // Map backend product shape → frontend Product type
 function mapProduct(p: any): Product {
@@ -121,6 +145,15 @@ const handleError = async (err: any) => {
     return Promise.reject(err);
   }
 
+  // Staff without access to an admin area: background reads (dashboard cards, badges, search)
+  // stay quiet, and a refused change shows one de-duplicated message.
+  if (err.response?.status === 403 && err.response?.data?.noAccess) {
+    if ((original?.method ?? 'get').toLowerCase() !== 'get') {
+      toast.error(err.response.data.message ?? "You don't have access to do that.", { id: 'no-access' });
+    }
+    return Promise.reject(err);
+  }
+
   // Don't show toast for 401 (handled above) or cancelled requests
   if (err.response?.status && err.response.status !== 401) {
     const msg = err.response?.data?.message
@@ -183,7 +216,8 @@ export const productsApi = {
       unit:        'unit',
       images:      data.imageUrl ? JSON.stringify([data.imageUrl]) : '[]',
       isAvailable: true,
-      isFoodItem:  false,
+      isFoodItem:  data.isFoodItem ?? false,
+      info:        data.info ?? null,
     });
     return mapProduct(res.data?.data ?? res.data);
   },
@@ -191,6 +225,11 @@ export const productsApi = {
    * The backend PUT overwrites every field, so anything the form doesn't edit
    * (availability, unit, food flag, extra images) is carried over from `existing`.
    */
+  /** Specifications, nutrition, ingredients and counterfeit checks for one product. */
+  getInfo: async (id: string): Promise<ProductInfo> => {
+    const res = await productApi.get(`/supplier/products/${id}/info`);
+    return mapProductInfo(res.data?.data ?? res.data);
+  },
   update: async (id: string, data: Partial<ProductFormData>, existing?: Product) => {
     const otherImages = (existing?.images ?? []).filter((img) => img !== existing?.imageUrl);
     const res = await productApi.put(`/supplier/products/${id}`, {
@@ -205,7 +244,8 @@ export const productsApi = {
       // null tells the backend to keep the current images
       images:      data.imageUrl ? JSON.stringify([data.imageUrl, ...otherImages]) : null,
       isAvailable: existing?.isAvailable ?? true,
-      isFoodItem:  existing?.isFoodItem ?? false,
+      isFoodItem:  data.isFoodItem ?? existing?.isFoodItem ?? false,
+      info:        data.info ?? null,
     });
     const updated = mapProduct(res.data?.data ?? res.data);
     // The PUT response is the raw entity without the category name or ratings
@@ -255,7 +295,7 @@ export const productCodesApi = {
 
 // Admin Products — admin-level product management
 export const adminProductsApi = {
-  list: async (params?: { page?: number; pageSize?: number; search?: string; status?: string }) => {
+  list: async (params?: { page?: number; pageSize?: number; search?: string; status?: string; categoryId?: string }) => {
     const res = await api.get('/admin/products', { params });
     const d = res.data?.data ?? res.data;
     const items = (d?.items ?? d?.data ?? d ?? []).map(mapProduct);
@@ -267,6 +307,8 @@ export const adminProductsApi = {
     api.patch(`/admin/products/${id}/reject`, { reason }).then((r) => r.data),
   toggleAvailability: (id: string) =>
     api.patch(`/admin/products/${id}/toggle`).then((r) => r.data),
+  getInfo: (id: string) =>
+    api.get(`/admin/products/${id}`).then((r) => mapProductInfo((r.data?.data ?? r.data)?.info)),
 };
 
 // Group buys
@@ -277,24 +319,23 @@ const uploadGroupBuyBanner = (url: string, file: File): Promise<string> => {
     .then((r) => (r.data?.data ?? r.data).bannerImageUrl as string);
 };
 
+// Suppliers do not create group buys. They see the campaigns SpazaSure runs for their products,
+// accept the request once shops reach a target, and dispatch the resulting orders.
 export const groupBuyApi = {
-  list: async (status: GroupBuyFilter = 'all'): Promise<GroupBuy[]> => {
+  list: async (status: SupplierGroupBuyFilter = 'all'): Promise<GroupBuy[]> => {
     const res = await api.get('/supplier/group-buy', { params: { status } });
     const data = res.data?.data ?? res.data;
     return Array.isArray(data) ? data : (data?.items ?? []);
   },
-  approve: (id: string, request: GroupBuyApprovalRequest) =>
-    api.post(`/supplier/group-buy/${id}/approve`, request).then((r) => r.data?.data ?? r.data),
-  create: (body: NewGroupBuyRequest) =>
-    api.post('/supplier/group-buy', body).then((r) => r.data),
-  withdraw: (id: string) =>
-    api.post(`/supplier/group-buy/${id}/cancel`).then((r) => r.data),
-  uploadBanner: (file: File) => uploadGroupBuyBanner('/supplier/profile/group-buy-banner', file),
+  accept: (id: string) =>
+    api.post(`/supplier/group-buy/${id}/accept`).then((r) => r.data?.data ?? r.data),
+  dispatch: (id: string) =>
+    api.post(`/supplier/group-buy/${id}/dispatch`).then((r) => r.data?.data ?? r.data),
 };
 
 export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number; isApproved?: boolean; isAvailable?: boolean }
 
-// Admin group buys: create for any supplier, approve or reject supplier proposals, monitor, cancel
+// Admin group buys: create for any supplier, clear older supplier proposals, monitor, cancel
 export const adminGroupBuyApi = {
   list: async (status: GroupBuyFilter = 'all'): Promise<GroupBuy[]> => {
     const res = await api.get('/admin/group-buy', { params: { status } });
@@ -308,6 +349,51 @@ export const adminGroupBuyApi = {
   approve: (id: string) => api.post(`/admin/group-buy/${id}/approve`).then((r) => r.data),
   reject: (id: string, note: string) => api.post(`/admin/group-buy/${id}/reject`, { note }).then((r) => r.data),
   cancel: (id: string, note?: string) => api.post(`/admin/group-buy/${id}/cancel`, { note }).then((r) => r.data),
+};
+
+// Product categories. Admins manage them; suppliers file products under them; shops filter by them.
+export interface AdminCategory {
+  id: string; name: string; slug: string; sortOrder: number; isActive: boolean;
+  productCount: number; liveProductCount: number;
+}
+
+export const adminCategoriesApi = {
+  list: () => api.get('/admin/categories').then((r) => ((r.data?.data ?? r.data ?? []) as AdminCategory[])),
+  create: (body: { name: string; sortOrder?: number }) => api.post('/admin/categories', body).then((r) => r.data),
+  update: (id: string, body: { name?: string; sortOrder?: number; isActive?: boolean }) =>
+    api.put(`/admin/categories/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/admin/categories/${id}`).then((r) => r.data),
+};
+
+// Admin console staff: who am I, and (master admin only) the team and their access
+export interface TeamMember {
+  id: string;
+  email: string;
+  displayName: string;
+  title: string;
+  isMaster: boolean;
+  access: Record<AdminArea, AccessLevel>;
+  active: boolean;
+  isYou: boolean;
+  lastLoginAt?: string | null;
+  createdAt: string;
+}
+
+export interface StaffAccessInput { isMaster: boolean; areas: Partial<Record<AdminArea, AccessLevel>> }
+
+const unwrap = <T,>(r: { data: any }): T => (r.data?.data ?? r.data) as T;
+
+export const adminTeamApi = {
+  me: () => api.get('/admin/me').then((r) => unwrap<AdminProfile>(r)),
+  list: () => api.get('/admin/team').then((r) => unwrap<{ members: TeamMember[] }>(r)),
+  create: (body: { email: string; displayName: string; title?: string; password?: string; access: StaffAccessInput }) =>
+    api.post('/admin/team', body).then((r) => ({ ...unwrap<{ member: TeamMember; temporaryPassword?: string | null }>(r), message: r.data?.message as string | undefined })),
+  update: (id: string, body: { displayName?: string; title?: string; access?: StaffAccessInput }) =>
+    api.put(`/admin/team/${id}`, body).then((r) => unwrap<TeamMember>(r)),
+  setActive: (id: string, active: boolean) =>
+    api.patch(`/admin/team/${id}/status`, { active }).then((r) => unwrap<TeamMember>(r)),
+  resetPassword: (id: string) =>
+    api.post(`/admin/team/${id}/reset-password`).then((r) => unwrap<{ temporaryPassword: string }>(r)),
 };
 
 // Orders
@@ -361,13 +447,6 @@ export const analyticsApi = {
   revenue: (period: 'week' | 'month' | 'year') =>
     api.get<RevenueDataPoint[]>('/supplier/analytics/revenue', { params: { period } }).then((r) => r.data),
   topProducts: () => api.get<TopProduct[]>('/supplier/analytics/top-products').then((r) => r.data),
-};
-
-// Admin Analytics (platform-wide)
-export const adminAnalyticsApi = {
-  summary: () => api.get('/admin/analytics/summary').then((r) => r.data?.data ?? r.data).catch(() => null),
-  revenue: (period: 'week' | 'month' | 'year') =>
-    api.get('/admin/analytics/revenue', { params: { period } }).then((r) => r.data?.data ?? r.data ?? []).catch(() => []),
 };
 
 // Maps the backend Supplier shape → frontend SupplierProfile shape
@@ -497,8 +576,6 @@ export const paymentApi = {
 export const adminSuppliersApi = {
   list: (params?: { page?: number; pageSize?: number; search?: string; status?: string }) =>
     api.get('/admin/suppliers', { params }).then((r) => r.data),
-  get: (id: string) =>
-    api.get(`/admin/suppliers/${id}`).then((r) => r.data),
   verify: (id: string) =>
     api.patch(`/admin/suppliers/${id}/verify`).then((r) => r.data),
   suspend: (id: string, reason?: string) =>
@@ -508,8 +585,6 @@ export const adminSuppliersApi = {
 export const adminSpazaOwnersApi = {
   list: (params?: { page?: number; pageSize?: number; search?: string; status?: string }) =>
     api.get('/admin/spaza-owners', { params }).then((r) => r.data),
-  get: (id: string) =>
-    api.get(`/admin/spaza-owners/${id}`).then((r) => r.data),
   verify: (id: string) =>
     api.patch(`/admin/spaza-owners/${id}/verify`).then((r) => r.data),
   suspend: (id: string, reason?: string) =>

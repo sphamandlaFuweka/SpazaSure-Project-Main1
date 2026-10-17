@@ -9,7 +9,7 @@ namespace SpazaSure.ComplianceService.Controllers;
 
 [ApiController]
 [Route("api/compliance/documents")]
-[Authorize]
+[Authorize(Roles = "admin")] // document review is an admin (trust & safety) task
 public class ComplianceController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     [HttpGet]

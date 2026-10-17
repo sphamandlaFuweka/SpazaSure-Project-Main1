@@ -16,7 +16,7 @@ const pageTitles: Record<string, string> = {
   analytics: 'Analytics',
   notifications: 'Notifications',
   profile: 'Profile & Documents',
-  'group-buy': 'Group Buy',
+  'group-buy': 'Group Buy Requests',
   subscription: 'Subscription',
 };
 

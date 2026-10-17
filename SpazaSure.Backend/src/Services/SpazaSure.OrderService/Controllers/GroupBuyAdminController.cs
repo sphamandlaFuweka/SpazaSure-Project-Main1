@@ -88,7 +88,7 @@ internal static class GroupBuyFactory
     }
 }
 
-/// <summary>Admins create campaigns for any supplier and approve, reject, monitor or cancel them.</summary>
+/// <summary>Only admins create campaigns. They also monitor and cancel them, and clear any older supplier proposals still waiting for approval.</summary>
 [ApiController]
 [Route("api/admin/group-buy")]
 [Authorize(Roles = "admin")]
@@ -115,16 +115,31 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         };
 
         var items = await query.OrderByDescending(g => g.CreatedAt).Take(200).ToListAsync();
-        return Ok(ApiResponse<object>.Ok(items.Select(GroupBuyResponse.ProjectSupplier).ToList()));
+        var orders = await LoadOrdersAsync(items.Select(g => g.Id).ToList());
+        return Ok(ApiResponse<object>.Ok(items
+            .Select(g => GroupBuyResponse.ProjectSupplier(g, orders.GetValueOrDefault(g.Id) ?? []))
+            .ToList()));
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
         var groupBuy = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking()).FirstOrDefaultAsync(g => g.Id == id);
-        return groupBuy is null
-            ? NotFound(ApiResponse.Fail("Group buy not found."))
-            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy)));
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+        var orders = await LoadOrdersAsync([id]);
+        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy, orders.GetValueOrDefault(id) ?? [])));
+    }
+
+    /// <summary>The orders each campaign produced once its supplier accepted, so admins can follow dispatch.</summary>
+    private async Task<Dictionary<Guid, List<Order>>> LoadOrdersAsync(List<Guid> groupBuyIds)
+    {
+        if (groupBuyIds.Count == 0) return [];
+        var orders = await db.Orders.AsNoTracking()
+            .Include(o => o.Shop)
+            .Where(o => o.GroupBuyId != null && groupBuyIds.Contains(o.GroupBuyId.Value))
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync();
+        return orders.GroupBy(o => o.GroupBuyId!.Value).ToDictionary(g => g.Key, g => g.ToList());
     }
 
     [HttpGet("suppliers/{supplierId:guid}/products")]
@@ -152,6 +167,16 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         groupBuy.ApprovedAt = DateTime.UtcNow;
         db.GroupBuys.Add(groupBuy);
         await db.SaveChangesAsync();
+
+        var supplierUserId = await db.Suppliers.Where(s => s.Id == supplierId).Select(s => s.UserId).FirstAsync();
+        events.PublishNotification(
+            supplierId: supplierUserId.ToString(),
+            type: "order",
+            title: "New group buy for your products",
+            message: $"SpazaSure started '{groupBuy.Title}'. Accept the request once shops reach the target, then dispatch.",
+            priority: "normal",
+            referenceId: groupBuy.Id.ToString(),
+            routingKey: "notification.group_buy");
         return Ok(ApiResponse<object>.Ok(new { groupBuy.Id, groupBuy.Status }, "Group buy created and live."));
     }
 

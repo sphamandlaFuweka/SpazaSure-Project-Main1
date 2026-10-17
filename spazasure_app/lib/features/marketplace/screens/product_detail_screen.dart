@@ -4,7 +4,10 @@ import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/custom_button.dart';
+import 'package:spazasure_app/core/widgets/product_info_sections.dart';
 import 'package:spazasure_app/models/models.dart';
+import 'package:spazasure_app/models/product_info.dart';
+import 'package:spazasure_app/services/product_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key});
@@ -16,6 +19,23 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   int _currentImageIndex = 0;
+  ProductInfo? _info;
+  bool _infoRequested = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_infoRequested) return;
+    _infoRequested = true;
+    final product = ModalRoute.of(context)?.settings.arguments;
+    if (product is! Product) return;
+    // The list only carries the basics; specifications, nutrition and authenticity checks load here.
+    ProductService.getProductInfo(product.id)
+        .then((info) {
+          if (mounted) setState(() => _info = info);
+        })
+        .catchError((_) {});
+  }
 
   Future<void> _editQuantity(Product product) async {
     final controller = TextEditingController(text: '$_quantity');
@@ -233,7 +253,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Name
                   Text(product.name, style: AppTextStyles.h2),
                   const SizedBox(height: 8),
-                  Text('SKU: ${product.sku}', style: AppTextStyles.caption),
+                  Text(
+                    [
+                      if (product.categoryName.isNotEmpty) product.categoryName,
+                      'SKU: ${product.sku}',
+                    ].join('  ·  '),
+                    style: AppTextStyles.caption,
+                  ),
                   const SizedBox(height: 16),
                   // Price
                   Row(
@@ -301,6 +327,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       height: 1.5,
                     ),
                   ),
+                  if (_info != null && !_info!.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    ProductInfoSections(info: _info!),
+                  ],
                   const SizedBox(height: 24),
                   // Quantity selector
                   Text('Quantity', style: AppTextStyles.h3),

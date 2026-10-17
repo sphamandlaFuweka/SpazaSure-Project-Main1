@@ -216,6 +216,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
         if (req.Status == "delivered" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
             return BadRequest(ApiResponse.Fail("Cash on delivery orders are confirmed by the shop using the delivery code you hand over with the goods."));
 
+        var heldStock = OrderStock.Holds(order);
         order.Status = req.Status;
         if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
             order.DeliveryCode ??= DeliveryCodes.Generate();
@@ -227,6 +228,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             if (order.PaymentMethod == ShopOrdersController.CashOnDelivery) order.PaymentStatus = "paid";
         }
         await ShopWallet.SyncOrderAsync(db, order);
+        // A cancelled order gives its stock back
+        await OrderStock.SyncAsync(db, order, heldStock);
         await db.SaveChangesAsync();
 
         // Notify the shop owner about the status change

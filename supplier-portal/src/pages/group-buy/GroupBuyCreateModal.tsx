@@ -3,21 +3,20 @@ import toast from 'react-hot-toast';
 import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import {
-  adminGroupBuyApi, adminProductsApi, adminSuppliersApi, groupBuyApi, productsApi,
+  adminGroupBuyApi, adminProductsApi, adminSuppliersApi,
   type SupplierProductOption,
 } from '../../services/api';
 import type { Product } from '../../types';
 
 interface Props {
-  mode: 'supplier' | 'admin';
   onClose: () => void;
   onCreated: () => void;
 }
 
 interface Line { productId: string; targetQty: number; discountPct: number }
 
-/** One form for both roles. Admins also choose the supplier, and their campaigns go live immediately. */
-export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props) {
+/** Only admins create group buys. They choose the supplier, and the campaign goes live immediately. */
+export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   const [suppliers, setSuppliers] = useState<{ id: string; companyName: string }[]>([]);
   const [supplierId, setSupplierId] = useState('');
   const [products, setProducts] = useState<SupplierProductOption[]>([]);
@@ -41,22 +40,14 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
 
   const clearBanner = () => { setBannerFile(null); setBannerPreview(null); };
   useEffect(() => {
-    if (mode !== 'admin') return;
     adminSuppliersApi.list({ pageSize: 200, status: 'verified' })
       .then((r) => setSuppliers((r?.data?.items ?? r?.items ?? []) as { id: string; companyName: string }[]))
       .catch(() => toast.error('Could not load suppliers'));
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
     setLines([{ productId: '', targetQty: 50, discountPct: 10 }]);
-    if (mode === 'supplier') {
-      productsApi.list({ pageSize: 200 })
-        .then((r) => setProducts(r.data.map((p: Product) => ({
-          id: p.id, name: p.name, price: p.price, stockQty: p.stockQuantity, minOrderQty: p.minOrderQty ?? 1,
-          isApproved: p.status === 'active', isAvailable: p.isAvailable,
-        }))))
-        .catch(() => toast.error('Could not load your products'));
-    } else if (supplierId) {
+    if (supplierId) {
       const supplierName = suppliers.find((s) => s.id === supplierId)?.companyName;
       // Fallback to the admin products list (the same data as the Products page) when the dedicated endpoint returns nothing.
       const fromProductsPage = () => adminProductsApi.list({ pageSize: 500, search: supplierName })
@@ -74,7 +65,7 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
     } else {
       setProducts([]);
     }
-  }, [mode, supplierId]);
+  }, [supplierId]);
 
   const isEligible = (p: SupplierProductOption) => p.isApproved !== false && p.isAvailable !== false;
   const eligibility = (p: SupplierProductOption) =>
@@ -84,24 +75,24 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   const submit = async () => {
-    if (mode === 'admin' && !supplierId) { toast.error('Choose a supplier'); return; }
+    if (!supplierId) { toast.error('Choose a supplier'); return; }
     if (title.trim().length < 3) { toast.error('Give the group buy a title'); return; }
     if (lines.some((l) => !l.productId)) { toast.error('Choose a product on every line'); return; }
     setBusy(true);
     try {
       let bannerImageUrl: string | undefined;
       if (bannerFile) {
-        bannerImageUrl = await (mode === 'admin' ? adminGroupBuyApi : groupBuyApi).uploadBanner(bannerFile);
+        bannerImageUrl = await adminGroupBuyApi.uploadBanner(bannerFile);
       }
       const body = {
-        supplierId: mode === 'admin' ? supplierId : undefined,
+        supplierId,
         title: title.trim(),
         description: description.trim() || undefined,
         bannerImageUrl,
         durationDays: days,
         products: lines,
       };
-      const res = mode === 'admin' ? await adminGroupBuyApi.create(body) : await groupBuyApi.create(body);
+      const res = await adminGroupBuyApi.create(body);
       toast.success(res?.message ?? 'Group buy created');
       onCreated();
       onClose();
@@ -116,20 +107,16 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
     <Modal title="Create group buy" onClose={onClose} size="lg">
       <div className="p-6 space-y-4">
         <p className="text-sm text-gray-500">
-          {mode === 'admin'
-            ? 'Admin campaigns go live straight away. Shops can only join or share them.'
-            : 'An admin reviews your campaign before shops can see it.'}
+          The campaign goes live straight away. Shops join it, and the supplier accepts and dispatches the orders once a product reaches its target.
         </p>
 
-        {mode === 'admin' && (
-          <div>
-            <label className="label">Supplier</label>
-            <select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-              <option value="">Select a verified supplier</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.companyName}</option>)}
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="label">Supplier</label>
+          <select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+            <option value="">Select a verified supplier</option>
+            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.companyName}</option>)}
+          </select>
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2">
@@ -167,8 +154,8 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
 
         <div className="space-y-2">
           <p className="label">Products</p>
-          {mode === 'admin' && !supplierId && <p className="text-xs text-gray-500">Choose a supplier to see their products.</p>}
-          {(mode === 'supplier' || supplierId) && !products.some(isEligible) && (
+          {!supplierId && <p className="text-xs text-gray-500">Choose a supplier to see their products.</p>}
+          {supplierId && !products.some(isEligible) && (
             <p className="text-xs text-amber-600">
               {products.length === 0
                 ? 'No products found for this supplier.'
@@ -217,7 +204,7 @@ export default function GroupBuyCreateModal({ mode, onClose, onCreated }: Props)
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary flex items-center gap-2" disabled={busy} onClick={submit}>
             {busy && <Loader2 size={14} className="animate-spin" />}
-            {mode === 'admin' ? 'Create and go live' : 'Submit for approval'}
+            Create and go live
           </button>
         </div>
       </div>

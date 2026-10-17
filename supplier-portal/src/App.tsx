@@ -41,6 +41,7 @@ const AdminWalletLedgerPage = lazy(() => import('./pages/admin/AdminWalletLedger
 const AdminFinancePage = lazy(() => import('./pages/admin/AdminFinancePage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 const AdminProjectsPage = lazy(() => import('./pages/admin/AdminProjectsPage'));
+const AdminTeamPage = lazy(() => import('./pages/admin/AdminTeamPage'));
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'supplier' | 'admin' }) {
   const { user } = useAuthStore();
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="settings"      element={<AdminSettingsPage />} />
         <Route path="projects"      element={<AdminProjectsPage />} />
         <Route path="projects/:tab" element={<AdminProjectsPage />} />
+        <Route path="team"          element={<AdminTeamPage />} />
       </Route>
 
       {/* Fallback */}

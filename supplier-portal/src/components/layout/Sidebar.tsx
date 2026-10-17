@@ -19,7 +19,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/orders',    icon: ShoppingCart,    label: 'Orders' },
       { to: '/products',  icon: Package,         label: 'Products' },
-      { to: '/group-buy', icon: Users,           label: 'Group Buy' },
+      { to: '/group-buy', icon: Users,           label: 'Group Buy Requests' },
     ],
   },
   {

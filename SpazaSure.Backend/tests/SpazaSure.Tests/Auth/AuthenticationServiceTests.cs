@@ -58,7 +58,7 @@ public class AuthenticationServiceTests
         var (success, error, _) = await svc.RegisterAsync(req, "127.0.0.1");
 
         success.Should().BeFalse();
-        error.Should().Contain("does not exist");
+        error.Should().Contain("can't be registered");
     }
 
     [Fact]

@@ -76,6 +76,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(u => u.Email).IsUnique();
             e.HasIndex(u => u.Phone).IsUnique();
             e.HasOne(u => u.Role).WithMany(r => r.Users).HasForeignKey(u => u.RoleId);
+            e.Property(u => u.DisplayName).HasMaxLength(120);
+            e.Property(u => u.AdminTitle).HasMaxLength(80);
+            e.Property(u => u.AdminAccess).HasMaxLength(500);
         });
 
         // RefreshToken
@@ -253,6 +256,12 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.ToTable("products");
             e.HasIndex(p => new { p.SupplierId, p.Sku }).IsUnique();
             e.Property(p => p.Price).HasPrecision(10, 2);
+            e.Property(p => p.Brand).HasMaxLength(120);
+            e.Property(p => p.PackSize).HasMaxLength(60);
+            e.Property(p => p.CountryOfOrigin).HasMaxLength(80);
+            e.Property(p => p.Manufacturer).HasMaxLength(160);
+            e.Property(p => p.ServingSize).HasMaxLength(60);
+            e.Property(p => p.ServingsPerPack).HasMaxLength(60);
         });
 
         // ProductQrCode

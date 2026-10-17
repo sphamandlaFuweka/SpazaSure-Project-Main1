@@ -52,6 +52,11 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    productsApi.categories().then(setCategories).catch(() => {});
+  }, []);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -79,7 +84,8 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const [productsRes, profileRes] = await Promise.allSettled([
-        productsApi.list({ pageSize: 100 }),
+        // Load the whole catalogue: filtering happens on this page, so a short page hid products.
+        productsApi.list({ pageSize: 500 }),
         profileApi.get(),
       ]);
 
@@ -135,7 +141,9 @@ export default function ProductsPage() {
   const filtered = products.filter((p) => {
     const matchSearch = (p.name ?? '').toLowerCase().includes(search.toLowerCase()) || (p.sku ?? '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCategory = categoryFilter === 'all'
+      || (categoryFilter === 'none' ? !p.categoryId : p.categoryId === categoryFilter);
+    return matchSearch && matchStatus && matchCategory;
   });
 
   const handleToggle = async (id: string) => {
@@ -184,11 +192,11 @@ export default function ProductsPage() {
   };
 
   const openNewProduct = isCompliant ? () => { setEditing(null); setShowModal(true); } : handleBlockedAction;
-  const isFiltering = search.trim() !== '' || statusFilter !== 'all';
+  const isFiltering = search.trim() !== '' || statusFilter !== 'all' || categoryFilter !== 'all';
   const emptyState = isFiltering ? (
     <EmptyState
       title="No matching products"
-      description="Try a different search term or status filter."
+      description="Try a different search term, status or category."
       icon={<Search size={40} />}
       action={<button onClick={() => { setSearch(''); setStatusFilter('all'); }} className="btn-secondary">Clear filters</button>}
     />
@@ -326,6 +334,17 @@ export default function ProductsPage() {
             </button>
           ))}
         </div>
+
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="select w-auto min-w-[180px]"
+          aria-label="Filter by category"
+        >
+          <option value="all">All categories</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <option value="none">No category</option>
+        </select>
 
         <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 ml-auto">
           <button onClick={() => setViewMode('list')} className={clsx('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-600')}>

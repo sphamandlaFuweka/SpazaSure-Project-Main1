@@ -5,16 +5,12 @@ using SpazaSure.Shared.Storage;
 
 namespace SpazaSure.UserService.Controllers;
 
-/// <summary>Uploads the poster image used on a group buy banner. The returned URL is sent when creating the group buy.</summary>
+/// <summary>Uploads the poster image used on a group buy banner. Only admins create group buys, so only admins upload.</summary>
 [ApiController]
 [Route("api")]
 public class GroupBuyBannerController(IFileStorageService storage) : ControllerBase
 {
     private static readonly string[] Allowed = [".jpg", ".jpeg", ".png", ".webp"];
-
-    [HttpPost("supplier/profile/group-buy-banner")]
-    [Authorize(Roles = "supplier")]
-    public Task<IActionResult> SupplierUpload(IFormFile banner) => Upload(banner);
 
     [HttpPost("admin/group-buy-banner")]
     [Authorize(Roles = "admin")]

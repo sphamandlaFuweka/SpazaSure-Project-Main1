@@ -4,9 +4,27 @@ import { z } from 'zod';
 import { ImageIcon, Upload, Link2, X, Barcode, Download, Printer, CheckCircle2, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import type { Product } from '../../types';
+import type { Product, ProductInfo } from '../../types';
+import { emptyProductInfo } from '../../types';
 import { Modal } from '../../components/ui';
 import { productsApi } from '../../services/api';
+import { AuthenticitySection, DetailsSection, NutritionSection } from './ProductInfoFields';
+
+type Tab = 'basics' | 'details' | 'nutrition' | 'authenticity';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'basics', label: 'Basics' },
+  { key: 'details', label: 'Details & specs' },
+  { key: 'nutrition', label: 'Ingredients & nutrition' },
+  { key: 'authenticity', label: 'Spot a fake' },
+];
+
+/** Drops rows the supplier started but left empty, so they don't block saving. */
+const cleanInfo = (info: ProductInfo): ProductInfo => ({
+  ...info,
+  nutrition: info.nutrition.filter((n) => n.nutrient.trim() && (n.per100.trim() || n.perServing.trim())),
+  specifications: info.specifications.filter((s) => s.label.trim() || s.value.trim()),
+  authenticityTips: info.authenticityTips.filter((t) => t.trim()),
+});
 
 const schema = z.object({
   name:          z.string().min(2, 'Required'),
@@ -49,6 +67,21 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     } : { minOrderQty: 1, stockQuantity: 0, imageUrl: '' },
   });
 
+  const [tab, setTab] = useState<Tab>('basics');
+  const [isFoodItem, setIsFoodItem] = useState(product?.isFoodItem ?? false);
+  const [info, setInfo] = useState<ProductInfo>(emptyProductInfo());
+  // New products start empty. Existing ones load their information first; until then (or if
+  // loading fails) the form doesn't send it, so the stored information can't be wiped.
+  const [infoReady, setInfoReady] = useState(!product);
+  useEffect(() => {
+    if (!product) return;
+    let cancelled = false;
+    productsApi.getInfo(product.id)
+      .then((loaded) => { if (!cancelled) { setInfo(loaded); setInfoReady(true); } })
+      .catch(() => { if (!cancelled) toast.error('Could not load the product information. Basics can still be saved.'); });
+    return () => { cancelled = true; };
+  }, [product]);
+
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +111,11 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
   const clearImage = () => setValue('imageUrl', '', { shouldValidate: false });
 
   const onSubmit = async (data: FormData) => {
+    if (!data.categoryId) {
+      setError('categoryId', { type: 'required', message: 'Choose a category so shops can find this product' });
+      setTab('basics');
+      return;
+    }
     if (!product && !data.imageUrl) {
       setError('imageUrl', { type: 'required', message: 'Product image is required' });
       toast.error('Add a product image before submitting');
@@ -85,7 +123,12 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     }
 
     const cat = categories.find((c) => c.id === data.categoryId);
-    const saved = { ...data, categoryName: cat?.name ?? data.categoryName };
+    const saved = {
+      ...data,
+      categoryName: cat?.name ?? data.categoryName,
+      isFoodItem,
+      info: infoReady ? cleanInfo(info) : undefined,
+    };
 
     setSaving(true);
     try {
@@ -196,8 +239,26 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit(onSubmit, () => setTab('basics'))} className="p-6 space-y-5">
+        {!barcodeResult && (
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto" role="tablist" aria-label="Product sections">
+            {TABS.map(({ key, label }) => (
+              <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+                className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab !== 'basics' && !infoReady && (
+          <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 size={14} className="animate-spin" /> Loading product information...</div>
+        )}
+        {tab === 'details' && infoReady && <DetailsSection info={info} onChange={setInfo} />}
+        {tab === 'nutrition' && infoReady && <NutritionSection info={info} onChange={setInfo} isFoodItem={isFoodItem} />}
+        {tab === 'authenticity' && infoReady && <AuthenticitySection info={info} onChange={setInfo} />}
+
+        <div className={`grid grid-cols-2 gap-4 ${tab === 'basics' ? '' : 'hidden'}`}>
 
           {/* ── Image Picker ── */}
           <div className="col-span-2">
@@ -278,12 +339,16 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
           </div>
 
           <div>
-            <label className="label">Category</label>
+            <label className="label">Category <span className="text-red-500">*</span></label>
             <select {...register('categoryId')}
               onChange={(e) => { setValue('categoryId', e.target.value); const cat = categories.find((c) => c.id === e.target.value); if (cat) setValue('categoryName', cat.name); }}
               className={`select ${errors.categoryId ? 'input-error' : ''}`}>
               <option value="">Select category</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {/* Keep a category an admin has since hidden, so editing doesn't silently clear it. */}
+              {product?.categoryId && !categories.some((c) => c.id === product.categoryId) && (
+                <option value={product.categoryId}>{product.categoryName || 'Current category'} (no longer listed)</option>
+              )}
             </select>
             {errors.categoryId && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.categoryId.message}</p>}
           </div>
@@ -309,6 +374,14 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
             {errors.minOrderQty && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.minOrderQty.message}</p>}
             <p className="text-xs text-gray-400 mt-1">Minimum units per order from spaza shops</p>
           </div>
+
+          <label className="col-span-2 flex items-start gap-3 rounded-xl border border-gray-200 p-3 cursor-pointer">
+            <input type="checkbox" className="mt-0.5" checked={isFoodItem} onChange={(e) => setIsFoodItem(e.target.checked)} />
+            <span>
+              <span className="block text-sm font-semibold text-gray-800">This is a food or drink product</span>
+              <span className="block text-xs text-gray-400">Customers get allergy warnings and nutrition details for food and drink.</span>
+            </span>
+          </label>
         </div>
 
         {/* Barcode info box — shown before save */}

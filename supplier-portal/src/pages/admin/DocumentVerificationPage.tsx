@@ -173,7 +173,7 @@ export default function DocumentVerificationPage() {
 
       {/* ═══ STATS CARDS ═══ */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+        <button type="button" onClick={() => setStatusFilter('all')} aria-label="Show all documents" aria-pressed={statusFilter === 'all'} className="text-left relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-[40px]" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -184,8 +184,8 @@ export default function DocumentVerificationPage() {
             <p className="text-3xl font-black text-gray-900 tabular-nums">{totalCount}</p>
             <p className="text-xs font-semibold text-gray-400 mt-1">Total Documents</p>
           </div>
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+        </button>
+        <button type="button" onClick={() => setStatusFilter('pending')} aria-label="Show pending documents" aria-pressed={statusFilter === 'pending'} className="text-left relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-50 to-transparent rounded-bl-[40px]" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -196,8 +196,8 @@ export default function DocumentVerificationPage() {
             <p className="text-3xl font-black text-amber-600 tabular-nums">{pendingCount}</p>
             <p className="text-xs font-semibold text-gray-400 mt-1">Pending Review</p>
           </div>
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+        </button>
+        <button type="button" onClick={() => setStatusFilter('approved')} aria-label="Show approved documents" aria-pressed={statusFilter === 'approved'} className="text-left relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-emerald-50 to-transparent rounded-bl-[40px]" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -208,8 +208,8 @@ export default function DocumentVerificationPage() {
             <p className="text-3xl font-black text-emerald-600 tabular-nums">{approvedCount}</p>
             <p className="text-xs font-semibold text-gray-400 mt-1">Approved</p>
           </div>
-        </div>
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+        </button>
+        <button type="button" onClick={() => setStatusFilter('rejected')} aria-label="Show rejected documents" aria-pressed={statusFilter === 'rejected'} className="text-left relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-red-50 to-transparent rounded-bl-[40px]" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -220,7 +220,7 @@ export default function DocumentVerificationPage() {
             <p className="text-3xl font-black text-red-500 tabular-nums">{rejectedCount}</p>
             <p className="text-xs font-semibold text-gray-400 mt-1">Rejected</p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* ═══ TABS & FILTERS ═══ */}

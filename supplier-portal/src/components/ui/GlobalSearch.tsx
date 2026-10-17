@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Package, ShoppingCart, BarChart2, User, X, ArrowRight, Clock, Users, ShieldCheck, Flag, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { canOpenAdminPath } from '../../utils/adminAccess';
 import { productsApi, ordersApi, adminProductsApi, adminOrdersApi } from '../../services/api';
 
 interface SearchResult {
@@ -18,7 +20,7 @@ const supplierPages: SearchResult[] = [
   { id: 'pg3', type: 'page', label: 'Orders',        sub: 'Track & manage orders',    to: '/orders',        icon: <ShoppingCart size={14} /> },
   { id: 'pg4', type: 'page', label: 'Analytics',     sub: 'Revenue & insights',       to: '/analytics',     icon: <BarChart2 size={14} /> },
   { id: 'pg5', type: 'page', label: 'Profile',       sub: 'Account & compliance',     to: '/profile',       icon: <User size={14} /> },
-  { id: 'pg6', type: 'page', label: 'Group Buy',     sub: 'Bulk orders from shops',   to: '/group-buy',     icon: <Users size={14} /> },
+  { id: 'pg6', type: 'page', label: 'Group Buy',     sub: 'Accept and dispatch group orders',   to: '/group-buy',     icon: <Users size={14} /> },
   { id: 'pg7', type: 'page', label: 'Notifications', sub: 'Alerts & updates',         to: '/notifications', icon: <Clock size={14} /> },
 ];
 
@@ -32,6 +34,7 @@ const adminPages: SearchResult[] = [
   { id: 'ap7', type: 'page', label: 'Analytics',     sub: 'Platform insights',        to: '/admin/analytics',  icon: <BarChart2 size={14} /> },
   { id: 'ap8', type: 'page', label: 'Settings',      sub: 'Fees & configuration',     to: '/admin/settings',   icon: <Settings size={14} /> },
   { id: 'ap9', type: 'page', label: 'Projects & Impact', sub: 'Projects, MEL & reports', to: '/admin/projects', icon: <BarChart2 size={14} /> },
+  { id: 'ap10', type: 'page', label: 'Team & Access', sub: 'Staff roles and access', to: '/admin/team', icon: <Users size={14} /> },
 ];
 
 const RECENT_KEY = 'spaza_recent_searches';
@@ -64,7 +67,9 @@ export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supp
       const ql = q.toLowerCase();
 
       // Search pages locally (always fast)
-      const pageResults: SearchResult[] = (isAdmin ? adminPages : supplierPages).filter((p) => p.label.toLowerCase().includes(ql));
+      const adminProfile = useAuthStore.getState().adminProfile;
+      const pageResults: SearchResult[] = (isAdmin ? adminPages : supplierPages).filter((p) =>
+        p.label.toLowerCase().includes(ql) && (!isAdmin || canOpenAdminPath(adminProfile, p.to)));
 
       // Search products and orders from real API
       let productResults: SearchResult[] = [];

@@ -1,88 +1,80 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle,
   ChevronDown,
   ChevronUp,
   Clock,
+  Inbox,
   MapPin,
   Package,
-  Plus,
   Share2,
-  ShoppingBag,
-  TrendingUp,
+  Truck,
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { groupBuyApi, resolveUploadUrl } from '../../services/api';
-import type { GroupBuy, GroupBuyFilter, GroupBuyProduct } from '../../types';
-import GroupBuyCreateModal from './GroupBuyCreateModal';
+import type { GroupBuy, GroupBuyOrder, GroupBuyProduct, SupplierGroupBuyFilter } from '../../types';
 
-const filters: { value: GroupBuyFilter; label: string }[] = [
+const filters: { value: SupplierGroupBuyFilter; label: string }[] = [
   { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Awaiting approval' },
-  { value: 'active', label: 'Active' },
+  { value: 'requests', label: 'Requests to accept' },
+  { value: 'active', label: 'Collecting' },
+  { value: 'to_dispatch', label: 'To dispatch' },
   { value: 'completed', label: 'Completed' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const statusLabel = (status: string) =>
-  status === 'pending_approval' ? 'Waiting for admin approval' : status;
+const emptyText: Record<SupplierGroupBuyFilter, string> = {
+  all: 'SpazaSure has not run a group buy for your products yet.',
+  requests: 'No product has reached its target yet. Requests show here as soon as one does.',
+  active: 'No group buys are collecting shop commitments right now.',
+  to_dispatch: 'Nothing is waiting to be dispatched.',
+  completed: 'No completed group buys yet.',
+  cancelled: 'No cancelled group buys.',
+};
+
+/** Orders in these states have not left the warehouse yet. */
+const DISPATCHABLE = ['pending', 'confirmed', 'processing'];
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(Number(value) || 0);
 
-const discountedPrice = (originalPrice: number, discountPct: number) =>
-  Math.round((originalPrice * (1 - discountPct / 100) + Number.EPSILON) * 100) / 100;
-
 const statusClass = (status: string) => {
   const normalized = status.toLowerCase();
-  if (normalized === 'qualified' || normalized === 'completed') return 'bg-emerald-100 text-emerald-700';
-  if (normalized === 'expired' || normalized === 'cancelled' || normalized === 'rejected') return 'bg-red-100 text-red-700';
+  if (['qualified', 'completed', 'approved', 'confirmed', 'delivered'].includes(normalized)) return 'bg-emerald-100 text-emerald-700';
+  if (['dispatched'].includes(normalized)) return 'bg-blue-100 text-blue-700';
+  if (['expired', 'cancelled', 'rejected'].includes(normalized)) return 'bg-red-100 text-red-700';
   return 'bg-amber-100 text-amber-700';
 };
 
-const canApprove = (group: GroupBuy) =>
-  group.products.some((product) => product.status.toLowerCase() === 'qualified');
+const qualifiedProducts = (group: GroupBuy) =>
+  group.products.filter((product) => product.status.toLowerCase() === 'qualified');
 
-const supplierOfferRevenue = (group: GroupBuy, discounts: Record<string, string>) => {
-  const qualifiedProducts = group.products.filter((product) => product.status.toLowerCase() === 'qualified');
-  if (qualifiedProducts.length === 0) return null;
+const isLive = (group: GroupBuy) =>
+  group.status.toLowerCase() === 'active' && new Date(group.expiresAt).getTime() > Date.now();
 
-  return qualifiedProducts.reduce<number | null>((total, product) => {
-    if (total == null) return null;
-    const discountPct = Number(discounts[product.id]);
-    if (!Number.isInteger(discountPct) || discountPct < 1 || discountPct > 99) return null;
-    return total + discountedPrice(product.originalPrice, discountPct) * product.currentQty;
-  }, 0);
-};
+const canAccept = (group: GroupBuy) => isLive(group) && qualifiedProducts(group).length > 0;
+
+const dispatchableOrders = (group: GroupBuy) =>
+  (group.orders ?? []).filter((order) => DISPATCHABLE.includes(order.status.toLowerCase()));
+
+/** Revenue at the advertised group price for every product that has reached its target. */
+const acceptValue = (group: GroupBuy) =>
+  qualifiedProducts(group).reduce((total, product) => total + product.discountPrice * product.currentQty, 0);
 
 export default function GroupBuyPage() {
   const [groups, setGroups] = useState<GroupBuy[]>([]);
-  const [filter, setFilter] = useState<GroupBuyFilter>('all');
+  const [filter, setFilter] = useState<SupplierGroupBuyFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [discountInputs, setDiscountInputs] = useState<Record<string, string>>({});
-  const [showCreate, setShowCreate] = useState(false);
-
-  const withdraw = async (group: GroupBuy) => {
-    if (!window.confirm(`Withdraw "${group.title}"?`)) return;
-    try {
-      await groupBuyApi.withdraw(group.id);
-      toast.success('Group buy withdrawn');
-      loadGroups();
-    } catch {
-      // The shared API interceptor displays the backend message.
-    }
-  };
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
     try {
       setGroups(await groupBuyApi.list(filter));
-      // Approval discounts are always a fresh supplier decision; never reuse API or prior-entry values.
-      setDiscountInputs({});
     } catch {
       // The shared API interceptor displays the backend message.
     } finally {
@@ -92,67 +84,68 @@ export default function GroupBuyPage() {
 
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
-  const approve = async (group: GroupBuy) => {
-    const qualifiedProducts = group.products.filter((product) => product.status.toLowerCase() === 'qualified');
-    if (qualifiedProducts.length === 0) return;
-
-    const products = qualifiedProducts.map((product) => ({
-      groupBuyProductId: product.id,
-      discountPct: Number(discountInputs[product.id]),
-    }));
-    const invalidProducts = qualifiedProducts.filter((product, index) => {
-      const value = discountInputs[product.id];
-      const discountPct = products[index].discountPct;
-      return value == null || value.trim() === '' || !Number.isInteger(discountPct) || discountPct < 1 || discountPct > 99;
-    });
-    if (invalidProducts.length > 0) {
-      toast.error(`Enter a whole-number supplier discount from 1% to 99% for every qualified product before approval. Missing or invalid: ${invalidProducts.map((product) => product.productName).join(', ')}.`);
-      return;
-    }
-
+  const accept = async (group: GroupBuy) => {
+    const products = qualifiedProducts(group);
+    if (products.length === 0) return;
     const confirmed = window.confirm(
-      'Approve this group buy with your entered discounts? You, the supplier, own and fund these discounts. Approval creates one individual multi-line order per shop, with delivery fees calculated from your dispatch location.'
+      `Accept "${group.title}"?\n\n` +
+      `${products.map((p) => `${p.productName}: ${p.currentQty} units at ${money(p.discountPrice)}`).join('\n')}\n\n` +
+      'Each participating shop gets one order at the group price advertised to shops. Delivery is priced from your dispatch location. Stock is reserved now.'
     );
     if (!confirmed) return;
 
-    setApprovingId(group.id);
+    setBusyId(group.id);
     try {
-      const result = await groupBuyApi.approve(group.id, { products });
-      toast.success(result?.message ?? result?.Message ?? 'Group buy approved and shop orders created.');
+      const result = await groupBuyApi.accept(group.id);
+      toast.success(result?.message ?? 'Request accepted. The orders are ready to dispatch.');
       await loadGroups();
     } catch {
       // The shared API interceptor displays the backend message.
     } finally {
-      setApprovingId(null);
+      setBusyId(null);
+    }
+  };
+
+  const dispatch = async (group: GroupBuy) => {
+    const orders = dispatchableOrders(group);
+    if (orders.length === 0) return;
+    const confirmed = window.confirm(
+      `Dispatch ${orders.length} order${orders.length === 1 ? '' : 's'} for "${group.title}"? Each shop is told its order is on the way.`
+    );
+    if (!confirmed) return;
+
+    setBusyId(group.id);
+    try {
+      const result = await groupBuyApi.dispatch(group.id);
+      toast.success(result?.message ?? 'Orders dispatched');
+      await loadGroups();
+    } catch {
+      // The shared API interceptor displays the backend message.
+    } finally {
+      setBusyId(null);
     }
   };
 
   const stats = useMemo(() => ({
-    total: groups.length,
-    active: groups.filter((group) => group.status.toLowerCase() === 'active').length,
-    qualifiedProducts: groups.reduce(
-      (total, group) => total + group.products.filter((product) => product.status.toLowerCase() === 'qualified').length,
-      0
-    ),
+    requests: groups.filter(canAccept).length,
+    collecting: groups.filter(isLive).length,
+    toDispatch: groups.reduce((total, group) => total + dispatchableOrders(group).length, 0),
     shops: groups.reduce((total, group) => total + group.participantCount, 0),
   }), [groups]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="page-title">Group Buy Contracts</h1>
-          <p className="page-subtitle">Create deals for shops to join. An admin approves each deal before it goes live.</p>
-        </div>
-        <button className="btn-primary flex items-center gap-2 flex-shrink-0" onClick={() => setShowCreate(true)}>
-          <Plus size={16} /> Create group buy
-        </button>
+      <div>
+        <h1 className="page-title">Group Buy Requests</h1>
+        <p className="page-subtitle">
+          SpazaSure runs group buys for your products. When shops reach a product target, accept the request and dispatch the orders.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <Stat icon={<ShoppingBag size={19} />} label="Contracts" value={stats.total} tone="blue" />
-        <Stat icon={<Clock size={19} />} label="Active" value={stats.active} tone="amber" />
-        <Stat icon={<CheckCircle size={19} />} label="Qualified products" value={stats.qualifiedProducts} tone="green" />
+        <Stat icon={<Inbox size={19} />} label="Requests to accept" value={stats.requests} tone="green" />
+        <Stat icon={<Clock size={19} />} label="Collecting commitments" value={stats.collecting} tone="amber" />
+        <Stat icon={<Truck size={19} />} label="Orders to dispatch" value={stats.toDispatch} tone="blue" />
         <Stat icon={<Users size={19} />} label="Participating shops" value={stats.shops} tone="violet" />
       </div>
 
@@ -161,7 +154,7 @@ export default function GroupBuyPage() {
           <button
             key={value}
             onClick={() => setFilter(value)}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            className={`px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors ${
               filter === value ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -177,8 +170,8 @@ export default function GroupBuyPage() {
       ) : groups.length === 0 ? (
         <div className="card py-16 text-center">
           <Users size={44} className="mx-auto text-gray-300 mb-3" />
-          <p className="font-semibold text-gray-700">No {filter === 'all' ? '' : filter} group buys</p>
-          <p className="text-sm text-gray-400 mt-1">Create a group buy to offer shops a bulk discount.</p>
+          <p className="font-semibold text-gray-700">Nothing here</p>
+          <p className="text-sm text-gray-400 mt-1">{emptyText[filter]}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -187,19 +180,13 @@ export default function GroupBuyPage() {
               key={group.id}
               group={group}
               expanded={expandedId === group.id}
-              approving={approvingId === group.id}
-              discounts={discountInputs}
-              onDiscountChange={(productId, value) => setDiscountInputs((current) => ({ ...current, [productId]: value }))}
+              busy={busyId === group.id}
               onToggle={() => setExpandedId((current) => current === group.id ? null : group.id)}
-              onApprove={() => approve(group)}
-              onWithdraw={() => withdraw(group)}
+              onAccept={() => accept(group)}
+              onDispatch={() => dispatch(group)}
             />
           ))}
         </div>
-      )}
-
-      {showCreate && (
-        <GroupBuyCreateModal mode="supplier" onClose={() => setShowCreate(false)} onCreated={() => { setFilter('pending'); loadGroups(); }} />
       )}
     </div>
   );
@@ -223,25 +210,24 @@ function Stat({ icon, label, value, tone }: { icon: ReactNode; label: string; va
 function GroupCard({
   group,
   expanded,
-  approving,
-  discounts,
-  onDiscountChange,
+  busy,
   onToggle,
-  onApprove,
-  onWithdraw,
+  onAccept,
+  onDispatch,
 }: {
   group: GroupBuy;
   expanded: boolean;
-  approving: boolean;
-  discounts: Record<string, string>;
-  onDiscountChange: (productId: string, value: string) => void;
+  busy: boolean;
   onToggle: () => void;
-  onApprove: () => void;
-  onWithdraw: () => void;
+  onAccept: () => void;
+  onDispatch: () => void;
 }) {
-  const qualified = canApprove(group);
-  const offerRevenue = supplierOfferRevenue(group, discounts);
+  const acceptable = canAccept(group);
+  const toDispatch = dispatchableOrders(group);
+  const orders = group.orders ?? [];
   const daysLeft = Math.max(0, Math.ceil((new Date(group.expiresAt).getTime() - Date.now()) / 86_400_000));
+  const live = isLive(group);
+  const displayStatus = group.status.toLowerCase() === 'active' && !live ? 'expired' : group.status;
 
   return (
     <article className="card overflow-hidden">
@@ -251,111 +237,96 @@ function GroupCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black text-gray-900">{group.title}</h2>
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize ${statusClass(group.status)}`}>
-                {statusLabel(group.status).replace('_', ' ')}
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize ${statusClass(displayStatus)}`}>
+                {displayStatus.replace('_', ' ')}
               </span>
-              {qualified && group.status.toLowerCase() !== 'completed' && (
+              {acceptable && (
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                  Ready for approval
+                  Waiting for you to accept
+                </span>
+              )}
+              {toDispatch.length > 0 && (
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
+                  {toDispatch.length} to dispatch
                 </span>
               )}
             </div>
             {group.description && <p className="text-sm text-gray-500 mt-1 max-w-3xl">{group.description}</p>}
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-gray-500">
-              <span>Created by <strong className="text-gray-700">{group.createdByRole === 'admin' ? 'SpazaSure admin' : group.createdByRole === 'shop' ? group.createdByShopName : 'You'}</strong></span>
+              <span>Run by <strong className="text-gray-700">SpazaSure</strong></span>
               <span>{group.participantCount} shop{group.participantCount === 1 ? '' : 's'}</span>
               <span>{group.products.length} product{group.products.length === 1 ? '' : 's'}</span>
-              <span>{daysLeft > 0 ? `${daysLeft} days remaining` : 'Closed'}</span>
+              <span>{live ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining` : 'Closed to new shops'}</span>
             </div>
           </div>
-          <div className="text-left lg:text-right flex-shrink-0">
-            <p className="text-xs text-gray-400">Supplier offer revenue</p>
-            <p className="text-2xl font-black text-emerald-700">{offerRevenue == null ? '—' : money(offerRevenue)}</p>
-            <p className="text-[11px] text-gray-400">{offerRevenue == null ? 'Enter all qualified-product discounts' : 'Based on your fresh discount entries'}</p>
-          </div>
+          {acceptable && (
+            <div className="text-left lg:text-right flex-shrink-0">
+              <p className="text-xs text-gray-400">Value if you accept now</p>
+              <p className="text-2xl font-black text-emerald-700">{money(acceptValue(group))}</p>
+              <p className="text-[11px] text-gray-400">At the group price advertised to shops</p>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="p-5 space-y-3">
-        {group.products.map((product) => (
-          <ProductRow
-            key={product.id}
-            product={product}
-            discountValue={discounts[product.id] ?? ''}
-            onDiscountChange={(value) => onDiscountChange(product.id, value)}
-          />
-        ))}
+        {group.products.map((product) => <ProductRow key={product.id} product={product} />)}
 
-        {group.status === 'rejected' && group.rejectionNote && (
+        {group.status.toLowerCase() === 'cancelled' && group.rejectionNote && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4">
             <AlertTriangle size={17} className="text-red-600 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-800"><strong>Admin feedback:</strong> {group.rejectionNote}</p>
+            <p className="text-sm text-red-800"><strong>Cancelled by SpazaSure:</strong> {group.rejectionNote}</p>
           </div>
         )}
 
-        {!qualified && group.status.toLowerCase() === 'active' && (
+        {live && !acceptable && orders.length === 0 && (
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
             <Share2 size={17} className="text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-bold text-blue-900">Help this group buy reach a product target</p>
-              <p className="text-xs text-blue-700 mt-0.5">Prompt participating shops to share the deal with nearby shops. Approval unlocks as soon as any product is qualified.</p>
+              <p className="text-sm font-bold text-blue-900">Shops are still joining</p>
+              <p className="text-xs text-blue-700 mt-0.5">You can accept as soon as any product reaches its target. Nothing is needed from you until then.</p>
             </div>
           </div>
         )}
 
+        {orders.length > 0 && <OrderList orders={orders} />}
+
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between pt-2">
           <button onClick={onToggle} className="btn-secondary flex items-center justify-center gap-2">
-            <Users size={15} /> {expanded ? 'Hide participants' : 'View participant quantities'}
+            <Users size={15} /> {expanded ? 'Hide participants' : 'View participating shops'}
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          <div className="flex flex-col sm:items-end gap-1">
-            {group.status === 'pending_approval' ? (
-              <button onClick={onWithdraw} className="btn-secondary">Withdraw</button>
-            ) : (
-              <>
-            <button
-              onClick={onApprove}
-              disabled={!qualified || approving || group.status.toLowerCase() === 'completed'}
-              className="btn-primary flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <CheckCircle size={15} /> {approving ? 'Creating orders...' : 'Approve & create shop orders'}
-            </button>
-            <p className="text-[11px] text-gray-400 sm:text-right">
-              You, the supplier, own and fund every entered discount. Qualified products require a fresh 1–99% whole-number discount.
-            </p>
-              </>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {acceptable && (
+              <button
+                onClick={onAccept}
+                disabled={busy}
+                className="btn-primary flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <CheckCircle size={15} /> {busy ? 'Working...' : 'Accept request'}
+              </button>
+            )}
+            {toDispatch.length > 0 && (
+              <button
+                onClick={onDispatch}
+                disabled={busy}
+                className="btn-primary flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Truck size={15} /> {busy ? 'Working...' : `Dispatch ${toDispatch.length} order${toDispatch.length === 1 ? '' : 's'}`}
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      {expanded && <Participants group={group} discounts={discounts} />}
+      {expanded && <Participants group={group} />}
     </article>
   );
 }
 
-function ProductRow({
-  product,
-  discountValue,
-  onDiscountChange,
-}: {
-  product: GroupBuyProduct;
-  discountValue: string;
-  onDiscountChange: (value: string) => void;
-}) {
+function ProductRow({ product }: { product: GroupBuyProduct }) {
   const progress = Math.max(0, Math.min(100, Number(product.progress) || (product.targetQty > 0 ? product.currentQty / product.targetQty * 100 : 0)));
-  const normalizedStatus = product.status.toLowerCase();
-  const qualified = normalizedStatus === 'qualified';
-  const approved = normalizedStatus === 'approved' || normalizedStatus === 'completed';
-  const enteredDiscount = discountValue.trim() === '' ? null : Number(discountValue);
-  const validEnteredDiscount = enteredDiscount != null && Number.isInteger(enteredDiscount) && enteredDiscount >= 1 && enteredDiscount <= 99;
-  const effectiveDiscount = qualified && validEnteredDiscount
-    ? enteredDiscount
-    : approved && Number.isInteger(product.discountPct) && product.discountPct >= 1 && product.discountPct <= 99
-      ? product.discountPct
-      : null;
-  const supplierOffer = effectiveDiscount == null ? product.originalPrice : discountedPrice(product.originalPrice, effectiveDiscount);
-  const discountAmount = effectiveDiscount == null ? 0 : product.originalPrice - supplierOffer;
+  const qualified = product.status.toLowerCase() === 'qualified';
 
   return (
     <div className={`rounded-xl border p-4 ${qualified ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
@@ -366,7 +337,9 @@ function ProductRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-bold text-gray-900">{product.productName}</p>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusClass(product.status)}`}>{product.status}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusClass(product.status)}`}>
+              {qualified ? 'target reached' : product.status}
+            </span>
           </div>
           <div className="mt-2">
             <div className="flex justify-between text-xs mb-1.5">
@@ -378,65 +351,60 @@ function ProductRow({
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:min-w-[460px]">
-          <Metric label="Original price" value={money(product.originalPrice)} />
-          {qualified ? (
-            <div>
-              <label htmlFor={`discount-${product.id}`} className="text-[10px] uppercase tracking-wide text-gray-500 font-bold">
-                Your supplier discount *
-              </label>
-              <div className="relative mt-1">
-                <input
-                  id={`discount-${product.id}`}
-                  type="number"
-                  min="1"
-                  max="99"
-                  step="1"
-                  inputMode="numeric"
-                  required
-                  value={discountValue}
-                  onChange={(event) => onDiscountChange(event.target.value)}
-                  placeholder="1–99"
-                  aria-label={`Supplier discount percentage for ${product.productName}`}
-                  className="input h-9 pr-7 text-sm font-bold"
-                />
-                <span className="absolute right-3 top-2 text-xs font-bold text-gray-400">%</span>
-              </div>
-            </div>
-          ) : (
-            <Metric label="Supplier discount" value="Not editable" />
-          )}
-          <Metric label="Discount per unit" value={effectiveDiscount != null ? money(discountAmount) : '—'} />
-          <Metric label="Your supplier offer" value={effectiveDiscount != null ? money(supplierOffer) : '—'} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:min-w-[420px]">
+          <Metric label="Your price" value={money(product.originalPrice)} />
+          <Metric label="Group discount" value={`${product.discountPct}%`} />
+          <Metric label="Group price" value={money(product.discountPrice)} />
           <Metric label="Shops" value={`${product.participantCount}`} />
-          <Metric label="Offer revenue" value={effectiveDiscount != null ? money(supplierOffer * product.currentQty) : '—'} />
         </div>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wide text-gray-400 font-bold">{label}</p>
       <p className="text-sm font-black text-gray-900 mt-0.5">{value}</p>
-      {sub && <p className="text-[10px] text-gray-400 line-through">{sub}</p>}
     </div>
   );
 }
 
-function Participants({ group, discounts }: { group: GroupBuy; discounts: Record<string, string> }) {
-  const offerRevenue = supplierOfferRevenue(group, discounts);
+function OrderList({ orders }: { orders: GroupBuyOrder[] }) {
+  return (
+    <div className="rounded-xl border border-gray-100">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <p className="text-sm font-bold text-gray-800 flex items-center gap-2"><Truck size={15} /> Shop orders</p>
+        <Link to="/orders" className="text-xs font-semibold text-primary hover:underline">Open in Orders</Link>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {orders.map((order) => (
+          <div key={order.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 truncate">{order.shopName || 'Shop'}</p>
+              <p className="text-[11px] text-gray-400">{order.orderNumber}</p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span className="font-bold text-gray-700">{money(order.totalAmount)}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusClass(order.status)}`}>{order.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+function Participants({ group }: { group: GroupBuy }) {
   return (
     <div className="border-t border-gray-100 bg-gray-50/70 p-5">
       <div className="flex items-center gap-2 mb-3">
         <Users size={16} className="text-gray-500" />
-        <h3 className="text-sm font-bold text-gray-800">Participant product quantities</h3>
+        <h3 className="text-sm font-bold text-gray-800">Participating shops</h3>
       </div>
       {group.participants.length === 0 ? (
-        <p className="text-sm text-gray-400 py-3">No participants have joined yet.</p>
+        <p className="text-sm text-gray-400 py-3">No shops have joined yet.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {group.participants.map((participant) => (
@@ -471,16 +439,7 @@ function Participants({ group, discounts }: { group: GroupBuy; discounts: Record
       )}
       <div className="flex items-start gap-2 mt-4 text-xs text-gray-500">
         <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-        <span>On approval, each shop receives one order containing all of its qualified product lines; delivery is priced from your dispatch coordinates by distance.</span>
-      </div>
-      {!canApprove(group) && (
-        <div className="flex items-start gap-2 mt-3 text-xs text-amber-700">
-          <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
-          <span>No product is qualified yet. Approval remains unavailable until at least one product reaches qualified status.</span>
-        </div>
-      )}
-      <div className="flex items-center gap-2 mt-3 text-sm font-bold text-emerald-700">
-        <TrendingUp size={15} /> Supplier offer revenue: {offerRevenue == null ? 'Enter every qualified-product discount' : money(offerRevenue)}
+        <span>When you accept, each shop receives one order with all of its qualified products. Delivery is priced by distance from your dispatch location.</span>
       </div>
     </div>
   );

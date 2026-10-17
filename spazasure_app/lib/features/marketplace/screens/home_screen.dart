@@ -977,6 +977,9 @@ class _HomeScreenState extends State<HomeScreen>
       'child_care': Icons.child_care,
       'ac_unit': Icons.ac_unit,
       'bakery_dining': Icons.bakery_dining,
+      'eco': Icons.eco,
+      'coffee': Icons.coffee,
+      'local_fire_department': Icons.local_fire_department,
     };
     return SizedBox(
       height: 100,
