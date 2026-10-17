@@ -396,8 +396,6 @@ DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_checkout_session_id;
 DROP INDEX IF EXISTS ix_supplier_subscriptions_stripe_subscription_id;
 
 DO $$
-DECLARE
-    table_to_update text;
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns

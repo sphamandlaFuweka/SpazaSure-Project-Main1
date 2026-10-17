@@ -221,9 +221,11 @@ class AuthService {
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshKey);
-    await prefs.remove(_userIdKey);
+    await Future.wait([
+      prefs.remove(_tokenKey),
+      prefs.remove(_refreshKey),
+      prefs.remove(_userIdKey),
+    ]);
     await prefs.remove(_shopNameKey);
     await prefs.remove(_phoneKey);
     await prefs.remove(_firstNameKey);
@@ -296,9 +298,12 @@ class AuthService {
       role: role,
     );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, session.token);
-    await prefs.setString(_refreshKey, session.refreshToken);
-    await prefs.setString(_userIdKey, session.userId);
+    // Update the cached session identity together before awaiting persistence.
+    await Future.wait([
+      prefs.setString(_tokenKey, session.token),
+      prefs.setString(_refreshKey, session.refreshToken),
+      prefs.setString(_userIdKey, session.userId),
+    ]);
     await prefs.setString(_shopNameKey, session.shopName);
     await prefs.setString(_phoneKey, session.phone);
     await prefs.setString(_fullNameKey, session.fullName);

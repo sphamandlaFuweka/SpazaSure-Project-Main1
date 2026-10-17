@@ -53,11 +53,93 @@ class ApiService {
     return headers;
   }
 
+  static Future<bool>? _refreshInFlight;
+
+  static Future<http.Response> _sendWithRefresh(
+    Future<http.Response> Function(Map<String, String>) send, {
+    bool auth = true,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = auth ? prefs.getString('access_token') : null;
+    final userId = prefs.getString('user_id');
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': ['Bearer', token].join(' '),
+    };
+    final response = await send(headers);
+    if (!auth || token == null || response.statusCode != 401) {
+      return response;
+    }
+
+    final failedToken = token;
+    if (prefs.getString('user_id') != userId) return response;
+    var currentToken = prefs.getString('access_token');
+    if (currentToken == failedToken) {
+      final refresh = _refreshInFlight ??= _refreshTokens(failedToken);
+      try {
+        if (!await refresh) return response;
+      } finally {
+        if (identical(_refreshInFlight, refresh)) _refreshInFlight = null;
+      }
+      currentToken = prefs.getString('access_token');
+    }
+    if (currentToken == null ||
+        currentToken == failedToken ||
+        prefs.getString('user_id') != userId) {
+      return response;
+    }
+    headers['Authorization'] = ['Bearer', currentToken].join(' ');
+    return send(headers);
+  }
+
+  static Future<bool> _refreshTokens(String failedToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    final oldToken = prefs.getString('access_token');
+    final refreshToken = prefs.getString('refresh_token');
+    if (oldToken != failedToken ||
+        refreshToken == null ||
+        refreshToken.isEmpty) {
+      return false;
+    }
+
+    final response = await http
+        .post(
+          // This existing endpoint refreshes tokens for every user role.
+          Uri.parse('$baseUrl/supplier/auth/refresh'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'refreshToken': refreshToken}),
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode == 401) return false;
+    final data = _handle(response)['data'];
+    if (data is! Map<String, dynamic> ||
+        data['accessToken'] is! String ||
+        (data['accessToken'] as String).isEmpty ||
+        data['refreshToken'] is! String ||
+        (data['refreshToken'] as String).isEmpty) {
+      throw ApiException('Invalid session refresh response', 0);
+    }
+    // A logout or another login must not be overwritten by an old refresh.
+    if (prefs.getString('access_token') != oldToken ||
+        prefs.getString('refresh_token') != refreshToken) {
+      return false;
+    }
+    // SharedPreferences updates its cache synchronously. Start both writes
+    // before awaiting so login/logout cannot interleave between token updates.
+    await Future.wait([
+      prefs.setString('access_token', data['accessToken'] as String),
+      prefs.setString('refresh_token', data['refreshToken'] as String),
+    ]);
+    return true;
+  }
+
   static Future<Map<String, dynamic>> get(String path) async {
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl$path'), headers: await _headers())
-          .timeout(const Duration(seconds: 10));
+      final res = await _sendWithRefresh(
+        (headers) => http
+            .get(Uri.parse('$baseUrl$path'), headers: headers)
+            .timeout(const Duration(seconds: 10)),
+      );
       return _handle(res);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -73,13 +155,12 @@ class ApiService {
     try {
       final url = '$baseUrl$path';
       debugPrint('[API] POST $url');
-      final res = await http
-          .post(
-            Uri.parse(url),
-            headers: await _headers(auth: auth),
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 30));
+      final res = await _sendWithRefresh(
+        (headers) => http
+            .post(Uri.parse(url), headers: headers, body: jsonEncode(body))
+            .timeout(const Duration(seconds: 30)),
+        auth: auth,
+      );
       return _handle(res);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -105,13 +186,15 @@ class ApiService {
     Map<String, dynamic> body,
   ) async {
     try {
-      final res = await http
-          .patch(
-            Uri.parse('$baseUrl$path'),
-            headers: await _headers(),
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
+      final res = await _sendWithRefresh(
+        (headers) => http
+            .patch(
+              Uri.parse('$baseUrl$path'),
+              headers: headers,
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 10)),
+      );
       return _handle(res);
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -124,13 +207,15 @@ class ApiService {
     Map<String, dynamic>? body,
   ]) async {
     try {
-      final res = await http
-          .put(
-            Uri.parse('$baseUrl$path'),
-            headers: await _headers(),
-            body: body != null ? jsonEncode(body) : null,
-          )
-          .timeout(const Duration(seconds: 10));
+      final res = await _sendWithRefresh(
+        (headers) => http
+            .put(
+              Uri.parse('$baseUrl$path'),
+              headers: headers,
+              body: body != null ? jsonEncode(body) : null,
+            )
+            .timeout(const Duration(seconds: 10)),
+      );
       return _handle(res);
     } catch (e) {
       if (e is ApiException) rethrow;
