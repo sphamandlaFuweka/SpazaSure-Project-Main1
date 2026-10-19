@@ -286,8 +286,6 @@ services:
       Cors__AllowedOrigins__2: ${PROD_ADMIN_CONSOLE_URL:-https://admin.spazasure.co.za}
     depends_on:
       - auth-service
-    depends_on:
-      - auth-service
       - product-service
       - order-service
       - user-service
