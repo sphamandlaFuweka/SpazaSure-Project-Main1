@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { notificationsApi } from '../../services/api';
+import { IS_ADMIN_APP } from '../../config/target';
 import { notificationType, notificationRoute } from './notificationTypes';
 
 /** How often new notifications are checked for (and popped up). */
@@ -146,7 +147,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
 
   function goToAll() {
     setOpen(false);
-    navigate(variant === 'admin' ? '/admin/notifications' : '/notifications');
+    navigate(IS_ADMIN_APP && variant === 'admin' ? '/admin/notifications' : '/notifications');
   }
 
     const badgeBg    = 'bg-brand-red';

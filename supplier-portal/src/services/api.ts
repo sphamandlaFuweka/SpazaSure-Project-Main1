@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import toast from 'react-hot-toast';
 import { emptyProductInfo } from '../types';
 import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest } from '../types';
@@ -654,7 +654,10 @@ export interface AdminPayoutSupplier {
 export const payoutsApi = {
   supplierSummary: () =>
     api.get('/supplier/payouts').then((r) => (r.data?.data ?? r.data) as SupplierPayoutSummary),
-  adminList: () =>
+};
+
+export const adminPayoutsApi = {
+  list: () =>
     api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as { payoutDelayDays: number; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[] }),
   markPaid: (supplierId: string, reference: string) =>
     api.post(`/admin/payouts/${supplierId}/mark-paid`, { reference })
@@ -814,8 +817,11 @@ export const faqApi = {
   list: () =>
     api.get('/supplier/faqs').then((r) => r.data).catch(() => ({ data: [] })),
 
-  /** Get all FAQs including inactive (admin) */
-  listAll: () =>
+};
+
+export const adminFaqApi = {
+  /** Get all FAQs including inactive */
+  list: () =>
     api.get('/admin/faqs').then((r) => r.data),
 
   /** Create a new FAQ */

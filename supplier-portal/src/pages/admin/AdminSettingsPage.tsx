@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Save, Settings, DollarSign, Zap, Shield, AlertTriangle,
   ToggleLeft, ToggleRight, MessageCircleQuestion, Plus, Trash2,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { adminSettingsApi, faqApi, subscriptionApi } from '../../services/api';
+import { adminSettingsApi, adminFaqApi, subscriptionApi } from '../../services/api';
 import type { FaqItem, PlatformRules } from '../../services/api';
 
 interface TierConfig {
@@ -40,17 +40,17 @@ function NotConnectedNote({ children }: { children: React.ReactNode }) {
 
 const DEFAULT_FAQS: Omit<FaqItem, 'id'>[] = [
   { question: 'Can I downgrade my plan?', answer: 'Yes. You can cancel at any time. Cancellation ends your paid plan immediately and reverts to Basic (free).', sortOrder: 1, isActive: true },
-  { question: 'How does the commission rate work?', answer: 'SpazaSure takes a percentage of each order total. Higher tiers have lower rates — Gold saves the most for high-volume suppliers.', sortOrder: 2, isActive: true },
+  { question: 'How does the commission rate work?', answer: 'SpazaSure takes a percentage of each order total. Higher tiers have lower rates â€” Gold saves the most for high-volume suppliers.', sortOrder: 2, isActive: true },
   { question: 'What payment methods are accepted?', answer: 'Paid supplier plans are processed securely through Paystack in South African rand. Available payment methods are shown during checkout.', sortOrder: 3, isActive: true },
   { question: 'Is there a free trial?', answer: 'Paid plans do not currently include a free trial. The recurring charge starts when you complete Paystack checkout and renews each billing period until you cancel.', sortOrder: 4, isActive: true },
-  { question: 'Can I pay annually?', answer: 'Yes — annual billing saves you 2 months compared to monthly. The full year is billed upfront at the discounted rate.', sortOrder: 5, isActive: true },
+  { question: 'Can I pay annually?', answer: 'Yes â€” annual billing saves you 2 months compared to monthly. The full year is billed upfront at the discounted rate.', sortOrder: 5, isActive: true },
 ];
 
 export default function AdminSettingsPage() {
   const [tiers, setTiers] = useState<TierConfig[]>(defaultTiers);
   const [onboardingFee, setOnboardingFee] = useState('150.00');
   const [settingsLoading, setSettingsLoading] = useState(true);
-  // Platform rules (fees, payouts, operations) — saved via /admin/settings/platform
+  // Platform rules (fees, payouts, operations) â€” saved via /admin/settings/platform
   const [rules, setRules] = useState<PlatformRules | null>(null);
   const [savedRules, setSavedRules] = useState<PlatformRules | null>(null);
   const [rulesSaving, setRulesSaving] = useState(false);
@@ -137,7 +137,7 @@ export default function AdminSettingsPage() {
   const loadFaqs = async () => {
     setFaqsLoading(true);
     try {
-      const res = await faqApi.listAll();
+      const res = await adminFaqApi.list();
       const items = res?.data ?? res ?? [];
       // The FAQ service answered, so show exactly what it holds (even an empty list)
       setFaqsFromApi(true);
@@ -158,7 +158,7 @@ export default function AdminSettingsPage() {
     }
     setFaqSaving(true);
     try {
-      const res = await faqApi.create({
+      const res = await adminFaqApi.create({
         question: newFaq.question,
         answer: newFaq.answer,
         sortOrder: faqs.length + 1,
@@ -178,7 +178,7 @@ export default function AdminSettingsPage() {
   const handleUpdateFaq = async (faq: FaqItem) => {
     setFaqSaving(true);
     try {
-      await faqApi.update(faq.id, { question: faq.question, answer: faq.answer, isActive: faq.isActive });
+      await adminFaqApi.update(faq.id, { question: faq.question, answer: faq.answer, isActive: faq.isActive });
       setFaqs(prev => prev.map(f => f.id === faq.id ? faq : f));
       setEditingFaq(null);
       toast.success('FAQ updated');
@@ -192,7 +192,7 @@ export default function AdminSettingsPage() {
   const handleDeleteFaq = async (id: string) => {
     if (!confirm('Delete this FAQ? Suppliers will no longer see it.')) return;
     try {
-      await faqApi.delete(id);
+      await adminFaqApi.delete(id);
       setFaqs(prev => prev.filter(f => f.id !== id));
       toast.success('FAQ deleted');
     } catch {
@@ -203,7 +203,7 @@ export default function AdminSettingsPage() {
   const handleToggleFaq = async (faq: FaqItem) => {
     const updated = { ...faq, isActive: !faq.isActive };
     try {
-      await faqApi.update(faq.id, { isActive: updated.isActive });
+      await adminFaqApi.update(faq.id, { isActive: updated.isActive });
       setFaqs(prev => prev.map(f => f.id === faq.id ? updated : f));
       toast.success(updated.isActive ? 'FAQ enabled' : 'FAQ hidden from suppliers');
     } catch {
@@ -214,7 +214,7 @@ export default function AdminSettingsPage() {
   const handleSaveFaqs = async () => {
     setFaqSaving(true);
     try {
-      await faqApi.reorder(faqs.map(f => f.id));
+      await adminFaqApi.reorder(faqs.map(f => f.id));
       toast.success('FAQ order saved');
     } catch {
       toast.error(FAQ_UNAVAILABLE, { id: 'faq-unavailable' });
@@ -346,7 +346,7 @@ export default function AdminSettingsPage() {
                   {([
                     { key: 'standardDeliveryFee', label: 'Standard delivery fee (R)', hint: 'Per supplier on each order. Pickup is always free.', step: '1', max: 5000 },
                     { key: 'expressDeliveryFee', label: 'Express delivery fee (R)', hint: 'Per supplier, same-day delivery.', step: '1', max: 5000 },
-                    { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance × rate.', step: '1', max: 5000 },
+                    { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance Ã— rate.', step: '1', max: 5000 },
                     { key: 'groupBuyPerKmRate', label: 'Group-buy rate per km (R)', hint: 'Straight-line distance from supplier to shop.', step: '0.5', max: 500 },
                     { key: 'shopServiceFeePercent', label: 'Shop service fee (%)', hint: 'Extra % of the product subtotal, charged to the shop on top of the supplier\'s tier commission. 0 = off.', step: '0.1', max: 20 },
                     { key: 'payoutDelayDays', label: 'Supplier payout delay (days)', hint: 'Days after delivery before the supplier\'s money becomes available to pay out.', step: '1', max: 60 },
@@ -490,7 +490,7 @@ export default function AdminSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Manage the FAQs displayed on the Supplier Plans page. Drag to reorder, toggle visibility, or edit content.</p>
-              <p className="text-xs text-gray-400 mt-1">{faqs.filter(f => f.isActive).length} active · {faqs.filter(f => !f.isActive).length} hidden</p>
+              <p className="text-xs text-gray-400 mt-1">{faqs.filter(f => f.isActive).length} active Â· {faqs.filter(f => !f.isActive).length} hidden</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -698,7 +698,7 @@ export default function AdminSettingsPage() {
             <div>
               <p className="text-xs leading-relaxed">
                 <strong>Tip:</strong> FAQs are shown on the Supplier Plans page. Use the eye icon to temporarily hide a FAQ without deleting it.
-                Reorder items using the arrows — changes are reflected immediately on the subscription page.
+                Reorder items using the arrows â€” changes are reflected immediately on the subscription page.
               </p>
             </div>
           </div>

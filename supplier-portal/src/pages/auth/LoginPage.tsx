@@ -93,7 +93,7 @@ export default function LoginPage() {
       }
 
       toast.success('Welcome back!');
-      setTimeout(() => navigate(userRole === 'admin' ? '/admin/dashboard' : '/dashboard'), 50);
+      setTimeout(() => navigate(__APP_TARGET__ === 'admin' ? '/admin/dashboard' : '/dashboard'), 50);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(msg || 'Invalid credentials. Please try again.');

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Wallet, Clock, CheckCircle, RefreshCw, AlertTriangle, Landmark, Loader2, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { payoutsApi, type AdminPayoutSupplier } from '../../services/api';
+import { adminPayoutsApi, type AdminPayoutSupplier } from '../../services/api';
 import { StatCard, Modal, EmptyState } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import { formatCurrency } from '../../utils';
@@ -20,7 +20,7 @@ export default function AdminPayoutsPage() {
     setLoading(true);
     setLoadError(false);
     try {
-      setData(await payoutsApi.adminList());
+      setData(await adminPayoutsApi.list());
     } catch {
       setLoadError(true);
     } finally {
@@ -34,7 +34,7 @@ export default function AdminPayoutsPage() {
     if (!paying || reference.trim().length < 3) return;
     setSubmitting(true);
     try {
-      const result = await payoutsApi.markPaid(paying.supplierId, reference.trim());
+      const result = await adminPayoutsApi.markPaid(paying.supplierId, reference.trim());
       toast.success(`Recorded ${formatCurrency(result.total)} paid to ${paying.companyName}`);
       setPaying(null);
       setReference('');
@@ -110,7 +110,7 @@ export default function AdminPayoutsPage() {
                       {s.bankAccount ? (
                         <div className="text-xs">
                           <p className="font-semibold text-gray-900">{s.bankName || 'Bank'}</p>
-                          <p className="font-mono text-ink-2">{s.bankAccount}{s.bankBranchCode ? ` · ${s.bankBranchCode}` : ''}</p>
+                          <p className="font-mono text-ink-2">{s.bankAccount}{s.bankBranchCode ? ` Â· ${s.bankBranchCode}` : ''}</p>
                         </div>
                       ) : (
                         <span className="tag-red">No bank details</span>
@@ -150,7 +150,7 @@ export default function AdminPayoutsPage() {
               <p className="text-2xl font-black text-gray-900 mt-1">{formatCurrency(paying.availableAmount)}</p>
               <p className="text-xs text-ink-2 mt-1">
                 {paying.availableOrders} delivered order{paying.availableOrders === 1 ? '' : 's'}
-                {paying.bankAccount ? ` → ${paying.bankName || 'Bank'} ${paying.bankAccount}` : ''}
+                {paying.bankAccount ? ` â†’ ${paying.bankName || 'Bank'} ${paying.bankAccount}` : ''}
               </p>
             </div>
             <p className="text-sm text-ink-2">
