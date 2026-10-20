@@ -1,3 +1,4 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -36,6 +37,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   bool _gettingLocation = false;
   bool _nearbyRecommendations = false;
   bool _marketingOptIn = false;
+  bool _acceptedPrivacyNotice = false;
   double? _latitude;
   double? _longitude;
   String _language = 'English';
@@ -214,6 +216,12 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
 
   Future<void> _continue() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_acceptedPrivacyNotice) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Read and accept the privacy notice to register.')),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -240,6 +248,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
         interests: _selectedInterests.toList(),
         notificationPreferences: _selectedNotifications.toList(),
         marketingOptIn: _marketingOptIn,
+        acceptedPrivacyNotice: _acceptedPrivacyNotice,
       );
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
@@ -595,9 +604,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            _hintBox(
-              Icons.policy_outlined,
-              'Terms and Privacy acknowledgements will be added when the finalized policy documents and links are ready.',
+            PrivacyConsentTile(
+              value: _acceptedPrivacyNotice,
+              onChanged: (value) => setState(() => _acceptedPrivacyNotice = value),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(

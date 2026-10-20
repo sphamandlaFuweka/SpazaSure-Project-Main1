@@ -1,3 +1,5 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
+import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -128,6 +130,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(child: _buildAppSection()),
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: PrivacySection(
+                        service: PrivacyService.shop,
+                        deletionExplanation:
+                            'We will erase your name, ID number, contact details, shop address and documents, '
+                            'and remove your shop from SpazaSure. Order and payment records are kept for 5 years '
+                            'without your details, as tax law requires. Money in your wallet and unfinished '
+                            'orders must be settled first. This cannot be undone once done.',
+                      ),
+                    ),
+                  ),
                   SliverToBoxAdapter(child: _buildLogoutButton()),
                   SliverToBoxAdapter(child: _buildFooter()),
                 ],

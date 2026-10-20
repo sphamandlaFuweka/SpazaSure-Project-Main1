@@ -1,3 +1,5 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
+import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -247,6 +249,19 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   ),
                   SliverToBoxAdapter(child: _buildAllergiesSection(allergies)),
                   SliverToBoxAdapter(child: _buildMenuSection()),
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: PrivacySection(
+                        service: PrivacyService.customer,
+                        deletionExplanation:
+                            'We will erase your name, age, contact details, location and preferences, and '
+                            'remove your name from reports and reviews. Reward records are kept without '
+                            'your details. A Plus subscription that renews must be cancelled first. '
+                            'This cannot be undone once done.',
+                      ),
+                    ),
+                  ),
                   SliverToBoxAdapter(child: _buildLogoutButton()),
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],

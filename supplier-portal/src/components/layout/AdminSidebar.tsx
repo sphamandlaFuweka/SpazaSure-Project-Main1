@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
   BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine, ClipboardList,
-  KeyRound,
+  KeyRound, UserX,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -73,6 +73,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         { to: '/admin/notifications', icon: Bell,     label: 'Notifications' },
         { to: '/admin/settings',      icon: Settings, label: 'Settings' },
         { to: '/admin/team',          icon: KeyRound, label: 'Team & Access' },
+        { to: '/admin/deletion-requests', icon: UserX, label: 'Deletion Requests' },
       ],
     },
   ];

@@ -1,3 +1,4 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/core/validation/sa_validation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -144,6 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _deliveryAvailable = false;
   bool _refrigerationAvailable = false;
   bool _registrationDeclaredAccurate = false;
+  bool _acceptedPrivacyNotice = false;
   bool _marketingOptIn = false;
   String? _preferredLanguage;
   String? _shopType;
@@ -208,6 +210,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 4:
         if (!_registrationDeclaredAccurate) {
           error = 'Confirm that the information provided is accurate.';
+        } else if (!_acceptedPrivacyNotice) {
+          error = 'Read and accept the privacy notice to register.';
         }
         break;
     }
@@ -292,6 +296,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _controller('email').text.trim(),
         registrationDetails: _registrationDetails(),
         documents: _pickedDocs,
+        acceptedPrivacyNotice: _acceptedPrivacyNotice,
       );
 
       if (!mounted) return;
@@ -751,9 +756,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         onChanged: (value) =>
             setState(() => _registrationDeclaredAccurate = value ?? false),
       ),
-      _hint(
-        'Terms and Privacy acknowledgements will be added when the finalized policy documents and links are available.',
-        Icons.policy_outlined,
+      PrivacyConsentTile(
+        value: _acceptedPrivacyNotice,
+        onChanged: (value) => setState(() => _acceptedPrivacyNotice = value),
+        includesIdentityCheck: true,
       ),
       const SizedBox(height: 8),
       _reviewSummary(),

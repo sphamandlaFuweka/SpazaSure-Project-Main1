@@ -43,12 +43,12 @@ void main() {
         findsOneWidget,
       );
       await tester.scrollUntilVisible(
-        find.textContaining('Terms and Privacy acknowledgements will be added'),
+        find.text('Read the privacy notice'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
       expect(
-        find.textContaining('Terms and Privacy acknowledgements will be added'),
+        find.textContaining('I have read the privacy notice and agree'),
         findsOneWidget,
       );
     },

@@ -400,6 +400,49 @@ export interface IdentityCheck {
   missing: string[];
 }
 
+/** A request to delete an account (POPIA s24): pending, approved, rejected or cancelled. */
+export interface DeletionRequest {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reason: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** The signed-in supplier's POPIA rights: a copy of their data, and asking for deletion. */
+export const privacyApi = {
+  myData: () => api.get('/supplier/profile/privacy/my-data').then((r) => unwrap<unknown>(r)),
+  deletionRequest: () => api.get('/supplier/profile/privacy/deletion-request').then((r) => unwrap<DeletionRequest | null>(r)),
+  requestDeletion: (reason: string) =>
+    api.post('/supplier/profile/privacy/deletion-request', { reason }).then((r) => r.data as { message?: string }),
+  cancelDeletion: () => api.delete('/supplier/profile/privacy/deletion-request').then((r) => r.data),
+};
+
+export interface AdminDeletionRequest extends DeletionRequest {
+  userId: string;
+  role: 'spaza_owner' | 'supplier' | 'customer';
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  /** What still has to happen before the account can be deleted. */
+  blocker: string | null;
+}
+
+export const adminDeletionApi = {
+  list: () => api.get('/admin/deletion-requests').then((r) => unwrap<AdminDeletionRequest[]>(r)),
+  approve: (id: string) => api.post(`/admin/deletion-requests/${id}/approve`).then((r) => r.data),
+  reject: (id: string, note: string) => api.post(`/admin/deletion-requests/${id}/reject`, { note }).then((r) => r.data),
+};
+
+/** Saves data as a .json file in the browser. */
+export const downloadJson = (data: unknown, fileName: string) => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: fileName });
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 /** The supplier's business check with Didit (CIPC registration, directors, sanctions). */
 export const businessCheckApi = {
   get: () => api.get('/compliance/identity/supplier').then((r) => unwrap<IdentityCheck>(r)),

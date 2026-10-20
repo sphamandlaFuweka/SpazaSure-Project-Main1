@@ -7,7 +7,10 @@ import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
-import { profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, type IdentityCheck } from '../../services/api';
+import {
+  profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, privacyApi, downloadJson,
+  type IdentityCheck, type DeletionRequest,
+} from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import clsx from 'clsx';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -453,6 +456,8 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {activeTab === 'company' && <PrivacyCard />}
+
       {/* Documents Tab */}
       {activeTab === 'documents' && (
         <div className="card p-6 animate-in">
@@ -838,5 +843,105 @@ function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** POPIA rights: a copy of everything SpazaSure holds (s23), and asking for deletion (s24). */
+function PrivacyCard() {
+  const [request, setRequest] = useState<DeletionRequest | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const loadRequest = () => privacyApi.deletionRequest().then(setRequest).catch(() => setRequest(null));
+  useEffect(() => { loadRequest(); }, []);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      downloadJson(await privacyApi.myData(), `spazasure-my-data-${new Date().toISOString().slice(0, 10)}.json`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not download your data. Please try again.'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    setBusy(true);
+    try {
+      const res = await privacyApi.requestDeletion(reason);
+      toast.success(res.message || 'We received your request.');
+      setAsking(false);
+      await loadRequest();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not send your request. Please try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async () => {
+    setBusy(true);
+    try {
+      await privacyApi.cancelDeletion();
+      toast.success('Your deletion request was cancelled.');
+      await loadRequest();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not cancel the request.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card p-6 mt-5 animate-in">
+      <h2 className="font-bold text-gray-900 mb-1">Your privacy</h2>
+      <p className="text-xs text-gray-500 mb-4">
+        See how we handle your information in the <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-primary underline">privacy notice</a>.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={download} disabled={downloading} className="btn-secondary inline-flex items-center gap-2 text-sm">
+          {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Download my data
+        </button>
+        {request?.status !== 'pending' && !asking && (
+          <button type="button" onClick={() => setAsking(true)} className="inline-flex items-center gap-2 text-sm font-semibold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50">
+            <X size={15} /> Delete my account
+          </button>
+        )}
+      </div>
+
+      {request?.status === 'pending' && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          You asked for your account to be deleted on {format(parseISO(request.createdAt), 'd MMM yyyy')}. We'll let you know when it's done.{' '}
+          <button type="button" onClick={cancel} disabled={busy} className="font-semibold underline">Cancel request</button>
+        </div>
+      )}
+      {request?.status === 'rejected' && request.decisionNote && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          We couldn't delete your account yet: {request.decisionNote}
+        </div>
+      )}
+
+      {asking && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-4">
+          <p className="text-sm font-semibold text-gray-900">Delete your account?</p>
+          <p className="text-xs text-gray-600 mt-1">
+            We'll erase your company details, contact details, banking details and documents, and remove your products from the
+            marketplace. We keep order and payment records for 5 years without your details, as tax law requires. Unfinished orders,
+            unpaid payouts or a renewing subscription must be settled first. This can't be undone once done.
+          </p>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={1000}
+            className="input w-full mt-3 text-sm" placeholder="Why are you leaving? (optional)" />
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={requestDeletion} disabled={busy} className="text-sm font-bold bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50">
+              {busy ? 'Sending…' : 'Request deletion'}
+            </button>
+            <button type="button" onClick={() => setAsking(false)} className="text-sm font-semibold px-4 py-2 rounded-xl border border-gray-200">Keep my account</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

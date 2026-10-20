@@ -40,6 +40,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [step, setStep] = useState(0);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
@@ -61,6 +62,7 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (!acceptedPrivacy) { toast.error('Please read and accept the privacy notice to register.'); return; }
     setLoading(true);
     try {
       const res = await authApi.register({
@@ -76,6 +78,7 @@ export default function RegisterPage() {
         postalCode: data.postalCode,
         latitude: data.latitude,
         longitude: data.longitude,
+        acceptedPrivacyNotice: acceptedPrivacy,
       });
 
       if (!res.success) {
@@ -272,9 +275,15 @@ export default function RegisterPage() {
                     <input {...register('confirmPassword')} type="password" className={`input ${errors.confirmPassword ? 'input-error' : ''}`} placeholder="••••••••" />
                     {errors.confirmPassword && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.confirmPassword.message}</p>}
                   </div>
-                  <p className="text-xs text-gray-400 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    By submitting, you agree to SpazaSure's Terms of Service and Privacy Policy. Your data is protected under POPIA.
-                  </p>
+                  <label className="flex items-start gap-2.5 text-xs text-gray-600 bg-gray-50 rounded-xl p-3 border border-gray-100 cursor-pointer">
+                    <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} className="mt-0.5" />
+                    <span>
+                      I have read the{' '}
+                      <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-primary underline">SpazaSure privacy notice</a>{' '}
+                      and agree that SpazaSure may process my and my company's information as it describes, including identity and
+                      business checks by its verification partner, Didit, which takes place outside South Africa.
+                    </span>
+                  </label>
                 </div>
               )}
 
@@ -289,7 +298,7 @@ export default function RegisterPage() {
                     Continue <ArrowRight size={15} />
                   </button>
                 ) : (
-                  <button type="submit" disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <button type="submit" disabled={loading || !acceptedPrivacy} className="btn-primary flex-1 flex items-center justify-center gap-2">
                     {loading ? <Spinner size="sm" /> : <CheckCircle size={15} />}
                     {loading ? 'Creating account...' : 'Create Account'}
                   </button>

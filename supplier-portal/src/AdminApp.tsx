@@ -24,6 +24,7 @@ const AdminFinancePage = lazy(() => import('./pages/admin/AdminFinancePage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 const AdminProjectsPage = lazy(() => import('./pages/admin/AdminProjectsPage'));
 const AdminTeamPage = lazy(() => import('./pages/admin/AdminTeamPage'));
+const AdminDeletionRequestsPage = lazy(() => import('./pages/admin/AdminDeletionRequestsPage'));
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
@@ -59,6 +60,7 @@ export default function AdminApp() {
           <Route path="projects" element={<AdminProjectsPage />} />
           <Route path="projects/:tab" element={<AdminProjectsPage />} />
           <Route path="team" element={<AdminTeamPage />} />
+          <Route path="deletion-requests" element={<AdminDeletionRequestsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

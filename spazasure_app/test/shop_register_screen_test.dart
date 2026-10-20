@@ -58,14 +58,34 @@ void main() {
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(0), 'Amina');
     await tester.enterText(fields.at(1), 'Mokoena');
-    await tester.enterText(fields.at(2), '0821234567');
-    await tester.enterText(fields.at(5), 'safePass123');
+    await tester.enterText(fields.at(2), '8001015009087');
+    await tester.enterText(fields.at(3), '0821234567');
     await tester.enterText(fields.at(6), 'safePass123');
+    await tester.enterText(fields.at(7), 'safePass123');
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('Shop identity'), findsOneWidget);
     expect(find.text('Shop name *'), findsOneWidget);
     expect(find.text('Business type *'), findsOneWidget);
+  });
+
+  testWidgets('an invalid ID number keeps the owner on representative details', (
+    tester,
+  ) async {
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'Amina');
+    await tester.enterText(fields.at(1), 'Mokoena');
+    await tester.enterText(fields.at(2), '8001015009088'); // wrong check digit
+    await tester.enterText(fields.at(3), '0821234567');
+    await tester.enterText(fields.at(6), 'safePass123');
+    await tester.enterText(fields.at(7), 'safePass123');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('valid 13-digit South African ID number'), findsOneWidget);
+    expect(find.text('Representative details'), findsOneWidget);
   });
 }

@@ -67,6 +67,7 @@ class AuthProvider extends ChangeNotifier {
     List<String>? interests,
     List<String>? notificationPreferences,
     bool marketingOptIn = false,
+    bool acceptedPrivacyNotice = false,
   }) async {
     _session = await AuthService.registerCustomer(
       phone: phone,
@@ -87,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
       interests: interests,
       notificationPreferences: notificationPreferences,
       marketingOptIn: marketingOptIn,
+      acceptedPrivacyNotice: acceptedPrivacyNotice,
     );
     notifyListeners();
   }
@@ -106,6 +108,7 @@ class AuthProvider extends ChangeNotifier {
     String? email,
     Map<String, dynamic>? registrationDetails,
     Map<String, dynamic>? documents,
+    bool acceptedPrivacyNotice = false,
   }) async {
     _session = await AuthService.registerShop(
       phone: phone,
@@ -121,6 +124,7 @@ class AuthProvider extends ChangeNotifier {
       idNumber: idNumber,
       email: email,
       registrationDetails: registrationDetails,
+      acceptedPrivacyNotice: acceptedPrivacyNotice,
     );
     notifyListeners();
 

@@ -16,6 +16,7 @@ const NotificationsPage = lazy(() => import('./pages/notifications/Notifications
 const SubscriptionPage = lazy(() => import('./pages/subscription/SubscriptionPage'));
 const GroupBuyPage = lazy(() => import('./pages/group-buy/GroupBuyPage'));
 const VerifyShopPage = lazy(() => import('./pages/public/VerifyShopPage'));
+const PrivacyNoticePage = lazy(() => import('./pages/public/PrivacyNoticePage'));
 
 function RequireSupplier({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore();
@@ -34,6 +35,7 @@ export default function SupplierApp() {
 
         {/* Public: anyone can check a shop's SpazaSure sticker (QR code or shop number) */}
         <Route path="/verify" element={<VerifyShopPage />} />
+        <Route path="/privacy" element={<PrivacyNoticePage />} />
         <Route path="/verify/:code" element={<VerifyShopPage />} />
 
         <Route path="/" element={<RequireSupplier><AppLayout /></RequireSupplier>}>
