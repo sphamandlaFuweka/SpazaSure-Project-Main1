@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 using SpazaSure.Shared.Storage;
@@ -14,7 +15,7 @@ namespace SpazaSure.UserService.Controllers;
 [ApiController]
 [Route("api/shop/profile")]
 [Authorize(Roles = "spaza_owner")]
-public class ShopProfileController(SpazaSureDbContext db, IFileStorageService storage, AddressGeocodingSignal geocoding) : ControllerBase
+public class ShopProfileController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events, AddressGeocodingSignal geocoding) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -94,6 +95,10 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             return BadRequest(ApiResponse.Fail("Longitude must be between -180 and 180."));
         var addressError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return BadRequest(ApiResponse.Fail(addressError));
+        if (req.Phone != null && SaValidation.NormalizePhone(req.Phone) is null)
+            return BadRequest(ApiResponse.Fail("Enter a valid South African phone number, e.g. 082 123 4567."));
+        if (req.IdNumber != null && !SaValidation.IsValidIdNumber(req.IdNumber))
+            return BadRequest(ApiResponse.Fail("Enter a valid 13-digit South African ID number."));
 
         var addressChanged = (req.Address != null && req.Address != shop.Address)
             || (req.City != null && req.City != shop.City)
@@ -102,6 +107,12 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
 
         if (req.ShopName != null) shop.ShopName = req.ShopName;
         if (req.OwnerName != null) shop.OwnerName = req.OwnerName;
+        if (req.IdNumber != null && SaValidation.NormalizeIdNumber(req.IdNumber) is var idNumber && idNumber != shop.OwnerIdNumber)
+        {
+            // The identity check confirmed the old ID number, so a new one has to be checked again.
+            shop.OwnerIdNumber = idNumber;
+            IdentityChecks.Reset(shop);
+        }
         if (req.Phone != null) shop.Phone = req.Phone;
         if (req.Email != null) shop.Email = req.Email;
         if (req.Address != null) shop.Address = req.Address;
@@ -179,6 +190,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         var existing = await db.ShopDocuments
             .FirstOrDefaultAsync(d => d.ShopId == shop.Id && d.DocType == docType);
 
+        var resubmitted = existing?.Status == "rejected";
         if (existing is not null)
         {
             existing.DocUrl = docUrl;
@@ -197,6 +209,9 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         }
 
         await db.SaveChangesAsync();
+        await AdminAlerts.NotifyAdminsAsync(db, events, "compliance",
+            resubmitted ? "Rejected document resubmitted" : "Document waiting for review",
+            $"{shop.ShopName} {(resubmitted ? "re-uploaded" : "uploaded")} a {docType.Replace('_', ' ')} document.", shop.Id.ToString());
         return Ok(ApiResponse<object>.Ok(new { docType, docUrl, status = "pending" }));
     }
 
@@ -231,5 +246,5 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
 public record UpdateShopProfileRequest(
     string? ShopName, string? OwnerName, string? Phone, string? Email,
     string? Address, string? City, string? Province, string? PostalCode,
-    double? Latitude = null, double? Longitude = null
+    double? Latitude = null, double? Longitude = null, string? IdNumber = null
 );

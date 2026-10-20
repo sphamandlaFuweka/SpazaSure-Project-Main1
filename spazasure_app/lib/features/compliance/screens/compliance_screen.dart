@@ -5,7 +5,9 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/validation/sa_validation.dart';
 import 'package:spazasure_app/services/compliance_service.dart';
+import 'package:spazasure_app/services/profile_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ComplianceScreen extends StatefulWidget {
@@ -73,6 +75,56 @@ class _ComplianceScreenState extends State<ComplianceScreen>
     } catch (_) {
       // Keep the last known status; the card still offers to start the check.
     }
+  }
+
+  /// Shops that registered before the ID number was required add it here; the
+  /// identity check compares it with the ID document.
+  Future<void> _addIdNumber() async {
+    final controller = TextEditingController();
+    String? error;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Your ID number'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'South African ID number',
+              hintText: '13 digits, as on your ID document',
+              errorText: error,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final idNumber = controller.text.replaceAll(' ', '');
+                if (!SaValidation.isValidIdNumber(idNumber)) {
+                  setDialogState(() => error =
+                      'That is not a valid ID number. Check it against your ID document.');
+                  return;
+                }
+                try {
+                  await ProfileService.updateProfile({'idNumber': idNumber});
+                  if (ctx.mounted) Navigator.pop(ctx, true);
+                } catch (e) {
+                  setDialogState(() => error =
+                      e is ApiException ? e.message : 'Could not save. Try again.');
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (saved == true) _loadIdentity();
   }
 
   Future<void> _startIdentityCheck() async {
@@ -185,6 +237,22 @@ class _ComplianceScreenState extends State<ComplianceScreen>
                         ),
                       ),
 
+                    // Didit comes first: admins only review documents once the owner has passed.
+                    if (_identity != null && !_identity!.verified)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'You can upload your documents now. SpazaSure reviews them once your identity check has passed.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.info),
+                        ),
+                      ),
+
                     // Document cards
                     ..._requiredDocs.entries.map((entry) {
                       final docType = entry.key;
@@ -289,7 +357,12 @@ class _ComplianceScreenState extends State<ComplianceScreen>
       _ => (const Color(0xFF9E9E9E), 'Not started', Icons.badge_outlined,
           'Take a photo of your ID and a selfie. It takes about 2 minutes.'),
     };
-    final canStart = (_identity?.canStart ?? true) && status != 'In Review';
+    final missing = _identity?.missing ?? const <String>[];
+    final needsIdNumber = missing.contains('id_number');
+    final needsAddress = missing.contains('address');
+    final canStart = (_identity?.canStart ?? true) &&
+        status != 'In Review' &&
+        missing.isEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -346,6 +419,37 @@ class _ComplianceScreenState extends State<ComplianceScreen>
             help,
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
+          if (status == 'Declined' && _identity?.reason != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _identity!.reason!,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (needsAddress) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Before you start: confirm your shop address on the map in your Profile.',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (needsIdNumber) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _addIdNumber,
+                icon: const Icon(Icons.badge_outlined, size: 18),
+                label: const Text('Add your ID number'),
+              ),
+            ),
+          ],
           if (canStart) ...[
             const SizedBox(height: 12),
             SizedBox(

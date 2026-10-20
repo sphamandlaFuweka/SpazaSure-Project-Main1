@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned } from 'lucide-react';
 import clsx from 'clsx';
 import 'leaflet/dist/leaflet.css';
-import { adminSpazaOwnersApi } from '../../services/api';
+import { adminSpazaOwnersApi, apiErrorMessage } from '../../services/api';
 import PageLoader from '../../components/ui/PageLoader';
 
 interface Shop {
@@ -130,8 +130,8 @@ export default function AdminShopsMapPage() {
       await adminSpazaOwnersApi.verify(shop.id);
       toast.success(`${shop.shopName} verified`);
       setShops((prev) => prev.map((s) => (s.id === shop.id ? { ...s, isVerified: true, status: 'verified' } : s)));
-    } catch {
-      toast.error('Verification failed');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Verification failed'));
     }
   };
 

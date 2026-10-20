@@ -37,7 +37,9 @@ public class IdentityChecksController(
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId, ct);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
         await RefreshAsync(shop, ct);
-        return Ok(ApiResponse<object>.Ok(Describe(shop)));
+        return Ok(ApiResponse<object>.Ok(Describe(shop, Missing(
+            ("id_number", SaValidation.IsValidIdNumber(shop.OwnerIdNumber)),
+            ("address", shop.Latitude is not null && shop.Longitude is not null)))));
     }
 
     [HttpPost("shop/session")]
@@ -46,10 +48,12 @@ public class IdentityChecksController(
     {
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId, ct);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        if (!SaValidation.IsValidIdNumber(shop.OwnerIdNumber))
+            return BadRequest(ApiResponse.Fail("Add your valid 13-digit South African ID number to your profile first."));
+        if (shop.Latitude is null || shop.Longitude is null)
+            return BadRequest(ApiResponse.Fail("Confirm your shop's address on the map in your profile first."));
 
-        var expected = string.IsNullOrWhiteSpace(shop.OwnerIdNumber)
-            ? null
-            : new { identification_number = shop.OwnerIdNumber.Trim(), id_country = "ZAF" };
+        var expected = new { identification_number = shop.OwnerIdNumber, id_country = "ZAF" };
         return await StartAsync(shop, didit.ShopWorkflowId, ShopVendorPrefix + shop.Id, didit.ShopCallbackUrl, expected, ct);
     }
 
@@ -60,7 +64,9 @@ public class IdentityChecksController(
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId, ct);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
         await RefreshAsync(supplier, ct);
-        return Ok(ApiResponse<object>.Ok(Describe(supplier)));
+        return Ok(ApiResponse<object>.Ok(Describe(supplier, Missing(
+            ("registration_number", SaValidation.IsValidCompanyRegistration(supplier.RegistrationNumber)),
+            ("address", supplier.Latitude is not null && supplier.Longitude is not null)))));
     }
 
     [HttpPost("supplier/session")]
@@ -69,10 +75,17 @@ public class IdentityChecksController(
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId, ct);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        if (!SaValidation.IsValidCompanyRegistration(supplier.RegistrationNumber))
+            return BadRequest(ApiResponse.Fail("Add your CIPC registration number (e.g. 2020/123456/07) under Company Information first."));
+        if (supplier.Latitude is null || supplier.Longitude is null)
+            return BadRequest(ApiResponse.Fail("Confirm your business address under Company Information first."));
 
-        var expected = new Dictionary<string, string> { ["company_name"] = supplier.CompanyName, ["registry_country"] = "ZA" };
-        if (!string.IsNullOrWhiteSpace(supplier.RegistrationNumber))
-            expected["registration_number"] = supplier.RegistrationNumber.Trim();
+        var expected = new Dictionary<string, string>
+        {
+            ["company_name"] = supplier.CompanyName,
+            ["registry_country"] = "ZA",
+            ["registration_number"] = supplier.RegistrationNumber!,
+        };
         return await StartAsync(supplier, didit.SupplierWorkflowId, SupplierVendorPrefix + supplier.Id, didit.SupplierCallbackUrl, expected, ct);
     }
 
@@ -109,8 +122,8 @@ public class IdentityChecksController(
                 return Ok(); // nothing to update; a non-2xx would only make Didit retry
             }
 
-            var notes = root.TryGetProperty("decision", out var decision) ? DiditService.ExtractNotes(decision) : null;
-            await ApplyAsync(subject, sessionId, status, notes, ct);
+            JsonElement? decision = root.TryGetProperty("decision", out var d) && d.ValueKind == JsonValueKind.Object ? d : null;
+            await ApplyAsync(subject, sessionId, status, decision, ct);
         }
         return Ok();
     }
@@ -156,7 +169,7 @@ public class IdentityChecksController(
         try
         {
             var decision = await didit.GetDecisionAsync(subject.IdentityCheckSessionId, ct);
-            await ApplyAsync(subject, subject.IdentityCheckSessionId, decision.Status, decision.Notes, ct);
+            await ApplyAsync(subject, subject.IdentityCheckSessionId, decision.Status, decision.Details, ct);
         }
         catch (HttpRequestException ex)
         {
@@ -164,10 +177,40 @@ public class IdentityChecksController(
         }
     }
 
-    private async Task ApplyAsync(IHasIdentityCheck subject, string sessionId, string status, string? notes, CancellationToken ct)
+    private async Task ApplyAsync(IHasIdentityCheck subject, string sessionId, string status, JsonElement? decision, CancellationToken ct)
     {
         // Ignore results for an older session the user has since replaced with a new one.
         if (subject.IdentityCheckSessionId is { } currentSession && currentSession != sessionId) return;
+
+        var notes = decision is { } details ? DiditService.ExtractNotes(details) : null;
+        if (status == "Approved")
+        {
+            // Didit passing isn't enough: the document or company it checked must be the one on the profile.
+            var feature = subject is SpazaShop ? "id_verifications" : "registry_checks";
+            if (decision is not { } full || !full.TryGetProperty(feature, out var results) || results.ValueKind != JsonValueKind.Array)
+            {
+                try { full = (await didit.GetDecisionAsync(sessionId, ct)).Details; }
+                catch (HttpRequestException ex)
+                {
+                    // Leave the status open; the next status check fetches the decision again.
+                    logger.LogWarning(ex, "Could not fetch the Didit decision for approved session {SessionId}", sessionId);
+                    return;
+                }
+                notes = DiditService.ExtractNotes(full);
+            }
+            var mismatch = subject switch
+            {
+                SpazaShop shop => DiditService.IdNumberMismatch(full, shop.OwnerIdNumber),
+                Supplier supplier => DiditService.RegistrationMismatch(full, supplier.RegistrationNumber),
+                _ => null,
+            };
+            if (mismatch is not null)
+            {
+                logger.LogWarning("Didit approved session {SessionId} but it doesn't match the profile: {Reason}", sessionId, mismatch);
+                status = "Declined";
+                notes = notes is null ? mismatch : $"{mismatch}\n{notes}";
+            }
+        }
 
         var changed = subject.IdentityCheckStatus != status;
         subject.IdentityCheckSessionId = sessionId;
@@ -187,7 +230,7 @@ public class IdentityChecksController(
                 : (isShop ? "Identity check not passed" : "Business check not passed"),
             message: approved
                 ? (isShop ? "Your identity check passed. It counts towards your SpazaSure Verified sticker." : "Your business check passed.")
-                : "Your check didn't pass. Open your compliance page to try again, or contact SpazaSure support.",
+                : $"Your check didn't pass. {FirstLine(subject.IdentityCheckNotes)}Open your compliance page to try again, or contact SpazaSure support.",
             priority: approved ? "normal" : "high",
             referenceId: sessionId,
             routingKey: approved ? "compliance.approved" : "compliance.rejected");
@@ -206,11 +249,23 @@ public class IdentityChecksController(
         return null;
     }
 
-    private static object Describe(IHasIdentityCheck subject) => new
+    private static string FirstLine(string? notes) =>
+        string.IsNullOrWhiteSpace(notes) ? "" : notes.Split('\n')[0].TrimEnd('.') + ". ";
+
+    /// <summary>Profile details that must be right before the check can start.</summary>
+    private static string[] Missing(params (string Name, bool Ok)[] requirements) =>
+        requirements.Where(r => !r.Ok).Select(r => r.Name).ToArray();
+
+    private static object Describe(IHasIdentityCheck subject, string[] missing) => new
     {
+        missing,
         status = subject.IdentityCheckStatus ?? "Not Started",
         verified = subject.IdentityCheckStatus == "Approved",
         canStart = subject.IdentityCheckStatus != "Approved",
         updatedAt = subject.IdentityCheckUpdatedAt,
+        // The main reason a check didn't pass (e.g. the ID number doesn't match the profile).
+        reason = subject.IdentityCheckStatus == "Declined" && !string.IsNullOrWhiteSpace(subject.IdentityCheckNotes)
+            ? subject.IdentityCheckNotes.Split('\n')[0]
+            : null,
     };
 }

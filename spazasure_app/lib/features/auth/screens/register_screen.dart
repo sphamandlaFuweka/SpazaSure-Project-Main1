@@ -1,3 +1,4 @@
+import 'package:spazasure_app/core/validation/sa_validation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -103,6 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     for (final field in [
       'firstName',
       'surname',
+      'idNumber',
       'email',
       'phone',
       'alternatePhone',
@@ -173,8 +175,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 0:
         if (value('firstName').isEmpty || value('surname').isEmpty) {
           error = 'Enter the representative’s first name and surname.';
-        } else if (value('phone').isEmpty) {
-          error = 'Enter the representative’s mobile number.';
+        } else if (!SaValidation.isValidIdNumber(value('idNumber'))) {
+          error = 'Enter a valid 13-digit South African ID number. Check it against your ID document.';
+        } else if (!SaValidation.isValidPhone(value('phone'))) {
+          error = 'Enter a valid South African mobile number, e.g. 082 123 4567.';
         } else if (_controller('password').text.length < 8) {
           error = 'Create a password with at least 8 characters.';
         } else if (_controller('password').text !=
@@ -278,6 +282,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _controller('password').text,
         fullName: fullName,
         shopName: _controller('shopName').text.trim(),
+        idNumber: _controller('idNumber').text.replaceAll(' ', ''),
         address: _controller('address').text.trim(),
         city: _controller('city').text.trim(),
         province: _controller('province').text.trim(),
@@ -443,6 +448,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     children: [
       _field('firstName', 'First name *', 'Enter first name'),
       _field('surname', 'Surname *', 'Enter surname'),
+      _field(
+        'idNumber',
+        'South African ID number *',
+        '13 digits, as on your ID document',
+        keyboardType: TextInputType.number,
+      ),
       _dropdown(
         label: 'Your role in the business',
         value: _representativeRole,

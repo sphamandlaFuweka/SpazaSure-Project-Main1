@@ -27,6 +27,8 @@ public class AuthenticationService(
 
         var email = req.Email?.Trim();
         var phone = req.Phone?.Trim();
+        if (!string.IsNullOrEmpty(phone) && SaValidation.NormalizePhone(phone) is null)
+            return (false, "Enter a valid South African phone number, e.g. 082 123 4567.", null);
 
         if (await db.Users.AnyAsync(u =>
             (email != null && u.Email != null && u.Email.ToLower() == email.ToLower()) ||

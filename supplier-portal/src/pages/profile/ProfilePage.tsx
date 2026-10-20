@@ -7,7 +7,7 @@ import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
-import { profileApi, resolveUploadUrl, businessCheckApi, type IdentityCheck } from '../../services/api';
+import { profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, type IdentityCheck } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import clsx from 'clsx';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -89,8 +89,8 @@ export default function ProfilePage() {
         });
       }
       toast.success('Profile updated successfully');
-    } catch {
-      toast.error('Failed to save profile');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to save profile'));
     } finally {
       setSaving(false);
     }
@@ -291,7 +291,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="label">CIPC Registration Number</label>
-              <input {...register('registrationNumber')} className="input font-mono" />
+              <input {...register('registrationNumber')} placeholder="e.g. 2020/123456/07" className="input font-mono" />
             </div>
             <div>
               <label className="label">Tax Number</label>
@@ -458,7 +458,10 @@ export default function ProfilePage() {
         <div className="card p-6 animate-in">
           <h2 className="font-bold text-gray-900 mb-4">Compliance Documents</h2>
 
-          <BusinessCheckCard />
+          <BusinessCheckCard onFixProfile={() => setActiveTab('company')} />
+          <p className="text-xs text-gray-500 -mt-2 mb-4">
+            You can upload documents at any time. SpazaSure reviews them once your business check has passed.
+          </p>
 
           {/* Success banner when all docs are approved */}
           {(() => {
@@ -584,8 +587,8 @@ export default function ProfilePage() {
                     )}
                     {doc?.status !== 'approved' && (
                       <label className="flex items-center gap-1.5 text-sm font-semibold text-primary border border-primary px-3 py-2 rounded-xl hover:bg-primary-50 transition-colors cursor-pointer">
-                        <Upload size={13} /> {doc ? 'Replace' : 'Upload'}
-                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                        <Upload size={13} /> {doc?.status === 'rejected' ? 'Re-upload' : doc ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDocUpload(docType, f); }} />
                       </label>
                     )}
@@ -769,7 +772,7 @@ const toneClasses: Record<string, string> = {
 };
 
 /** Didit business check: CIPC registration, directors and sanctions, run on Didit's hosted page. */
-function BusinessCheckCard() {
+function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
   const [check, setCheck] = useState<IdentityCheck | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -783,8 +786,7 @@ function BusinessCheckCard() {
       const { url } = await businessCheckApi.start();
       window.location.assign(url); // Didit brings the supplier back to /profile?verification=done
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Could not start the business check. Please try again.');
+      toast.error(apiErrorMessage(err, 'Could not start the business check. Please try again.'));
       setStarting(false);
     }
   };
@@ -796,7 +798,12 @@ function BusinessCheckCard() {
     tone: 'gray',
     Icon: Building2,
   };
-  const canStart = (check?.canStart ?? true) && status !== 'In Review';
+  const missing = check?.missing ?? [];
+  const canStart = (check?.canStart ?? true) && status !== 'In Review' && missing.length === 0;
+  const fixes = [
+    missing.includes('registration_number') && 'add your CIPC registration number (e.g. 2020/123456/07)',
+    missing.includes('address') && 'confirm your business address by picking it from the suggestions',
+  ].filter(Boolean);
 
   return (
     <div className={clsx('border rounded-2xl p-4 mb-5', toneClasses[state.tone])}>
@@ -807,6 +814,15 @@ function BusinessCheckCard() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900">Business verification <span className="font-semibold">· {state.label}</span></p>
           <p className="text-xs text-gray-600 mt-0.5">{state.help}</p>
+          {status === 'Declined' && check?.reason && (
+            <p className="text-xs font-semibold text-red-700 mt-1">{check.reason}</p>
+          )}
+          {fixes.length > 0 && (
+            <div className="mt-2 text-xs text-amber-800">
+              Before you start, {fixes.join(' and ')} under Company Information.{' '}
+              <button type="button" onClick={onFixProfile} className="font-semibold underline">Go to Company Information</button>
+            </div>
+          )}
           {canStart && (
             <>
               <button type="button" onClick={start} disabled={starting} className="btn-primary mt-3 inline-flex items-center gap-2 text-sm">

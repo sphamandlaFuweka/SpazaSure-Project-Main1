@@ -27,7 +27,8 @@ public sealed class DiditService(HttpClient httpClient, IConfiguration config)
     public string? SupplierCallbackUrl => NullIfEmpty(config["Didit:SupplierCallbackUrl"]);
 
     public sealed record Session(string SessionId, string Url, string Status);
-    public sealed record Decision(string Status, string? Notes);
+    /// <summary>A session's status plus Didit's full decision (feature results), detached from the response.</summary>
+    public sealed record Decision(string Status, JsonElement Details);
 
     public async Task<Session> CreateSessionAsync(
         string workflowId, string vendorData, string? callbackUrl, object? expectedDetails, CancellationToken ct = default)
@@ -58,8 +59,63 @@ public sealed class DiditService(HttpClient httpClient, IConfiguration config)
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUri, $"v3/session/{Uri.EscapeDataString(sessionId)}/decision/"));
         using var response = await SendAsync(request, ct);
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return new Decision(json.RootElement.GetProperty("status").GetString() ?? "Not Started", ExtractNotes(json.RootElement));
+        return new Decision(json.RootElement.GetProperty("status").GetString() ?? "Not Started", json.RootElement.Clone());
     }
+
+    /// <summary>
+    /// Checks that the ID document Didit read belongs to the ID number on the shop's profile
+    /// (id_verifications[].personal_number, or document_number for older ID books).
+    /// Returns why it doesn't, or null when it matches.
+    /// </summary>
+    public static string? IdNumberMismatch(JsonElement decision, string? expectedIdNumber)
+    {
+        var expected = Digits(expectedIdNumber);
+        if (expected.Length == 0) return "There is no ID number on your shop profile to check against.";
+        var read = FeatureValues(decision, "id_verifications", item => [item], "personal_number", "document_number");
+        if (read.Count == 0) return "We couldn't read the ID number on your document. Please try again with a clearer photo.";
+        return read.Contains(expected)
+            ? null
+            : "The ID number on your document doesn't match the ID number on your shop profile.";
+    }
+
+    /// <summary>
+    /// Checks that the company Didit found on the CIPC register has the registration number on the
+    /// supplier's profile (registry_checks[].company.registration_number).
+    /// Returns why it doesn't, or null when it matches.
+    /// </summary>
+    public static string? RegistrationMismatch(JsonElement decision, string? expectedRegistration)
+    {
+        var expected = Digits(expectedRegistration);
+        if (expected.Length == 0) return "There is no CIPC registration number on your profile to check against.";
+        var found = FeatureValues(decision, "registry_checks",
+            item => item.TryGetProperty("company", out var company) && company.ValueKind == JsonValueKind.Object ? [company] : [],
+            "registration_number");
+        if (found.Count == 0) return "The company could not be found on the CIPC register.";
+        return found.Contains(expected)
+            ? null
+            : "The company found on the CIPC register has a different registration number from your profile.";
+    }
+
+    private static HashSet<string> FeatureValues(
+        JsonElement decision, string feature, Func<JsonElement, JsonElement[]> select, params string[] fields)
+    {
+        var values = new HashSet<string>();
+        if (decision.ValueKind != JsonValueKind.Object ||
+            !decision.TryGetProperty(feature, out var items) || items.ValueKind != JsonValueKind.Array)
+            return values;
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            foreach (var source in select(item))
+                foreach (var field in fields)
+                    if (source.TryGetProperty(field, out var value) && value.ValueKind == JsonValueKind.String &&
+                        Digits(value.GetString()) is { Length: > 0 } digits)
+                        values.Add(digits);
+        }
+        return values;
+    }
+
+    private static string Digits(string? value) => new((value ?? "").Where(char.IsAsciiDigit).ToArray());
 
     /// <summary>
     /// Checks Didit's X-Signature header: HMAC-SHA256 of the raw body with the webhook secret, hex

@@ -384,8 +384,21 @@ export interface StaffAccessInput { isMaster: boolean; areas: Partial<Record<Adm
 
 const unwrap = <T,>(r: { data: any }): T => (r.data?.data ?? r.data) as T;
 
+/** The server's explanation for a refused request (e.g. "Didit hasn't passed yet"), or the fallback. */
+export const apiErrorMessage = (err: unknown, fallback: string): string =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
+
 /** Didit status: Not Started, In Progress, In Review, Approved, Declined, Abandoned, Expired... */
-export interface IdentityCheck { status: string; verified: boolean; canStart: boolean; updatedAt: string | null }
+export interface IdentityCheck {
+  status: string;
+  verified: boolean;
+  canStart: boolean;
+  updatedAt: string | null;
+  /** Why the check didn't pass, e.g. the CIPC number doesn't match the profile. */
+  reason: string | null;
+  /** Profile details to fix before the check can start: 'registration_number', 'address'. */
+  missing: string[];
+}
 
 /** The supplier's business check with Didit (CIPC registration, directors, sanctions). */
 export const businessCheckApi = {

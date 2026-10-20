@@ -37,13 +37,25 @@ class IdentityCheck {
   final String status;
   final bool verified;
   final bool canStart;
+  /// Why the check didn't pass, e.g. the ID number doesn't match the profile.
+  final String? reason;
+  /// Profile details to fix before the check can start: 'id_number', 'address'.
+  final List<String> missing;
 
-  const IdentityCheck({required this.status, required this.verified, required this.canStart});
+  const IdentityCheck({
+    required this.status,
+    required this.verified,
+    required this.canStart,
+    this.reason,
+    this.missing = const [],
+  });
 
   factory IdentityCheck.fromJson(Map<String, dynamic> json) => IdentityCheck(
         status: json['status']?.toString() ?? 'Not Started',
         verified: json['verified'] == true,
         canStart: json['canStart'] != false,
+        reason: json['reason']?.toString(),
+        missing: (json['missing'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       );
 }
 

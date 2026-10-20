@@ -81,6 +81,8 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
     {
         var supplier = await db.Suppliers.FindAsync(id);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        if (IdentityChecks.AdminBlockReason(supplier) is { } supplierBlock)
+            return Conflict(ApiResponse.Fail(supplierBlock));
         supplier.Status = "verified";
         await db.SaveChangesAsync();
         events.PublishNotification(supplier.UserId.ToString(), "account", "Your account is verified",
@@ -196,6 +198,8 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
     {
         var shop = await db.SpazaShops.FindAsync(id);
         if (shop is null) return NotFound(ApiResponse.Fail("Spaza shop not found."));
+        if (IdentityChecks.AdminBlockReason(shop) is { } shopBlock)
+            return Conflict(ApiResponse.Fail(shopBlock));
         shop.Status = "verified";
         await db.SaveChangesAsync();
         events.PublishNotification(shop.UserId.ToString(), "account", "Your shop is verified",

@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
-import api, { resolveUploadUrl } from '../../services/api';
+import api, { resolveUploadUrl, apiErrorMessage } from '../../services/api';
 import { Spinner } from '../../components/ui';
 import { Building2, Receipt, Handshake, ClipboardList, Calendar, Mail, type LucideIcon } from 'lucide-react';
 
@@ -31,6 +31,10 @@ interface SupplierDoc {
   identityCheckStatus?: string | null;
   identityCheckNotes?: string | null;
 }
+
+/** Didit is the first step: documents can only be approved once it has passed. */
+const awaitingDidit = (doc: SupplierDoc) => doc.identityCheckStatus !== 'Approved';
+const awaitingDiditHint = 'Approve after the Didit check has passed';
 
 const identityBadge: Record<string, { label: string; className: string }> = {
   'Approved':  { label: 'Didit verified',   className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
@@ -129,8 +133,8 @@ export default function DocumentVerificationPage() {
       setRejectReason('');
       setPreviewDoc(null);
       fetchDocs(statusFilter !== 'all' ? statusFilter : undefined, search || undefined, activeTab);
-    } catch {
-      toast.error('Failed to update document status');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to update document status'));
     }
   };
 
@@ -487,8 +491,9 @@ export default function DocumentVerificationPage() {
                             {doc.status !== 'approved' && (
                               <button
                                 onClick={() => updateDocStatus(doc.id, 'approved')}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                                title="Approve"
+                                disabled={awaitingDidit(doc)}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 disabled:cursor-not-allowed"
+                                title={awaitingDidit(doc) ? awaitingDiditHint : 'Approve'}
                               >
                                 <CheckCircle size={15} />
                               </button>
@@ -590,7 +595,8 @@ export default function DocumentVerificationPage() {
                       <div className="flex gap-2">
                         {previewDoc.status !== 'approved' && (
                           <button onClick={() => updateDocStatus(previewDoc.id, 'approved')}
-                            className="flex items-center gap-1.5 text-sm font-bold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">
+                            disabled={awaitingDidit(previewDoc)} title={awaitingDidit(previewDoc) ? awaitingDiditHint : undefined}
+                            className="flex items-center gap-1.5 text-sm font-bold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
                             <CheckCircle size={14} /> Approve
                           </button>
                         )}
@@ -616,7 +622,8 @@ export default function DocumentVerificationPage() {
               <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
                 {previewDoc.status !== 'approved' && (
                   <button onClick={() => updateDocStatus(previewDoc.id, 'approved')}
-                    className="flex items-center gap-2 text-sm font-bold bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200">
+                    disabled={awaitingDidit(previewDoc)} title={awaitingDidit(previewDoc) ? awaitingDiditHint : undefined}
+                    className="flex items-center gap-2 text-sm font-bold bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed">
                     <CheckCircle size={14} /> Approve Document
                   </button>
                 )}

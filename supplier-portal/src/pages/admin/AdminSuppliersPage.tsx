@@ -6,7 +6,7 @@ import {
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl } from '../../services/api';
+import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl, apiErrorMessage } from '../../services/api';
 import { TierBadge, Spinner } from '../../components/ui';
 import { Check as CheckIc, X as XIc } from 'lucide-react';
 
@@ -165,8 +165,8 @@ export default function AdminSuppliersPage() {
       toast.success('Supplier verified successfully');
       setSelectedSupplier(null);
       fetchSuppliers();
-    } catch {
-      toast.error('Failed to verify supplier');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to verify supplier'));
     }
   };
 
@@ -176,8 +176,8 @@ export default function AdminSuppliersPage() {
       toast.success('Spaza owner verified successfully');
       setSelectedSpaza(null);
       fetchSpazaOwners();
-    } catch {
-      toast.error('Failed to verify spaza owner');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to verify spaza owner'));
     }
   };
 

@@ -96,6 +96,39 @@ public class DiditServiceTests
         DiditService.ExtractNotes(decision.RootElement).Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("""{ "id_verifications": [{ "personal_number": "8001015009087", "document_number": "T12345" }] }""", null)]
+    [InlineData("""{ "id_verifications": [{ "personal_number": "800101 5009 087" }] }""", null)]
+    [InlineData("""{ "id_verifications": [{ "personal_number": null, "document_number": "8001015009087" }] }""", null)]
+    [InlineData("""{ "id_verifications": [{ "personal_number": "9002150123088" }] }""", "doesn't match")]
+    [InlineData("""{ "id_verifications": [{ "personal_number": null }] }""", "couldn't read")]
+    [InlineData("""{ "id_verifications": null }""", "couldn't read")]
+    public void IdNumberMismatch_ComparesTheDocumentWithTheProfile(string decisionJson, string? expectedReason)
+    {
+        using var decision = JsonDocument.Parse(decisionJson);
+
+        var reason = DiditService.IdNumberMismatch(decision.RootElement, "8001015009087");
+
+        if (expectedReason is null) reason.Should().BeNull();
+        else reason.Should().Contain(expectedReason);
+    }
+
+    [Theory]
+    [InlineData("""{ "registry_checks": [{ "company": { "registration_number": "2020/123456/07" } }] }""", null)]
+    [InlineData("""{ "registry_checks": [{ "company": { "registration_number": "2020123456 07" } }] }""", null)]
+    [InlineData("""{ "registry_checks": [{ "company": { "registration_number": "2019/654321/07" } }] }""", "different registration number")]
+    [InlineData("""{ "registry_checks": [{ "company": null }] }""", "could not be found")]
+    [InlineData("""{ }""", "could not be found")]
+    public void RegistrationMismatch_ComparesTheRegistryWithTheProfile(string decisionJson, string? expectedReason)
+    {
+        using var decision = JsonDocument.Parse(decisionJson);
+
+        var reason = DiditService.RegistrationMismatch(decision.RootElement, "2020/123456/07");
+
+        if (expectedReason is null) reason.Should().BeNull();
+        else reason.Should().Contain(expectedReason);
+    }
+
     [Fact]
     public async Task CreateSession_SendsTheWorkflowAndApiKey_AndReturnsTheHostedLink()
     {

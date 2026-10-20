@@ -99,6 +99,8 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         var doc = await db.SupplierDocuments.Include(d => d.Supplier).FirstOrDefaultAsync(d => d.Id == id);
         if (doc is not null)
         {
+            if (IdentityChecks.AdminBlockReason(doc.Supplier) is { } supplierBlock)
+                return Conflict(ApiResponse.Fail(supplierBlock));
             doc.Status = "approved";
             doc.RejectionNote = null;
             await db.SaveChangesAsync();
@@ -120,6 +122,8 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         // Try shop documents
         var shopDoc = await db.ShopDocuments.Include(d => d.Shop).FirstOrDefaultAsync(d => d.Id == id);
         if (shopDoc is null) return NotFound(ApiResponse.Fail("Document not found."));
+        if (IdentityChecks.AdminBlockReason(shopDoc.Shop) is { } shopBlock)
+            return Conflict(ApiResponse.Fail(shopBlock));
 
         shopDoc.Status = "approved";
         shopDoc.RejectionNote = null;
