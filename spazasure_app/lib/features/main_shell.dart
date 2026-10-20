@@ -1,3 +1,5 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
+import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -18,6 +20,14 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ensurePrivacyConsent(context, PrivacyService.shop),
+    );
+  }
 
   final _screens = const [
     HomeScreen(),

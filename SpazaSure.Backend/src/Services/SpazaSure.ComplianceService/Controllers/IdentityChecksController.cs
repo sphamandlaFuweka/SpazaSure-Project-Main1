@@ -27,6 +27,8 @@ public class IdentityChecksController(
     private const string ShopVendorPrefix = "shop:";
     private const string SupplierVendorPrefix = "supplier:";
     private static readonly HashSet<string> FinalStatuses = ["Approved", "Declined"];
+    /// <summary>When admins were last told Didit is out of credit, so they get one alert an hour.</summary>
+    private static long _lastCreditAlertTicks;
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -161,7 +163,10 @@ public class IdentityChecksController(
             }
 
             JsonElement? decision = root.TryGetProperty("decision", out var d) && d.ValueKind == JsonValueKind.Object ? d : null;
-            await ApplyAsync(subject, sessionId, status, decision, ct);
+            var sandbox = root.TryGetProperty("environment", out var env) && env.ValueKind == JsonValueKind.String
+                ? env.GetString() == "sandbox"
+                : didit.IsSandbox;
+            await ApplyAsync(subject, sessionId, status, decision, sandbox, ct);
         }
         return Ok();
     }
@@ -179,6 +184,15 @@ public class IdentityChecksController(
         try
         {
             session = await didit.CreateSessionAsync(workflowId, vendorData, callbackUrl, expected, ct);
+        }
+        catch (HttpRequestException ex) when (DiditService.IsOutOfCredit(ex))
+        {
+            logger.LogError(ex, "Didit is out of credit; could not start a session for {VendorData}", vendorData);
+            if (Interlocked.Exchange(ref _lastCreditAlertTicks, DateTime.UtcNow.Ticks) < DateTime.UtcNow.AddHours(-1).Ticks)
+                await AdminAlerts.NotifyAdminsAsync(db, events, "compliance", "Didit is out of credit",
+                    "Identity and business checks can't start until the Didit account is topped up at business.didit.me.", null);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("Identity checks are temporarily unavailable. SpazaSure has been notified; please try again later."));
         }
         catch (HttpRequestException ex)
         {
@@ -209,7 +223,7 @@ public class IdentityChecksController(
         try
         {
             var decision = await didit.GetDecisionAsync(subject.IdentityCheckSessionId, ct);
-            await ApplyAsync(subject, subject.IdentityCheckSessionId, decision.Status, decision.Details, ct);
+            await ApplyAsync(subject, subject.IdentityCheckSessionId, decision.Status, decision.Details, didit.IsSandbox, ct);
         }
         catch (HttpRequestException ex)
         {
@@ -217,15 +231,17 @@ public class IdentityChecksController(
         }
     }
 
-    private async Task ApplyAsync(IHasIdentityCheck subject, string sessionId, string status, JsonElement? decision, CancellationToken ct)
+    private async Task ApplyAsync(
+        IHasIdentityCheck subject, string sessionId, string status, JsonElement? decision, bool sandbox, CancellationToken ct)
     {
         // Ignore results for an older session the user has since replaced with a new one.
         if (subject.IdentityCheckSessionId is { } currentSession && currentSession != sessionId) return;
 
         var notes = decision is { } details ? DiditService.ExtractNotes(details) : null;
-        if (status == "Approved")
+        if (status == "Approved" && !sandbox)
         {
             // Didit passing isn't enough: the document or company it checked must be the one on the profile.
+            // (Skipped in sandbox, whose made-up data never matches a real profile.)
             var feature = subject is SpazaShop ? "id_verifications" : "registry_checks";
             if (decision is not { } full || !full.TryGetProperty(feature, out var results) || results.ValueKind != JsonValueKind.Array)
             {

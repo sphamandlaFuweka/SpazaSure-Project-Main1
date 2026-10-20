@@ -27,6 +27,14 @@ class PrivacyService {
   static const shop = PrivacyService('/shop/profile/privacy');
   static const customer = PrivacyService('/customer/profile/privacy');
 
+  /// Whether the person has accepted the current privacy notice.
+  Future<bool> hasAcceptedNotice() async {
+    final res = await ApiService.get('$basePath/consent');
+    return (res['data'] as Map<String, dynamic>?)?['accepted'] == true;
+  }
+
+  Future<void> acceptNotice() => ApiService.post('$basePath/consent', {});
+
   Future<Map<String, dynamic>> myData() async {
     final res = await ApiService.get('$basePath/my-data');
     return res['data'] as Map<String, dynamic>? ?? {};

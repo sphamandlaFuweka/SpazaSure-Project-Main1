@@ -97,6 +97,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "notifications", (services, ct) =>
+    Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+        .GetRequiredService<NotificationDbContext>(services).Database.CanConnectAsync(ct));
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

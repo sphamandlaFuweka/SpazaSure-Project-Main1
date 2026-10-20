@@ -412,6 +412,8 @@ export interface DeletionRequest {
 
 /** The signed-in supplier's POPIA rights: a copy of their data, and asking for deletion. */
 export const privacyApi = {
+  consent: () => api.get('/supplier/profile/privacy/consent').then((r) => unwrap<{ accepted: boolean; version: string }>(r)),
+  acceptConsent: () => api.post('/supplier/profile/privacy/consent').then((r) => r.data),
   myData: () => api.get('/supplier/profile/privacy/my-data').then((r) => unwrap<unknown>(r)),
   deletionRequest: () => api.get('/supplier/profile/privacy/deletion-request').then((r) => unwrap<DeletionRequest | null>(r)),
   requestDeletion: (reason: string) =>

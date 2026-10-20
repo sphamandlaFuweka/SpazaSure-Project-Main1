@@ -48,6 +48,17 @@ const docLabels: Record<string, string> = {
   tax_clearance: 'Tax Clearance Certificate',
   bee_certificate: 'BEE Certificate',
   product_license: 'Product License',
+  business_permit: 'Business Permit',
+  health_certificate: 'Health Certificate',
+  health_cert: 'Health Certificate',
+  lease_agreement: 'Lease Agreement',
+  id_document: 'ID Document',
+};
+
+/** Documents each kind of account needs (shops: same list as the SpazaSure Verified sticker). */
+const requiredDocsFor: Record<DocTab, string[]> = {
+  supplier: ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'],
+  spaza: ['business_permit', 'health_certificate'],
 };
 
 const docIcons: Record<string, LucideIcon> = {
@@ -173,7 +184,7 @@ export default function DocumentVerificationPage() {
     }
     grouped.get(key)!.docs.push(doc);
   });
-  const requiredDocs = ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'];
+  const requiredDocs = requiredDocsFor[activeTab];
 
   return (
     <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in">

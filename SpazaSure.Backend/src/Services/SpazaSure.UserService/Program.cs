@@ -136,5 +136,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 SpazaSure.Shared.Helpers.AdminAccessExtensions.UseAdminAccess(app);
 app.MapControllers();
+SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "users", (services, ct) =>
+    Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+        .GetRequiredService<SpazaSure.Infrastructure.Data.SpazaSureDbContext>(services).Database.CanConnectAsync(ct));
 
 app.Run();

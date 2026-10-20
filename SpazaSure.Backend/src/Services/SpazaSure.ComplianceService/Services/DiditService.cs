@@ -26,6 +26,16 @@ public sealed class DiditService(HttpClient httpClient, IConfiguration config)
     public string? ShopCallbackUrl => NullIfEmpty(config["Didit:ShopCallbackUrl"]);
     public string? SupplierCallbackUrl => NullIfEmpty(config["Didit:SupplierCallbackUrl"]);
 
+    /// <summary>
+    /// Set Didit:Sandbox to true while using a sandbox API key. Sandbox returns made-up ID and
+    /// company data, so the profile match check is skipped for it.
+    /// </summary>
+    public bool IsSandbox => bool.TryParse(config["Didit:Sandbox"], out var sandbox) && sandbox;
+
+    /// <summary>Didit's reply when the account has run out of prepaid credit.</summary>
+    public static bool IsOutOfCredit(HttpRequestException ex) =>
+        ex.Message.Contains("enough credits", StringComparison.OrdinalIgnoreCase);
+
     public sealed record Session(string SessionId, string Url, string Status);
     /// <summary>A session's status plus Didit's full decision (feature results), detached from the response.</summary>
     public sealed record Decision(string Status, JsonElement Details);

@@ -8,6 +8,7 @@ import { resolveUploadUrl } from '../../services/api';
 import PageTransition from '../ui/PageTransition';
 import GlobalSearch from '../ui/GlobalSearch';
 import NotificationBell from '../ui/NotificationBell';
+import PrivacyConsentGate from '../ui/PrivacyConsentGate';
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -32,6 +33,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex min-h-[100dvh] bg-surface">
+      <PrivacyConsentGate />
       {mobileMenuOpen && (
         <button
           type="button"

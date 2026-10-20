@@ -75,9 +75,10 @@ public IPv4 address. Keep `app` pointed at its current host. If you use AAAA
 records, they must point to a working IPv6 endpoint as well.
 
 The deployment uploads `SpazaSure.Backend/nginx-spazasure.conf` to
-`/opt/spazasure`. It contains only the new API and portal hosts, so it can be
-enabled without replacing the existing `app` site's TLS configuration. On the
-server, install it and validate Nginx:
+`/opt/spazasure`. It contains the `api`, `portal` and `admin` hosts (the `app`
+host is configured separately), so it can be enabled without replacing the
+existing `app` site's TLS configuration. On a new server, install it and validate
+Nginx:
 
 ```sh
 sudo install -m 0644 /opt/spazasure/nginx-spazasure.conf /etc/nginx/sites-available/spazasure-domains
@@ -176,7 +177,70 @@ Then add these GitHub production secrets and redeploy the backend:
 
 Until they are set, the "Verify" buttons report that checks are unavailable and
 the webhook returns 503. Use a sandbox API key first; sandbox and live use
-different keys and workflows.
+different keys and workflows. While testing with a sandbox key, also set
+`PROD_DIDIT_SANDBOX` to `true`: sandbox returns made-up ID and company data, so
+the check that the document or company matches the profile is skipped. Remove it
+(or set `false`) when switching to the live key.
+
+When Didit runs out of credit, users see that checks are temporarily unavailable
+and admins get an alert (at most hourly). Top up at business.didit.me.
+
+## Privacy (POPIA)
+
+- The privacy notice is published at `https://portal.spazasure.co.za/privacy`.
+  Fill in the company and Information Officer details at the top of
+  `supplier-portal/src/pages/public/PrivacyNoticePage.tsx`, and have the wording
+  reviewed before launch. When the wording changes, update the version there and
+  in `SpazaSure.Shared/Helpers/PrivacyNotice.cs`; everyone is then asked to accept
+  the new version at their next sign-in.
+- Registration requires accepting the notice. Consents are recorded in
+  `auth_audit_logs` as `consent_{kind}:{version}`.
+- Users can download their data and ask for their account to be deleted. Master
+  admins approve deletions on the admin console's Deletion Requests page (respond
+  within 30 days).
+- Compliance documents and report photos are only served through links the API
+  signs for 30 minutes. Keep uploads on the server's local storage: private files
+  in S3 would need pre-signed links, which are not implemented yet.
+
+## Monitoring
+
+`https://api.spazasure.co.za/health` returns 200 when every service is running and
+can reach the database, and 503 (listing what is down) otherwise. Point an uptime
+monitor such as UptimeRobot at it, checking every 5 minutes and alerting by email
+or SMS.
+
+## Backups
+
+The `postgres-backup` container makes a verified database backup and an archive of
+uploaded documents and photos every day, kept for 14 days in
+`/opt/spazasure/backups`. To also copy them off the server (recommended), for
+example to a Hetzner Storage Box:
+
+1. Order a Storage Box and enable SSH access.
+2. On the server, create a key: `ssh-keygen -t ed25519 -N "" -f /opt/spazasure/backups/offsite_key`
+3. Add `offsite_key.pub` to the Storage Box's authorised keys (see Hetzner's Storage Box SSH docs).
+4. Set the GitHub secret `PROD_BACKUP_OFFSITE_TARGET` to e.g.
+   `u12345@u12345.your-storagebox.de:spazasure` and redeploy.
+
+Off-site copies are never deleted by the server, so clear old ones on the Storage
+Box yourself (or use its snapshots). Check `docker logs spazasure-prod-db-backup`
+for "Off-site copy succeeded".
+
+## Security headers
+
+The API gateway sends HSTS, `X-Content-Type-Options`, `Referrer-Policy` and a
+`frame-ancestors` policy on every response. The repository's Nginx config adds the
+same headers for `portal` and `admin`. On a server where Certbot has already edited
+the live site files, add these lines inside each `server { ... }` block for
+`portal` and `admin` (in `/etc/nginx/sites-available/`), then run
+`sudo nginx -t && sudo systemctl reload nginx`:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+```
 
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and

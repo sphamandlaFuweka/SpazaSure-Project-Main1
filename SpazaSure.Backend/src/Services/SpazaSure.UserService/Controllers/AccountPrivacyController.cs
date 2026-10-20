@@ -24,6 +24,32 @@ public class AccountPrivacyController(SpazaSureDbContext db, EventPublisher even
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string Role => User.FindFirstValue(ClaimTypes.Role) ?? "";
 
+    /// <summary>
+    /// Whether the user has accepted the current privacy notice. People who registered before it
+    /// existed, or before it last changed, are asked again after signing in.
+    /// </summary>
+    [HttpGet("consent")]
+    public async Task<IActionResult> GetConsent(CancellationToken ct)
+    {
+        var current = CurrentNoticeConsentEvent;
+        var accepted = await db.AuthAuditLogs.AnyAsync(a => a.UserId == UserId && a.Event == current, ct);
+        return Ok(ApiResponse<object>.Ok(new { accepted, version = PrivacyNotice.Version, url = PrivacyNotice.Url }));
+    }
+
+    [HttpPost("consent")]
+    public async Task<IActionResult> AcceptConsent(CancellationToken ct)
+    {
+        var current = CurrentNoticeConsentEvent;
+        if (!await db.AuthAuditLogs.AnyAsync(a => a.UserId == UserId && a.Event == current, ct))
+        {
+            Consents.Record(db, UserId, Consents.PrivacyNotice, ClientIp);
+            await db.SaveChangesAsync(ct);
+        }
+        return Ok(ApiResponse.Ok("Thank you. Your consent has been recorded."));
+    }
+
+    private static string CurrentNoticeConsentEvent => $"consent_{Consents.PrivacyNotice}:{PrivacyNotice.Version}";
+
     [HttpGet("my-data")]
     public async Task<IActionResult> MyData(CancellationToken ct)
     {

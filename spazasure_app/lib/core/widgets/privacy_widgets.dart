@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +14,59 @@ const privacyNoticeUrl = 'https://portal.spazasure.co.za/privacy';
 
 Future<void> openPrivacyNotice() =>
     launchUrl(Uri.parse(privacyNoticeUrl), mode: LaunchMode.externalApplication);
+
+/// Asks people who haven't accepted the current privacy notice (e.g. they registered before it
+/// existed, or it has changed) to accept it, or sign out. Call once after sign-in.
+Future<void> ensurePrivacyConsent(BuildContext context, PrivacyService service) async {
+  try {
+    if (await service.hasAcceptedNotice()) return;
+  } catch (_) {
+    return; // offline or server trouble: ask next time rather than block the app
+  }
+  if (!context.mounted) return;
+  final agreed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Our privacy notice'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'SpazaSure has a privacy notice explaining how we handle your personal information, '
+              'including identity checks by our partner Didit, which take place outside South Africa. '
+              'Please read it and agree to keep using SpazaSure.',
+              style: TextStyle(fontSize: 13),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              onPressed: openPrivacyNotice,
+              child: const Text('Read the privacy notice'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Sign out')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('I agree')),
+        ],
+      ),
+    ),
+  );
+  if (!context.mounted) return;
+  if (agreed == true) {
+    try {
+      await service.acceptNotice();
+    } catch (_) {
+      // Not recorded; they'll be asked again next time.
+    }
+    return;
+  }
+  await context.read<AuthProvider>().logout();
+  if (context.mounted) Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+}
 
 /// The consent people must give to register. The server records it with the notice version.
 class PrivacyConsentTile extends StatelessWidget {

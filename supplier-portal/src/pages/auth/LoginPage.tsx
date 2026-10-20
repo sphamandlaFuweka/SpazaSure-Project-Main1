@@ -95,8 +95,12 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       setTimeout(() => navigate(__APP_TARGET__ === 'admin' ? '/admin/dashboard' : '/dashboard'), 50);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Invalid credentials. Please try again.');
+      const response = (err as { response?: { status?: number; data?: { message?: string } } })?.response;
+      if (response?.data?.message) toast.error(response.data.message);
+      // No response at all: offline, or the browser blocked the request. Not a wrong password.
+      else if (!response) toast.error("Can't reach SpazaSure right now. Check your connection and try again.");
+      else if ((response.status ?? 0) >= 500) toast.error('Something went wrong on our side. Please try again in a few minutes.');
+      else toast.error('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }
