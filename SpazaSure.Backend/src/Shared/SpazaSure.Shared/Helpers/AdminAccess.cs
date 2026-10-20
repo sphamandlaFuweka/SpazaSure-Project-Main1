@@ -43,6 +43,7 @@ public static class AdminAccess
     [
         ("/api/admin/me", "*"),
         ("/api/admin/team", null),
+        ("/api/admin/deletion-requests", null), // erases accounts, so master admins only
         ("/api/admin/suppliers", Trust),
         ("/api/admin/spaza-owners", Trust),
         ("/api/admin/reports", Trust),

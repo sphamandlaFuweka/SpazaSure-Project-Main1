@@ -32,7 +32,7 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         {
             d.Id,
             d.DocType,
-            d.DocUrl,
+            DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
             d.Status,
             d.ExpiryDate,
             d.RejectionNote,
@@ -72,7 +72,7 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         {
             d.Id,
             d.DocType,
-            d.DocUrl,
+            DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
             d.Status,
             d.ExpiryDate,
             d.RejectionNote,

@@ -89,6 +89,44 @@ public class IdentityChecksController(
         return await StartAsync(supplier, didit.SupplierWorkflowId, SupplierVendorPrefix + supplier.Id, didit.SupplierCallbackUrl, expected, ct);
     }
 
+    [HttpPost("admin/{subjectType}/{id:guid}/session")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> StartForAdmin(string subjectType, Guid id, CancellationToken ct)
+    {
+        if (subjectType.Equals("shop", StringComparison.OrdinalIgnoreCase))
+        {
+            var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == id, ct);
+            if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+            if (!SaValidation.IsValidIdNumber(shop.OwnerIdNumber))
+                return BadRequest(ApiResponse.Fail("Add a valid 13-digit South African ID number to the shop profile first."));
+            if (shop.Latitude is null || shop.Longitude is null)
+                return BadRequest(ApiResponse.Fail("Confirm the shop's address on the map in its profile first."));
+
+            var expected = new { identification_number = shop.OwnerIdNumber, id_country = "ZAF" };
+            return await StartAsync(shop, didit.ShopWorkflowId, ShopVendorPrefix + shop.Id, didit.ShopCallbackUrl, expected, ct);
+        }
+
+        if (subjectType.Equals("supplier", StringComparison.OrdinalIgnoreCase))
+        {
+            var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct);
+            if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+            if (!SaValidation.IsValidCompanyRegistration(supplier.RegistrationNumber))
+                return BadRequest(ApiResponse.Fail("Add a valid CIPC registration number to the supplier profile first."));
+            if (supplier.Latitude is null || supplier.Longitude is null)
+                return BadRequest(ApiResponse.Fail("Confirm the supplier's business address in its profile first."));
+
+            var expected = new Dictionary<string, string>
+            {
+                ["company_name"] = supplier.CompanyName,
+                ["registry_country"] = "ZA",
+                ["registration_number"] = supplier.RegistrationNumber!,
+            };
+            return await StartAsync(supplier, didit.SupplierWorkflowId, SupplierVendorPrefix + supplier.Id, didit.SupplierCallbackUrl, expected, ct);
+        }
+
+        return BadRequest(ApiResponse.Fail("Choose a shop or supplier identity check."));
+    }
+
     [HttpPost("didit/webhook")]
     [AllowAnonymous]
     [RequestSizeLimit(1_048_576)]
@@ -154,6 +192,8 @@ public class IdentityChecksController(
         subject.IdentityCheckStatus = session.Status;
         subject.IdentityCheckNotes = null;
         subject.IdentityCheckUpdatedAt = DateTime.UtcNow;
+        // Starting the check is the consent shown on the button (Didit, Home Affairs/CIPC, sanctions).
+        Consents.Record(db, subject.UserId, Consents.IdentityCheck, HttpContext?.Connection.RemoteIpAddress?.ToString());
         await db.SaveChangesAsync(ct);
 
         return Ok(ApiResponse<object>.Ok(new { url = session.Url, status = session.Status }));

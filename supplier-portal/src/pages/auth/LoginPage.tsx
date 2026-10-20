@@ -284,8 +284,6 @@ export default function LoginPage() {
           <div style={stagger(280)} className="flex items-center justify-center gap-4 mt-6 text-[11px] text-gray-400 font-medium">
             <span className="flex items-center gap-1"><Lock size={12} /> SSL Encrypted</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
-            <span className="flex items-center gap-1"><ShieldCheck size={12} /> POPIA Compliant</span>
-            <span className="w-1 h-1 rounded-full bg-gray-300" />
             <span className="flex items-center gap-1"><BadgeCheck size={12} /> CIPC Verified</span>
           </div>
         </div>

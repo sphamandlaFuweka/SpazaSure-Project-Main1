@@ -60,12 +60,13 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
                 s.Tier,
                 IsVerified = s.Status == "verified",
                 s.Status,
+                IdentityCheckStatus = s.IdentityCheckStatus,
                 JoinedAt = s.CreatedAt,
                 Documents = s.Documents.Select(d => new
                 {
                     d.Id,
                     d.DocType,
-                    d.DocUrl,
+                    DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
                     d.Status,
                     d.ExpiryDate,
                     d.RejectionNote
@@ -174,6 +175,7 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
             s.Longitude,
             IsVerified = s.Status == "verified",
             s.Status,
+            IdentityCheckStatus = s.IdentityCheckStatus,
             s.ComplianceStatus,
             RegistrationDetails = s.RegistrationDetails is null
                 ? (JsonElement?)null
@@ -183,7 +185,7 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
             {
                 d.Id,
                 d.DocType,
-                d.DocUrl,
+                DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
                 d.Status,
                 d.ExpiryDate,
                 d.RejectionNote
@@ -364,7 +366,7 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
                 r.ShopName,
                 r.IsAnonymous,
                 r.Description,
-                r.PhotoUrl,
+                PhotoUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(r.PhotoUrl),
                 r.BatchNumber,
                 r.SerialCode,
                 r.ShopAddress,

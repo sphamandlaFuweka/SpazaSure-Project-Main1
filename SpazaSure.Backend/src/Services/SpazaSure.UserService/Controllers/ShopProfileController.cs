@@ -70,7 +70,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             {
                 d.Id,
                 d.DocType,
-                d.DocUrl,
+                DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
                 d.Status,
                 d.ExpiryDate,
                 d.RejectionNote
@@ -191,6 +191,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             .FirstOrDefaultAsync(d => d.ShopId == shop.Id && d.DocType == docType);
 
         var resubmitted = existing?.Status == "rejected";
+        var replacedUrl = existing?.DocUrl;
         if (existing is not null)
         {
             existing.DocUrl = docUrl;
@@ -209,10 +210,13 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         }
 
         await db.SaveChangesAsync();
+        // Don't keep the replaced copy of someone's documents (POPIA s14: no longer than needed).
+        if (!string.IsNullOrEmpty(replacedUrl) && replacedUrl != docUrl)
+            await storage.DeleteAsync(replacedUrl, HttpContext.RequestAborted);
         await AdminAlerts.NotifyAdminsAsync(db, events, "compliance",
             resubmitted ? "Rejected document resubmitted" : "Document waiting for review",
             $"{shop.ShopName} {(resubmitted ? "re-uploaded" : "uploaded")} a {docType.Replace('_', ' ')} document.", shop.Id.ToString());
-        return Ok(ApiResponse<object>.Ok(new { docType, docUrl, status = "pending" }));
+        return Ok(ApiResponse<object>.Ok(new { docType, docUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(docUrl), status = "pending" }));
     }
 
     /// <summary>
@@ -231,7 +235,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             {
                 d.Id,
                 d.DocType,
-                d.DocUrl,
+                DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
                 d.Status,
                 d.ExpiryDate,
                 d.RejectionNote,

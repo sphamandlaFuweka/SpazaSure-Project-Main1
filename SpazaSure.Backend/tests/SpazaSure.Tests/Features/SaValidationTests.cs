@@ -66,7 +66,7 @@ public class SaValidationTests
         var service = new ShopAuthService(db, ConfigHelper.Build());
 
         var result = await service.RegisterAsync(
-            new ShopRegisterRequest(phone, "StrongPassword123", "Test Owner", "Test Shop", "1 Main Street", idNumber),
+            new ShopRegisterRequest(phone, "StrongPassword123", "Test Owner", "Test Shop", "1 Main Street", idNumber, AcceptedPrivacyNotice: true),
             "127.0.0.1");
 
         result.Success.Should().BeFalse();

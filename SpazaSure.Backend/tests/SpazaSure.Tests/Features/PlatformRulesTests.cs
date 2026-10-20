@@ -91,7 +91,7 @@ public class PlatformRulesTests
         var svc = new AuthenticationService(db, ConfigHelper.Build());
 
         await svc.RegisterAsync(new RegisterRequest("supplier", "approval@test.com", "0820000055",
-            "Password123!", "Approval Co", "Lindiwe", null, null, null), "127.0.0.1");
+            "Password123!", "Approval Co", "Lindiwe", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         (await db.Suppliers.SingleAsync()).Status.Should().Be(expectedStatus);
     }

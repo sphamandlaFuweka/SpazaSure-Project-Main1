@@ -82,6 +82,7 @@ builder.Services.AddCors(opt =>
 builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
 
 var app = builder.Build();
+SpazaSure.Shared.Helpers.PrivateFiles.Configure(builder.Configuration["Jwt:Secret"]);
 
 app.UseSpazaSureExceptionHandling();
 app.UseCors("SupplierPortal");
@@ -115,6 +116,8 @@ contentTypeProvider.Mappings[".jpg"] = "image/jpeg";
 contentTypeProvider.Mappings[".jpeg"] = "image/jpeg";
 contentTypeProvider.Mappings[".png"] = "image/png";
 
+// ID documents and other private files need a signed link (POPIA s19).
+SpazaSure.Shared.Helpers.PrivateFiles.UsePrivateFiles(app);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(Path.GetFullPath(uploadsPath)),

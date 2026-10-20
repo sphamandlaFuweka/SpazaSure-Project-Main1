@@ -21,6 +21,7 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
     {
         if (req.Latitude.HasValue != req.Longitude.HasValue)
             return (false, "Location coordinates must be provided together.", null);
+        if (!req.AcceptedPrivacyNotice) return (false, PrivacyNotice.NotAcceptedMessage, null);
 
         var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
 
@@ -77,6 +78,8 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
             Event = "customer_register",
             IpAddress = ipAddress
         });
+        Consents.Record(db, user.Id, Consents.PrivacyNotice, ipAddress);
+        if (req.MarketingOptIn) Consents.Record(db, user.Id, Consents.Marketing, ipAddress);
         await db.SaveChangesAsync();
 
         return (true, null, await IssueTokensAsync(user, role, profile, ipAddress));

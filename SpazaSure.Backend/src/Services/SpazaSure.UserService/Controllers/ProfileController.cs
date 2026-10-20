@@ -34,7 +34,7 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
             supplier.BankName, supplier.BankAccount, supplier.BankBranchCode,
             supplier.LogoUrl, supplier.CommissionRate,
             Documents = supplier.Documents.Select(d => new {
-                d.Id, d.DocType, d.DocUrl, d.Status, d.ExpiryDate, d.RejectionNote
+                d.Id, d.DocType, DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl), d.Status, d.ExpiryDate, d.RejectionNote
             })
         }));
     }
@@ -130,6 +130,7 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
             var existing = await db.SupplierDocuments
                 .FirstOrDefaultAsync(d => d.SupplierId == supplier.Id && d.DocType == docType);
             var resubmitted = existing?.Status == "rejected";
+            var replacedUrl = existing?.DocUrl;
             if (existing is not null)
             {
                 existing.DocUrl = docUrl; existing.Status = "pending"; existing.RejectionNote = null;
@@ -141,10 +142,13 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
                 });
             }
             await db.SaveChangesAsync();
+            // Don't keep the replaced copy of the supplier's documents (POPIA s14: no longer than needed).
+            if (!string.IsNullOrEmpty(replacedUrl) && replacedUrl != docUrl)
+                await storage.DeleteAsync(replacedUrl, HttpContext.RequestAborted);
             await AdminAlerts.NotifyAdminsAsync(db, events, "compliance",
                 resubmitted ? "Rejected document resubmitted" : "Document waiting for review",
                 $"{supplier.CompanyName} {(resubmitted ? "re-uploaded" : "uploaded")} a {docType.Replace('_', ' ')} document.", supplier.Id.ToString());
-            return Ok(ApiResponse<object>.Ok(new { docType, docUrl, status = "pending" }));
+            return Ok(ApiResponse<object>.Ok(new { docType, docUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(docUrl), status = "pending" }));
         }
     }
 

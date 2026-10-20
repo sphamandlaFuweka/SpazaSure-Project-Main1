@@ -96,6 +96,9 @@ builder.Services.AddHttpClient<SpazaSure.ComplianceService.Services.DiditService
 builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
 
 var app = builder.Build();
+SpazaSure.Shared.Helpers.PrivateFiles.Configure(builder.Configuration["Jwt:Secret"]);
+// Report photos need a signed link (POPIA s19).
+SpazaSure.Shared.Helpers.PrivateFiles.UsePrivateFiles(app);
 
 // Static file serving for local-storage report photos (Storage:Provider =
 // "local" only — in "s3" mode files are served directly from the bucket's

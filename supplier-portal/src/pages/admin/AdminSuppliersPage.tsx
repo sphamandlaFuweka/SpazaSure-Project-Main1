@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl, apiErrorMessage } from '../../services/api';
+import { openAdminDiditCheck } from '../../services/adminDidit';
 import { TierBadge, Spinner } from '../../components/ui';
 import { Check as CheckIc, X as XIc } from 'lucide-react';
 
@@ -31,6 +32,7 @@ interface Supplier {
   tier: string;
   isVerified: boolean;
   isSuspended: boolean;
+  identityCheckStatus?: string | null;
   joinedAt: string;
   totalOrders: number;
   totalRevenue: number;
@@ -48,6 +50,7 @@ interface SpazaOwner {
   location: string;
   isVerified: boolean;
   isSuspended: boolean;
+  identityCheckStatus?: string | null;
   joinedAt: string;
   totalOrders: number;
   totalSpent: number;
@@ -93,6 +96,7 @@ export default function AdminSuppliersPage() {
         tier: s.tier ?? 'basic',
         isVerified: s.isVerified ?? s.status === 'verified',
         isSuspended: s.status === 'suspended',
+        identityCheckStatus: s.identityCheckStatus ?? null,
         joinedAt: s.joinedAt ?? s.createdAt ?? new Date().toISOString(),
         totalOrders: s.totalOrders ?? 0,
         totalRevenue: s.totalRevenue ?? 0,
@@ -132,6 +136,7 @@ export default function AdminSuppliersPage() {
         location: [o.address, o.city, o.province].filter(Boolean).join(', ') || o.location || '',
         isVerified: o.isVerified ?? o.status === 'verified',
         isSuspended: o.status === 'suspended',
+        identityCheckStatus: o.identityCheckStatus ?? null,
         joinedAt: o.joinedAt ?? o.createdAt ?? '',
         totalOrders: o.totalOrders ?? 0,
         totalSpent: o.totalSpent ?? 0,
@@ -160,6 +165,13 @@ export default function AdminSuppliersPage() {
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
   const verifySupplier = async (id: string) => {
+    const supplier = suppliers.find((item) => item.id === id) ?? selectedSupplier;
+    if (supplier?.identityCheckStatus !== 'Approved') {
+      if (await openAdminDiditCheck('supplier', id, supplier?.companyName ?? 'supplier')) {
+        fetchSuppliers();
+      }
+      return;
+    }
     try {
       await adminSuppliersApi.verify(id);
       toast.success('Supplier verified successfully');
@@ -171,6 +183,13 @@ export default function AdminSuppliersPage() {
   };
 
   const verifySpazaOwner = async (id: string) => {
+    const shop = spazaOwners.find((item) => item.id === id) ?? selectedSpaza;
+    if (shop?.identityCheckStatus !== 'Approved') {
+      if (await openAdminDiditCheck('shop', id, shop?.shopName ?? 'shop')) {
+        fetchSpazaOwners();
+      }
+      return;
+    }
     try {
       await adminSpazaOwnersApi.verify(id);
       toast.success('Spaza owner verified successfully');
@@ -460,7 +479,7 @@ export default function AdminSuppliersPage() {
                               <button
                                 onClick={() => verifySupplier(s.id)}
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                                title="Verify Supplier"
+                                title={s.identityCheckStatus === 'Approved' ? 'Verify Supplier' : 'Verify with Didit'}
                               >
                                 <ShieldCheck size={14} />
                               </button>
@@ -653,7 +672,7 @@ export default function AdminSuppliersPage() {
                               <button
                                 onClick={() => verifySpazaOwner(o.id)}
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                                title="Verify Spaza Owner"
+                                title={o.identityCheckStatus === 'Approved' ? 'Verify Spaza Owner' : 'Verify with Didit'}
                               >
                                 <ShieldCheck size={14} />
                               </button>
@@ -835,7 +854,9 @@ export default function AdminSuppliersPage() {
                     onClick={() => verifySupplier(selectedSupplier.id)}
                     className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    <ShieldCheck size={14} /> {selectedSupplier.isSuspended ? 'Reinstate Supplier' : 'Verify Supplier'}
+                    <ShieldCheck size={14} /> {selectedSupplier.identityCheckStatus === 'Approved'
+                      ? (selectedSupplier.isSuspended ? 'Reinstate Supplier' : 'Verify Supplier')
+                      : 'Verify with Didit'}
                   </button>
                 )}
               </div>
@@ -1021,7 +1042,9 @@ export default function AdminSuppliersPage() {
                     onClick={() => verifySpazaOwner(selectedSpaza.id)}
                     className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    <ShieldCheck size={14} /> {selectedSpaza.isSuspended ? 'Reinstate Spaza Owner' : 'Verify Spaza Owner'}
+                    <ShieldCheck size={14} /> {selectedSpaza.identityCheckStatus === 'Approved'
+                      ? (selectedSpaza.isSuspended ? 'Reinstate Spaza Owner' : 'Verify Spaza Owner')
+                      : 'Verify with Didit'}
                   </button>
                 )}
               </div>

@@ -17,7 +17,8 @@ public record RegisterRequest(
     string? Province = null,
     string? PostalCode = null,
     double? Latitude = null,
-    double? Longitude = null
+    double? Longitude = null,
+    bool AcceptedPrivacyNotice = false
 );
 
 public record LoginRequest(
@@ -66,7 +67,8 @@ public record ShopRegisterRequest(
     double? Latitude = null,
     double? Longitude = null,
     string? Email = null,
-    JsonElement? RegistrationDetails = null
+    JsonElement? RegistrationDetails = null,
+    bool AcceptedPrivacyNotice = false
 );
 
 public record ShopAuthResponse(
@@ -103,7 +105,8 @@ public record CustomerRegisterRequest(
     [Range(-180, 180)] double? Longitude = null,
     List<string>? Interests = null,
     List<string>? NotificationPreferences = null,
-    bool MarketingOptIn = false
+    bool MarketingOptIn = false,
+    bool AcceptedPrivacyNotice = false
 );
 
 public record CustomerAuthResponse(

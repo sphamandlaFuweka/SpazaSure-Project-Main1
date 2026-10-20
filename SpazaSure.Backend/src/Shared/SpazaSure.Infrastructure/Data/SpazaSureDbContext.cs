@@ -12,6 +12,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
     public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
+    public DbSet<AccountDeletionRequest> AccountDeletionRequests => Set<AccountDeletionRequest>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
@@ -92,6 +93,17 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("otp_codes");
             e.Property(code => code.FailedAttempts).HasDefaultValue(0);
+        });
+
+        model.Entity<AccountDeletionRequest>(e =>
+        {
+            e.ToTable("account_deletion_requests");
+            e.Property(r => r.Role).HasMaxLength(20);
+            e.Property(r => r.Reason).HasMaxLength(1000);
+            e.Property(r => r.Status).HasMaxLength(20);
+            e.Property(r => r.DecisionNote).HasMaxLength(1000);
+            e.HasIndex(r => r.UserId);
+            e.HasIndex(r => r.Status);
         });
 
         // AuthAuditLog  long PK, no BaseEntity

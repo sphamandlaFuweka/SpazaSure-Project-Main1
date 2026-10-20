@@ -1673,6 +1673,22 @@ ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_notes varchar(2000
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_updated_at timestamp with time zone;
 CREATE INDEX IF NOT EXISTS ix_suppliers_identity_check_session_id ON suppliers(identity_check_session_id);
 
+-- POPIA s24: requests from users to delete their account; a master admin approves them.
+CREATE TABLE IF NOT EXISTS account_deletion_requests (
+    id uuid NOT NULL CONSTRAINT pk_account_deletion_requests PRIMARY KEY,
+    user_id uuid NOT NULL,
+    role varchar(20) NOT NULL,
+    reason varchar(1000),
+    status varchar(20) NOT NULL,
+    decided_at timestamp with time zone,
+    decided_by_user_id uuid,
+    decision_note varchar(1000),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_status ON account_deletion_requests(status);
+CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_user_id ON account_deletion_requests(user_id);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

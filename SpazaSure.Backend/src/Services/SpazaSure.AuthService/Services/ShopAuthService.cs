@@ -52,6 +52,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
 
         var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return (false, addressError, null);
+        if (!req.AcceptedPrivacyNotice) return (false, PrivacyNotice.NotAcceptedMessage, null);
         if (SaValidation.NormalizePhone(req.Phone) is null)
             return (false, "Enter a valid South African mobile number, e.g. 082 123 4567.", null);
         // The owner's ID is checked against Home Affairs during the identity check, so it must be real.
@@ -103,6 +104,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
             Event = "shop_register",
             IpAddress = ipAddress
         });
+        Consents.Record(db, user.Id, Consents.PrivacyNotice, ipAddress);
 
         await db.SaveChangesAsync();
         return (true, null, await IssueTokensAsync(user, role, shop, ipAddress));

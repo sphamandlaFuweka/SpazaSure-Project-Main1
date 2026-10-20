@@ -14,7 +14,7 @@ public class SuspendedAccountTests
         var db = DbContextHelper.CreateInMemoryDb();
         var svc = new AuthenticationService(db, ConfigHelper.Build());
         var (_, _, data) = await svc.RegisterAsync(new RegisterRequest("supplier", email, "0820000077",
-            "Password123!", "Suspend Co", "Sipho", null, null, null), "127.0.0.1");
+            "Password123!", "Suspend Co", "Sipho", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
         return (svc, db, data!);
     }
 
