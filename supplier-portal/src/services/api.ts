@@ -448,8 +448,8 @@ export const downloadJson = (data: unknown, fileName: string) => {
 /** The supplier's business check with Didit (CIPC registration, directors, sanctions). */
 export const businessCheckApi = {
   get: () => api.get('/compliance/identity/supplier').then((r) => unwrap<IdentityCheck>(r)),
-  /** Starts (or resumes) the check and returns the Didit link to open. */
-  start: () => api.post('/compliance/identity/supplier/session').then((r) => unwrap<{ url: string; status: string }>(r)),
+  /** Starts the check. It runs on the server (CIPC register and sanctions screening); nothing opens. */
+  start: () => api.post('/compliance/identity/supplier/session').then((r) => unwrap<{ url: string | null; status: string }>(r)),
 };
 
 export const adminTeamApi = {

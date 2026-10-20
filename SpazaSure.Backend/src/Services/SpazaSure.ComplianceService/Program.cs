@@ -90,7 +90,7 @@ builder.Services.AddCors(opt =>
          .AllowCredentials()));
 
 // Didit identity checks for shop owners and suppliers.
-builder.Services.AddHttpClient<SpazaSure.ComplianceService.Services.DiditService>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddHttpClient<SpazaSure.ComplianceService.Services.DiditService>(c => c.Timeout = TimeSpan.FromSeconds(120));
 
 // Dashboard staff roles: which admin areas each staff member may view or manage.
 builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();

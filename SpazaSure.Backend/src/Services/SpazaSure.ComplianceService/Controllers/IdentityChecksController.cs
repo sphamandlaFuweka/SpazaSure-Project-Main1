@@ -12,9 +12,10 @@ using SpazaSure.Shared.Models;
 namespace SpazaSure.ComplianceService.Controllers;
 
 /// <summary>
-/// Didit identity checks. A shop owner verifies their identity (needed for the green sticker) and
-/// a supplier verifies their business; each gets a link to Didit's hosted check, and the result
-/// arrives on the webhook. Admins see the result next to the compliance documents.
+/// Didit identity checks. A shop owner verifies their identity in the app (needed for the green
+/// sticker) on Didit's hosted check, whose result arrives on the webhook. A supplier's business is
+/// checked entirely on the server (CIPC register and sanctions screening), with no link, and admins
+/// can run checks that complete on the server too. Admins see each result next to the documents.
 /// </summary>
 [ApiController]
 [Route("api/compliance/identity")]
@@ -22,11 +23,15 @@ public class IdentityChecksController(
     SpazaSureDbContext db,
     DiditService didit,
     EventPublisher events,
+    IServiceScopeFactory scopeFactory,
     ILogger<IdentityChecksController> logger) : ControllerBase
 {
     private const string ShopVendorPrefix = "shop:";
     private const string SupplierVendorPrefix = "supplier:";
     private static readonly HashSet<string> FinalStatuses = ["Approved", "Declined"];
+    /// <summary>Session ids of checks run on the server (not a Didit hosted session).</summary>
+    private const string ServerPrefix = "server:";
+    private static readonly TimeSpan ServerCheckTimeout = TimeSpan.FromMinutes(4);
     /// <summary>When admins were last told Didit is out of credit, so they get one alert an hour.</summary>
     private static long _lastCreditAlertTicks;
 
@@ -82,30 +87,31 @@ public class IdentityChecksController(
         if (supplier.Latitude is null || supplier.Longitude is null)
             return BadRequest(ApiResponse.Fail("Confirm your business address under Company Information first."));
 
-        var expected = new Dictionary<string, string>
-        {
-            ["company_name"] = supplier.CompanyName,
-            ["registry_country"] = "ZA",
-            ["registration_number"] = supplier.RegistrationNumber!,
-        };
-        return await StartAsync(supplier, didit.SupplierWorkflowId, SupplierVendorPrefix + supplier.Id, didit.SupplierCallbackUrl, expected, ct);
+        // Checked on the server (CIPC register + sanctions screening): nothing for the supplier to open.
+        return await StartServerCheckAsync(supplier, adminName: null, ct);
     }
 
-    [HttpPost("admin/{subjectType}/{id:guid}/session")]
+    /// <summary>
+    /// Admin-run check that completes on the server, with no link to open. Suppliers: CIPC register
+    /// and sanctions screening. Shops: the admin confirms they have seen the owner's original ID in
+    /// person, then the owner is screened against sanctions lists.
+    /// </summary>
+    [HttpPost("admin/{subjectType}/{id:guid}/check")]
     [Authorize(Roles = "admin")]
-    public async Task<IActionResult> StartForAdmin(string subjectType, Guid id, CancellationToken ct)
+    public async Task<IActionResult> CheckForAdmin(string subjectType, Guid id, [FromBody] AdminCheckBody? body, CancellationToken ct)
     {
+        var admin = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == UserId, ct);
+        var adminName = admin?.DisplayName ?? admin?.Email ?? "a SpazaSure admin";
+
         if (subjectType.Equals("shop", StringComparison.OrdinalIgnoreCase))
         {
             var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == id, ct);
             if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
             if (!SaValidation.IsValidIdNumber(shop.OwnerIdNumber))
                 return BadRequest(ApiResponse.Fail("Add a valid 13-digit South African ID number to the shop profile first."));
-            if (shop.Latitude is null || shop.Longitude is null)
-                return BadRequest(ApiResponse.Fail("Confirm the shop's address on the map in its profile first."));
-
-            var expected = new { identification_number = shop.OwnerIdNumber, id_country = "ZAF" };
-            return await StartAsync(shop, didit.ShopWorkflowId, ShopVendorPrefix + shop.Id, didit.ShopCallbackUrl, expected, ct);
+            if (body?.IdSeenInPerson != true)
+                return BadRequest(ApiResponse.Fail("Confirm that you have seen the owner's original ID document in person and that it matches the profile."));
+            return await StartServerCheckAsync(shop, adminName, ct);
         }
 
         if (subjectType.Equals("supplier", StringComparison.OrdinalIgnoreCase))
@@ -114,19 +120,23 @@ public class IdentityChecksController(
             if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
             if (!SaValidation.IsValidCompanyRegistration(supplier.RegistrationNumber))
                 return BadRequest(ApiResponse.Fail("Add a valid CIPC registration number to the supplier profile first."));
-            if (supplier.Latitude is null || supplier.Longitude is null)
-                return BadRequest(ApiResponse.Fail("Confirm the supplier's business address in its profile first."));
-
-            var expected = new Dictionary<string, string>
-            {
-                ["company_name"] = supplier.CompanyName,
-                ["registry_country"] = "ZA",
-                ["registration_number"] = supplier.RegistrationNumber!,
-            };
-            return await StartAsync(supplier, didit.SupplierWorkflowId, SupplierVendorPrefix + supplier.Id, didit.SupplierCallbackUrl, expected, ct);
+            return await StartServerCheckAsync(supplier, adminName, ct);
         }
 
-        return BadRequest(ApiResponse.Fail("Choose a shop or supplier identity check."));
+        return BadRequest(ApiResponse.Fail("Choose a shop or supplier check."));
+    }
+
+    /// <summary>The current check status of a shop or supplier, for the admin console to follow a running check.</summary>
+    [HttpGet("admin/{subjectType}/{id:guid}")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> GetForAdmin(string subjectType, Guid id, CancellationToken ct)
+    {
+        IHasIdentityCheck? subject = subjectType.Equals("shop", StringComparison.OrdinalIgnoreCase)
+            ? await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == id, ct)
+            : await db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (subject is null) return NotFound(ApiResponse.Fail("Not found."));
+        await RefreshAsync(subject, ct);
+        return Ok(ApiResponse<object>.Ok(Describe(subject, [])));
     }
 
     [HttpPost("didit/webhook")]
@@ -216,6 +226,18 @@ public class IdentityChecksController(
     /// <summary>Asks Didit for the latest result when it's still open, in case a webhook was missed.</summary>
     private async Task RefreshAsync(IHasIdentityCheck subject, CancellationToken ct)
     {
+        if (subject.IdentityCheckSessionId?.StartsWith(ServerPrefix) == true)
+        {
+            // A server check that never finished (e.g. the service restarted): let it be started again.
+            if (subject.IdentityCheckStatus == "In Progress" && subject.IdentityCheckUpdatedAt < DateTime.UtcNow - ServerCheckTimeout)
+            {
+                subject.IdentityCheckStatus = null;
+                subject.IdentityCheckNotes = "The check didn't finish. Please start it again.";
+                subject.IdentityCheckUpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync(ct);
+            }
+            return;
+        }
         if (subject.IdentityCheckSessionId is null || !didit.IsConfigured ||
             (subject.IdentityCheckStatus is { } current && FinalStatuses.Contains(current)) ||
             subject.IdentityCheckUpdatedAt > DateTime.UtcNow.AddSeconds(-30))
@@ -276,6 +298,14 @@ public class IdentityChecksController(
         await db.SaveChangesAsync(ct);
 
         if (!changed || !FinalStatuses.Contains(status)) return;
+        NotifyResult(events, subject, sessionId);
+    }
+
+    /// <summary>Tells the shop owner or supplier their check passed or didn't.</summary>
+    private static void NotifyResult(EventPublisher events, IHasIdentityCheck subject, string sessionId)
+    {
+        var status = subject.IdentityCheckStatus;
+        if (status is null || !FinalStatuses.Contains(status)) return;
         var isShop = subject is SpazaShop;
         var approved = status == "Approved";
         events.PublishNotification(
@@ -290,6 +320,86 @@ public class IdentityChecksController(
             priority: approved ? "normal" : "high",
             referenceId: sessionId,
             routingKey: approved ? "compliance.approved" : "compliance.rejected");
+    }
+
+    /// <summary>
+    /// Starts a check that runs on the server and finishes by itself (usually within a minute;
+    /// the CIPC search can take up to about 90 seconds). The status is "In Progress" until then.
+    /// </summary>
+    private async Task<IActionResult> StartServerCheckAsync(IHasIdentityCheck subject, string? adminName, CancellationToken ct)
+    {
+        if (subject.IdentityCheckStatus == "Approved")
+            return Conflict(ApiResponse.Fail("Already verified."));
+        if (!didit.HasApiKey)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail("Checks are not available right now. Please try again later."));
+        if (subject.IdentityCheckStatus == "In Progress" && subject.IdentityCheckSessionId?.StartsWith(ServerPrefix) == true &&
+            subject.IdentityCheckUpdatedAt > DateTime.UtcNow - ServerCheckTimeout)
+            return Ok(ApiResponse<object>.Ok(new { status = "In Progress", url = (string?)null }, "The check is already running."));
+
+        var sessionId = ServerPrefix + Guid.NewGuid().ToString("N");
+        subject.IdentityCheckSessionId = sessionId;
+        subject.IdentityCheckStatus = "In Progress";
+        subject.IdentityCheckNotes = null;
+        subject.IdentityCheckUpdatedAt = DateTime.UtcNow;
+        if (adminName is null)
+            // The supplier pressing "Verify my business" is the consent shown on the button.
+            Consents.Record(db, subject.UserId, Consents.IdentityCheck, HttpContext?.Connection.RemoteIpAddress?.ToString());
+        else
+            db.AuthAuditLogs.Add(new AuthAuditLog { UserId = UserId, Event = $"identity_check_by_admin:{sessionId}" });
+        await db.SaveChangesAsync(ct);
+
+        var isShop = subject is SpazaShop;
+        var subjectId = subject is SpazaShop shop ? shop.Id : ((Supplier)subject).Id;
+        _ = Task.Run(() => RunServerCheckAsync(scopeFactory, isShop, subjectId, sessionId, adminName));
+
+        return Ok(ApiResponse<object>.Ok(new { status = "In Progress", url = (string?)null },
+            "Checking now. The result appears here within a minute or two."));
+    }
+
+    private static async Task RunServerCheckAsync(
+        IServiceScopeFactory scopeFactory, bool isShop, Guid subjectId, string sessionId, string? adminName)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var services = scope.ServiceProvider;
+        var db = services.GetRequiredService<SpazaSureDbContext>();
+        var didit = services.GetRequiredService<DiditService>();
+        var events = services.GetRequiredService<EventPublisher>();
+        var logger = services.GetRequiredService<ILogger<IdentityChecksController>>();
+        using var timeout = new CancellationTokenSource(ServerCheckTimeout);
+        var ct = timeout.Token;
+
+        IHasIdentityCheck? subject = isShop
+            ? await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == subjectId, ct)
+            : await db.Suppliers.FirstOrDefaultAsync(s => s.Id == subjectId, ct);
+        if (subject is null || subject.IdentityCheckSessionId != sessionId) return;
+
+        try
+        {
+            var outcome = subject switch
+            {
+                SpazaShop shop => await ServerChecks.CheckOwnerInPersonAsync(didit, shop, adminName ?? "a SpazaSure admin", ct),
+                Supplier supplier => await ServerChecks.CheckBusinessAsync(didit, supplier, didit.IsSandbox, ct),
+                _ => throw new InvalidOperationException("Unknown check."),
+            };
+            subject.IdentityCheckStatus = outcome.Status;
+            subject.IdentityCheckNotes = outcome.Notes.Length <= 2000 ? outcome.Notes : outcome.Notes[..2000];
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or KeyNotFoundException)
+        {
+            var outOfCredit = ex is HttpRequestException http && DiditService.IsOutOfCredit(http);
+            logger.LogError(ex, "Server check {SessionId} failed", sessionId);
+            if (outOfCredit && Interlocked.Exchange(ref _lastCreditAlertTicks, DateTime.UtcNow.Ticks) < DateTime.UtcNow.AddHours(-1).Ticks)
+                await AdminAlerts.NotifyAdminsAsync(db, events, "compliance", "Didit is out of credit",
+                    "Identity and business checks can't run until the Didit account is topped up at business.didit.me.", null);
+            subject.IdentityCheckStatus = null;
+            subject.IdentityCheckNotes = outOfCredit
+                ? "Checks are temporarily unavailable. SpazaSure has been notified; please try again later."
+                : "The check couldn't be completed. Please try again in a few minutes.";
+        }
+        subject.IdentityCheckUpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(CancellationToken.None);
+        NotifyResult(events, subject, sessionId);
     }
 
     private async Task<IHasIdentityCheck?> FindSubjectAsync(string sessionId, string? vendorData, CancellationToken ct)
@@ -320,8 +430,11 @@ public class IdentityChecksController(
         canStart = subject.IdentityCheckStatus != "Approved",
         updatedAt = subject.IdentityCheckUpdatedAt,
         // The main reason a check didn't pass (e.g. the ID number doesn't match the profile).
-        reason = subject.IdentityCheckStatus == "Declined" && !string.IsNullOrWhiteSpace(subject.IdentityCheckNotes)
+        reason = subject.IdentityCheckStatus is "Declined" or null && !string.IsNullOrWhiteSpace(subject.IdentityCheckNotes)
             ? subject.IdentityCheckNotes.Split('\n')[0]
             : null,
     };
 }
+
+/// <summary>The admin confirms they have seen the shop owner's original ID document in person.</summary>
+public record AdminCheckBody(bool IdSeenInPerson);

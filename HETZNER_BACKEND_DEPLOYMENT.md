@@ -149,6 +149,16 @@ dashboard. Their provider subscription IDs cannot be migrated into Paystack.
 
 ## Didit identity checks
 
+> **Suppliers and admin checks need no link.** A supplier's "Verify my business"
+> and an admin's Verify button run on the server through Didit's KYB registry
+> search (CIPC) and AML screening APIs, and the result appears by itself within a
+> minute or two. Make sure **KYB registry** and **AML screening** are enabled on the
+> Didit account. For an admin check of a shop owner, the admin confirms they have
+> seen the owner's original ID in person; the owner is then screened against
+> sanctions lists. Only a shop owner's own "Verify my identity" in the app uses the
+> Didit KYC workflow (ID photo and selfie). The supplier KYB workflow and
+> `PROD_DIDIT_SUPPLIER_WORKFLOW_ID` are no longer used.
+
 Shop owners verify their identity (ID document, selfie, Home Affairs and
 sanctions) from the app's Compliance screen, and suppliers verify their business
 (CIPC registration, directors and sanctions) from Profile → Documents. Both run on

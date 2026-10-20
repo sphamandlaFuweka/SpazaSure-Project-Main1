@@ -129,9 +129,10 @@ export default function AdminShopsMapPage() {
 
   const verify = async (shop: Shop) => {
     if (shop.identityCheckStatus !== 'Approved') {
-      if (await openAdminDiditCheck('shop', shop.id, shop.shopName)) {
+      const result = await openAdminDiditCheck('shop', shop.id, shop.shopName);
+      if (result) {
         setShops((prev) => prev.map((item) => item.id === shop.id
-          ? { ...item, identityCheckStatus: 'In Progress' }
+          ? { ...item, identityCheckStatus: result }
           : item));
       }
       return;

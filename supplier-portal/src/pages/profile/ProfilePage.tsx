@@ -762,7 +762,7 @@ export default function ProfilePage() {
 const businessCheckStates: Record<string, { label: string; help: string; tone: string; Icon: typeof CheckCircle }> = {
   'Approved':    { label: 'Verified',       help: 'Your company registration and directors have been confirmed.', tone: 'emerald', Icon: ShieldCheck },
   'In Review':   { label: 'Being reviewed', help: 'We will let you know when the review is done.', tone: 'amber', Icon: Clock },
-  'In Progress': { label: 'Started',        help: 'Finish the check to complete your business verification.', tone: 'sky', Icon: Clock },
+  'In Progress': { label: 'Checking…',      help: 'We are checking your company on the CIPC register and against sanctions lists. This takes a minute or two.', tone: 'sky', Icon: Clock },
   'Declined':    { label: 'Not passed',     help: 'Check that your registration number and director details are correct, then try again or contact support.', tone: 'red', Icon: XCircle },
   'Abandoned':   { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
   'Expired':     { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
@@ -785,13 +785,29 @@ function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
     businessCheckApi.get().then(setCheck).catch(() => setCheck(null));
   }, []);
 
+  // While the check runs on the server, follow it until the result is in.
+  useEffect(() => {
+    if (check?.status !== 'In Progress') return;
+    const timer = window.setInterval(() => {
+      businessCheckApi.get().then((latest) => {
+        setCheck(latest);
+        if (latest.status === 'Approved') toast.success('Your business is verified.');
+        else if (latest.status === 'Declined') toast.error(latest.reason ?? 'Your business check did not pass.');
+      }).catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [check?.status]);
+
   const start = async () => {
     setStarting(true);
     try {
-      const { url } = await businessCheckApi.start();
-      window.location.assign(url); // Didit brings the supplier back to /profile?verification=done
+      const { url, status } = await businessCheckApi.start();
+      if (url) { window.location.assign(url); return; }
+      setCheck((current) => ({ ...(current ?? { verified: false, canStart: true, updatedAt: null, reason: null, missing: [] }), status }));
+      toast.success('Checking your business now. The result appears here in a minute or two.');
     } catch (err: unknown) {
       toast.error(apiErrorMessage(err, 'Could not start the business check. Please try again.'));
+    } finally {
       setStarting(false);
     }
   };
@@ -799,12 +815,12 @@ function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
   const status = check?.status ?? 'Not Started';
   const state = businessCheckStates[status] ?? {
     label: 'Not started',
-    help: 'We confirm your company with CIPC and screen its directors. You will need a director’s ID. It takes a few minutes.',
+    help: 'We look your company up on the CIPC register and screen it against sanctions lists. It runs automatically and takes a minute or two.',
     tone: 'gray',
     Icon: Building2,
   };
   const missing = check?.missing ?? [];
-  const canStart = (check?.canStart ?? true) && status !== 'In Review' && missing.length === 0;
+  const canStart = (check?.canStart ?? true) && status !== 'In Review' && status !== 'In Progress' && missing.length === 0;
   const fixes = [
     missing.includes('registration_number') && 'add your CIPC registration number (e.g. 2020/123456/07)',
     missing.includes('address') && 'confirm your business address by picking it from the suggestions',
@@ -819,7 +835,7 @@ function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900">Business verification <span className="font-semibold">· {state.label}</span></p>
           <p className="text-xs text-gray-600 mt-0.5">{state.help}</p>
-          {status === 'Declined' && check?.reason && (
+          {status !== 'Approved' && check?.reason && (
             <p className="text-xs font-semibold text-red-700 mt-1">{check.reason}</p>
           )}
           {fixes.length > 0 && (
@@ -832,11 +848,11 @@ function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
             <>
               <button type="button" onClick={start} disabled={starting} className="btn-primary mt-3 inline-flex items-center gap-2 text-sm">
                 {starting ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                {status === 'In Progress' ? 'Continue business check' : 'Verify my business'}
+                Verify my business
               </button>
               <p className="text-[11px] text-gray-500 mt-2">
                 By continuing you agree that SpazaSure and its verification partner Didit may check your company
-                with CIPC and screen its directors against sanctions lists.
+                with CIPC and screen it against sanctions lists.
               </p>
             </>
           )}

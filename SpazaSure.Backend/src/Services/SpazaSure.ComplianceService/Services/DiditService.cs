@@ -21,6 +21,9 @@ public sealed class DiditService(HttpClient httpClient, IConfiguration config)
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(WebhookSecret);
 
+    /// <summary>Server-to-server checks (registry, AML) only need the API key, not the webhook.</summary>
+    public bool HasApiKey => !string.IsNullOrWhiteSpace(ApiKey);
+
     public string ShopWorkflowId => config["Didit:ShopWorkflowId"] ?? string.Empty;
     public string SupplierWorkflowId => config["Didit:SupplierWorkflowId"] ?? string.Empty;
     public string? ShopCallbackUrl => NullIfEmpty(config["Didit:ShopCallbackUrl"]);
@@ -62,6 +65,68 @@ public sealed class DiditService(HttpClient httpClient, IConfiguration config)
             root.GetProperty("url").GetString()!,
             root.TryGetProperty("status", out var status) ? status.GetString() ?? "Not Started" : "Not Started");
     }
+
+    /// <summary>A company found on the register by Didit's KYB search.</summary>
+    public sealed record RegistryCompany(string? Name, string? RegistrationNumber, string? Status, string? Type);
+
+    /// <summary>The result of Didit's AML (sanctions, PEP and watch-list) screening.</summary>
+    public sealed record AmlResult(string Status, int TotalHits, double Score);
+
+    /// <summary>
+    /// Looks a South African company up on the CIPC register by registration number, server to
+    /// server (no link for anyone to open). Can take up to about 90 seconds.
+    /// </summary>
+    public async Task<IReadOnlyList<RegistryCompany>> SearchCompanyAsync(
+        string registrationNumber, string vendorData, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUri, "v3/kyb/search/"))
+        {
+            Content = JsonContent.Create(new
+            {
+                country_code = "ZA",
+                registration_number = registrationNumber,
+                vendor_data = vendorData,
+            }),
+        };
+        using var response = await SendAsync(request, ct);
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var companies = new List<RegistryCompany>();
+        if (json.RootElement.TryGetProperty("kyb_registry", out var registry) &&
+            registry.TryGetProperty("companies", out var list) && list.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var c in list.EnumerateArray())
+                companies.Add(new RegistryCompany(Text(c, "name"), Text(c, "registration_number"), Text(c, "status"), Text(c, "type")));
+        }
+        return companies;
+    }
+
+    /// <summary>Screens a person or company against sanctions, PEP and watch lists, server to server.</summary>
+    public async Task<AmlResult> ScreenAmlAsync(
+        string fullName, string entityType, string? dateOfBirth, string? documentNumber, string vendorData,
+        CancellationToken ct = default)
+    {
+        var body = new Dictionary<string, object>
+        {
+            ["full_name"] = fullName,
+            ["entity_type"] = entityType,
+            ["nationality"] = "ZA",
+            ["vendor_data"] = vendorData,
+        };
+        if (dateOfBirth is not null) body["date_of_birth"] = dateOfBirth;
+        if (documentNumber is not null) body["document_number"] = documentNumber;
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUri, "v3/aml/")) { Content = JsonContent.Create(body) };
+        using var response = await SendAsync(request, ct);
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var aml = json.RootElement.GetProperty("aml");
+        return new AmlResult(
+            Text(aml, "status") ?? "In Review",
+            aml.TryGetProperty("total_hits", out var hits) && hits.TryGetInt32(out var h) ? h : 0,
+            aml.TryGetProperty("score", out var score) && score.TryGetDouble(out var sc) ? sc : 0);
+    }
+
+    private static string? Text(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     /// <summary>Fetches a session's current result, for when a webhook was missed or is still on its way.</summary>
     public async Task<Decision> GetDecisionAsync(string sessionId, CancellationToken ct = default)
