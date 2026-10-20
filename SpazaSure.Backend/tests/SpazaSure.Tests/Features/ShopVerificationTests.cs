@@ -30,13 +30,15 @@ public class ShopVerificationTests
     [
         new() { DocType = "business_permit", Status = "approved", ExpiryDate = expiry },
         new() { DocType = "health_certificate", Status = "approved" },
-        new() { DocType = "id_document", Status = "approved" },
     ];
+
+    private static SpazaShop Shop(string status = "verified", string? identityCheck = ShopVerification.IdentityApproved) =>
+        new() { Status = status, IdentityCheckStatus = identityCheck };
 
     [Fact]
     public void VerifiedShopWithAllDocumentsApproved_GetsTheGreenSticker()
     {
-        var result = ShopVerification.Evaluate(new SpazaShop { Status = "verified" }, AllApproved(new DateOnly(2027, 3, 1)), Today);
+        var result = ShopVerification.Evaluate(Shop(), AllApproved(new DateOnly(2027, 3, 1)), Today);
 
         result.Verified.Should().BeTrue();
         result.Outstanding.Should().BeEmpty();
@@ -46,7 +48,7 @@ public class ShopVerificationTests
     [Fact]
     public void ExpiredDocument_RemovesTheSticker()
     {
-        var result = ShopVerification.Evaluate(new SpazaShop { Status = "verified" }, AllApproved(new DateOnly(2026, 1, 1)), Today);
+        var result = ShopVerification.Evaluate(Shop(), AllApproved(new DateOnly(2026, 1, 1)), Today);
 
         result.Verified.Should().BeFalse();
         result.Outstanding.Should().ContainSingle(o => o.Contains("expired"));
@@ -55,7 +57,7 @@ public class ShopVerificationTests
     [Fact]
     public void ShopNotYetVerifiedByAdmin_IsNotVerified()
     {
-        var result = ShopVerification.Evaluate(new SpazaShop { Status = "pending" }, AllApproved(), Today);
+        var result = ShopVerification.Evaluate(Shop("pending"), AllApproved(), Today);
 
         result.Verified.Should().BeFalse();
         result.Outstanding.Should().Contain("Shop verification by SpazaSure");
@@ -66,16 +68,29 @@ public class ShopVerificationTests
     {
         var docs = new List<ShopDocument> { new() { DocType = "business_permit", Status = "pending" } };
 
-        var result = ShopVerification.Evaluate(new SpazaShop { Status = "verified" }, docs, Today);
+        var result = ShopVerification.Evaluate(Shop(), docs, Today);
 
         result.Verified.Should().BeFalse();
-        result.Outstanding.Should().BeEquivalentTo(["Business permit (waiting for review)", "Health certificate", "Owner ID document"]);
+        result.Outstanding.Should().BeEquivalentTo(["Business permit (waiting for review)", "Health certificate"]);
+    }
+
+    [Theory]
+    [InlineData(null, "Owner identity check")]
+    [InlineData("In Progress", "Owner identity check")]
+    [InlineData("In Review", "Owner identity check (being reviewed)")]
+    [InlineData("Declined", "Owner identity check (not passed, try again)")]
+    public void OwnerWithoutAnApprovedIdentityCheck_IsNotVerified(string? identityCheck, string expected)
+    {
+        var result = ShopVerification.Evaluate(Shop(identityCheck: identityCheck), AllApproved(), Today);
+
+        result.Verified.Should().BeFalse();
+        result.Outstanding.Should().Equal(expected);
     }
 
     [Fact]
     public void SuspendedShop_IsNeverVerified()
     {
-        ShopVerification.Evaluate(new SpazaShop { Status = "suspended" }, AllApproved(), Today).Verified.Should().BeFalse();
+        ShopVerification.Evaluate(Shop("suspended"), AllApproved(), Today).Verified.Should().BeFalse();
     }
 
     [Fact]
@@ -86,7 +101,7 @@ public class ShopVerificationTests
         {
             UserId = Guid.NewGuid(), ShopName = "Mama Thandi's Spaza", OwnerName = "Thandi", OwnerIdNumber = "9001010000000",
             Phone = "0820009000", Address = "9 Test St", City = "Soweto", Province = "Gauteng", Status = "verified",
-            ShopCode = "SS123456",
+            ShopCode = "SS123456", IdentityCheckStatus = ShopVerification.IdentityApproved,
         };
         db.SpazaShops.Add(shop);
         foreach (var doc in AllApproved()) { doc.ShopId = shop.Id; db.ShopDocuments.Add(doc); }

@@ -110,6 +110,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
              .HasForeignKey<Supplier>(s => s.UserId);
             e.HasIndex(s => s.RegistrationNumber).IsUnique();
             e.Property(s => s.CommissionRate).HasPrecision(4, 2);
+            e.Property(s => s.IdentityCheckSessionId).HasMaxLength(64);
+            e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
+            e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
+            e.HasIndex(s => s.IdentityCheckSessionId);
         });
 
         // SupplierDocument
@@ -193,6 +197,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(s => s.RatingAvg).HasPrecision(3, 2);
             e.Property(s => s.ShopCode).HasMaxLength(12);
             e.HasIndex(s => s.ShopCode).IsUnique();
+            e.Property(s => s.IdentityCheckSessionId).HasMaxLength(64);
+            e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
+            e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
+            e.HasIndex(s => s.IdentityCheckSessionId);
         });
 
         model.Entity<ShopReview>(e =>

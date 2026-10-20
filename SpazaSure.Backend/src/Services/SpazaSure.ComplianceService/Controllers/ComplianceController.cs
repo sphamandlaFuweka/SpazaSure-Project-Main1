@@ -40,6 +40,9 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
             SupplierId   = d.Supplier.Id,
             SupplierName = d.Supplier.CompanyName,
             SupplierEmail = d.Supplier.Email,
+            IdentityCheckStatus = d.Supplier.IdentityCheckStatus,
+            IdentityCheckNotes = d.Supplier.IdentityCheckNotes,
+            IdentityCheckUpdatedAt = d.Supplier.IdentityCheckUpdatedAt,
         }).ToListAsync();
 
         var pending  = docs.Count(d => d.Status == "pending");
@@ -77,6 +80,9 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
             SupplierId   = d.Shop.Id,
             SupplierName = d.Shop.ShopName,
             SupplierEmail = d.Shop.Email ?? d.Shop.Phone,
+            IdentityCheckStatus = d.Shop.IdentityCheckStatus,
+            IdentityCheckNotes = d.Shop.IdentityCheckNotes,
+            IdentityCheckUpdatedAt = d.Shop.IdentityCheckUpdatedAt,
         }).ToListAsync();
 
         var pending  = docs.Count(d => d.Status == "pending");

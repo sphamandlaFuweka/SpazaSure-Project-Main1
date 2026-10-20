@@ -253,6 +253,12 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
+      # Didit identity checks (shop owners: KYC workflow, suppliers: KYB workflow)
+      Didit__ApiKey:                        ${PROD_DIDIT_API_KEY:-}
+      Didit__WebhookSecret:                 ${PROD_DIDIT_WEBHOOK_SECRET:-}
+      Didit__ShopWorkflowId:                ${PROD_DIDIT_SHOP_WORKFLOW_ID:-}
+      Didit__SupplierWorkflowId:            ${PROD_DIDIT_SUPPLIER_WORKFLOW_ID:-}
+      Didit__SupplierCallbackUrl:           ${PROD_DIDIT_SUPPLIER_CALLBACK_URL:-https://portal.spazasure.co.za/profile?verification=done}
       # Report evidence photos — same S3 bucket as UserService's uploads.
       Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
       Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}

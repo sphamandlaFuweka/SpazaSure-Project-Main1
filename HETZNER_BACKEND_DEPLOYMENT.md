@@ -146,6 +146,38 @@ Before applying the provider-reference migration in production, cancel any
 existing auto-renewing subscriptions in the previous payment provider
 dashboard. Their provider subscription IDs cannot be migrated into Paystack.
 
+## Didit identity checks
+
+Shop owners verify their identity (ID document, selfie, Home Affairs and
+sanctions) from the app's Compliance screen, and suppliers verify their business
+(CIPC registration, directors and sanctions) from Profile → Documents. Both run on
+Didit's hosted pages; the compliance service starts each session and receives the
+result by webhook. A shop needs an approved owner check for its SpazaSure Verified
+sticker. This replaces the manually reviewed owner ID document. Admins see each
+result, with Didit's warnings, on the Document Verification page.
+
+In the Didit console:
+
+1. Create a **KYC workflow** for shop owners: ID verification, liveness, face
+   match, South Africa National ID (DHA) database validation and AML screening.
+2. Create a **KYB workflow** for suppliers: South Africa company registry and
+   company directors (CIPC) and AML screening.
+3. Add a webhook destination for `status.updated` events with the URL
+   `https://api.spazasure.co.za/api/compliance/identity/didit/webhook`.
+
+Then add these GitHub production secrets and redeploy the backend:
+
+| Secret | Value |
+|---|---|
+| `PROD_DIDIT_API_KEY` | The application's API key |
+| `PROD_DIDIT_WEBHOOK_SECRET` | The webhook destination's secret |
+| `PROD_DIDIT_SHOP_WORKFLOW_ID` | The KYC workflow ID |
+| `PROD_DIDIT_SUPPLIER_WORKFLOW_ID` | The KYB workflow ID |
+
+Until they are set, the "Verify" buttons report that checks are unavailable and
+the webhook returns 503. Use a sandbox API key first; sandbox and live use
+different keys and workflows.
+
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and
 `PROD_SSH_KEY` GitHub secrets to deploy to `/opt/spazasure` and

@@ -384,6 +384,16 @@ export interface StaffAccessInput { isMaster: boolean; areas: Partial<Record<Adm
 
 const unwrap = <T,>(r: { data: any }): T => (r.data?.data ?? r.data) as T;
 
+/** Didit status: Not Started, In Progress, In Review, Approved, Declined, Abandoned, Expired... */
+export interface IdentityCheck { status: string; verified: boolean; canStart: boolean; updatedAt: string | null }
+
+/** The supplier's business check with Didit (CIPC registration, directors, sanctions). */
+export const businessCheckApi = {
+  get: () => api.get('/compliance/identity/supplier').then((r) => unwrap<IdentityCheck>(r)),
+  /** Starts (or resumes) the check and returns the Didit link to open. */
+  start: () => api.post('/compliance/identity/supplier/session').then((r) => unwrap<{ url: string; status: string }>(r)),
+};
+
 export const adminTeamApi = {
   me: () => api.get('/admin/me').then((r) => unwrap<AdminProfile>(r)),
   list: () => api.get('/admin/team').then((r) => unwrap<{ members: TeamMember[] }>(r)),

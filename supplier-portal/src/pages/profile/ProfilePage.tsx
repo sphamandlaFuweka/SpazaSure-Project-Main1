@@ -7,7 +7,7 @@ import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
-import { profileApi, resolveUploadUrl } from '../../services/api';
+import { profileApi, resolveUploadUrl, businessCheckApi, type IdentityCheck } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import clsx from 'clsx';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -42,7 +42,9 @@ export default function ProfilePage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoDragOver, setLogoDragOver]   = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>(
+    // Didit sends suppliers back here after the business check
+    () => (new URLSearchParams(window.location.search).has('verification') ? 'documents' : 'company'));
   const [previewDoc, setPreviewDoc] = useState<ComplianceDoc & { label: string } | null>(null);
   const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
   const { register, handleSubmit, reset, setValue, watch } = useForm<SupplierProfile>({ values: profile || undefined });
@@ -456,6 +458,8 @@ export default function ProfilePage() {
         <div className="card p-6 animate-in">
           <h2 className="font-bold text-gray-900 mb-4">Compliance Documents</h2>
 
+          <BusinessCheckCard />
+
           {/* Success banner when all docs are approved */}
           {(() => {
             const allDocs = ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'] as const;
@@ -743,6 +747,80 @@ export default function ProfilePage() {
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+const businessCheckStates: Record<string, { label: string; help: string; tone: string; Icon: typeof CheckCircle }> = {
+  'Approved':    { label: 'Verified',       help: 'Your company registration and directors have been confirmed.', tone: 'emerald', Icon: ShieldCheck },
+  'In Review':   { label: 'Being reviewed', help: 'We will let you know when the review is done.', tone: 'amber', Icon: Clock },
+  'In Progress': { label: 'Started',        help: 'Finish the check to complete your business verification.', tone: 'sky', Icon: Clock },
+  'Declined':    { label: 'Not passed',     help: 'Check that your registration number and director details are correct, then try again or contact support.', tone: 'red', Icon: XCircle },
+  'Abandoned':   { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
+  'Expired':     { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
+};
+
+const toneClasses: Record<string, string> = {
+  emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  amber:   'bg-amber-50 border-amber-200 text-amber-700',
+  sky:     'bg-sky-50 border-sky-200 text-sky-700',
+  red:     'bg-red-50 border-red-200 text-red-700',
+  gray:    'bg-gray-50 border-gray-200 text-gray-600',
+};
+
+/** Didit business check: CIPC registration, directors and sanctions, run on Didit's hosted page. */
+function BusinessCheckCard() {
+  const [check, setCheck] = useState<IdentityCheck | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    businessCheckApi.get().then(setCheck).catch(() => setCheck(null));
+  }, []);
+
+  const start = async () => {
+    setStarting(true);
+    try {
+      const { url } = await businessCheckApi.start();
+      window.location.assign(url); // Didit brings the supplier back to /profile?verification=done
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Could not start the business check. Please try again.');
+      setStarting(false);
+    }
+  };
+
+  const status = check?.status ?? 'Not Started';
+  const state = businessCheckStates[status] ?? {
+    label: 'Not started',
+    help: 'We confirm your company with CIPC and screen its directors. You will need a director’s ID. It takes a few minutes.',
+    tone: 'gray',
+    Icon: Building2,
+  };
+  const canStart = (check?.canStart ?? true) && status !== 'In Review';
+
+  return (
+    <div className={clsx('border rounded-2xl p-4 mb-5', toneClasses[state.tone])}>
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center flex-shrink-0">
+          <state.Icon size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900">Business verification <span className="font-semibold">· {state.label}</span></p>
+          <p className="text-xs text-gray-600 mt-0.5">{state.help}</p>
+          {canStart && (
+            <>
+              <button type="button" onClick={start} disabled={starting} className="btn-primary mt-3 inline-flex items-center gap-2 text-sm">
+                {starting ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                {status === 'In Progress' ? 'Continue business check' : 'Verify my business'}
+              </button>
+              <p className="text-[11px] text-gray-500 mt-2">
+                By continuing you agree that SpazaSure and its verification partner Didit may check your company
+                with CIPC and screen its directors against sanctions lists.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

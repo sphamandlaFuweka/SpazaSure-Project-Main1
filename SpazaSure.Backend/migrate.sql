@@ -1660,6 +1660,19 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS nutrition_info text NOT NULL DEFAU
 ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications text NOT NULL DEFAULT '[]';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS authenticity_tips text NOT NULL DEFAULT '[]';
 
+-- Didit identity checks: shop owners (ID document, selfie, Home Affairs, sanctions) and suppliers
+-- (CIPC registration, directors, sanctions). A shop needs an approved owner check for its sticker.
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_session_id varchar(64);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_status varchar(30);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_notes varchar(2000);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_updated_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_spaza_shops_identity_check_session_id ON spaza_shops(identity_check_session_id);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_session_id varchar(64);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_status varchar(30);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_notes varchar(2000);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_updated_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_suppliers_identity_check_session_id ON suppliers(identity_check_session_id);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

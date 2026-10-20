@@ -2,7 +2,7 @@ using SpazaSure.Shared.Models;
 
 namespace SpazaSure.Infrastructure.Entities;
 
-public class SpazaShop : BaseEntity
+public class SpazaShop : BaseEntity, IHasIdentityCheck
 {
     public Guid UserId { get; set; }
     public string ShopName { get; set; } = string.Empty;
@@ -25,6 +25,13 @@ public class SpazaShop : BaseEntity
     public string? OnboardingFeeRef { get; set; }
     public decimal RatingAvg { get; set; } = 0;
     public int RatingCount { get; set; } = 0;
+    /// <summary>Owner identity check with Didit (ID document, selfie, Home Affairs, sanctions).</summary>
+    public string? IdentityCheckSessionId { get; set; }
+    /// <summary>Didit session status, e.g. "Approved", "Declined", "In Review", "In Progress".</summary>
+    public string? IdentityCheckStatus { get; set; }
+    /// <summary>Didit's warnings for the admin, one per line.</summary>
+    public string? IdentityCheckNotes { get; set; }
+    public DateTime? IdentityCheckUpdatedAt { get; set; }
 
     public User User { get; set; } = null!;
     public ICollection<ShopDocument> Documents { get; set; } = [];
