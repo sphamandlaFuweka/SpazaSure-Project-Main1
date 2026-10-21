@@ -1,3 +1,5 @@
+import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
+import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/app_bottom_nav.dart';
@@ -16,6 +18,14 @@ class CustomerShell extends StatefulWidget {
 
 class _CustomerShellState extends State<CustomerShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ensurePrivacyConsent(context, PrivacyService.customer),
+    );
+  }
 
   // The scanner is built only while selected so the camera stops on other tabs.
   List<Widget> get _screens => [

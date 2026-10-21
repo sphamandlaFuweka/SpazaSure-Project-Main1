@@ -117,6 +117,24 @@ app.UseStaticFiles();
 
 app.UseCors("Portal");
 app.UseRateLimiter();
+// Security headers on every API response, including proxied files. Documents may only be framed
+// by SpazaSure's own sites (the admin console previews PDFs in a frame).
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        var headers = context.Response.Headers;
+        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        headers["Content-Security-Policy"] =
+            "frame-ancestors 'self' https://portal.spazasure.co.za https://admin.spazasure.co.za https://app.spazasure.co.za";
+        headers.Remove("X-Powered-By");
+        return Task.CompletedTask;
+    });
+    await next();
+});
+
 // Admin-controlled maintenance mode (see MaintenanceModeMiddleware for what stays open)
 app.UseMiddleware<SpazaSure.Gateway.MaintenanceModeMiddleware>();
 
@@ -137,6 +155,35 @@ app.UseSwaggerUI(c =>
     c.DisplayRequestDuration();
 });
 }
+
+// GET /health: checks every service behind the gateway, for uptime monitoring
+// (e.g. https://api.spazasure.co.za/health). 200 when all are healthy, 503 otherwise.
+var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+app.MapGet("/health", async (CancellationToken ct) =>
+{
+    var services = builder.Configuration.GetSection("ReverseProxy:Clusters").GetChildren()
+        .SelectMany(cluster => cluster.GetSection("Destinations").GetChildren()
+            .Select(d => (Name: cluster.Key.Replace("-cluster", ""), Address: d["Address"])))
+        .Where(s => !string.IsNullOrEmpty(s.Address))
+        .DistinctBy(s => s.Address)
+        .ToList();
+    var results = await Task.WhenAll(services.Select(async s =>
+    {
+        try
+        {
+            using var response = await healthClient.GetAsync($"{s.Address!.TrimEnd('/')}/health", ct);
+            return (s.Name, Healthy: response.IsSuccessStatusCode);
+        }
+        catch (Exception)
+        {
+            return (s.Name, Healthy: false);
+        }
+    }));
+    var healthy = results.All(r => r.Healthy);
+    return Results.Json(
+        new { status = healthy ? "ok" : "unhealthy", services = results.ToDictionary(r => r.Name, r => r.Healthy ? "ok" : "down") },
+        statusCode: healthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
 
 app.MapReverseProxy();
 

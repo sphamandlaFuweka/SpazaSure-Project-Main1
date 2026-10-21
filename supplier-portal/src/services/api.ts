@@ -384,6 +384,74 @@ export interface StaffAccessInput { isMaster: boolean; areas: Partial<Record<Adm
 
 const unwrap = <T,>(r: { data: any }): T => (r.data?.data ?? r.data) as T;
 
+/** The server's explanation for a refused request (e.g. "Didit hasn't passed yet"), or the fallback. */
+export const apiErrorMessage = (err: unknown, fallback: string): string =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
+
+/** Didit status: Not Started, In Progress, In Review, Approved, Declined, Abandoned, Expired... */
+export interface IdentityCheck {
+  status: string;
+  verified: boolean;
+  canStart: boolean;
+  updatedAt: string | null;
+  /** Why the check didn't pass, e.g. the CIPC number doesn't match the profile. */
+  reason: string | null;
+  /** Profile details to fix before the check can start: 'registration_number', 'address'. */
+  missing: string[];
+}
+
+/** A request to delete an account (POPIA s24): pending, approved, rejected or cancelled. */
+export interface DeletionRequest {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reason: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** The signed-in supplier's POPIA rights: a copy of their data, and asking for deletion. */
+export const privacyApi = {
+  consent: () => api.get('/supplier/profile/privacy/consent').then((r) => unwrap<{ accepted: boolean; version: string }>(r)),
+  acceptConsent: () => api.post('/supplier/profile/privacy/consent').then((r) => r.data),
+  myData: () => api.get('/supplier/profile/privacy/my-data').then((r) => unwrap<unknown>(r)),
+  deletionRequest: () => api.get('/supplier/profile/privacy/deletion-request').then((r) => unwrap<DeletionRequest | null>(r)),
+  requestDeletion: (reason: string) =>
+    api.post('/supplier/profile/privacy/deletion-request', { reason }).then((r) => r.data as { message?: string }),
+  cancelDeletion: () => api.delete('/supplier/profile/privacy/deletion-request').then((r) => r.data),
+};
+
+export interface AdminDeletionRequest extends DeletionRequest {
+  userId: string;
+  role: 'spaza_owner' | 'supplier' | 'customer';
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  /** What still has to happen before the account can be deleted. */
+  blocker: string | null;
+}
+
+export const adminDeletionApi = {
+  list: () => api.get('/admin/deletion-requests').then((r) => unwrap<AdminDeletionRequest[]>(r)),
+  approve: (id: string) => api.post(`/admin/deletion-requests/${id}/approve`).then((r) => r.data),
+  reject: (id: string, note: string) => api.post(`/admin/deletion-requests/${id}/reject`, { note }).then((r) => r.data),
+};
+
+/** Saves data as a .json file in the browser. */
+export const downloadJson = (data: unknown, fileName: string) => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: fileName });
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+/** The supplier's business check with Didit (CIPC registration, directors, sanctions). */
+export const businessCheckApi = {
+  get: () => api.get('/compliance/identity/supplier').then((r) => unwrap<IdentityCheck>(r)),
+  /** Starts the check. It runs on the server (CIPC register and sanctions screening); nothing opens. */
+  start: () => api.post('/compliance/identity/supplier/session').then((r) => unwrap<{ url: string | null; status: string }>(r)),
+};
+
 export const adminTeamApi = {
   me: () => api.get('/admin/me').then((r) => unwrap<AdminProfile>(r)),
   list: () => api.get('/admin/team').then((r) => unwrap<{ members: TeamMember[] }>(r)),
@@ -423,6 +491,28 @@ export const adminOrdersApi = {
     api.get(`/admin/orders/${id}`).then((r) => r.data?.data ?? r.data),
   updateStatus: (id: string, status: string, reason?: string) =>
     api.patch(`/admin/orders/${id}/status`, { status, reason }).then((r) => r.data),
+};
+
+/** An order on SpazaSure's delivery run (ready at the supplier, or out for delivery). */
+export interface AdminDelivery {
+  id: string;
+  orderNumber: string;
+  status: 'ready' | 'dispatched';
+  deliveryType: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  totalAmount: number;
+  updatedAt: string;
+  deliveryCode: string | null;
+  items: number;
+  supplier: { companyName: string; phone: string | null; address: string | null; city: string | null };
+  shop: { shopName: string; ownerName: string; phone: string | null; address: string | null; city: string | null };
+}
+
+export const adminDeliveriesApi = {
+  list: () => api.get('/admin/orders/deliveries').then((r) => unwrap<AdminDelivery[]>(r)),
+  updateStatus: (id: string, status: 'dispatched' | 'delivered') =>
+    api.patch(`/admin/orders/${id}/status`, { status }).then((r) => r.data),
 };
 
 // Admin Reports (customer/retailer product & shop reports)
@@ -626,17 +716,25 @@ export const adminSettingsApi = {
     api.put('/admin/settings/onboarding-fee', { amount }).then((r) => r.data?.data ?? r.data),
 };
 
-// Supplier payouts: SpazaSure pays suppliers products + delivery after the payout delay
-export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'paid_out';
+// Supplier payouts: SpazaSure delivers, and pays suppliers for the goods after the payout delay
+// (automatically through Paystack when automatic payouts are on)
+export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'processing' | 'failed' | 'paid_out';
 export interface SupplierPayoutSummary {
   payoutDelayDays: number;
   awaitingDelivery: number;
   pending: number;
   available: number;
+  /** Being sent to the supplier's bank by Paystack */
+  processing: number;
+  /** A Paystack payout that failed (usually wrong bank details) */
+  failed: number;
   paidOut: number;
   nextAvailableAt: string | null;
   hasBankDetails: boolean;
-  recent: { id: string; orderNumber: string; amount: number; stage: PayoutStage; deliveredAt: string | null; availableAt: string | null; paidOutAt: string | null; payoutReference: string | null }[];
+  recent: {
+    id: string; orderNumber: string; amount: number; stage: PayoutStage; deliveredAt: string | null;
+    availableAt: string | null; paidOutAt: string | null; payoutReference: string | null; failureReason: string | null;
+  }[];
 }
 export interface AdminPayoutSupplier {
   supplierId: string;
@@ -649,16 +747,26 @@ export interface AdminPayoutSupplier {
   availableOrders: number;
   pendingAmount: number;
   pendingOrders: number;
+  hasBankDetails: boolean;
+  processingAmount: number;
+  failedAmount: number;
+  failureReason: string | null;
 }
 
 export const payoutsApi = {
   supplierSummary: () =>
     api.get('/supplier/payouts').then((r) => (r.data?.data ?? r.data) as SupplierPayoutSummary),
+  /** South African banks Paystack can pay into (name + universal branch code). */
+  banks: () =>
+    api.get('/supplier/payouts/banks').then((r) => (r.data?.data ?? r.data) as { name: string; code: string }[]),
 };
 
 export const adminPayoutsApi = {
   list: () =>
-    api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as { payoutDelayDays: number; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[] }),
+    api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as {
+      payoutDelayDays: number; automaticPayouts: boolean; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[];
+    }),
+  retry: (supplierId: string) => api.post(`/admin/payouts/${supplierId}/retry`).then((r) => r.data),
   markPaid: (supplierId: string, reference: string) =>
     api.post(`/admin/payouts/${supplierId}/mark-paid`, { reference })
       .then((r) => (r.data?.data ?? r.data) as { total: number; orders: number; reference: string }),

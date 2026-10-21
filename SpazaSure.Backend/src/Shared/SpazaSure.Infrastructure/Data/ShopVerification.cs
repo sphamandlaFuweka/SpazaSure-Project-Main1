@@ -6,8 +6,8 @@ namespace SpazaSure.Infrastructure.Data;
 
 /// <summary>
 /// Shop numbers (e.g. SS482913) and the "SpazaSure Verified" green sticker.
-/// A shop is verified when an admin has verified it and every required compliance
-/// document is approved and not expired.
+/// A shop is verified when an admin has verified it, the owner has passed the Didit identity
+/// check, and every required compliance document is approved and not expired.
 /// </summary>
 public static class ShopVerification
 {
@@ -18,8 +18,10 @@ public static class ShopVerification
     [
         ("Business permit", ["business_permit"]),
         ("Health certificate", ["health_certificate", "health_cert"]),
-        ("Owner ID document", ["id_document"]),
     ];
+
+    /// <summary>Didit's status for a passed check.</summary>
+    public const string IdentityApproved = "Approved";
 
     /// <summary>The public verify page the QR code on the sticker opens.</summary>
     public static string VerifyUrl(string shopCode) => $"https://portal.spazasure.co.za/verify/{shopCode}";
@@ -67,6 +69,13 @@ public static class ShopVerification
             return new Result(false, "This shop's SpazaSure account is suspended.", ["Account suspended"], null);
         if (shop.Status != "verified")
             outstanding.Add("Shop verification by SpazaSure");
+        if (shop.IdentityCheckStatus != IdentityApproved)
+            outstanding.Add(shop.IdentityCheckStatus switch
+            {
+                "In Review" => "Owner identity check (being reviewed)",
+                "Declined" => "Owner identity check (not passed, try again)",
+                _ => "Owner identity check",
+            });
 
         DateOnly? validUntil = null;
         foreach (var (label, types) in RequiredDocuments)
@@ -83,7 +92,7 @@ public static class ShopVerification
         }
 
         return outstanding.Count == 0
-            ? new Result(true, "This shop is SpazaSure Verified: its business permit, health certificate and owner ID have been checked.", outstanding, validUntil)
+            ? new Result(true, "This shop is SpazaSure Verified: its business permit, health certificate and owner identity have been checked.", outstanding, validUntil)
             : new Result(false, "This shop is registered with SpazaSure but is not verified right now.", outstanding, null);
     }
 }

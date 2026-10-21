@@ -34,6 +34,7 @@ const PAGE_AREAS: Record<string, AdminArea | 'any' | 'master'> = {
   'shops-map': 'trust',
   products: 'marketplace',
   orders: 'marketplace',
+  deliveries: 'marketplace',
   'group-buys': 'marketplace',
   analytics: 'marketplace',
   payouts: 'finance',
@@ -44,6 +45,7 @@ const PAGE_AREAS: Record<string, AdminArea | 'any' | 'master'> = {
   projects: 'projects',
   settings: 'settings',
   team: 'master',
+  'deletion-requests': 'master',
 };
 
 export const areaForAdminPath = (path: string): AdminArea | 'any' | 'master' => {

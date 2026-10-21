@@ -89,10 +89,16 @@ builder.Services.AddCors(opt =>
          .AllowAnyMethod()
          .AllowCredentials()));
 
+// Didit identity checks for shop owners and suppliers.
+builder.Services.AddHttpClient<SpazaSure.ComplianceService.Services.DiditService>(c => c.Timeout = TimeSpan.FromSeconds(120));
+
 // Dashboard staff roles: which admin areas each staff member may view or manage.
 builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
 
 var app = builder.Build();
+SpazaSure.Shared.Helpers.PrivateFiles.Configure(builder.Configuration["Jwt:Secret"]);
+// Report photos need a signed link (POPIA s19).
+SpazaSure.Shared.Helpers.PrivateFiles.UsePrivateFiles(app);
 
 // Static file serving for local-storage report photos (Storage:Provider =
 // "local" only — in "s3" mode files are served directly from the bucket's
@@ -124,6 +130,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 SpazaSure.Shared.Helpers.AdminAccessExtensions.UseAdminAccess(app);
 app.MapControllers();
+SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "compliance", (services, ct) =>
+    Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+        .GetRequiredService<SpazaSure.Infrastructure.Data.SpazaSureDbContext>(services).Database.CanConnectAsync(ct));
 
 app.Run();
 

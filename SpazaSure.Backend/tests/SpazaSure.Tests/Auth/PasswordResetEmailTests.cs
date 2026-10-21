@@ -30,7 +30,7 @@ public class PasswordResetEmailTests
     }
 
     private static Task RegisterAsync(AuthenticationService svc, string email) =>
-        svc.RegisterAsync(new RegisterRequest("supplier", email, "0820000099", "Password123!", "Mail Co", "Thandi", null, null, null), "127.0.0.1");
+        svc.RegisterAsync(new RegisterRequest("supplier", email, "0820000099", "Password123!", "Mail Co", "Thandi", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
     [Fact]
     public async Task ForgotPassword_SendsEmailWithWorkingResetLink()

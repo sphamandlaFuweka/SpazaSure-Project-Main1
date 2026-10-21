@@ -7,7 +7,8 @@ import {
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
-import api, { resolveUploadUrl } from '../../services/api';
+import api, { resolveUploadUrl, apiErrorMessage } from '../../services/api';
+import { openAdminDiditCheck } from '../../services/adminDidit';
 import { Spinner } from '../../components/ui';
 import { Building2, Receipt, Handshake, ClipboardList, Calendar, Mail, type LucideIcon } from 'lucide-react';
 
@@ -27,13 +28,37 @@ interface SupplierDoc {
   supplierId: string;
   supplierName: string;
   supplierEmail: string;
+  /** Didit check of the shop owner / supplier business: Approved, Declined, In Review, ... */
+  identityCheckStatus?: string | null;
+  identityCheckNotes?: string | null;
 }
+
+/** Didit is the first step: documents can only be approved once it has passed. */
+const awaitingDidit = (doc: SupplierDoc) => doc.identityCheckStatus !== 'Approved';
+const awaitingDiditHint = 'Start Didit verification; the account owner must pass it before approval.';
+
+const identityBadge: Record<string, { label: string; className: string }> = {
+  'Approved':  { label: 'Didit verified',   className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  'Declined':  { label: 'Didit not passed', className: 'text-red-600 bg-red-50 border-red-200' },
+  'In Review': { label: 'Didit in review',  className: 'text-amber-700 bg-amber-50 border-amber-200' },
+};
 
 const docLabels: Record<string, string> = {
   cipc_certificate: 'CIPC Certificate',
   tax_clearance: 'Tax Clearance Certificate',
   bee_certificate: 'BEE Certificate',
   product_license: 'Product License',
+  business_permit: 'Business Permit',
+  health_certificate: 'Health Certificate',
+  health_cert: 'Health Certificate',
+  lease_agreement: 'Lease Agreement',
+  id_document: 'ID Document',
+};
+
+/** Documents each kind of account needs (shops: same list as the SpazaSure Verified sticker). */
+const requiredDocsFor: Record<DocTab, string[]> = {
+  supplier: ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'],
+  spaza: ['business_permit', 'health_certificate'],
 };
 
 const docIcons: Record<string, LucideIcon> = {
@@ -120,9 +145,20 @@ export default function DocumentVerificationPage() {
       setRejectReason('');
       setPreviewDoc(null);
       fetchDocs(statusFilter !== 'all' ? statusFilter : undefined, search || undefined, activeTab);
-    } catch {
-      toast.error('Failed to update document status');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to update document status'));
     }
+  };
+
+  const handleApprove = async (doc: SupplierDoc) => {
+    if (awaitingDidit(doc)) {
+      const type = activeTab === 'spaza' ? 'shop' : 'supplier';
+      if (await openAdminDiditCheck(type, doc.supplierId, doc.supplierName)) {
+        fetchDocs(statusFilter !== 'all' ? statusFilter : undefined, search || undefined, activeTab);
+      }
+      return;
+    }
+    await updateDocStatus(doc.id, 'approved');
   };
 
   if (loading) return (
@@ -135,15 +171,20 @@ export default function DocumentVerificationPage() {
   );
 
   // Group documents by supplier
-  const grouped = new Map<string, { name: string; email: string; docs: typeof filtered }>();
+  const grouped = new Map<string, {
+    name: string; email: string; identityStatus: string | null; identityNotes: string | null; docs: typeof filtered;
+  }>();
   filtered.forEach((doc) => {
     const key = doc.supplierId;
     if (!grouped.has(key)) {
-      grouped.set(key, { name: doc.supplierName, email: doc.supplierEmail, docs: [] });
+      grouped.set(key, {
+        name: doc.supplierName, email: doc.supplierEmail,
+        identityStatus: doc.identityCheckStatus ?? null, identityNotes: doc.identityCheckNotes ?? null, docs: [],
+      });
     }
     grouped.get(key)!.docs.push(doc);
   });
-  const requiredDocs = ['cipc_certificate', 'tax_clearance', 'bee_certificate', 'product_license'];
+  const requiredDocs = requiredDocsFor[activeTab];
 
   return (
     <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in">
@@ -380,6 +421,17 @@ export default function DocumentVerificationPage() {
 
                     {/* Status pills */}
                     <div className="flex items-center gap-1.5">
+                      {(() => {
+                        const badge = identityBadge[group.identityStatus ?? ''] ?? {
+                          label: group.identityStatus ? `Didit: ${group.identityStatus}` : 'Didit not started',
+                          className: 'text-gray-500 bg-gray-100 border-gray-200',
+                        };
+                        return (
+                          <span className={clsx('flex items-center gap-1 text-[11px] font-bold border px-2 py-1 rounded-lg', badge.className)}>
+                            <Shield size={10} /> {badge.label}
+                          </span>
+                        );
+                      })()}
                       {grpApproved > 0 && (
                         <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
                           <CheckCircle size={10} /> {grpApproved}
@@ -409,6 +461,14 @@ export default function DocumentVerificationPage() {
                 {/* ── Document List ── */}
                 {isExpanded && (
                   <div className="border-t border-gray-100" style={{ animation: 'expandIn 0.25s ease-out' }}>
+                    {group.identityNotes && (
+                      <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Didit verification details</p>
+                        <ul className="mt-1 list-disc pl-5 text-xs text-amber-700 space-y-0.5">
+                          {group.identityNotes.split('\n').map((note) => <li key={note}>{note}</li>)}
+                        </ul>
+                      </div>
+                    )}
                     {group.docs.map((doc, idx) => (
                       <div
                         key={doc.id}
@@ -453,9 +513,9 @@ export default function DocumentVerificationPage() {
                             </button>
                             {doc.status !== 'approved' && (
                               <button
-                                onClick={() => updateDocStatus(doc.id, 'approved')}
+                                onClick={() => handleApprove(doc)}
                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                                title="Approve"
+                                title={awaitingDidit(doc) ? 'Verify with Didit' : 'Approve'}
                               >
                                 <CheckCircle size={15} />
                               </button>
@@ -556,9 +616,10 @@ export default function DocumentVerificationPage() {
                       <p className="text-sm text-gray-400 mt-1 mb-5">No document file available for preview</p>
                       <div className="flex gap-2">
                         {previewDoc.status !== 'approved' && (
-                          <button onClick={() => updateDocStatus(previewDoc.id, 'approved')}
+                          <button onClick={() => handleApprove(previewDoc)}
+                            title={awaitingDidit(previewDoc) ? awaitingDiditHint : undefined}
                             className="flex items-center gap-1.5 text-sm font-bold bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">
-                            <CheckCircle size={14} /> Approve
+                            <CheckCircle size={14} /> {awaitingDidit(previewDoc) ? 'Verify with Didit' : 'Approve'}
                           </button>
                         )}
                         {previewDoc.status !== 'rejected' && (
@@ -582,9 +643,10 @@ export default function DocumentVerificationPage() {
             {previewDoc.docUrl && previewDoc.docUrl !== '#' && resolveUploadUrl(previewDoc.docUrl) && (
               <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white flex-shrink-0">
                 {previewDoc.status !== 'approved' && (
-                  <button onClick={() => updateDocStatus(previewDoc.id, 'approved')}
+                  <button onClick={() => handleApprove(previewDoc)}
+                    title={awaitingDidit(previewDoc) ? awaitingDiditHint : undefined}
                     className="flex items-center gap-2 text-sm font-bold bg-emerald-600 text-white px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200">
-                    <CheckCircle size={14} /> Approve Document
+                    <CheckCircle size={14} /> {awaitingDidit(previewDoc) ? 'Verify with Didit' : 'Approve Document'}
                   </button>
                 )}
                 {previewDoc.status !== 'rejected' && (

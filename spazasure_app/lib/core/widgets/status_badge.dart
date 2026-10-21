@@ -25,12 +25,19 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  String get _label => status.replaceAll('_', ' ').toUpperCase();
+  String get _label => switch (status) {
+        // Packed by the supplier, waiting for SpazaSure to collect it
+        'ready' => 'PACKED',
+        // Collected by SpazaSure and on its way to the shop
+        'dispatched' => 'ON THE WAY',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
 
   Color get _color => switch (status) {
     'pending' => AppColors.statusPending,
     'confirmed' => AppColors.statusConfirmed,
     'processing' => AppColors.statusProcessing,
+    'ready' => AppColors.statusProcessing,
     'dispatched' => AppColors.statusDispatched,
     'delivered' => AppColors.statusDelivered,
     'cancelled' => AppColors.statusCancelled,

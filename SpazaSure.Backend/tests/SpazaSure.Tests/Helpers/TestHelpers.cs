@@ -56,3 +56,10 @@ public static class ConfigHelper
             .Build();
     }
 }
+
+/// <summary>A Paystack transfers client with no key: automatic payouts off, nothing is sent.</summary>
+public static class TestPaystack
+{
+    public static SpazaSure.OrderService.Services.PaystackTransferService Transfers() =>
+        new(new HttpClient(), ConfigHelper.Build());
+}

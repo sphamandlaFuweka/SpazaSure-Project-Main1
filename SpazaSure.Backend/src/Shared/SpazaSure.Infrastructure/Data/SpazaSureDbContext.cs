@@ -12,6 +12,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();
     public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
+    public DbSet<AccountDeletionRequest> AccountDeletionRequests => Set<AccountDeletionRequest>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
@@ -94,6 +95,17 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(code => code.FailedAttempts).HasDefaultValue(0);
         });
 
+        model.Entity<AccountDeletionRequest>(e =>
+        {
+            e.ToTable("account_deletion_requests");
+            e.Property(r => r.Role).HasMaxLength(20);
+            e.Property(r => r.Reason).HasMaxLength(1000);
+            e.Property(r => r.Status).HasMaxLength(20);
+            e.Property(r => r.DecisionNote).HasMaxLength(1000);
+            e.HasIndex(r => r.UserId);
+            e.HasIndex(r => r.Status);
+        });
+
         // AuthAuditLog  long PK, no BaseEntity
         model.Entity<AuthAuditLog>(e =>
         {
@@ -110,6 +122,11 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
              .HasForeignKey<Supplier>(s => s.UserId);
             e.HasIndex(s => s.RegistrationNumber).IsUnique();
             e.Property(s => s.CommissionRate).HasPrecision(4, 2);
+            e.Property(s => s.IdentityCheckSessionId).HasMaxLength(64);
+            e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
+            e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
+            e.HasIndex(s => s.IdentityCheckSessionId);
+            e.Property(s => s.PaystackRecipientCode).HasMaxLength(64);
         });
 
         // SupplierDocument
@@ -193,6 +210,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(s => s.RatingAvg).HasPrecision(3, 2);
             e.Property(s => s.ShopCode).HasMaxLength(12);
             e.HasIndex(s => s.ShopCode).IsUnique();
+            e.Property(s => s.IdentityCheckSessionId).HasMaxLength(64);
+            e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
+            e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
+            e.HasIndex(s => s.IdentityCheckSessionId);
         });
 
         model.Entity<ShopReview>(e =>
@@ -295,6 +316,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
                 .HasFilter("group_buy_participant_id IS NOT NULL");
             e.Property(o => o.Subtotal).HasPrecision(10, 2);
             e.Property(o => o.DeliveryFee).HasPrecision(10, 2);
+            e.HasIndex(o => o.PayoutReference);
             e.Property(o => o.DeliveryMarkup).HasPrecision(10, 2);
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);
             e.Property(o => o.PlatformCommission).HasPrecision(10, 2);

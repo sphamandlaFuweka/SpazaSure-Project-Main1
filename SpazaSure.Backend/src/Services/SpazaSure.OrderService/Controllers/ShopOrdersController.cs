@@ -204,11 +204,23 @@ public class ShopOrdersController(
         }
 
         var paymentReference = $"SPZ-{Guid.NewGuid():N}";
-        var checkout = await paystackPayments.CreateCheckoutAsync(
-            createdOrders,
-            shop.Email ?? string.Empty,
-            paymentReference,
-            HttpContext.RequestAborted);
+        OrderPaystackCheckout checkout;
+        try
+        {
+            checkout = await paystackPayments.CreateCheckoutAsync(
+                createdOrders,
+                // Shops often have no email; Paystack still needs one (see PaymentEmail).
+                SpazaSure.Shared.Helpers.PaymentEmail.For(shop.Email, shop.Phone, shop.UserId),
+                paymentReference,
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            // Nothing is kept: the orders are rolled back with the transaction.
+            Console.Error.WriteLine($"[ShopOrders] Paystack checkout failed for shop {shop.Id}: {ex.Message}");
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(
+                "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
+        }
         foreach (var order in createdOrders)
             order.PaymentProviderReference = checkout.Reference;
         await db.SaveChangesAsync();
@@ -229,6 +241,28 @@ public class ShopOrdersController(
             paymentMethod,
             checkoutUrl = checkout.AuthorizationUrl
         }));
+    }
+
+    /// <summary>
+    /// Called by the app when the shop comes back from Paystack: asks Paystack whether the order was
+    /// paid, so it's confirmed straight away even if the webhook is late or missed.
+    /// </summary>
+    [HttpPost("confirm-payment")]
+    public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentRequest req)
+    {
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.ShopId == shop.Id && o.OrderNumber == req.OrderNumber);
+        if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.PaymentStatus == "paid")
+            return Ok(ApiResponse<object>.Ok(new { paid = true }));
+        if (order.PaymentMethod != "paystack" || string.IsNullOrEmpty(order.PaymentProviderReference))
+            return Ok(ApiResponse<object>.Ok(new { paid = false }));
+
+        var paid = await paystackPayments.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted);
+        return Ok(ApiResponse<object>.Ok(new { paid }, paid
+            ? "Payment confirmed. Your supplier has been notified."
+            : "Paystack hasn't confirmed the payment yet. We'll update your order as soon as it does."));
     }
 
     /// <summary>
@@ -456,3 +490,5 @@ public record PlaceOrderItemRequest(
     int Quantity,
     decimal UnitPrice
 );
+
+public record ConfirmPaymentRequest(string OrderNumber);

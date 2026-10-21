@@ -7,7 +7,10 @@ import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
-import { profileApi, resolveUploadUrl } from '../../services/api';
+import {
+  profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, privacyApi, downloadJson, payoutsApi,
+  type IdentityCheck, type DeletionRequest,
+} from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import clsx from 'clsx';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -42,7 +45,9 @@ export default function ProfilePage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoDragOver, setLogoDragOver]   = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>(
+    // Didit sends suppliers back here after the business check
+    () => (new URLSearchParams(window.location.search).has('verification') ? 'documents' : 'company'));
   const [previewDoc, setPreviewDoc] = useState<ComplianceDoc & { label: string } | null>(null);
   const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
   const { register, handleSubmit, reset, setValue, watch } = useForm<SupplierProfile>({ values: profile || undefined });
@@ -87,8 +92,8 @@ export default function ProfilePage() {
         });
       }
       toast.success('Profile updated successfully');
-    } catch {
-      toast.error('Failed to save profile');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to save profile'));
     } finally {
       setSaving(false);
     }
@@ -143,6 +148,10 @@ export default function ProfilePage() {
       setLogoUploading(false);
     }
   };
+
+  // Banks Paystack can pay into; if the list can't load, the bank name stays a text box
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  useEffect(() => { payoutsApi.banks().then(setBanks).catch(() => setBanks([])); }, []);
 
   if (loading) return <PageLoader variant="cards" />;
   if (!profile) return null;
@@ -289,7 +298,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="label">CIPC Registration Number</label>
-              <input {...register('registrationNumber')} className="input font-mono" />
+              <input {...register('registrationNumber')} placeholder="e.g. 2020/123456/07" className="input font-mono" />
             </div>
             <div>
               <label className="label">Tax Number</label>
@@ -429,11 +438,29 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="label" htmlFor="bankName">Bank name</label>
-                <input id="bankName" {...register('bankName')} placeholder="e.g. FNB" autoComplete="organization" className="input" />
+                {banks.length > 0 ? (
+                  // Paystack's bank list: picking a bank fills in its universal branch code, which payouts need
+                  <select
+                    id="bankName"
+                    className="input"
+                    value={banks.find((b) => b.name === bankName)?.code ?? ''}
+                    onChange={(e) => {
+                      const bank = banks.find((b) => b.code === e.target.value);
+                      setValue('bankName', bank?.name ?? '', { shouldDirty: true });
+                      setValue('bankBranchCode', bank?.code ?? '', { shouldDirty: true });
+                    }}
+                  >
+                    <option value="">{bankName ? `${bankName} (choose again from the list)` : 'Choose your bank'}</option>
+                    {banks.map((b) => <option key={b.code + b.name} value={b.code}>{b.name}</option>)}
+                  </select>
+                ) : (
+                  <input id="bankName" {...register('bankName')} placeholder="e.g. FNB" autoComplete="organization" className="input" />
+                )}
               </div>
               <div>
                 <label className="label" htmlFor="bankBranchCode">Branch code</label>
-                <input id="bankBranchCode" {...register('bankBranchCode')} placeholder="e.g. 250655" inputMode="numeric" autoComplete="off" className="input font-mono" />
+                <input id="bankBranchCode" {...register('bankBranchCode')} placeholder="e.g. 250655" inputMode="numeric" autoComplete="off" className="input font-mono" readOnly={banks.length > 0} />
+                {banks.length > 0 && <p className="text-[11px] text-gray-500 mt-1">The universal branch code, filled in from your bank.</p>}
               </div>
               <div className="md:col-span-2">
                 <label className="label" htmlFor="bankAccount">Account number</label>
@@ -451,10 +478,17 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {activeTab === 'company' && <PrivacyCard />}
+
       {/* Documents Tab */}
       {activeTab === 'documents' && (
         <div className="card p-6 animate-in">
           <h2 className="font-bold text-gray-900 mb-4">Compliance Documents</h2>
+
+          <BusinessCheckCard onFixProfile={() => setActiveTab('company')} />
+          <p className="text-xs text-gray-500 -mt-2 mb-4">
+            You can upload documents at any time. SpazaSure reviews them once your business check has passed.
+          </p>
 
           {/* Success banner when all docs are approved */}
           {(() => {
@@ -580,8 +614,8 @@ export default function ProfilePage() {
                     )}
                     {doc?.status !== 'approved' && (
                       <label className="flex items-center gap-1.5 text-sm font-semibold text-primary border border-primary px-3 py-2 rounded-xl hover:bg-primary-50 transition-colors cursor-pointer">
-                        <Upload size={13} /> {doc ? 'Replace' : 'Upload'}
-                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                        <Upload size={13} /> {doc?.status === 'rejected' ? 'Re-upload' : doc ? 'Replace' : 'Upload'}
+                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp"
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDocUpload(docType, f); }} />
                       </label>
                     )}
@@ -744,5 +778,208 @@ export default function ProfilePage() {
         );
       })()}
     </div>
+  );
+}
+
+const businessCheckStates: Record<string, { label: string; help: string; tone: string; Icon: typeof CheckCircle }> = {
+  'Approved':    { label: 'Verified',       help: 'Your company registration and directors have been confirmed.', tone: 'emerald', Icon: ShieldCheck },
+  'In Review':   { label: 'Being reviewed', help: 'We will let you know when the review is done.', tone: 'amber', Icon: Clock },
+  'In Progress': { label: 'Checking…',      help: 'We are checking your company on the CIPC register and against sanctions lists. This takes a minute or two.', tone: 'sky', Icon: Clock },
+  'Declined':    { label: 'Not passed',     help: 'Check that your registration number and director details are correct, then try again or contact support.', tone: 'red', Icon: XCircle },
+  'Abandoned':   { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
+  'Expired':     { label: 'Not finished',   help: 'The check was not completed. Start it again.', tone: 'amber', Icon: AlertTriangle },
+};
+
+const toneClasses: Record<string, string> = {
+  emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  amber:   'bg-amber-50 border-amber-200 text-amber-700',
+  sky:     'bg-sky-50 border-sky-200 text-sky-700',
+  red:     'bg-red-50 border-red-200 text-red-700',
+  gray:    'bg-gray-50 border-gray-200 text-gray-600',
+};
+
+/** Didit business check: CIPC registration, directors and sanctions, run on Didit's hosted page. */
+function BusinessCheckCard({ onFixProfile }: { onFixProfile: () => void }) {
+  const [check, setCheck] = useState<IdentityCheck | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    businessCheckApi.get().then(setCheck).catch(() => setCheck(null));
+  }, []);
+
+  // While the check runs on the server, follow it until the result is in.
+  useEffect(() => {
+    if (check?.status !== 'In Progress') return;
+    const timer = window.setInterval(() => {
+      businessCheckApi.get().then((latest) => {
+        setCheck(latest);
+        if (latest.status === 'Approved') toast.success('Your business is verified.');
+        else if (latest.status === 'Declined') toast.error(latest.reason ?? 'Your business check did not pass.');
+      }).catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [check?.status]);
+
+  const start = async () => {
+    setStarting(true);
+    try {
+      const { url, status } = await businessCheckApi.start();
+      if (url) { window.location.assign(url); return; }
+      setCheck((current) => ({ ...(current ?? { verified: false, canStart: true, updatedAt: null, reason: null, missing: [] }), status }));
+      toast.success('Checking your business now. The result appears here in a minute or two.');
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err, 'Could not start the business check. Please try again.'));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const status = check?.status ?? 'Not Started';
+  const state = businessCheckStates[status] ?? {
+    label: 'Not started',
+    help: 'We look your company up on the CIPC register and screen it against sanctions lists. It runs automatically and takes a minute or two.',
+    tone: 'gray',
+    Icon: Building2,
+  };
+  const missing = check?.missing ?? [];
+  const canStart = (check?.canStart ?? true) && status !== 'In Review' && status !== 'In Progress' && missing.length === 0;
+  const fixes = [
+    missing.includes('registration_number') && 'add your CIPC registration number (e.g. 2020/123456/07)',
+    missing.includes('address') && 'confirm your business address by picking it from the suggestions',
+  ].filter(Boolean);
+
+  return (
+    <div className={clsx('border rounded-2xl p-4 mb-5', toneClasses[state.tone])}>
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center flex-shrink-0">
+          <state.Icon size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900">Business verification <span className="font-semibold">· {state.label}</span></p>
+          <p className="text-xs text-gray-600 mt-0.5">{state.help}</p>
+          {status !== 'Approved' && check?.reason && (
+            <p className="text-xs font-semibold text-red-700 mt-1">{check.reason}</p>
+          )}
+          {fixes.length > 0 && (
+            <div className="mt-2 text-xs text-amber-800">
+              Before you start, {fixes.join(' and ')} under Company Information.{' '}
+              <button type="button" onClick={onFixProfile} className="font-semibold underline">Go to Company Information</button>
+            </div>
+          )}
+          {canStart && (
+            <>
+              <button type="button" onClick={start} disabled={starting} className="btn-primary mt-3 inline-flex items-center gap-2 text-sm">
+                {starting ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                Verify my business
+              </button>
+              <p className="text-[11px] text-gray-500 mt-2">
+                By continuing you agree that SpazaSure and its verification partner Didit may check your company
+                with CIPC and screen it against sanctions lists.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** POPIA rights: a copy of everything SpazaSure holds (s23), and asking for deletion (s24). */
+function PrivacyCard() {
+  const [request, setRequest] = useState<DeletionRequest | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const loadRequest = () => privacyApi.deletionRequest().then(setRequest).catch(() => setRequest(null));
+  useEffect(() => { loadRequest(); }, []);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      downloadJson(await privacyApi.myData(), `spazasure-my-data-${new Date().toISOString().slice(0, 10)}.json`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not download your data. Please try again.'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    setBusy(true);
+    try {
+      const res = await privacyApi.requestDeletion(reason);
+      toast.success(res.message || 'We received your request.');
+      setAsking(false);
+      await loadRequest();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not send your request. Please try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async () => {
+    setBusy(true);
+    try {
+      await privacyApi.cancelDeletion();
+      toast.success('Your deletion request was cancelled.');
+      await loadRequest();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not cancel the request.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card p-6 mt-5 animate-in">
+      <h2 className="font-bold text-gray-900 mb-1">Your privacy</h2>
+      <p className="text-xs text-gray-500 mb-4">
+        See how we handle your information in the <a href="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-primary underline">privacy notice</a>.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={download} disabled={downloading} className="btn-secondary inline-flex items-center gap-2 text-sm">
+          {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Download my data
+        </button>
+        {request?.status !== 'pending' && !asking && (
+          <button type="button" onClick={() => setAsking(true)} className="inline-flex items-center gap-2 text-sm font-semibold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50">
+            <X size={15} /> Delete my account
+          </button>
+        )}
+      </div>
+
+      {request?.status === 'pending' && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          You asked for your account to be deleted on {format(parseISO(request.createdAt), 'd MMM yyyy')}. We'll let you know when it's done.{' '}
+          <button type="button" onClick={cancel} disabled={busy} className="font-semibold underline">Cancel request</button>
+        </div>
+      )}
+      {request?.status === 'rejected' && request.decisionNote && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          We couldn't delete your account yet: {request.decisionNote}
+        </div>
+      )}
+
+      {asking && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-4">
+          <p className="text-sm font-semibold text-gray-900">Delete your account?</p>
+          <p className="text-xs text-gray-600 mt-1">
+            We'll erase your company details, contact details, banking details and documents, and remove your products from the
+            marketplace. We keep order and payment records for 5 years without your details, as tax law requires. Unfinished orders,
+            unpaid payouts or a renewing subscription must be settled first. This can't be undone once done.
+          </p>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={1000}
+            className="input w-full mt-3 text-sm" placeholder="Why are you leaving? (optional)" />
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={requestDeletion} disabled={busy} className="text-sm font-bold bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50">
+              {busy ? 'Sending…' : 'Request deletion'}
+            </button>
+            <button type="button" onClick={() => setAsking(false)} className="text-sm font-semibold px-4 py-2 rounded-xl border border-gray-200">Keep my account</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

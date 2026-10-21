@@ -75,9 +75,10 @@ public IPv4 address. Keep `app` pointed at its current host. If you use AAAA
 records, they must point to a working IPv6 endpoint as well.
 
 The deployment uploads `SpazaSure.Backend/nginx-spazasure.conf` to
-`/opt/spazasure`. It contains only the new API and portal hosts, so it can be
-enabled without replacing the existing `app` site's TLS configuration. On the
-server, install it and validate Nginx:
+`/opt/spazasure`. It contains the `api`, `portal` and `admin` hosts (the `app`
+host is configured separately), so it can be enabled without replacing the
+existing `app` site's TLS configuration. On a new server, install it and validate
+Nginx:
 
 ```sh
 sudo install -m 0644 /opt/spazasure/nginx-spazasure.conf /etc/nginx/sites-available/spazasure-domains
@@ -145,6 +146,144 @@ are confirmed only by a signed webhook and server-side transaction verification.
 Before applying the provider-reference migration in production, cancel any
 existing auto-renewing subscriptions in the previous payment provider
 dashboard. Their provider subscription IDs cannot be migrated into Paystack.
+
+## Deliveries and supplier payouts
+
+**SpazaSure delivers.** A supplier accepts an order, packs it and marks it **Ready
+for collection**; admins get an alert. SpazaSure staff then work from the admin
+console's **Deliveries** page: **Collected · out for delivery** when they pick it
+up, and **Delivered** when the shop has it (for cash on delivery, after collecting
+the cash; the shop can also confirm with the delivery code). Suppliers can only
+mark **pickup** orders delivered, when the shop collects from them.
+
+**Suppliers are paid for the goods** (the order subtotal). SpazaSure keeps the
+delivery fee, and the commission and service fee the shop paid. Money becomes
+available the configured number of days after delivery (Settings → payout delay).
+
+**Automatic payouts (Paystack Transfers).** With `PROD_PAYSTACK_AUTOMATIC_PAYOUTS`
+set to `true`, the order service pays every supplier whose money is available,
+every 30 minutes, from the Paystack balance into the bank account on their
+profile (they choose the bank from Paystack's list, which fills in the universal
+branch code). The `transfer.success`, `transfer.failed` and `transfer.reversed`
+webhook events mark payouts paid or failed. A failed payout is not retried
+automatically (each attempt costs R3) until the supplier updates their bank
+details or an admin clicks **Retry** on the Payouts page. Before turning it on:
+
+1. Transfers must be enabled on the Paystack account (registered businesses only).
+2. Turn off OTP for transfers (Paystack dashboard → Settings → Preferences);
+   otherwise every payout waits for a PIN.
+3. Keep enough money in the Paystack balance: with automatic settlement to your
+   bank, the balance may be empty when payouts run. Admins get an alert when the
+   balance is too low, and payouts continue once it's topped up.
+4. Make sure the Live Webhook URL is set (see Paystack above).
+
+With it off (the default), admins pay suppliers by EFT and record it with
+**Mark as paid**.
+
+## Didit identity checks
+
+> **Suppliers and admin checks need no link.** A supplier's "Verify my business"
+> and an admin's Verify button run on the server through Didit's KYB registry
+> search (CIPC) and AML screening APIs, and the result appears by itself within a
+> minute or two. Make sure **KYB registry** and **AML screening** are enabled on the
+> Didit account. For an admin check of a shop owner, the admin confirms they have
+> seen the owner's original ID in person; the owner is then screened against
+> sanctions lists. Only a shop owner's own "Verify my identity" in the app uses the
+> Didit KYC workflow (ID photo and selfie). The supplier KYB workflow and
+> `PROD_DIDIT_SUPPLIER_WORKFLOW_ID` are no longer used.
+
+Shop owners verify their identity (ID document, selfie, Home Affairs and
+sanctions) from the app's Compliance screen, and suppliers verify their business
+(CIPC registration, directors and sanctions) from Profile → Documents. Both run on
+Didit's hosted pages; the compliance service starts each session and receives the
+result by webhook. A shop needs an approved owner check for its SpazaSure Verified
+sticker. This replaces the manually reviewed owner ID document. Admins see each
+result, with Didit's warnings, on the Document Verification page.
+
+In the Didit console:
+
+1. Create a **KYC workflow** for shop owners: ID verification, liveness, face
+   match, South Africa National ID (DHA) database validation and AML screening.
+2. Create a **KYB workflow** for suppliers: South Africa company registry and
+   company directors (CIPC) and AML screening.
+3. Add a webhook destination for `status.updated` events with the URL
+   `https://api.spazasure.co.za/api/compliance/identity/didit/webhook`.
+
+Then add these GitHub production secrets and redeploy the backend:
+
+| Secret | Value |
+|---|---|
+| `PROD_DIDIT_API_KEY` | The application's API key |
+| `PROD_DIDIT_WEBHOOK_SECRET` | The webhook destination's secret |
+| `PROD_DIDIT_SHOP_WORKFLOW_ID` | The KYC workflow ID |
+| `PROD_DIDIT_SUPPLIER_WORKFLOW_ID` | The KYB workflow ID |
+
+Until they are set, the "Verify" buttons report that checks are unavailable and
+the webhook returns 503. Use a sandbox API key first; sandbox and live use
+different keys and workflows. While testing with a sandbox key, also set
+`PROD_DIDIT_SANDBOX` to `true`: sandbox returns made-up ID and company data, so
+the check that the document or company matches the profile is skipped. Remove it
+(or set `false`) when switching to the live key.
+
+When Didit runs out of credit, users see that checks are temporarily unavailable
+and admins get an alert (at most hourly). Top up at business.didit.me.
+
+## Privacy (POPIA)
+
+- The privacy notice is published at `https://portal.spazasure.co.za/privacy`.
+  Fill in the company and Information Officer details at the top of
+  `supplier-portal/src/pages/public/PrivacyNoticePage.tsx`, and have the wording
+  reviewed before launch. When the wording changes, update the version there and
+  in `SpazaSure.Shared/Helpers/PrivacyNotice.cs`; everyone is then asked to accept
+  the new version at their next sign-in.
+- Registration requires accepting the notice. Consents are recorded in
+  `auth_audit_logs` as `consent_{kind}:{version}`.
+- Users can download their data and ask for their account to be deleted. Master
+  admins approve deletions on the admin console's Deletion Requests page (respond
+  within 30 days).
+- Compliance documents and report photos are only served through links the API
+  signs for 30 minutes. Keep uploads on the server's local storage: private files
+  in S3 would need pre-signed links, which are not implemented yet.
+
+## Monitoring
+
+`https://api.spazasure.co.za/health` returns 200 when every service is running and
+can reach the database, and 503 (listing what is down) otherwise. Point an uptime
+monitor such as UptimeRobot at it, checking every 5 minutes and alerting by email
+or SMS.
+
+## Backups
+
+The `postgres-backup` container makes a verified database backup and an archive of
+uploaded documents and photos every day, kept for 14 days in
+`/opt/spazasure/backups`. To also copy them off the server (recommended), for
+example to a Hetzner Storage Box:
+
+1. Order a Storage Box and enable SSH access.
+2. On the server, create a key: `ssh-keygen -t ed25519 -N "" -f /opt/spazasure/backups/offsite_key`
+3. Add `offsite_key.pub` to the Storage Box's authorised keys (see Hetzner's Storage Box SSH docs).
+4. Set the GitHub secret `PROD_BACKUP_OFFSITE_TARGET` to e.g.
+   `u12345@u12345.your-storagebox.de:spazasure` and redeploy.
+
+Off-site copies are never deleted by the server, so clear old ones on the Storage
+Box yourself (or use its snapshots). Check `docker logs spazasure-prod-db-backup`
+for "Off-site copy succeeded".
+
+## Security headers
+
+The API gateway sends HSTS, `X-Content-Type-Options`, `Referrer-Policy` and a
+`frame-ancestors` policy on every response. The repository's Nginx config adds the
+same headers for `portal` and `admin`. On a server where Certbot has already edited
+the live site files, add these lines inside each `server { ... }` block for
+`portal` and `admin` (in `/etc/nginx/sites-available/`), then run
+`sudo nginx -t && sudo systemctl reload nginx`:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+```
 
 Pushes to `main` run the production backend and portal deployments after their
 build checks pass. The workflows use `PROD_HOST`, `PROD_SSH_USER`, and

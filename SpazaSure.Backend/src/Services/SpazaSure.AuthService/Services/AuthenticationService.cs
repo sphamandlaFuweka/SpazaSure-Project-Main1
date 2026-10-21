@@ -24,9 +24,12 @@ public class AuthenticationService(
     {
         var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return (false, addressError, null);
+        if (!req.AcceptedPrivacyNotice) return (false, PrivacyNotice.NotAcceptedMessage, null);
 
         var email = req.Email?.Trim();
         var phone = req.Phone?.Trim();
+        if (!string.IsNullOrEmpty(phone) && SaValidation.NormalizePhone(phone) is null)
+            return (false, "Enter a valid South African phone number, e.g. 082 123 4567.", null);
 
         if (await db.Users.AnyAsync(u =>
             (email != null && u.Email != null && u.Email.ToLower() == email.ToLower()) ||
@@ -51,6 +54,7 @@ public class AuthenticationService(
             Status = "pending"
         };
         db.Users.Add(user);
+        Consents.Record(db, user.Id, Consents.PrivacyNotice, ipAddress);
 
         if (role.Name == "supplier")
         {
@@ -225,7 +229,7 @@ public class AuthenticationService(
 
         if (emailSender is null || !emailSender.IsConfigured)
         {
-            logger?.LogWarning("Password reset requested for {Email} but email is not configured (set Email__SmtpHost and Email__FromAddress).", email);
+            logger?.LogWarning("Password reset requested for {Email} but email is not configured (set Email__SmtpHost and Email__FromAddress).", LogMask.Email(email));
             return;
         }
 
@@ -265,7 +269,7 @@ public class AuthenticationService(
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Failed to send password reset email to {Email}", email);
+            logger?.LogError(ex, "Failed to send password reset email to {Email}", LogMask.Email(email));
         }
     }
 

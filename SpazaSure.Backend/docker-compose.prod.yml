@@ -48,9 +48,16 @@ services:
       PGPASSWORD: ${PROD_DB_PASSWORD:?PROD_DB_PASSWORD must be set in .env.prod}
       BACKUP_RETENTION_DAYS: ${PROD_BACKUP_RETENTION_DAYS:-14}
       BACKUP_INTERVAL_SECONDS: ${PROD_BACKUP_INTERVAL_SECONDS:-86400}
+      # Uploaded documents and photos, archived alongside the database backup
+      UPLOADS_DIRS: /uploads/users /uploads/compliance
+      # Optional off-site copy, e.g. u12345@u12345.your-storagebox.de:spazasure (key: backups/offsite_key)
+      OFFSITE_TARGET: ${PROD_BACKUP_OFFSITE_TARGET:-}
+      OFFSITE_SSH_PORT: ${PROD_BACKUP_OFFSITE_PORT:-23}
     volumes:
       - ./backups:/backups
       - ./backup-postgres.sh:/scripts/backup-postgres.sh:ro
+      - prod_uploads:/uploads/users:ro
+      - prod_compliance_uploads:/uploads/compliance:ro
     entrypoint: ["/bin/sh", "/scripts/backup-postgres.sh"]
     depends_on:
       postgres:
@@ -138,6 +145,8 @@ services:
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
+      # Pay suppliers automatically through Paystack Transfers (needs Transfers enabled and OTP off)
+      Paystack__AutomaticPayouts:           ${PROD_PAYSTACK_AUTOMATIC_PAYOUTS:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -253,6 +262,15 @@ services:
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
+      # Didit identity checks (shop owners: KYC workflow, suppliers: KYB workflow)
+      Didit__ApiKey:                        ${PROD_DIDIT_API_KEY:-}
+      Didit__WebhookSecret:                 ${PROD_DIDIT_WEBHOOK_SECRET:-}
+      Didit__ShopWorkflowId:                ${PROD_DIDIT_SHOP_WORKFLOW_ID:-}
+      Didit__SupplierWorkflowId:            ${PROD_DIDIT_SUPPLIER_WORKFLOW_ID:-}
+      Didit__Sandbox:                       ${PROD_DIDIT_SANDBOX:-false}
+      # Didit sends shop owners here when they finish; the app closes Didit when it sees this address
+      Didit__ShopCallbackUrl:               ${PROD_DIDIT_SHOP_CALLBACK_URL:-https://portal.spazasure.co.za/verification-complete}
+      Didit__SupplierCallbackUrl:           ${PROD_DIDIT_SUPPLIER_CALLBACK_URL:-https://portal.spazasure.co.za/profile?verification=done}
       # Report evidence photos — same S3 bucket as UserService's uploads.
       Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
       Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}

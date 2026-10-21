@@ -190,7 +190,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
     }
 
     [HttpPatch("{id:guid}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, UpdateStatusRequest req)
+    public async Task<IActionResult> UpdateStatus(
+        Guid id, UpdateStatusRequest req, [FromServices] SpazaSure.OrderService.Services.OrderPaystackPaymentService? paystack = null)
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
@@ -199,18 +200,31 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
         if (order.PaymentMethod == "paystack" && order.PaymentStatus != "paid" &&
             req.Status is "processing" or "dispatched" or "delivered")
-            return BadRequest(ApiResponse.Fail("The customer payment has not been confirmed yet."));
+        {
+            // The webhook may have been missed or be late: ask Paystack before saying it isn't paid.
+            if (paystack is not null && !string.IsNullOrEmpty(order.PaymentProviderReference) &&
+                await paystack.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted))
+                await db.Entry(order).ReloadAsync();
+            if (order.PaymentStatus != "paid")
+                return BadRequest(ApiResponse.Fail(
+                    "Paystack hasn't confirmed this order's payment yet. If the shop has just paid, try again in a minute."));
+        }
 
+        // SpazaSure collects from the supplier and delivers. The supplier accepts, packs the order and
+        // marks it ready for collection; only pickup orders (the shop collects) does the supplier complete.
         var allowed = new Dictionary<string, string[]>
         {
             ["pending"]    = ["processing", "cancelled"],
             ["confirmed"]  = ["processing", "cancelled"],
-            ["processing"] = ["dispatched", "cancelled"],
+            ["processing"] = ["ready", "cancelled"],
+            ["ready"]      = ["delivered"],
             ["dispatched"] = ["delivered"],
         };
 
         if (!allowed.TryGetValue(order.Status, out var next) || !next.Contains(req.Status))
             return BadRequest(ApiResponse.Fail($"Cannot transition from '{order.Status}' to '{req.Status}'."));
+        if (req.Status == "delivered" && order.DeliveryType != "pickup")
+            return BadRequest(ApiResponse.Fail("SpazaSure collects this order from you and delivers it, so SpazaSure marks it delivered."));
 
         // Cash orders are completed by the shop entering the delivery code, not by the supplier
         if (req.Status == "delivered" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
@@ -239,6 +253,9 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             var statusMessages = new Dictionary<string, string>
             {
                 ["processing"] = $"Your order {order.OrderNumber} is being prepared!",
+                ["ready"] = order.DeliveryType == "pickup"
+                    ? $"Your order {order.OrderNumber} is packed and ready for you to collect from the supplier."
+                    : $"Your order {order.OrderNumber} is packed. SpazaSure will collect it and deliver it to you.",
                 ["dispatched"] = $"Your order {order.OrderNumber} has been dispatched and is on its way!",
                 ["delivered"] = $"Your order {order.OrderNumber} has been delivered.",
                 ["cancelled"] = $"Your order {order.OrderNumber} was cancelled. Reason: {req.Reason ?? "N/A"}"
@@ -248,12 +265,25 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             events.PublishNotification(
                 supplierId: shop.UserId.ToString(),
                 type: req.Status == "dispatched" ? "delivery" : "order",
-                title: req.Status == "dispatched" ? "Order Dispatched" : $"Order {req.Status.ToUpperInvariant()}",
+                title: req.Status switch
+                {
+                    "dispatched" => "Order Dispatched",
+                    "ready" => "Order packed",
+                    _ => $"Order {req.Status.ToUpperInvariant()}",
+                },
                 message: msg,
                 priority: req.Status == "cancelled" ? "high" : "normal",
                 referenceId: order.Id.ToString(),
                 routingKey: $"order.{req.Status}"
             );
+        }
+
+        // SpazaSure's delivery team collects orders that are ready
+        if (req.Status == "ready" && order.DeliveryType != "pickup")
+        {
+            var supplierName = await db.Suppliers.Where(s => s.Id == order.SupplierId).Select(s => s.CompanyName).FirstAsync();
+            await AdminAlerts.NotifyAdminsAsync(db, events, "delivery", "Order ready for collection",
+                $"{order.OrderNumber} is packed and ready to collect from {supplierName}.", order.Id.ToString());
         }
 
         return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }));

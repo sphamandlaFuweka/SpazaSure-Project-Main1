@@ -23,6 +23,8 @@ const pageTitles: Record<string, string> = {
   payouts:       'Payouts',
   settings:      'Settings',
   team:          'Team & Access',
+  deliveries:    'Deliveries',
+  'deletion-requests': 'Deletion Requests',
 };
 
 export default function AdminLayout() {

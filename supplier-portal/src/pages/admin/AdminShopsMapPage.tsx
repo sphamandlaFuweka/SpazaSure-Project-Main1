@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned } from 'lucide-react';
 import clsx from 'clsx';
 import 'leaflet/dist/leaflet.css';
-import { adminSpazaOwnersApi } from '../../services/api';
+import { adminSpazaOwnersApi, apiErrorMessage } from '../../services/api';
+import { openAdminDiditCheck } from '../../services/adminDidit';
 import PageLoader from '../../components/ui/PageLoader';
 
 interface Shop {
@@ -20,6 +21,7 @@ interface Shop {
   latitude?: number | null;
   longitude?: number | null;
   isVerified: boolean;
+  identityCheckStatus?: string | null;
   status: string;
   complianceStatus?: string;
   joinedAt?: string;
@@ -126,12 +128,21 @@ export default function AdminShopsMapPage() {
   const selectedProvince = PROVINCES.find((p) => p.name === provinceName);
 
   const verify = async (shop: Shop) => {
+    if (shop.identityCheckStatus !== 'Approved') {
+      const result = await openAdminDiditCheck('shop', shop.id, shop.shopName);
+      if (result) {
+        setShops((prev) => prev.map((item) => item.id === shop.id
+          ? { ...item, identityCheckStatus: result }
+          : item));
+      }
+      return;
+    }
     try {
       await adminSpazaOwnersApi.verify(shop.id);
       toast.success(`${shop.shopName} verified`);
       setShops((prev) => prev.map((s) => (s.id === shop.id ? { ...s, isVerified: true, status: 'verified' } : s)));
-    } catch {
-      toast.error('Verification failed');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Verification failed'));
     }
   };
 
@@ -256,7 +267,9 @@ export default function AdminShopsMapPage() {
                 )}
               </div>
               {!selected.isVerified && (
-                <button onClick={() => verify(selected)} className="w-full btn-primary text-sm">Verify this shop</button>
+                <button onClick={() => verify(selected)} className="w-full btn-primary text-sm">
+                  {selected.identityCheckStatus === 'Approved' ? 'Verify this shop' : 'Verify with Didit'}
+                </button>
               )}
             </div>
           ) : (

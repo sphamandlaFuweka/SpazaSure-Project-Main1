@@ -1660,6 +1660,40 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS nutrition_info text NOT NULL DEFAU
 ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications text NOT NULL DEFAULT '[]';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS authenticity_tips text NOT NULL DEFAULT '[]';
 
+-- Didit identity checks: shop owners (ID document, selfie, Home Affairs, sanctions) and suppliers
+-- (CIPC registration, directors, sanctions). A shop needs an approved owner check for its sticker.
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_session_id varchar(64);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_status varchar(30);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_notes varchar(2000);
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS identity_check_updated_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_spaza_shops_identity_check_session_id ON spaza_shops(identity_check_session_id);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_session_id varchar(64);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_status varchar(30);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_notes varchar(2000);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS identity_check_updated_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_suppliers_identity_check_session_id ON suppliers(identity_check_session_id);
+
+-- POPIA s24: requests from users to delete their account; a master admin approves them.
+CREATE TABLE IF NOT EXISTS account_deletion_requests (
+    id uuid NOT NULL CONSTRAINT pk_account_deletion_requests PRIMARY KEY,
+    user_id uuid NOT NULL,
+    role varchar(20) NOT NULL,
+    reason varchar(1000),
+    status varchar(20) NOT NULL,
+    decided_at timestamp with time zone,
+    decided_by_user_id uuid,
+    decision_note varchar(1000),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_status ON account_deletion_requests(status);
+CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_user_id ON account_deletion_requests(user_id);
+
+-- Automatic supplier payouts through Paystack Transfers.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_initiated_at timestamp with time zone;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_recipient_code varchar(64);
+CREATE INDEX IF NOT EXISTS ix_orders_payout_reference ON orders(payout_reference);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

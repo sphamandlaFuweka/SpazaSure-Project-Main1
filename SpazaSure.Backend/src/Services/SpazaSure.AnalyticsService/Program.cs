@@ -79,6 +79,9 @@ app.UseSwaggerUI(c =>
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "analytics", (services, ct) =>
+    Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+        .GetRequiredService<SpazaSure.Infrastructure.Data.SpazaSureDbContext>(services).Database.CanConnectAsync(ct));
 app.Run();
 
 

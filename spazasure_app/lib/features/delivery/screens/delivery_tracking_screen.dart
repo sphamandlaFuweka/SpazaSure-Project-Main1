@@ -14,7 +14,8 @@ class DeliveryTrackingScreen extends StatelessWidget {
   static const _steps = [
     ('pending', 'Order placed', Icons.receipt_long_rounded),
     ('processing', 'Being prepared by the supplier', Icons.inventory_2_rounded),
-    ('dispatched', 'On the way to your shop', Icons.local_shipping_rounded),
+    ('ready', 'Packed: SpazaSure is collecting it', Icons.inventory_rounded),
+    ('dispatched', 'SpazaSure is delivering it to your shop', Icons.local_shipping_rounded),
     ('delivered', 'Delivered', Icons.store_rounded),
   ];
 
@@ -234,7 +235,9 @@ class DeliveryTrackingScreen extends StatelessWidget {
                                   : order.estimatedDelivery != null
                                   ? 'Expected by ${DateFormat('EEE d MMM, HH:mm').format(order.estimatedDelivery!)}'
                                   : order.status == 'dispatched'
-                                  ? '$supplier has dispatched your order'
+                                  ? 'SpazaSure is on the way with your order'
+                                  : order.status == 'ready'
+                                  ? 'Packed by $supplier: SpazaSure is collecting it'
                                   : '$supplier is preparing your order',
                               style: AppTextStyles.subtitle.copyWith(
                                 color: cancelled

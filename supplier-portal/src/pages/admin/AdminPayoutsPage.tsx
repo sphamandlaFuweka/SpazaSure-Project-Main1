@@ -11,7 +11,23 @@ export default function AdminPayoutsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [data, setData] = useState<{ payoutDelayDays: number; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[] } | null>(null);
+  const [data, setData] = useState<{
+    payoutDelayDays: number; automaticPayouts: boolean; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[];
+  } | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+
+  const retry = async (s: AdminPayoutSupplier) => {
+    setRetrying(s.supplierId);
+    try {
+      await adminPayoutsApi.retry(s.supplierId);
+      toast.success(`The payout to ${s.companyName} will be tried again within 30 minutes.`);
+      await load();
+    } catch {
+      // error toast handled by api interceptor
+    } finally {
+      setRetrying(null);
+    }
+  };
   const [paying, setPaying] = useState<AdminPayoutSupplier | null>(null);
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -56,8 +72,8 @@ export default function AdminPayoutsPage() {
         <div>
           <h1 className="page-title">Supplier Payouts</h1>
           <p className="page-subtitle">
-            Suppliers are owed products + delivery for every order SpazaSure collected payment for (Paystack or cash on delivery),
-            {data ? ` ${data.payoutDelayDays} day${data.payoutDelayDays === 1 ? '' : 's'}` : ''} after delivery.
+            SpazaSure delivers, so suppliers are owed the value of the goods for every order SpazaSure collected payment for
+            (Paystack, wallet or cash on delivery),{data ? ` ${data.payoutDelayDays} day${data.payoutDelayDays === 1 ? '' : 's'}` : ''} after delivery.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -65,6 +81,17 @@ export default function AdminPayoutsPage() {
           <button onClick={load} className="btn-secondary" aria-label="Refresh payouts"><RefreshCw size={14} /></button>
         </div>
       </div>
+
+      {data && (
+        <div className={`flex items-start gap-3 rounded-2xl border p-4 text-sm ${data.automaticPayouts ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+          <Landmark size={18} className="flex-shrink-0 mt-0.5" />
+          <p>
+            {data.automaticPayouts
+              ? 'Automatic payouts are on: once an amount is ready, Paystack pays it to the supplier\'s bank within about 30 minutes. Use "Mark as paid" only if you paid a supplier by EFT yourself.'
+              : 'Automatic payouts are off. Pay suppliers by EFT and record it with "Mark as paid", or turn on automatic Paystack payouts (see the deployment guide).'}
+          </p>
+        </div>
+      )}
 
       {loadError && (
         <div role="alert" className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -119,15 +146,26 @@ export default function AdminPayoutsPage() {
                     <td className="table-cell text-right">
                       <p className="font-black text-gray-900">{formatCurrency(s.availableAmount)}</p>
                       <p className="text-xs text-ink-3">{s.availableOrders} order{s.availableOrders === 1 ? '' : 's'}</p>
+                      {s.processingAmount > 0 && <p className="text-xs font-semibold text-sky-700">{formatCurrency(s.processingAmount)} being paid</p>}
+                      {s.failedAmount > 0 && (
+                        <p className="text-xs font-semibold text-brand-red" title={s.failureReason ?? undefined}>
+                          {formatCurrency(s.failedAmount)} failed{s.failureReason ? `: ${s.failureReason}` : ''}
+                        </p>
+                      )}
                     </td>
                     <td className="table-cell text-right">
                       <p className="font-semibold text-ink-2">{formatCurrency(s.pendingAmount)}</p>
                       <p className="text-xs text-ink-3">{s.pendingOrders} order{s.pendingOrders === 1 ? '' : 's'}</p>
                     </td>
                     <td className="table-cell text-center">
+                      {s.failedAmount > 0 && (
+                        <button onClick={() => retry(s)} disabled={retrying === s.supplierId} className="btn-secondary text-xs px-3 py-2 mr-2">
+                          Retry
+                        </button>
+                      )}
                       <button
                         onClick={() => { setReference(''); setPaying(s); }}
-                        disabled={s.availableOrders === 0}
+                        disabled={s.availableOrders === 0 && s.failedAmount === 0}
                         className="btn-primary text-xs px-4 py-2"
                         title={s.availableOrders === 0 ? 'Nothing is ready to pay yet' : undefined}
                       >

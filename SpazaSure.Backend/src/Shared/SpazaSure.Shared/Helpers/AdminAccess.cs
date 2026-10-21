@@ -43,10 +43,12 @@ public static class AdminAccess
     [
         ("/api/admin/me", "*"),
         ("/api/admin/team", null),
+        ("/api/admin/deletion-requests", null), // erases accounts, so master admins only
         ("/api/admin/suppliers", Trust),
         ("/api/admin/spaza-owners", Trust),
         ("/api/admin/reports", Trust),
         ("/api/compliance/documents", Trust),
+        ("/api/compliance/identity/admin", Trust),
         ("/api/admin/products", Marketplace),
         ("/api/admin/orders", Marketplace),
         ("/api/admin/group-buy", Marketplace), // also covers /api/admin/group-buy-banner
@@ -64,7 +66,8 @@ public static class AdminAccess
     /// <summary>Whether a path is part of the admin console and so subject to staff access.</summary>
     public static bool IsAdminPath(string path) =>
         path.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/api/compliance/documents", StringComparison.OrdinalIgnoreCase);
+        path.StartsWith("/api/compliance/documents", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/api/compliance/identity/admin", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The area guarding a path: "*" for any admin, an area key, or null for master only.

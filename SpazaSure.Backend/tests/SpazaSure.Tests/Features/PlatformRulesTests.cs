@@ -91,7 +91,7 @@ public class PlatformRulesTests
         var svc = new AuthenticationService(db, ConfigHelper.Build());
 
         await svc.RegisterAsync(new RegisterRequest("supplier", "approval@test.com", "0820000055",
-            "Password123!", "Approval Co", "Lindiwe", null, null, null), "127.0.0.1");
+            "Password123!", "Approval Co", "Lindiwe", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         (await db.Suppliers.SingleAsync()).Status.Should().Be(expectedStatus);
     }
@@ -117,7 +117,7 @@ public class PlatformRulesTests
                 HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")) }
             }
         };
-        var adminCtrl = new AdminPayoutsController(db, new EventPublisher("__nonexistent__", "x", "x"));
+        var adminCtrl = new AdminPayoutsController(db, new EventPublisher("__nonexistent__", "x", "x"), TestPaystack.Transfers());
         return (supplierCtrl, adminCtrl, db, supplier);
     }
 
@@ -152,10 +152,10 @@ public class PlatformRulesTests
 
         var data = Data(await supplierCtrl.Summary());
 
-        // Each order owes Subtotal + DeliveryFee = R1,150 (commission is SpazaSure's)
-        data.GetProperty("awaitingDelivery").GetDecimal().Should().Be(1150m);
-        data.GetProperty("pending").GetDecimal().Should().Be(1150m);
-        data.GetProperty("available").GetDecimal().Should().Be(1150m);
+        // Each order owes its Subtotal = R1,000 (SpazaSure delivers, and keeps the delivery fee and commission)
+        data.GetProperty("awaitingDelivery").GetDecimal().Should().Be(1000m);
+        data.GetProperty("pending").GetDecimal().Should().Be(1000m);
+        data.GetProperty("available").GetDecimal().Should().Be(1000m);
         data.GetProperty("paidOut").GetDecimal().Should().Be(0m);
     }
 
@@ -168,7 +168,7 @@ public class PlatformRulesTests
 
         var data = Data(await supplierCtrl.Summary());
 
-        data.GetProperty("available").GetDecimal().Should().Be(1150m);
+        data.GetProperty("available").GetDecimal().Should().Be(1000m);
         data.GetProperty("pending").GetDecimal().Should().Be(0m);
     }
 
@@ -186,7 +186,7 @@ public class PlatformRulesTests
         (await db.Orders.FindAsync(pending.Id))!.PaidOutAt.Should().BeNull();
 
         var data = Data(await supplierCtrl.Summary());
-        data.GetProperty("paidOut").GetDecimal().Should().Be(1150m);
+        data.GetProperty("paidOut").GetDecimal().Should().Be(1000m);
         data.GetProperty("available").GetDecimal().Should().Be(0m);
 
         // Nothing left to pay

@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
   BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine, ClipboardList,
-  KeyRound,
+  KeyRound, UserX, Truck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -54,6 +54,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
       items: [
         { to: '/admin/products',   icon: Package,      label: 'Products' },
         { to: '/admin/orders',     icon: ShoppingCart, label: 'Orders' },
+        { to: '/admin/deliveries', icon: Truck, label: 'Deliveries' },
         { to: '/admin/group-buys', icon: UsersRound,   label: 'Group Buys' },
         { to: '/admin/payouts',    icon: Wallet,       label: 'Payouts' },
         { to: '/admin/deposits',   icon: Landmark,     label: 'Wallet Deposits', badge: pendingDeposits || undefined },
@@ -73,6 +74,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         { to: '/admin/notifications', icon: Bell,     label: 'Notifications' },
         { to: '/admin/settings',      icon: Settings, label: 'Settings' },
         { to: '/admin/team',          icon: KeyRound, label: 'Team & Access' },
+        { to: '/admin/deletion-requests', icon: UserX, label: 'Deletion Requests' },
       ],
     },
   ];

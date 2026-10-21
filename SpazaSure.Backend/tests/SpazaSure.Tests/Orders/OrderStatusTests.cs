@@ -48,9 +48,8 @@ public class OrderStatusTransitionTests
     [Theory]
     [InlineData("pending",    "processing")]
     [InlineData("pending",    "cancelled")]
-    [InlineData("processing", "dispatched")]
+    [InlineData("processing", "ready")]
     [InlineData("processing", "cancelled")]
-    [InlineData("dispatched", "delivered")]
     public async Task UpdateStatus_AllowedTransitions_ReturnOk(string from, string to)
     {
         var (ctrl, db, supplierId) = CreateController();
@@ -72,6 +71,34 @@ public class OrderStatusTransitionTests
         var order = SeedOrder(db, supplierId, from);
         var result = await ctrl.UpdateStatus(order.Id, new UpdateStatusRequest(to, null));
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Theory]
+    [InlineData("pickup", true)]    // the shop collects from the supplier, who hands it over
+    [InlineData("standard", false)] // SpazaSure delivers, so SpazaSure marks it delivered
+    [InlineData("express", false)]
+    public async Task Supplier_MarksDelivered_OnlyForPickupOrders(string deliveryType, bool allowed)
+    {
+        var (ctrl, db, supplierId) = CreateController();
+        var order = SeedOrder(db, supplierId, "ready");
+        order.DeliveryType = deliveryType;
+        db.SaveChanges();
+
+        var result = await ctrl.UpdateStatus(order.Id, new UpdateStatusRequest("delivered", null));
+
+        if (allowed) result.Should().BeOfType<OkObjectResult>();
+        else result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Theory]
+    [InlineData("processing", "dispatched")] // collecting is SpazaSure's job
+    [InlineData("ready", "dispatched")]
+    public async Task Supplier_CannotDispatch(string from, string to)
+    {
+        var (ctrl, db, supplierId) = CreateController();
+        var order = SeedOrder(db, supplierId, from);
+
+        (await ctrl.UpdateStatus(order.Id, new UpdateStatusRequest(to, null))).Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]

@@ -19,10 +19,11 @@ public class MobilePasswordAuthTests
 
         var registration = await service.RegisterAsync(
             new ShopRegisterRequest(
-                phone, password, "Test Owner", "Test Shop", "1 Main Street", null),
+                phone, password, "Test Owner", "Test Shop", "1 Main Street", "800101 5009 087", AcceptedPrivacyNotice: true),
             "127.0.0.1");
 
         Assert.True(registration.Success);
+        Assert.Equal("8001015009087", Assert.Single(db.SpazaShops).OwnerIdNumber);
         var user = Assert.Single(db.Users);
         Assert.Equal(phone, user.Phone);
         Assert.NotEqual(password, user.PasswordHash);
@@ -102,7 +103,7 @@ public class MobilePasswordAuthTests
                 Longitude: 27.8540,
                 Interests: ["Scan products"],
                 NotificationPreferences: ["Product safety"],
-                MarketingOptIn: false),
+                MarketingOptIn: false, AcceptedPrivacyNotice: true),
             "127.0.0.1");
 
         Assert.True(registration.Success);

@@ -33,6 +33,8 @@ public class Order : BaseEntity
     /// <summary>When SpazaSure paid the supplier for this order (null = not yet paid out).</summary>
     public DateTime? PaidOutAt { get; set; }
     public string? PayoutReference { get; set; }
+    /// <summary>When an automatic Paystack payout to the supplier was started; PaidOutAt is set once it succeeds.</summary>
+    public DateTime? PayoutInitiatedAt { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;

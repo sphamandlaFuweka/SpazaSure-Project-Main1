@@ -10,6 +10,8 @@ const STAGE_LABEL: Record<PayoutStage, { label: string; className: string }> = {
   awaiting_delivery: { label: 'Awaiting delivery', className: 'bg-gray-100 text-ink-2' },
   pending:           { label: 'Pending',           className: 'bg-brand-yellow-light text-accent-700' },
   available:         { label: 'Ready to pay out',  className: 'bg-brand-green-light text-brand-green' },
+  processing:        { label: 'Being paid',        className: 'bg-sky-50 text-sky-700' },
+  failed:            { label: 'Payout failed',     className: 'bg-brand-red-light text-brand-red' },
   paid_out:          { label: 'Paid out',          className: 'bg-brand-blue-light text-brand-blue' },
 };
 
@@ -27,12 +29,12 @@ export default function PayoutsCard() {
   if (!data) return <div className="card p-5 h-40 skeleton" aria-hidden="true" />;
 
   const tiles = [
-    { label: 'Awaiting delivery', value: data.awaitingDelivery, hint: 'Paid online, not delivered yet' },
+    { label: 'Awaiting delivery', value: data.awaitingDelivery, hint: 'Paid, not delivered by SpazaSure yet' },
     {
       label: 'Pending', value: data.pending,
       hint: data.nextAvailableAt ? `Next release ${format(new Date(data.nextAvailableAt), 'd MMM')}` : `${data.payoutDelayDays}-day wait after delivery`,
     },
-    { label: 'Ready to pay out', value: data.available, hint: 'SpazaSure will pay this to your bank', strong: true },
+    { label: 'Ready to pay out', value: data.available + data.processing, hint: 'Paid to your bank automatically', strong: true },
     { label: 'Paid out', value: data.paidOut, hint: 'Already sent to you' },
   ];
 
@@ -44,11 +46,26 @@ export default function PayoutsCard() {
           <div>
             <h3 className="section-title">Your payouts</h3>
             <p className="text-xs text-ink-3">
-              SpazaSure collects each shop's payment and pays you products + delivery, {data.payoutDelayDays} day{data.payoutDelayDays === 1 ? '' : 's'} after delivery.
+              SpazaSure collects each shop's payment, delivers the order, and pays you for the goods {data.payoutDelayDays} day{data.payoutDelayDays === 1 ? '' : 's'} after delivery.
             </p>
           </div>
         </div>
       </div>
+
+      {data.failed > 0 && (
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-full mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-brand-red-light p-3 text-left text-sm text-red-900 hover:bg-red-100 transition-colors"
+        >
+          <AlertTriangle size={16} className="text-brand-red flex-shrink-0" />
+          <span className="flex-1">
+            A payout of {formatCurrency(data.failed)} couldn't be sent
+            {data.recent.find((r) => r.failureReason)?.failureReason ? `: ${data.recent.find((r) => r.failureReason)!.failureReason}` : ''}.
+            Check your banking details; we'll try again once they're updated.
+          </span>
+          <ArrowRight size={14} />
+        </button>
+      )}
 
       {!data.hasBankDetails && (
         <button
@@ -89,7 +106,9 @@ export default function PayoutsCard() {
                   ? `Paid ${format(new Date(r.paidOutAt), 'd MMM')}${r.payoutReference ? ` · ${r.payoutReference}` : ''}`
                   : r.stage === 'pending' && r.availableAt
                     ? `Available ${format(new Date(r.availableAt), 'd MMM')}`
-                    : r.stage === 'available' ? 'Waiting for payout' : '—';
+                    : r.stage === 'available' ? 'Waiting for payout'
+                    : r.stage === 'processing' ? 'On its way to your bank'
+                    : r.stage === 'failed' ? (r.failureReason ?? 'Payout failed') : '—';
                 return (
                   <tr key={r.id} className="table-row cursor-pointer" onClick={() => navigate(`/orders?order=${r.id}`)}>
                     <td className="table-cell font-bold text-brand-blue">{r.orderNumber}</td>

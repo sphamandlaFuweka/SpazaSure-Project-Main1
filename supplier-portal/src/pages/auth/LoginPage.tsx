@@ -95,8 +95,12 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       setTimeout(() => navigate(__APP_TARGET__ === 'admin' ? '/admin/dashboard' : '/dashboard'), 50);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Invalid credentials. Please try again.');
+      const response = (err as { response?: { status?: number; data?: { message?: string } } })?.response;
+      if (response?.data?.message) toast.error(response.data.message);
+      // No response at all: offline, or the browser blocked the request. Not a wrong password.
+      else if (!response) toast.error("Can't reach SpazaSure right now. Check your connection and try again.");
+      else if ((response.status ?? 0) >= 500) toast.error('Something went wrong on our side. Please try again in a few minutes.');
+      else toast.error('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -283,8 +287,6 @@ export default function LoginPage() {
           {/* Trust badges */}
           <div style={stagger(280)} className="flex items-center justify-center gap-4 mt-6 text-[11px] text-gray-400 font-medium">
             <span className="flex items-center gap-1"><Lock size={12} /> SSL Encrypted</span>
-            <span className="w-1 h-1 rounded-full bg-gray-300" />
-            <span className="flex items-center gap-1"><ShieldCheck size={12} /> POPIA Compliant</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
             <span className="flex items-center gap-1"><BadgeCheck size={12} /> CIPC Verified</span>
           </div>

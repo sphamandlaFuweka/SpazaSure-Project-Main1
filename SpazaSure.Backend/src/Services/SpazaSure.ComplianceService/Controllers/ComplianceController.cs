@@ -32,7 +32,7 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         {
             d.Id,
             d.DocType,
-            d.DocUrl,
+            DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
             d.Status,
             d.ExpiryDate,
             d.RejectionNote,
@@ -40,6 +40,9 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
             SupplierId   = d.Supplier.Id,
             SupplierName = d.Supplier.CompanyName,
             SupplierEmail = d.Supplier.Email,
+            IdentityCheckStatus = d.Supplier.IdentityCheckStatus,
+            IdentityCheckNotes = d.Supplier.IdentityCheckNotes,
+            IdentityCheckUpdatedAt = d.Supplier.IdentityCheckUpdatedAt,
         }).ToListAsync();
 
         var pending  = docs.Count(d => d.Status == "pending");
@@ -69,7 +72,7 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         {
             d.Id,
             d.DocType,
-            d.DocUrl,
+            DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
             d.Status,
             d.ExpiryDate,
             d.RejectionNote,
@@ -77,6 +80,9 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
             SupplierId   = d.Shop.Id,
             SupplierName = d.Shop.ShopName,
             SupplierEmail = d.Shop.Email ?? d.Shop.Phone,
+            IdentityCheckStatus = d.Shop.IdentityCheckStatus,
+            IdentityCheckNotes = d.Shop.IdentityCheckNotes,
+            IdentityCheckUpdatedAt = d.Shop.IdentityCheckUpdatedAt,
         }).ToListAsync();
 
         var pending  = docs.Count(d => d.Status == "pending");
@@ -93,6 +99,8 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         var doc = await db.SupplierDocuments.Include(d => d.Supplier).FirstOrDefaultAsync(d => d.Id == id);
         if (doc is not null)
         {
+            if (IdentityChecks.AdminBlockReason(doc.Supplier) is { } supplierBlock)
+                return Conflict(ApiResponse.Fail(supplierBlock));
             doc.Status = "approved";
             doc.RejectionNote = null;
             await db.SaveChangesAsync();
@@ -114,6 +122,8 @@ public class ComplianceController(SpazaSureDbContext db, EventPublisher events) 
         // Try shop documents
         var shopDoc = await db.ShopDocuments.Include(d => d.Shop).FirstOrDefaultAsync(d => d.Id == id);
         if (shopDoc is null) return NotFound(ApiResponse.Fail("Document not found."));
+        if (IdentityChecks.AdminBlockReason(shopDoc.Shop) is { } shopBlock)
+            return Conflict(ApiResponse.Fail(shopBlock));
 
         shopDoc.Status = "approved";
         shopDoc.RejectionNote = null;

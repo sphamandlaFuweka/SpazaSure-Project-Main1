@@ -34,7 +34,7 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
             supplier.BankName, supplier.BankAccount, supplier.BankBranchCode,
             supplier.LogoUrl, supplier.CommissionRate,
             Documents = supplier.Documents.Select(d => new {
-                d.Id, d.DocType, d.DocUrl, d.Status, d.ExpiryDate, d.RejectionNote
+                d.Id, d.DocType, DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl), d.Status, d.ExpiryDate, d.RejectionNote
             })
         }));
     }
@@ -53,6 +53,21 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
             return BadRequest(ApiResponse.Fail("Longitude must be between -180 and 180."));
         var addressError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return BadRequest(ApiResponse.Fail(addressError));
+        if (req.Phone != null && SaValidation.NormalizePhone(req.Phone) is null)
+            return BadRequest(ApiResponse.Fail("Enter a valid South African phone number, e.g. 082 123 4567."));
+        string? registration = null;
+        if (!string.IsNullOrWhiteSpace(req.RegistrationNumber))
+        {
+            if (!SaValidation.IsValidCompanyRegistration(req.RegistrationNumber))
+                return BadRequest(ApiResponse.Fail("Enter your CIPC registration number in the form 2020/123456/07."));
+            registration = SaValidation.NormalizeCompanyRegistration(req.RegistrationNumber);
+            if (await db.Suppliers.AnyAsync(s => s.Id != supplier.Id && s.RegistrationNumber == registration))
+                return Conflict(ApiResponse.Fail("Another supplier is already registered with this CIPC number."));
+        }
+        // The business check confirmed the old company details, so changed ones have to be checked again.
+        if ((registration != null && registration != supplier.RegistrationNumber) ||
+            (req.CompanyName != null && req.CompanyName != supplier.CompanyName))
+            IdentityChecks.Reset(supplier);
 
         var addressChanged = (req.Address != null && req.Address != supplier.Address)
             || (req.City != null && req.City != supplier.City)
@@ -66,8 +81,16 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
         supplier.City               = req.City               ?? supplier.City;
         supplier.Province           = req.Province           ?? supplier.Province;
         supplier.PostalCode         = req.PostalCode         ?? supplier.PostalCode;
-        supplier.RegistrationNumber = req.RegistrationNumber ?? supplier.RegistrationNumber;
+        supplier.RegistrationNumber = registration ?? supplier.RegistrationNumber;
         supplier.VatNumber          = req.VatNumber          ?? supplier.VatNumber;
+        var bankChanged = (req.BankAccount != null && req.BankAccount != supplier.BankAccount)
+            || (req.BankBranchCode != null && req.BankBranchCode != supplier.BankBranchCode);
+        if (bankChanged)
+        {
+            // Payouts go to the new account: a new Paystack recipient, and failed payouts are retried
+            supplier.PaystackRecipientCode = null;
+            await SupplierPayoutResults.ClearFailuresAsync(db, supplier.Id, HttpContext.RequestAborted);
+        }
         supplier.BankName           = req.BankName           ?? supplier.BankName;
         supplier.BankAccount        = req.BankAccount        ?? supplier.BankAccount;
         supplier.BankBranchCode     = req.BankBranchCode     ?? supplier.BankBranchCode;
@@ -93,18 +116,29 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
     // A self-service "PATCH tier" endpoint used to live here and let any supplier grant
     // themselves a paid tier and lower commission without paying, so it was removed.
     [HttpPost("documents")]
+    [RequestSizeLimit(10_000_000)] // 10MB
     public async Task<IActionResult> UploadDocument([FromForm] string docType, IFormFile file)
     {
+        if (file is null || file.Length == 0)
+            return BadRequest(ApiResponse.Fail("No file provided."));
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!new[] { ".pdf", ".jpg", ".jpeg", ".png", ".webp" }.Contains(ext))
+            return BadRequest(ApiResponse.Fail("File type not allowed. Accepted: PDF, JPG, PNG, WEBP."));
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(ApiResponse.Fail("File must be under 10MB."));
+
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
-        var fileName = $"{docType}_{DateTime.UtcNow:yyyyMMddHHmmss}{Path.GetExtension(file.FileName)}";
+        var fileName = $"{docType}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
         var key = $"supplier-docs/{supplier.Id}/{fileName}";
         await using (var stream = file.OpenReadStream())
         {
             var docUrl = await storage.SaveAsync(stream, key, file.ContentType, HttpContext.RequestAborted);
             var existing = await db.SupplierDocuments
                 .FirstOrDefaultAsync(d => d.SupplierId == supplier.Id && d.DocType == docType);
+            var resubmitted = existing?.Status == "rejected";
+            var replacedUrl = existing?.DocUrl;
             if (existing is not null)
             {
                 existing.DocUrl = docUrl; existing.Status = "pending"; existing.RejectionNote = null;
@@ -116,9 +150,13 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
                 });
             }
             await db.SaveChangesAsync();
-            await AdminAlerts.NotifyAdminsAsync(db, events, "compliance", "Document waiting for review",
-                $"{supplier.CompanyName} uploaded a {docType.Replace('_', ' ')} document.", supplier.Id.ToString());
-            return Ok(ApiResponse<object>.Ok(new { docType, docUrl, status = "pending" }));
+            // Don't keep the replaced copy of the supplier's documents (POPIA s14: no longer than needed).
+            if (!string.IsNullOrEmpty(replacedUrl) && replacedUrl != docUrl)
+                await storage.DeleteAsync(replacedUrl, HttpContext.RequestAborted);
+            await AdminAlerts.NotifyAdminsAsync(db, events, "compliance",
+                resubmitted ? "Rejected document resubmitted" : "Document waiting for review",
+                $"{supplier.CompanyName} {(resubmitted ? "re-uploaded" : "uploaded")} a {docType.Replace('_', ' ')} document.", supplier.Id.ToString());
+            return Ok(ApiResponse<object>.Ok(new { docType, docUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(docUrl), status = "pending" }));
         }
     }
 

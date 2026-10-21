@@ -285,7 +285,7 @@ public class AdminStaffAccessTests
         var svc = new AuthenticationService(db, ConfigHelper.Build());
 
         var (success, error, _) = await svc.RegisterAsync(new RegisterRequest(
-            "admin", "sneaky@test.com", "0820000001", "Password123!", null, null, null, null, null), "127.0.0.1");
+            "admin", "sneaky@test.com", "0820000001", "Password123!", null, null, null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         success.Should().BeFalse();
         error.Should().Contain("can't be registered");

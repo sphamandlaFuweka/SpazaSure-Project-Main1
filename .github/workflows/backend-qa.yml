@@ -21,6 +21,9 @@ jobs:
         working-directory: SpazaSure.Backend
     steps:
       - uses: actions/checkout@v4
+      # Catch a malformed compose file before deploying; --no-interpolate needs no secrets.
+      - name: Validate QA compose file
+        run: docker compose -f docker-compose.qa.yml config --no-interpolate --quiet
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |

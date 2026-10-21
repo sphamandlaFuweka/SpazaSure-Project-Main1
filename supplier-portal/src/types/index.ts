@@ -108,7 +108,8 @@ export interface Category {
 }
 
 // Order
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'dispatched' | 'delivered' | 'cancelled' | 'disputed';
+/** ready: packed by the supplier for SpazaSure to collect. dispatched: collected by SpazaSure, out for delivery. */
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled' | 'disputed';
 export type PaymentStatus = 'initiated' | 'pending' | 'paid' | 'held' | 'released' | 'failed' | 'refunded';
 
 export interface OrderItem {

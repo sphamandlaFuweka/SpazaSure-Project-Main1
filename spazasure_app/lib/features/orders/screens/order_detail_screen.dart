@@ -311,14 +311,16 @@ class OrderDetailScreen extends StatelessWidget {
       'pending',
       'confirmed',
       'processing',
+      'ready',
       'dispatched',
       'delivered',
     ];
     final labels = [
       'Pending',
       'Confirmed',
-      'Processing',
-      'Dispatched',
+      'Preparing',
+      'Packed',
+      'On the way',
       'Delivered',
     ];
     final currentIndex = steps.indexOf(currentStatus);

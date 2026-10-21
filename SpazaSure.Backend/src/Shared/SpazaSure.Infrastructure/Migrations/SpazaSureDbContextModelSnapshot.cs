@@ -22,6 +22,67 @@ namespace SpazaSure.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.AccountDeletionRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_deletion_requests");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_account_deletion_requests_status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_account_deletion_requests_user_id");
+
+                    b.ToTable("account_deletion_requests", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.AuthAuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -857,6 +918,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("payment_status");
 
+                    b.Property<DateTime?>("PayoutInitiatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payout_initiated_at");
+
                     b.Property<string>("PayoutReference")
                         .HasColumnType("text")
                         .HasColumnName("payout_reference");
@@ -914,6 +979,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("PaymentProviderReference")
                         .HasDatabaseName("ix_orders_payment_provider_reference");
+
+                    b.HasIndex("PayoutReference")
+                        .HasDatabaseName("ix_orders_payout_reference");
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_orders_shop_id");
@@ -2125,6 +2193,25 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<string>("IdentityCheckNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("identity_check_notes");
+
+                    b.Property<string>("IdentityCheckSessionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("identity_check_session_id");
+
+                    b.Property<string>("IdentityCheckStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("identity_check_status");
+
+                    b.Property<DateTime?>("IdentityCheckUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("identity_check_updated_at");
+
                     b.Property<double?>("Latitude")
                         .HasColumnType("double precision")
                         .HasColumnName("latitude");
@@ -2201,6 +2288,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_spaza_shops");
+
+                    b.HasIndex("IdentityCheckSessionId")
+                        .HasDatabaseName("ix_spaza_shops_identity_check_session_id");
 
                     b.HasIndex("ShopCode")
                         .IsUnique()
@@ -2355,6 +2445,25 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<string>("IdentityCheckNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("identity_check_notes");
+
+                    b.Property<string>("IdentityCheckSessionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("identity_check_session_id");
+
+                    b.Property<string>("IdentityCheckStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("identity_check_status");
+
+                    b.Property<DateTime?>("IdentityCheckUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("identity_check_updated_at");
+
                     b.Property<double?>("Latitude")
                         .HasColumnType("double precision")
                         .HasColumnName("latitude");
@@ -2366,6 +2475,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
+
+                    b.Property<string>("PaystackRecipientCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paystack_recipient_code");
 
                     b.Property<string>("Phone")
                         .IsRequired()
@@ -2408,6 +2522,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_suppliers");
+
+                    b.HasIndex("IdentityCheckSessionId")
+                        .HasDatabaseName("ix_suppliers_identity_check_session_id");
 
                     b.HasIndex("RegistrationNumber")
                         .IsUnique()

@@ -21,6 +21,10 @@ jobs:
         working-directory: SpazaSure.Backend
     steps:
       - uses: actions/checkout@v4
+      # Catch a malformed compose file (e.g. a key defined twice) before any image is built or the
+      # server is touched. --no-interpolate checks the structure without needing the secrets.
+      - name: Validate production compose file
+        run: docker compose -f docker-compose.prod.yml config --no-interpolate --quiet
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
@@ -171,6 +175,13 @@ jobs:
           PROD_SMTP_USERNAME: ${{ secrets.PROD_SMTP_USERNAME }}
           PROD_SMTP_PASSWORD: ${{ secrets.PROD_SMTP_PASSWORD }}
           PROD_EMAIL_FROM: ${{ secrets.PROD_EMAIL_FROM }}
+          PROD_DIDIT_API_KEY: ${{ secrets.PROD_DIDIT_API_KEY }}
+          PROD_DIDIT_WEBHOOK_SECRET: ${{ secrets.PROD_DIDIT_WEBHOOK_SECRET }}
+          PROD_DIDIT_SHOP_WORKFLOW_ID: ${{ secrets.PROD_DIDIT_SHOP_WORKFLOW_ID }}
+          PROD_DIDIT_SUPPLIER_WORKFLOW_ID: ${{ secrets.PROD_DIDIT_SUPPLIER_WORKFLOW_ID }}
+          PROD_DIDIT_SANDBOX: ${{ secrets.PROD_DIDIT_SANDBOX }}
+          PROD_PAYSTACK_AUTOMATIC_PAYOUTS: ${{ secrets.PROD_PAYSTACK_AUTOMATIC_PAYOUTS }}
+          PROD_BACKUP_OFFSITE_TARGET: ${{ secrets.PROD_BACKUP_OFFSITE_TARGET }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ github.token }}
@@ -179,7 +190,7 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           command_timeout: 20m
-          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_PAYSTACK_SECRET_KEY,PROD_PAYSTACK_SHOP_CALLBACK_URL,PROD_PAYSTACK_CUSTOMER_CALLBACK_URL,PROD_PAYSTACK_SUPPLIER_CALLBACK_URL,PROD_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_ANNUAL,PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_ANNUAL,PROD_PAYSTACK_PLAN_SUPPLIER_GOLD_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_GOLD_ANNUAL,PROD_SMTP_HOST,PROD_SMTP_PORT,PROD_SMTP_USERNAME,PROD_SMTP_PASSWORD,PROD_EMAIL_FROM,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
+          envs: PROD_DB_PASSWORD,PROD_RABBITMQ_PASSWORD,PROD_JWT_SECRET,PROD_PAYSTACK_SECRET_KEY,PROD_PAYSTACK_SHOP_CALLBACK_URL,PROD_PAYSTACK_CUSTOMER_CALLBACK_URL,PROD_PAYSTACK_SUPPLIER_CALLBACK_URL,PROD_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_ANNUAL,PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_ANNUAL,PROD_PAYSTACK_PLAN_SUPPLIER_GOLD_MONTHLY,PROD_PAYSTACK_PLAN_SUPPLIER_GOLD_ANNUAL,PROD_SMTP_HOST,PROD_SMTP_PORT,PROD_SMTP_USERNAME,PROD_SMTP_PASSWORD,PROD_EMAIL_FROM,PROD_DIDIT_API_KEY,PROD_DIDIT_WEBHOOK_SECRET,PROD_DIDIT_SHOP_WORKFLOW_ID,PROD_DIDIT_SUPPLIER_WORKFLOW_ID,PROD_DIDIT_SANDBOX,PROD_PAYSTACK_AUTOMATIC_PAYOUTS,PROD_BACKUP_OFFSITE_TARGET,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -eu
             cd /opt/spazasure
@@ -192,6 +203,12 @@ jobs:
             # Optional SMTP settings for password-reset email (empty when the secrets are not set)
             printf "PROD_SMTP_HOST=%s\nPROD_SMTP_PORT=%s\nPROD_SMTP_USERNAME=%s\nPROD_SMTP_PASSWORD=%s\nPROD_EMAIL_FROM=%s\n" \
               "${PROD_SMTP_HOST:-}" "${PROD_SMTP_PORT:-587}" "${PROD_SMTP_USERNAME:-}" "${PROD_SMTP_PASSWORD:-}" "${PROD_EMAIL_FROM:-}" >> .env.prod
+            # Optional Didit identity checks (the endpoints report "not available" when these are not set)
+            printf "PROD_DIDIT_API_KEY=%s\nPROD_DIDIT_WEBHOOK_SECRET=%s\nPROD_DIDIT_SHOP_WORKFLOW_ID=%s\nPROD_DIDIT_SUPPLIER_WORKFLOW_ID=%s\n" \
+              "${PROD_DIDIT_API_KEY:-}" "${PROD_DIDIT_WEBHOOK_SECRET:-}" "${PROD_DIDIT_SHOP_WORKFLOW_ID:-}" "${PROD_DIDIT_SUPPLIER_WORKFLOW_ID:-}" >> .env.prod
+            # Optional: Didit sandbox mode, and the off-site backup destination
+            printf "PROD_DIDIT_SANDBOX=%s\nPROD_BACKUP_OFFSITE_TARGET=%s\nPROD_PAYSTACK_AUTOMATIC_PAYOUTS=%s\n" \
+              "${PROD_DIDIT_SANDBOX:-false}" "${PROD_BACKUP_OFFSITE_TARGET:-}" "${PROD_PAYSTACK_AUTOMATIC_PAYOUTS:-false}" >> .env.prod
             compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-db 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' spazasure-prod-rabbitmq 2>/dev/null || true)
             [ -n "$compose_project" ] || compose_project='spazasure'

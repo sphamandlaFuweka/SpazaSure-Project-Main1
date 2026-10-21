@@ -22,9 +22,37 @@ namespace SpazaSure.ComplianceService.Controllers;
 [ApiController]
 [Route("api/customer/reports")]
 [Authorize]
-public class ReportsController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events) : ControllerBase
+public class ReportsController(SpazaSureDbContext db, IFileStorageService storage, EventPublisher events, IConfiguration config) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private static readonly string[] PhotoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+
+    /// <summary>
+    /// The photo link if it is a file this user uploaded through UploadPhoto
+    /// ({storage}/report-photos/{userId}/{yyyyMMddHHmmss}.{ext}), otherwise null.
+    /// </summary>
+    public string? OwnPhotoUrl(string url, Guid userId)
+    {
+        var path = url.Split('?')[0];
+        var roots = new[]
+        {
+            (config["Storage:Local:UrlPrefix"] ?? "/uploads").TrimEnd('/'),
+            config["Storage:S3:PublicBaseUrl"]?.TrimEnd('/'),
+        };
+        foreach (var root in roots)
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            var prefix = $"{root}/report-photos/{userId}/";
+            if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+            var file = path[prefix.Length..];
+            var ext = Path.GetExtension(file).ToLowerInvariant();
+            var stem = Path.GetFileNameWithoutExtension(file);
+            if (stem.Length == 14 && stem.All(char.IsAsciiDigit) && PhotoExtensions.Contains(ext))
+                return path;
+        }
+        return null;
+    }
 
     public record CreateReportRequest(
         string? Barcode,
@@ -59,7 +87,10 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
         if (file is null || file.Length == 0) return BadRequest(ApiResponse.Fail("No file provided."));
         if (file.Length > 8 * 1024 * 1024) return BadRequest(ApiResponse.Fail("Image must be under 8MB."));
 
-        var ext = Path.GetExtension(file.FileName);
+        // Only pictures: anything else (e.g. .html) would be served from the API's own address.
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!PhotoExtensions.Contains(ext))
+            return BadRequest(ApiResponse.Fail("Only JPG, PNG and WEBP pictures are allowed."));
         var key = $"report-photos/{UserId}/{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
 
         string url;
@@ -87,7 +118,7 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
                 r.ShopName,
                 r.IsAnonymous,
                 r.Description,
-                r.PhotoUrl,
+                PhotoUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(r.PhotoUrl),
                 r.Status,
                 r.EscalatedTo,
                 r.CreatedAt,
@@ -112,7 +143,7 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
                 r.ShopName,
                 r.IsAnonymous,
                 r.Description,
-                r.PhotoUrl,
+                PhotoUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(r.PhotoUrl),
                 r.BatchNumber,
                 r.ExpiryDate,
                 r.PurchaseLocation,
@@ -145,6 +176,16 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
         if (req.PurchasePrice is < 0 or > 1_000_000)
             return BadRequest(ApiResponse.Fail("Purchase price is not valid."));
 
+        // The photo must be one this person uploaded (UploadPhoto). Any other link could point at
+        // someone else's private file, which the reporter would then be handed a signed link to.
+        string? photoUrl = null;
+        if (!string.IsNullOrWhiteSpace(req.PhotoUrl))
+        {
+            photoUrl = OwnPhotoUrl(req.PhotoUrl, UserId);
+            if (photoUrl is null)
+                return BadRequest(ApiResponse.Fail("The photo could not be attached. Please upload it again."));
+        }
+
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
         var ip = !string.IsNullOrWhiteSpace(forwarded) ? forwarded : HttpContext.Connection.RemoteIpAddress?.ToString();
 
@@ -163,7 +204,7 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
             ShopName = req.ShopName,
             IsAnonymous = req.IsAnonymous,
             Description = req.Description.Trim(),
-            PhotoUrl = req.PhotoUrl,
+            PhotoUrl = photoUrl,
             BatchNumber = req.BatchNumber,
             ExpiryDate = req.ExpiryDate,
             PurchaseLocation = req.PurchaseLocation,

@@ -32,6 +32,33 @@ class ComplianceDoc {
   }
 }
 
+class IdentityCheck {
+  /// Didit status: Not Started, In Progress, In Review, Approved, Declined, Abandoned, Expired...
+  final String status;
+  final bool verified;
+  final bool canStart;
+  /// Why the check didn't pass, e.g. the ID number doesn't match the profile.
+  final String? reason;
+  /// Profile details to fix before the check can start: 'id_number', 'address'.
+  final List<String> missing;
+
+  const IdentityCheck({
+    required this.status,
+    required this.verified,
+    required this.canStart,
+    this.reason,
+    this.missing = const [],
+  });
+
+  factory IdentityCheck.fromJson(Map<String, dynamic> json) => IdentityCheck(
+        status: json['status']?.toString() ?? 'Not Started',
+        verified: json['verified'] == true,
+        canStart: json['canStart'] != false,
+        reason: json['reason']?.toString(),
+        missing: (json['missing'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      );
+}
+
 class ComplianceService {
   /// Get all documents for the logged-in shop owner
   static Future<List<ComplianceDoc>> getDocuments() async {
@@ -58,4 +85,28 @@ class ComplianceService {
     );
     return res['data'] as Map<String, dynamic>? ?? {};
   }
+
+  /// The owner's identity check (ID document, selfie, Home Affairs and sanctions, run by Didit).
+  static Future<IdentityCheck> getIdentityCheck() async {
+    final res = await ApiService.get('/compliance/identity/shop');
+    return IdentityCheck.fromJson(res['data'] as Map<String, dynamic>? ?? {});
+  }
+
+  /// Starts (or resumes) the identity check and returns the Didit link to open.
+  /// Starts (or resumes) the identity check. Returns Didit's page and the address Didit opens
+  /// when the owner has finished, which brings them back into the app.
+  static Future<({String url, String doneUrl})> startIdentityCheck() async {
+    final res = await ApiService.post('/compliance/identity/shop/session', {});
+    final data = res['data'] as Map<String, dynamic>?;
+    final url = data?['url']?.toString();
+    if (url == null || url.isEmpty) throw ApiException('Could not start the identity check.', 0);
+    final doneUrl = data?['doneUrl']?.toString();
+    return (
+      url: url,
+      doneUrl: doneUrl == null || doneUrl.isEmpty ? defaultIdentityDoneUrl : doneUrl,
+    );
+  }
+
+  /// Where Didit sends the owner when they finish (see Didit:ShopCallbackUrl on the server).
+  static const defaultIdentityDoneUrl = 'https://portal.spazasure.co.za/verification-complete';
 }

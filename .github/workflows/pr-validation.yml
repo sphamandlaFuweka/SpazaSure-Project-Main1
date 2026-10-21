@@ -35,8 +35,12 @@ jobs:
         working-directory: SpazaSure.Backend
     steps:
       - uses: actions/checkout@v4
-      - name: Validate production Compose configuration
-        run: docker compose -f docker-compose.prod.yml config --no-interpolate --quiet
+      # Malformed compose files (e.g. a key defined twice) fail here, not during a deploy.
+      # --no-interpolate checks the structure without needing the secrets.
+      - name: Validate compose files
+        run: |
+          docker compose -f docker-compose.prod.yml config --no-interpolate --quiet
+          docker compose -f docker-compose.qa.yml config --no-interpolate --quiet
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'

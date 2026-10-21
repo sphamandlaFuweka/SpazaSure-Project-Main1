@@ -117,6 +117,7 @@ class AuthService {
     List<String>? interests,
     List<String>? notificationPreferences,
     bool marketingOptIn = false,
+    bool acceptedPrivacyNotice = false,
   }) async {
     final res = await ApiService.post('/customer/auth/register', {
       'phone': _formatPhone(phone),
@@ -140,6 +141,7 @@ class AuthService {
       'interests': interests ?? const <String>[],
       'notificationPreferences': notificationPreferences ?? const <String>[],
       'marketingOptIn': marketingOptIn,
+      'acceptedPrivacyNotice': acceptedPrivacyNotice,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
@@ -158,6 +160,7 @@ class AuthService {
     String? idNumber,
     String? email,
     Map<String, dynamic>? registrationDetails,
+    bool acceptedPrivacyNotice = false,
   }) async {
     final formatted = _formatPhone(phone);
     final res = await ApiService.post('/shop/auth/register', {
@@ -177,6 +180,7 @@ class AuthService {
       if (email != null && email.isNotEmpty) 'email': email,
       if (registrationDetails != null)
         'registrationDetails': registrationDetails,
+      'acceptedPrivacyNotice': acceptedPrivacyNotice,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);
   }

@@ -24,7 +24,7 @@ public class AuthenticationServiceTests
         var req = new RegisterRequest(
             Role: "supplier", Email: "supplier@test.com", Phone: "0821234567",
             Password: "Password123!", CompanyName: "Test Co", ContactPerson: "Jane Doe",
-            ShopName: null, OwnerName: null, Address: null);
+            ShopName: null, OwnerName: null, Address: null, AcceptedPrivacyNotice: true);
 
         var (success, error, data) = await svc.RegisterAsync(req, "127.0.0.1");
 
@@ -39,7 +39,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         var req = new RegisterRequest("supplier", "dup@test.com", "0821111111", "Password123!",
-            "Co A", "Jane", null, null, null);
+            "Co A", "Jane", null, null, null, AcceptedPrivacyNotice: true);
         await svc.RegisterAsync(req, "127.0.0.1");
 
         var (success, error, _) = await svc.RegisterAsync(req with { Phone = "0822222222" }, "127.0.0.1");
@@ -53,7 +53,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         var req = new RegisterRequest("bad_role", "x@test.com", "0829999999",
-            "Password123!", null, null, null, null, null);
+            "Password123!", null, null, null, null, null, AcceptedPrivacyNotice: true);
 
         var (success, error, _) = await svc.RegisterAsync(req, "127.0.0.1");
 
@@ -66,7 +66,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out var db);
         var req = new RegisterRequest("spaza_owner", "owner@test.com", "0823334444",
-            "Password123!", null, null, "Dudu Shop", "Dudu Nkosi", "123 Main St");
+            "Password123!", null, null, "Dudu Shop", "Dudu Nkosi", "123 Main St", AcceptedPrivacyNotice: true);
 
         await svc.RegisterAsync(req, "127.0.0.1");
 
@@ -78,7 +78,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "login@test.com",
-            "0820000001", "Password123!", "X Co", "Bob", null, null, null), "127.0.0.1");
+            "0820000001", "Password123!", "X Co", "Bob", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         var (success, error, data) = await svc.LoginAsync(
             new LoginRequest("login@test.com", null, "Password123!"), "127.0.0.1");
@@ -114,7 +114,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "sup@test.com",
-            "0820000003", "Password123!", "Z Co", "Sam", null, null, null), "127.0.0.1");
+            "0820000003", "Password123!", "Z Co", "Sam", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         var viaAdmin = await svc.LoginAsync(new LoginRequest("sup@test.com", null, "Password123!", "admin"), "127.0.0.1");
         var viaSupplier = await svc.LoginAsync(new LoginRequest("sup@test.com", null, "Password123!", "supplier"), "127.0.0.1");
@@ -129,7 +129,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "wrong@test.com",
-            "0820000002", "Password123!", "Y Co", "Alice", null, null, null), "127.0.0.1");
+            "0820000002", "Password123!", "Y Co", "Alice", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         var (success, error, _) = await svc.LoginAsync(
             new LoginRequest("wrong@test.com", null, "WrongPass!"), "127.0.0.1");
@@ -154,7 +154,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "lockme@test.com",
-            "0820000003", "Password123!", "Lock Co", "Bob", null, null, null), "127.0.0.1");
+            "0820000003", "Password123!", "Lock Co", "Bob", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         for (int i = 0; i < 5; i++)
             await svc.LoginAsync(new LoginRequest("lockme@test.com", null, "BadPass!"), "127.0.0.1");
@@ -171,7 +171,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "refresh@test.com",
-            "0820000004", "Password123!", "R Co", "Carol", null, null, null), "127.0.0.1");
+            "0820000004", "Password123!", "R Co", "Carol", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         var (_, _, loginData) = await svc.LoginAsync(
             new LoginRequest("refresh@test.com", null, "Password123!"), "127.0.0.1");
@@ -198,7 +198,7 @@ public class AuthenticationServiceTests
     {
         var svc = CreateService(out _);
         await svc.RegisterAsync(new RegisterRequest("supplier", "reset@test.com",
-            "0820000005", "Password123!", "R2 Co", "Dave", null, null, null), "127.0.0.1");
+            "0820000005", "Password123!", "R2 Co", "Dave", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
 
         var result = await svc.ForgotPasswordAsync("reset@test.com");
 
