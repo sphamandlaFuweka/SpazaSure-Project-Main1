@@ -161,9 +161,11 @@ export default function OrdersPage() {
     setUpdatingId(id);
     try {
       await ordersApi.updateStatus(id, status, reason);
-      setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
+      // Accepting a card order means the server confirmed the payment (with Paystack if the webhook was missed)
+      const confirmPaid = (o: Order) => (status === 'processing' && o.paymentMethod === 'paystack' ? { paymentStatus: 'paid' as const } : {});
+      setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status, ...confirmPaid(o) } : o));
       toast.success(STATUS_MESSAGES[status] ?? `Order ${status}`);
-      if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status } : null);
+      if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status, ...confirmPaid(prev) } : null);
       // Refresh the sidebar badge count immediately
       useOrderStore.setState({ lastFetched: 0 });
       fetchPendingCount();

@@ -448,12 +448,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           builder: (_) => OnboardingFeeCheckoutScreen(checkoutUrl: checkout.checkoutUrl!, title: 'Pay for your order'),
         ),
       );
-      if (paid != true) return;
+      // Confirm with Paystack straight away, also when the page was closed before it redirected back.
+      final confirmed = await OrderService.confirmPayment(checkout.orderNumber);
+      if (paid != true && !confirmed) return;
       cart.clear();
       _pendingCheckoutUrl = null;
       _pendingOrderNumber = null;
       if (!mounted) return;
-      _showSuccess(OrderSuccess(orderNumber: checkout.orderNumber, paymentMethod: OrderService.paystack, total: total));
+      _showSuccess(OrderSuccess(
+        orderNumber: checkout.orderNumber,
+        paymentMethod: OrderService.paystack,
+        total: total,
+        confirmed: confirmed,
+      ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

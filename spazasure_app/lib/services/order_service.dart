@@ -26,6 +26,18 @@ class OrderService {
   static const cashOnDelivery = 'cash_on_delivery';
   static const wallet = 'wallet';
 
+  /// Asks the server to check with Paystack that this order was paid, so it's confirmed straight
+  /// away instead of waiting for Paystack's webhook. Returns true when it's paid.
+  static Future<bool> confirmPayment(String orderNumber) async {
+    if (orderNumber.isEmpty) return false;
+    try {
+      final res = await ApiService.post('/shop/orders/confirm-payment', {'orderNumber': orderNumber});
+      return (res['data'] as Map<String, dynamic>?)?['paid'] == true;
+    } catch (_) {
+      return false; // the webhook still confirms it later
+    }
+  }
+
   static Future<OrderCheckout> placeOrder({
     required List<CartItem> items,
     required String deliveryOption,

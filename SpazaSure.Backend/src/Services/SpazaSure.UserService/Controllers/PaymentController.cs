@@ -254,43 +254,9 @@ public class PaymentController(
         {
             if (orders.Any(o => o.PaymentStatus != "pending" && o.PaymentStatus != "paid"))
                 return Conflict();
-            if (!IsExpectedAmount(transaction, orders.Sum(o => o.TotalAmount)))
+            if (!OrderPayments.CoversOrders(transaction.Amount, orders))
                 return BadRequest();
-
-            var unpaidOrders = orders.Where(o => o.PaymentStatus != "paid").ToList();
-            foreach (var order in unpaidOrders)
-            {
-                var heldStock = OrderStock.Holds(order);
-                order.PaymentMethod = "paystack";
-                order.PaymentStatus = "paid";
-                // Card orders take their stock once the payment is confirmed
-                await OrderStock.SyncAsync(db, order, heldStock, cancellationToken);
-            }
-            if (unpaidOrders.Count > 0)
-            {
-                await db.SaveChangesAsync(cancellationToken);
-                foreach (var order in unpaidOrders)
-                {
-                    events.PublishNotification(
-                        supplierId: order.Supplier.UserId.ToString(),
-                        type: "order",
-                        title: "New Order Received",
-                        message: $"{order.Shop.ShopName} placed order {order.OrderNumber} for R{order.TotalAmount:F2}",
-                        priority: order.TotalAmount > 1000 ? "high" : "normal",
-                        referenceId: order.Id.ToString(),
-                        routingKey: "order.placed");
-                }
-                // Tell the shop its payment went through (one message per checkout)
-                var paidTotal = unpaidOrders.Sum(o => o.TotalAmount);
-                var orderNumbers = string.Join(", ", unpaidOrders.Select(o => o.OrderNumber));
-                events.PublishNotification(
-                    supplierId: unpaidOrders[0].Shop.UserId.ToString(),
-                    type: "order",
-                    title: "Payment received",
-                    message: $"We received your payment of R{paidTotal:F2} for {orderNumbers}. Your supplier has been notified.",
-                    referenceId: unpaidOrders[0].Id.ToString(),
-                    routingKey: "order.paid");
-            }
+            await OrderPayments.MarkPaidAsync(db, events, orders, cancellationToken);
             return Ok();
         }
 

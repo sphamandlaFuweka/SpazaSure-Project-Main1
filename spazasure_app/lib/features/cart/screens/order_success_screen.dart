@@ -9,8 +9,15 @@ class OrderSuccess {
   final String orderNumber;
   final String paymentMethod;
   final double total;
+  /// Card payments: whether Paystack has already confirmed it (otherwise the webhook will shortly).
+  final bool confirmed;
 
-  const OrderSuccess({required this.orderNumber, required this.paymentMethod, required this.total});
+  const OrderSuccess({
+    required this.orderNumber,
+    required this.paymentMethod,
+    required this.total,
+    this.confirmed = false,
+  });
 }
 
 /// "Thank you for your order", with the order number and what happens next.
@@ -24,7 +31,9 @@ class OrderSuccessScreen extends StatelessWidget {
           'Your supplier has been notified. Have R${success.total.toStringAsFixed(2)} in cash ready when your order arrives, then confirm delivery in Orders.',
         OrderService.wallet =>
           'Paid from your SpazaSure wallet. Your supplier has been notified and is preparing your order.',
-        _ => 'We received your payment and will let your supplier know as soon as Paystack confirms it.',
+        _ => success.confirmed
+            ? 'Payment confirmed. Your supplier has been notified and will start preparing your order.'
+            : 'We received your payment and will let your supplier know as soon as Paystack confirms it.',
       };
 
   void _goHome(BuildContext context) => Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);

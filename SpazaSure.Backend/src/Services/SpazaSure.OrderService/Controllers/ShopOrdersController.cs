@@ -244,6 +244,28 @@ public class ShopOrdersController(
     }
 
     /// <summary>
+    /// Called by the app when the shop comes back from Paystack: asks Paystack whether the order was
+    /// paid, so it's confirmed straight away even if the webhook is late or missed.
+    /// </summary>
+    [HttpPost("confirm-payment")]
+    public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentRequest req)
+    {
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.ShopId == shop.Id && o.OrderNumber == req.OrderNumber);
+        if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.PaymentStatus == "paid")
+            return Ok(ApiResponse<object>.Ok(new { paid = true }));
+        if (order.PaymentMethod != "paystack" || string.IsNullOrEmpty(order.PaymentProviderReference))
+            return Ok(ApiResponse<object>.Ok(new { paid = false }));
+
+        var paid = await paystackPayments.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted);
+        return Ok(ApiResponse<object>.Ok(new { paid }, paid
+            ? "Payment confirmed. Your supplier has been notified."
+            : "Paystack hasn't confirmed the payment yet. We'll update your order as soon as it does."));
+    }
+
+    /// <summary>
     /// Get all orders for the logged-in shop owner
     /// </summary>
     [HttpGet]
@@ -468,3 +490,5 @@ public record PlaceOrderItemRequest(
     int Quantity,
     decimal UnitPrice
 );
+
+public record ConfirmPaymentRequest(string OrderNumber);

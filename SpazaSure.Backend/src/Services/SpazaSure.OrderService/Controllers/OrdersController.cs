@@ -190,7 +190,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
     }
 
     [HttpPatch("{id:guid}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, UpdateStatusRequest req)
+    public async Task<IActionResult> UpdateStatus(
+        Guid id, UpdateStatusRequest req, [FromServices] SpazaSure.OrderService.Services.OrderPaystackPaymentService? paystack = null)
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
@@ -199,7 +200,15 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
         if (order.PaymentMethod == "paystack" && order.PaymentStatus != "paid" &&
             req.Status is "processing" or "dispatched" or "delivered")
-            return BadRequest(ApiResponse.Fail("The customer payment has not been confirmed yet."));
+        {
+            // The webhook may have been missed or be late: ask Paystack before saying it isn't paid.
+            if (paystack is not null && !string.IsNullOrEmpty(order.PaymentProviderReference) &&
+                await paystack.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted))
+                await db.Entry(order).ReloadAsync();
+            if (order.PaymentStatus != "paid")
+                return BadRequest(ApiResponse.Fail(
+                    "Paystack hasn't confirmed this order's payment yet. If the shop has just paid, try again in a minute."));
+        }
 
         var allowed = new Dictionary<string, string[]>
         {

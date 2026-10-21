@@ -158,7 +158,8 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
     }
 
     [HttpPatch("{id:guid}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest req)
+    public async Task<IActionResult> UpdateStatus(
+        Guid id, [FromBody] UpdateStatusRequest req, [FromServices] SpazaSure.OrderService.Services.OrderPaystackPaymentService? paystack = null)
     {
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
@@ -179,7 +180,14 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
 
         // Shipping an unpaid card order would hand over goods for free
         if (order.PaymentMethod == "paystack" && order.PaymentStatus != "paid" && req.Status is "processing" or "dispatched" or "delivered")
-            return BadRequest(ApiResponse.Fail("This card order hasn't been paid yet."));
+        {
+            // Ask Paystack in case the webhook was missed
+            if (paystack is not null && !string.IsNullOrEmpty(order.PaymentProviderReference) &&
+                await paystack.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted))
+                await db.Entry(order).ReloadAsync();
+            if (order.PaymentStatus != "paid")
+                return BadRequest(ApiResponse.Fail("Paystack hasn't confirmed this card order's payment yet."));
+        }
 
         var heldStock = OrderStock.Holds(order);
         order.Status = req.Status;
