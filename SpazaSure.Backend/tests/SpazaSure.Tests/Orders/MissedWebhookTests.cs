@@ -84,6 +84,23 @@ public class MissedWebhookTests
         saved.Status.Should().Be("processing");
     }
 
+    [Fact]
+    public async Task SplitPaystackPayment_MarksSupplierSharePaidImmediately()
+    {
+        var (db, _, order) = Setup();
+        order.PaystackSplitCode = "SPL-test";
+        await db.SaveChangesAsync();
+
+        var confirmed = await Paystack("success", 25000)
+            .ConfirmOrdersAsync(db, Events, Reference);
+
+        confirmed.Should().BeTrue();
+        var saved = await db.Orders.AsNoTracking().SingleAsync();
+        saved.PaymentStatus.Should().Be("paid");
+        saved.PaidOutAt.Should().NotBeNull();
+        saved.PayoutReference.Should().Be(Reference);
+    }
+
     [Theory]
     [InlineData("abandoned", 25000)] // Paystack says it wasn't paid
     [InlineData("success", 10000)]   // paid less than the order total

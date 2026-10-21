@@ -134,7 +134,7 @@ export default function AdminFinancePage() {
             <div role="status" className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
               <Undo2 size={18} className="text-red-500 flex-shrink-0" />
               <p className="text-sm font-medium text-red-800">
-                {summary.refundsDue.count} Paystack order{summary.refundsDue.count === 1 ? ' was' : 's were'} cancelled after payment in this period ({formatCurrency(summary.refundsDue.amount)}). Refunds aren't tracked here, so refund them in Paystack.
+                {summary.refundsDue.count} Paystack order{summary.refundsDue.count === 1 ? ' was' : 's were'} cancelled after payment in this period ({formatCurrency(summary.refundsDue.amount)}). Refund through Paystack and arrange recovery of the supplier share separately; completion isn't tracked here.
               </p>
             </div>
           )}

@@ -24,13 +24,15 @@ public class Order : BaseEntity
     public string PaymentStatus { get; set; } = "pending";
     public Guid? PaymentCheckoutId { get; set; }
     public string? PaymentProviderReference { get; set; }
+    /// <summary>Identifies orders funded through a Paystack split rather than a later supplier transfer.</summary>
+    public string? PaystackSplitCode { get; set; }
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
-    /// <summary>Cash on delivery only: created at dispatch, handed over by the supplier and entered by the shop to confirm delivery.</summary>
+    /// <summary>Cash on delivery only: created at dispatch and entered by the shop to confirm delivery.</summary>
     public string? DeliveryCode { get; set; }
     /// <summary>When the order reached "delivered"; payouts become available PayoutDelayDays later.</summary>
     public DateTime? DeliveredAt { get; set; }
-    /// <summary>When SpazaSure paid the supplier for this order (null = not yet paid out).</summary>
+    /// <summary>When the supplier share was paid or allocated to their Paystack subaccount.</summary>
     public DateTime? PaidOutAt { get; set; }
     public string? PayoutReference { get; set; }
     /// <summary>When an automatic Paystack payout to the supplier was started; PaidOutAt is set once it succeeds.</summary>

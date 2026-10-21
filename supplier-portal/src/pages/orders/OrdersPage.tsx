@@ -59,13 +59,12 @@ function mapOrder(o: any): Order {
     originalSubtotal,
     totalDiscount: Number(o.totalDiscount ?? Math.max(0, originalSubtotal - subtotal)),
     subtotal,
-    deliveryFee: Number(o.deliveryFee ?? 0),
-    platformCommission: Number(o.platformCommission ?? 0),
-    total: Number(o.totalAmount ?? o.total ?? 0),
+    total: subtotal,
     status: o.status,
     deliveryOption: o.deliveryType ?? 'standard',
     paymentMethod: o.paymentMethod ?? 'eft',
     paymentStatus: o.paymentStatus ?? 'held',
+    directPaystackSplit: o.directPaystackSplit ?? false,
     createdAt: o.createdAt,
     estimatedDelivery: o.estimatedDelivery,
     groupBuyId: o.groupBuyId ?? undefined,
@@ -73,7 +72,6 @@ function mapOrder(o: any): Order {
     deliveryDistanceKm: o.deliveryDistanceKm == null ? undefined : Number(o.deliveryDistanceKm),
     deliveryLatitude: o.deliveryLatitude == null ? undefined : Number(o.deliveryLatitude),
     deliveryLongitude: o.deliveryLongitude == null ? undefined : Number(o.deliveryLongitude),
-    deliveryCode: o.deliveryCode ?? undefined,
   };
 }
 
@@ -338,8 +336,7 @@ export default function OrdersPage() {
                 <th className="table-header">Order #</th>
                 <th className="table-header">Shop</th>
                 <th className="table-header">Items</th>
-                <th className="table-header text-right">Total</th>
-                <th className="table-header text-right">Your Earnings</th>
+                <th className="table-header text-right">Product Value</th>
                 <th className="table-header text-center">Status</th>
                 <th className="table-header text-center">Payment</th>
                 <th className="table-header">Date</th>
@@ -371,11 +368,8 @@ export default function OrdersPage() {
                       <p className="text-xs text-gray-400 mt-0.5">{order.deliveryDistanceKm.toFixed(1)} km delivery</p>
                     )}
                   </td>
-                  <td className="table-cell text-right font-bold text-gray-900">
-                    R{order.total.toLocaleString()}
-                  </td>
                   <td className="table-cell text-right font-bold text-emerald-700">
-                    R{(order.subtotal + order.deliveryFee).toFixed(2)}
+                    R{order.subtotal.toFixed(2)}
                   </td>
                   <td className="table-cell text-center">
                     <OrderStatusBadge status={order.status} />

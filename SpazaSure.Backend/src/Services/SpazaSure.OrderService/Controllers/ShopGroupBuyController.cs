@@ -107,7 +107,7 @@ internal static class GroupBuyResponse
                 ShopName = o.Shop?.ShopName ?? "",
                 o.Status,
                 o.PaymentStatus,
-                o.TotalAmount
+                o.Subtotal
             }).ToList()
         };
     }

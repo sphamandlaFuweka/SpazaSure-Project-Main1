@@ -39,6 +39,11 @@ public static class OrderPayments
             var heldStock = OrderStock.Holds(order);
             order.PaymentMethod = "paystack";
             order.PaymentStatus = "paid";
+            if (!string.IsNullOrWhiteSpace(order.PaystackSplitCode))
+            {
+                order.PaidOutAt = DateTime.UtcNow;
+                order.PayoutReference = order.PaymentProviderReference;
+            }
             // Card orders take their stock once the payment is confirmed
             await OrderStock.SyncAsync(db, order, heldStock, ct);
         }
@@ -50,8 +55,11 @@ public static class OrderPayments
                 supplierId: order.Supplier.UserId.ToString(),
                 type: "order",
                 title: "New Order Received",
-                message: $"{order.Shop.ShopName} placed order {order.OrderNumber} for R{order.TotalAmount:F2}",
-                priority: order.TotalAmount > 1000 ? "high" : "normal",
+                message: $"{order.Shop.ShopName} placed order {order.OrderNumber}. Product share: R{order.Subtotal:F2}."
+                    + (string.IsNullOrWhiteSpace(order.PaystackSplitCode)
+                        ? ""
+                        : " Your share was allocated to your Paystack subaccount."),
+                priority: order.Subtotal > 1000 ? "high" : "normal",
                 referenceId: order.Id.ToString(),
                 routingKey: "order.placed");
         }

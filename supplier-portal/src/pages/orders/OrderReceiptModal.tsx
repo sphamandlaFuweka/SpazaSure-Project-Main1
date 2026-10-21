@@ -103,12 +103,10 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
           <div class="row"><span>Original Subtotal</span><span>R${Number(order.originalSubtotal ?? order.subtotal + Number(order.totalDiscount ?? 0)).toFixed(2)}</span></div>
           <div class="row"><span>Total Supplier Discount</span><span>-R${Number(order.totalDiscount ?? 0).toFixed(2)}</span></div>
           <div class="row"><span>Discounted Subtotal</span><span>R${order.subtotal.toFixed(2)}</span></div>
-        ` : `<div class="row"><span>Subtotal</span><span>R${order.subtotal.toFixed(2)}</span></div>`}
-        <div class="row"><span>Delivery Fee</span><span>R${order.deliveryFee.toFixed(2)}</span></div>
-        <div class="row"><span>Platform Commission</span><span>R${order.platformCommission.toFixed(2)}</span></div>
+        ` : `<div class="row"><span>Product value</span><span>R${order.subtotal.toFixed(2)}</span></div>`}
 
         <div class="total-box">
-          <div class="row-bold"><span>TOTAL</span><span class="amount">R${order.total.toFixed(2)}</span></div>
+          <div class="row-bold"><span>PRODUCT VALUE</span><span class="amount">R${order.subtotal.toFixed(2)}</span></div>
         </div>
 
         <div class="divider"></div>
@@ -243,12 +241,9 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
                 </>
               ) : (
                 <div className="flex justify-between text-xs text-gray-600">
-                  <span>Subtotal</span><span className="font-mono">R{order.subtotal.toFixed(2)}</span>
+                  <span>Product value</span><span className="font-mono">R{order.subtotal.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs text-gray-600">
-                <span>Delivery Fee</span><span className="font-mono">R{order.deliveryFee.toFixed(2)}</span>
-              </div>
               {order.isGroupBuy && (
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-500">Order Type</span>
@@ -260,12 +255,9 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
                   <span>Delivery Distance</span><span className="font-mono">{order.deliveryDistanceKm.toFixed(1)} km</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs text-gray-600">
-                <span>Platform Commission</span><span className="font-mono">R{order.platformCommission.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 mt-2 border-t border-gray-200">
-                <span>TOTAL</span>
-                <span className="font-mono text-green-700">R{order.total.toFixed(2)}</span>
+                <span>PRODUCT VALUE</span>
+                <span className="font-mono text-green-700">R{order.subtotal.toFixed(2)}</span>
               </div>
             </div>
 

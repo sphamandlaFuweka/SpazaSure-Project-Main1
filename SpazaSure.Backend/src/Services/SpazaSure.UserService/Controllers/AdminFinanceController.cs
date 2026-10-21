@@ -51,7 +51,7 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
 
         var owedToSuppliers = await db.Orders.AsNoTracking()
             .Where(o => o.Status == "delivered" && o.PaymentStatus == "paid" && o.PaidOutAt == null)
-            .SumAsync(o => (decimal?)(o.Subtotal + o.DeliveryFee), ct) ?? 0m;
+            .SumAsync(o => (decimal?)o.Subtotal, ct) ?? 0m;
 
         var pendingDeposits = await db.ShopWalletTransactions.AsNoTracking()
             .Where(t => t.Type == "top_up" && t.Status == "pending" && t.Method != "paystack")
@@ -206,8 +206,8 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
             .GroupBy(o => (o.SupplierId, o.PaidOutAt, o.PayoutReference))
             .Select(g => new FinanceEntry(
                 $"payout-{g.Key.SupplierId}-{g.Key.PaidOutAt:O}", g.Key.PaidOutAt!.Value, "out", "supplier_payout",
-                g.Sum(o => o.Subtotal + o.DeliveryFee), "confirmed", g.Key.PayoutReference,
-                g.First().CompanyName, $"Payout for {g.Count()} delivered order{(g.Count() == 1 ? "" : "s")}")));
+                g.Sum(o => o.Subtotal), "confirmed", g.Key.PayoutReference,
+                g.First().CompanyName, $"Supplier share for {g.Count()} order{(g.Count() == 1 ? "" : "s")}")));
 
         // Shop withdrawals: money paid out of wallets into shops' bank accounts
         var withdrawals = await db.ShopWalletTransactions.AsNoTracking()

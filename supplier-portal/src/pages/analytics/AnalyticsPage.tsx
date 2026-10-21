@@ -128,10 +128,8 @@ export default function AnalyticsPage() {
           shopName:       o.shop?.shopName ?? o.shopName ?? '',
           shopAddress:    o.shop?.address ?? '',
           items:          [],
-          subtotal:       Number(o.subtotal ?? o.totalAmount ?? 0),
-          deliveryFee:    Number(o.deliveryFee ?? 0),
-          platformCommission: Number(o.platformCommission ?? 0),
-          total:          Number(o.totalAmount ?? 0),
+          subtotal:       Number(o.subtotal ?? 0),
+          total:          Number(o.subtotal ?? 0),
           status:         o.status,
           deliveryOption: o.deliveryType ?? 'standard',
           paymentMethod:  o.paymentMethod ?? 'eft',
@@ -227,10 +225,10 @@ export default function AnalyticsPage() {
       ...topProducts.map((p) => [p.productName, p.totalSold, p.revenue]),
       [],
       ['Orders'],
-      ['Order', 'Shop', 'Status', 'Date', 'Order total', 'Platform fee (paid by shop)', 'Your earnings'],
+      ['Order', 'Shop', 'Status', 'Date', 'Product value'],
       ...orders.map((o) => [
         o.orderNumber, o.shopName, o.status, new Date(o.createdAt).toLocaleDateString('en-ZA'),
-        o.total.toFixed(2), o.platformCommission.toFixed(2), (o.subtotal + o.deliveryFee).toFixed(2),
+        o.subtotal.toFixed(2),
       ]),
     ];
     downloadCsv(`spazasure-analytics-${new Date().toISOString().slice(0, 10)}.csv`, rows);
@@ -457,21 +455,19 @@ export default function AnalyticsPage() {
                 <tr className="border-b border-gray-50 bg-gray-50/50">
                   <th className="table-header">Order</th>
                   <th className="table-header">Shop</th>
-                  <th className="table-header text-right">Order total</th>
-                  <th className="table-header text-right">Your earnings</th>
+                  <th className="table-header text-right">Product value</th>
                 </tr>
               </thead>
               <tbody>
                 {recentTransactions.length === 0 && (
-                  <tr><td colSpan={4} className="table-cell text-center text-gray-400">No transactions yet.</td></tr>
+                  <tr><td colSpan={3} className="table-cell text-center text-gray-400">No transactions yet.</td></tr>
                 )}
                 {recentTransactions.map((o) => (
                   <tr key={o.id} className="table-row cursor-pointer" onClick={() => navigate(`/orders?order=${o.id}`)}>
                     <td className="table-cell font-bold text-primary">{o.orderNumber}</td>
                     <td className="table-cell text-gray-600">{o.shopName}</td>
-                    <td className="table-cell text-right font-semibold">{formatCurrency(o.total)}</td>
                     <td className="table-cell text-right font-bold text-emerald-700">
-                      {formatCurrency(o.subtotal + o.deliveryFee)}
+                      {formatCurrency(o.subtotal)}
                     </td>
                   </tr>
                 ))}

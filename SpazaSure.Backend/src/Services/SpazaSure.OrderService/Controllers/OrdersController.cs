@@ -39,7 +39,6 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             .Select(o => new
             {
                 o.Id,
-                DeliveryCode = o.PaymentMethod == ShopOrdersController.CashOnDelivery && o.Status == "dispatched" ? o.DeliveryCode : null,
                 o.OrderNumber,
                 OrderNo = o.OrderNumber,
                 o.ShopId,
@@ -53,10 +52,6 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.Subtotal,
                 OriginalSubtotal = o.Items.Sum(i => i.OriginalUnitPrice * i.Quantity),
                 TotalDiscount = o.Items.Sum(i => (i.OriginalUnitPrice - i.UnitPrice) * i.Quantity),
-                o.DeliveryFee,
-                o.PlatformCommission,
-                o.TotalAmount,
-                Total = o.TotalAmount,
                 o.Status,
                 o.DeliveryType,
                 Type = o.DeliveryType,
@@ -66,6 +61,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.DeliveryDistanceKm,
                 o.PaymentMethod,
                 o.PaymentStatus,
+                DirectPaystackSplit = o.PaystackSplitCode != null,
                 o.Notes,
                 o.RejectionReason,
                 o.CreatedAt,
@@ -119,7 +115,6 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
             .Select(o => new
             {
                 o.Id,
-                DeliveryCode = o.PaymentMethod == ShopOrdersController.CashOnDelivery && o.Status == "dispatched" ? o.DeliveryCode : null,
                 o.OrderNumber,
                 OrderNo = o.OrderNumber,
                 o.ShopId,
@@ -133,10 +128,6 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.Subtotal,
                 OriginalSubtotal = o.Items.Sum(i => i.OriginalUnitPrice * i.Quantity),
                 TotalDiscount = o.Items.Sum(i => (i.OriginalUnitPrice - i.UnitPrice) * i.Quantity),
-                o.DeliveryFee,
-                o.PlatformCommission,
-                o.TotalAmount,
-                Total = o.TotalAmount,
                 o.Status,
                 o.DeliveryType,
                 Type = o.DeliveryType,
@@ -146,6 +137,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.DeliveryDistanceKm,
                 o.PaymentMethod,
                 o.PaymentStatus,
+                DirectPaystackSplit = o.PaystackSplitCode != null,
                 o.Notes,
                 o.RejectionReason,
                 o.CreatedAt,

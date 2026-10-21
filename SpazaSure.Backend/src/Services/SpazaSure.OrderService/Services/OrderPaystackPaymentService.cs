@@ -59,19 +59,25 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
         IReadOnlyCollection<Order> orders,
         string customerEmail,
         string reference,
+        string splitCode,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_secretKey))
             throw new InvalidOperationException("Paystack is not configured for order checkout.");
         if (string.IsNullOrWhiteSpace(customerEmail))
             throw new InvalidOperationException("An email address is required to pay for this order.");
+        if (string.IsNullOrWhiteSpace(splitCode))
+            throw new InvalidOperationException("A Paystack split is required for order checkout.");
         if (!Uri.TryCreate(_callbackUrl, UriKind.Absolute, out var callbackUri) ||
             (callbackUri.Scheme != Uri.UriSchemeHttps && !callbackUri.IsLoopback))
             throw new InvalidOperationException("Paystack order callback URL must use HTTPS.");
 
         var amount = orders.Sum(order => order.TotalAmount);
+        var supplierShares = orders.Sum(order => order.Subtotal);
         if (amount <= 0m)
             throw new InvalidOperationException("Order total must be greater than zero.");
+        if (orders.Any(order => order.Subtotal < 0m) || supplierShares > amount)
+            throw new InvalidOperationException("Supplier shares cannot exceed the order total.");
         var amountInMinorUnits = decimal.ToInt64(
             decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero));
 
@@ -84,6 +90,7 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
                 amount = amountInMinorUnits,
                 currency = "ZAR",
                 reference,
+                split_code = splitCode,
                 callback_url = _callbackUrl
             })
         };
@@ -110,8 +117,8 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
             !string.Equals(returnedReference, reference, StringComparison.Ordinal))
             throw new InvalidOperationException("Paystack returned an invalid order checkout response.");
 
-        return new OrderPaystackCheckout(authorizationUrl, returnedReference);
+        return new OrderPaystackCheckout(authorizationUrl, returnedReference, splitCode);
     }
 }
 
-public sealed record OrderPaystackCheckout(string AuthorizationUrl, string Reference);
+public sealed record OrderPaystackCheckout(string AuthorizationUrl, string Reference, string SplitCode);

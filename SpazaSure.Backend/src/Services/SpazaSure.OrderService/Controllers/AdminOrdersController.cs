@@ -191,9 +191,14 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
         if (!validStatuses.Contains(req.Status))
             return BadRequest(ApiResponse.Fail("Invalid status."));
 
-        // Once the supplier has been paid for an order, its status is locked for accounting
-        if (order.PaidOutAt is not null && req.Status != order.Status)
+        // Direct Paystack splits happen before delivery, so they must not block normal order
+        // progress. Once delivered, the state is locked except for cancellation/refund handling.
+        var wasDirectSplitPaid = order.PaidOutAt is not null && !string.IsNullOrWhiteSpace(order.PaystackSplitCode);
+        if (order.PaidOutAt is not null && req.Status != order.Status && !wasDirectSplitPaid)
             return BadRequest(ApiResponse.Fail("This order has already been paid out to the supplier, so its status can't be changed."));
+        if (wasDirectSplitPaid && (order.Status is "delivered" or "cancelled") &&
+            req.Status != order.Status && req.Status != "cancelled")
+            return BadRequest(ApiResponse.Fail("A paid or cancelled Paystack split order can't be reopened or changed."));
 
         // Reopening a cancelled wallet order charges the wallet again, so the shop must still have the money
         if (order.PaymentMethod == ShopWallet.PaymentMethod && order.Status == "cancelled" && req.Status != "cancelled"

@@ -44,7 +44,7 @@ public class PaystackPaymentServiceTests
         var orderService = new SpazaSure.OrderService.Services.OrderPaystackPaymentService(
             client, configuration);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            orderService.CreateCheckoutAsync([], "owner@example.test", "SS-test"));
+            orderService.CreateCheckoutAsync([], "owner@example.test", "SS-test", "SPL-test"));
         Assert.False(requestSent);
     }
 

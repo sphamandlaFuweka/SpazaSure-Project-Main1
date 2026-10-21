@@ -138,13 +138,14 @@ export interface Order {
   originalSubtotal?: number;
   totalDiscount?: number;
   subtotal: number;
-  deliveryFee: number;
-  platformCommission: number;
+  deliveryFee?: number;
+  platformCommission?: number;
   total: number;
   status: OrderStatus;
   deliveryOption: 'standard' | 'express' | 'pickup';
   paymentMethod: string;
   paymentStatus: PaymentStatus;
+  directPaystackSplit?: boolean;
   createdAt: string;
   estimatedDelivery?: string;
   groupBuyId?: string;
@@ -152,8 +153,6 @@ export interface Order {
   deliveryDistanceKm?: number;
   deliveryLatitude?: number;
   deliveryLongitude?: number;
-  /** Cash on delivery, while dispatched: the code the shop enters to confirm delivery. */
-  deliveryCode?: string;
 }
 
 // Group Buy
@@ -229,7 +228,7 @@ export interface GroupBuyOrder {
   shopName: string;
   status: string;
   paymentStatus: string;
-  totalAmount: number;
+  subtotal: number;
 }
 
 // Analytics

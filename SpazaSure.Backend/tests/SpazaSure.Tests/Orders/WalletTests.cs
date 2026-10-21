@@ -52,7 +52,9 @@ public class WalletTests
         var events = new EventPublisher("__nonexistent__", "x", "x");
         return new Fixture(db, shop, product,
             new ShopWalletController(db, new PaystackPaymentService(new HttpClient(), config), events) { ControllerContext = new ControllerContext { HttpContext = http } },
-            new ShopOrdersController(db, new OrderPaystackPaymentService(new HttpClient(), config), events) { ControllerContext = new ControllerContext { HttpContext = http } },
+            new ShopOrdersController(db, new OrderPaystackPaymentService(new HttpClient(), config), events,
+                new SpazaSure.OrderService.Services.PaystackSplitPaymentService(new HttpClient(), config))
+            { ControllerContext = new ControllerContext { HttpContext = http } },
             new AdminController(db, null!, events));
     }
 

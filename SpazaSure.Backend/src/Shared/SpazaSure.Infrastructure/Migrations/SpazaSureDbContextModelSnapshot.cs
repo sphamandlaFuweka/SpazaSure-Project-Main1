@@ -913,6 +913,11 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("payment_provider_reference");
 
+                    b.Property<string>("PaystackSplitCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paystack_split_code");
+
                     b.Property<string>("PaymentStatus")
                         .IsRequired()
                         .HasColumnType("text")
@@ -2480,6 +2485,11 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("paystack_recipient_code");
+
+                    b.Property<string>("PaystackSubaccountCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paystack_subaccount_code");
 
                     b.Property<string>("Phone")
                         .IsRequired()

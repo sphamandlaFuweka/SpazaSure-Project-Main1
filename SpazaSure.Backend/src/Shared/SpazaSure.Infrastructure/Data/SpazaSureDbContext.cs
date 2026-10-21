@@ -127,6 +127,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
             e.HasIndex(s => s.IdentityCheckSessionId);
             e.Property(s => s.PaystackRecipientCode).HasMaxLength(64);
+            e.Property(s => s.PaystackSubaccountCode).HasMaxLength(64);
         });
 
         // SupplierDocument
@@ -323,6 +324,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(o => o.TotalAmount).HasPrecision(10, 2);
             e.HasIndex(o => o.PaymentCheckoutId);
             e.HasIndex(o => o.PaymentProviderReference);
+            e.Property(o => o.PaystackSplitCode).HasMaxLength(64);
             e.HasOne(o => o.Shop).WithMany().HasForeignKey(o => o.ShopId);
             e.HasOne(o => o.Supplier).WithMany().HasForeignKey(o => o.SupplierId);
             e.HasOne(o => o.GroupBuy).WithMany().HasForeignKey(o => o.GroupBuyId).OnDelete(DeleteBehavior.Restrict);

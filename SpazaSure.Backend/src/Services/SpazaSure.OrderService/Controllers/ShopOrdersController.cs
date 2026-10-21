@@ -16,7 +16,8 @@ namespace SpazaSure.OrderService.Controllers;
 public class ShopOrdersController(
     SpazaSureDbContext db,
     OrderPaystackPaymentService paystackPayments,
-    EventPublisher events) : ControllerBase
+    EventPublisher events,
+    PaystackSplitPaymentService splitPayments) : ControllerBase
 {
     public const string CashOnDelivery = "cash_on_delivery";
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -179,9 +180,9 @@ public class ShopOrdersController(
                     type: "order",
                     title: "New Order Received",
                     message: isWallet
-                        ? $"{shop.ShopName} placed order {order.OrderNumber} for R{order.TotalAmount:F2}"
-                        : $"{shop.ShopName} placed order {order.OrderNumber} for R{order.TotalAmount:F2}. The shop pays SpazaSure on delivery; you are paid out as usual.",
-                    priority: order.TotalAmount > 1000 ? "high" : "normal",
+                        ? $"{shop.ShopName} placed order {order.OrderNumber}. Product value: R{order.Subtotal:F2}."
+                        : $"{shop.ShopName} placed order {order.OrderNumber}. Product value: R{order.Subtotal:F2}. SpazaSure collects the shop's payment and pays you for the products as usual.",
+                    priority: order.Subtotal > 1000 ? "high" : "normal",
                     referenceId: order.Id.ToString(),
                     routingKey: "order.placed");
             }
@@ -207,11 +208,13 @@ public class ShopOrdersController(
         OrderPaystackCheckout checkout;
         try
         {
+            var splitCode = await splitPayments.CreateSplitAsync(createdOrders, paymentReference, HttpContext.RequestAborted);
             checkout = await paystackPayments.CreateCheckoutAsync(
                 createdOrders,
                 // Shops often have no email; Paystack still needs one (see PaymentEmail).
                 SpazaSure.Shared.Helpers.PaymentEmail.For(shop.Email, shop.Phone, shop.UserId),
                 paymentReference,
+                splitCode,
                 HttpContext.RequestAborted);
         }
         catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
@@ -222,7 +225,10 @@ public class ShopOrdersController(
                 "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
         }
         foreach (var order in createdOrders)
+        {
             order.PaymentProviderReference = checkout.Reference;
+            order.PaystackSplitCode = checkout.SplitCode;
+        }
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 

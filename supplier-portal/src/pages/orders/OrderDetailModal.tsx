@@ -134,11 +134,11 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
           </div>
         </div>
 
-        {/* Financial Breakdown */}
+        {/* Supplier earnings */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <CreditCard size={15} className="text-gray-400" />
-            <p className="text-xs font-bold text-gray-500 uppercase">Payment Breakdown</p>
+            <p className="text-xs font-bold text-gray-500 uppercase">Your product share</p>
           </div>
           <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm">
             {hasDiscount ? (
@@ -158,42 +158,21 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
               </>
             ) : (
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal</span>
+                <span>Product value</span>
                 <span>R{order.subtotal.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-gray-600">
-              <span>Delivery Fee</span>
-              <span>R{order.deliveryFee.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-500">
-              <span>Platform fee <span className="text-xs">(paid by the shop)</span></span>
-              <span>R{order.platformCommission.toFixed(2)}</span>
-            </div>
             <div className="flex justify-between font-black text-base border-t border-gray-200 pt-2.5 mt-1">
-              <span>Order Total</span>
-              <span>R{order.total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 mt-1">
-              <span>Your earnings <span className="text-xs font-semibold">(products + delivery)</span></span>
-              <span>R{(order.subtotal + order.deliveryFee).toFixed(2)}</span>
+              <span>Your product share</span>
+              <span>R{order.subtotal.toFixed(2)}</span>
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2 text-center">
-            SpazaSure collects the shop's payment and pays you after delivery, once the payout delay has passed. See Analytics → Your payouts.
+            {order.directPaystackSplit
+              ? 'When Paystack confirms the shop payment, your product share is allocated to your Paystack subaccount. Bank settlement timing follows Paystack’s schedule.'
+              : 'SpazaSure pays your product share after delivery and the payout delay. See Analytics → Your payouts.'}
           </p>
         </div>
-
-        {/* Cash on delivery: the shop confirms delivery with this code */}
-        {order.status === 'dispatched' && order.paymentMethod === 'cash_on_delivery' && order.deliveryCode && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center">
-            <p className="text-xs font-bold text-amber-700 uppercase mb-1">Delivery code</p>
-            <p className="text-3xl font-black tracking-[0.3em] text-gray-900">{order.deliveryCode}</p>
-            <p className="text-xs text-amber-700 mt-2">
-              SpazaSure's driver gives this code to the shop owner with the goods. They enter it in the SpazaSure app to confirm delivery and pay the cash.
-            </p>
-          </div>
-        )}
 
         {/* Actions */}
         {(order.status === 'pending' || order.status === 'confirmed') && (

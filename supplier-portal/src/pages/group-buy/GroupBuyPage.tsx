@@ -386,7 +386,7 @@ function OrderList({ orders }: { orders: GroupBuyOrder[] }) {
               <p className="text-[11px] text-gray-400">{order.orderNumber}</p>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="font-bold text-gray-700">{money(order.totalAmount)}</span>
+              <span className="font-bold text-gray-700">{money(order.subtotal)}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusClass(order.status)}`}>{order.status}</span>
             </div>
           </div>

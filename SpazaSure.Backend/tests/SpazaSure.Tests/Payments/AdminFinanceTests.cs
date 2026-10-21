@@ -69,14 +69,14 @@ public class AdminFinanceTests
 
         var data = Data(await finance.Summary(null, null, default));
 
-        // 500 top-up + 1200 Paystack (processing) + 1200 Paystack (paid out) + 1200 cash collected
+        // 500 top-up + two confirmed Paystack orders + 1200 cash collected
         data.GetProperty("moneyIn").GetDecimal().Should().Be(4100m);
-        data.GetProperty("moneyOut").GetDecimal().Should().Be(1350m); // 1150 supplier payout + 200 shop withdrawal
-        data.GetProperty("net").GetDecimal().Should().Be(2750m);
+        data.GetProperty("moneyOut").GetDecimal().Should().Be(1200m); // 1000 supplier payout + 200 shop withdrawal
+        data.GetProperty("net").GetDecimal().Should().Be(2900m);
         // 500 top-up - 1200 wallet order - 200 paid withdrawal - 100 withdrawal still pending
         data.GetProperty("walletBalancesHeld").GetDecimal().Should().Be(-1000m);
         data.GetProperty("pendingWithdrawals").GetProperty("amount").GetDecimal().Should().Be(100m);
-        data.GetProperty("owedToSuppliers").GetDecimal().Should().Be(1150m);     // delivered cash order, not yet paid out
+        data.GetProperty("owedToSuppliers").GetDecimal().Should().Be(1000m);     // delivered cash order, not yet paid out
         data.GetProperty("pendingDeposits").GetProperty("amount").GetDecimal().Should().Be(300m);
         data.GetProperty("codOutstanding").GetProperty("amount").GetDecimal().Should().Be(1200m);
         data.GetProperty("refundsDue").GetProperty("amount").GetDecimal().Should().Be(1200m);
@@ -94,7 +94,7 @@ public class AdminFinanceTests
         var payouts = Data(await finance.Transactions(null, null, "out", null, null, 1, 25, default));
         payouts.GetProperty("total").GetInt32().Should().Be(1);
         var payout = payouts.GetProperty("items")[0];
-        payout.GetProperty("amount").GetDecimal().Should().Be(2300m);
+        payout.GetProperty("amount").GetDecimal().Should().Be(2000m);
         payout.GetProperty("reference").GetString().Should().Be("EFT-1");
 
         var cash = Data(await finance.Transactions(null, null, "in", "order_cash_on_delivery", null, 1, 25, default));

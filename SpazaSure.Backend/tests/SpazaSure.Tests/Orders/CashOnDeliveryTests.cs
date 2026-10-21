@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.OrderService.Controllers;
@@ -69,7 +70,9 @@ public class CashOnDeliveryTests
         {
             User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, shop.UserId.ToString())], "Test"))
         };
-        return new ShopOrdersController(db, null!, new EventPublisher("__nonexistent__", "x", "x"))
+        return new ShopOrdersController(db, null!, new EventPublisher("__nonexistent__", "x", "x"),
+            new SpazaSure.OrderService.Services.PaystackSplitPaymentService(
+                new HttpClient(), new ConfigurationBuilder().Build()))
         { ControllerContext = new ControllerContext { HttpContext = http } };
     }
 
@@ -86,7 +89,11 @@ public class CashOnDeliveryTests
 
         var saved = await db.Orders.FindAsync(order.Id);
         saved!.DeliveryCode.Should().MatchRegex(@"^\d{6}$");
-        Data(await orders.Get(order.Id)).GetProperty("deliveryCode").GetString().Should().Be(saved.DeliveryCode);
+        var supplierOrder = Data(await orders.Get(order.Id));
+        supplierOrder.TryGetProperty("deliveryCode", out _).Should().BeFalse();
+        supplierOrder.TryGetProperty("deliveryFee", out _).Should().BeFalse();
+        supplierOrder.TryGetProperty("platformCommission", out _).Should().BeFalse();
+        supplierOrder.TryGetProperty("totalAmount", out _).Should().BeFalse();
 
         (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("delivered", null))).Should().BeOfType<BadRequestObjectResult>();
     }
@@ -179,5 +186,26 @@ public class CashOnDeliveryTests
         var data = Data(await payouts.Summary());
         data.GetProperty("available").GetDecimal().Should().Be(0m);
         data.GetProperty("paidOut").GetDecimal().Should().Be(2000m);
+    }
+
+    [Fact]
+    public async Task AdminCanProgressAndCancelAnAlreadySplitPaystackOrder()
+    {
+        var (_, _, _, db, supplier) = Create();
+        var order = AddOrder(db, supplier, "paystack", "pending", "paid");
+        order.PaystackSplitCode = "SPL-test";
+        order.PaidOutAt = DateTime.UtcNow;
+        order.PayoutReference = "SPZ-test";
+        await db.SaveChangesAsync();
+        var admin = CreateAdmin(db);
+
+        foreach (var status in new[] { "processing", "ready", "dispatched", "delivered" })
+            (await admin.UpdateStatus(order.Id, new UpdateStatusRequest(status, null))).Should().BeOfType<OkObjectResult>();
+
+        (await admin.UpdateStatus(order.Id, new UpdateStatusRequest("cancelled", "Customer refund"))).Should().BeOfType<OkObjectResult>();
+        var saved = await db.Orders.FindAsync(order.Id);
+        saved!.Status.Should().Be("cancelled");
+        saved.PaymentStatus.Should().Be("paid");
+        saved.PaidOutAt.Should().NotBeNull();
     }
 }

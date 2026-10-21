@@ -143,6 +143,23 @@ downgraded to Basic.
 Shop wallet top-ups are limited to R50–R2,000 per transaction. Order payments
 are confirmed only by a signed webhook and server-side transaction verification.
 
+**Shop Paystack orders use a direct multi-split.** Each supplier receives their
+product subtotal in a Paystack subaccount; SpazaSure receives the delivery fee
+and platform commission in its main Paystack account. A successful checkout
+allocates supplier shares immediately; the supplier's bank settlement timing
+still follows Paystack's schedule. Paystack Subaccounts and Multi-split Payments
+must be enabled for the account. Every supplier taking Paystack orders must have
+valid South African bank details in their profile; checkout fails rather than
+falling back to a pooled payment if Paystack cannot create the split. Supplier
+order views show product value only, not delivery fees or SpazaSure's share.
+If a paid split order is later cancelled, an admin must refund through Paystack
+and arrange recovery of the supplier share separately; this recovery is not
+automated or tracked by SpazaSure.
+
+This split applies to Paystack card checkouts. Cash-on-delivery payments are
+collected by SpazaSure, and wallet-funded orders continue through the delayed
+supplier-payout flow below.
+
 Before applying the provider-reference migration in production, cancel any
 existing auto-renewing subscriptions in the previous payment provider
 dashboard. Their provider subscription IDs cannot be migrated into Paystack.
@@ -157,8 +174,10 @@ the cash; the shop can also confirm with the delivery code). Suppliers can only
 mark **pickup** orders delivered, when the shop collects from them.
 
 **Suppliers are paid for the goods** (the order subtotal). SpazaSure keeps the
-delivery fee, and the commission and service fee the shop paid. Money becomes
-available the configured number of days after delivery (Settings → payout delay).
+delivery fee and the commission and service fee the shop paid. Paystack card
+orders allocate that product share when payment succeeds; wallet and
+cash-on-delivery orders become available the configured number of days after
+delivery (Settings → payout delay).
 
 **Automatic payouts (Paystack Transfers).** With `PROD_PAYSTACK_AUTOMATIC_PAYOUTS`
 set to `true`, the order service pays every supplier whose money is available,

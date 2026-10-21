@@ -119,7 +119,7 @@ export default function GlobalSearch({ variant = 'supplier' }: { variant?: 'supp
             .slice(0, 3)
             .map((o: any) => ({
               id: o.id, type: 'order' as const, label: o.orderNumber,
-              sub: `${o.shop?.shopName ?? 'Shop'} · R${Number(o.totalAmount ?? 0).toLocaleString()}`,
+              sub: `${o.shop?.shopName ?? 'Shop'} · R${Number(o.subtotal ?? 0).toLocaleString()}`,
               to: `/orders?order=${o.id}`, icon: <ShoppingCart size={14} />,
             }));
         }
