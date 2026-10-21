@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import api, { resolveUploadUrl, apiErrorMessage } from '../../services/api';
-import { openAdminDiditCheck } from '../../services/adminDidit';
+import { openAdminDiditCheck, decideAdminIdentity } from '../../services/adminDidit';
 import { Spinner } from '../../components/ui';
 import { Building2, Receipt, Handshake, ClipboardList, Calendar, Mail, type LucideIcon } from 'lucide-react';
 
@@ -150,12 +150,24 @@ export default function DocumentVerificationPage() {
     }
   };
 
+  const refreshDocs = () => fetchDocs(statusFilter !== 'all' ? statusFilter : undefined, search || undefined, activeTab);
+
+  /** Didit couldn't settle it ("In Review", or declined): the admin decides, with a reason. */
+  const needsAdminDecision = (status?: string | null) => status === 'In Review' || status === 'Declined';
+
+  const decideIdentity = async (subjectId: string, name: string, approve: boolean, finding?: string | null) => {
+    const type = activeTab === 'spaza' ? 'shop' : 'supplier';
+    if (await decideAdminIdentity(type, subjectId, name, approve, finding)) refreshDocs();
+  };
+
   const handleApprove = async (doc: SupplierDoc) => {
     if (awaitingDidit(doc)) {
-      const type = activeTab === 'spaza' ? 'shop' : 'supplier';
-      if (await openAdminDiditCheck(type, doc.supplierId, doc.supplierName)) {
-        fetchDocs(statusFilter !== 'all' ? statusFilter : undefined, search || undefined, activeTab);
+      if (needsAdminDecision(doc.identityCheckStatus)) {
+        await decideIdentity(doc.supplierId, doc.supplierName, true, doc.identityCheckNotes);
+        return;
       }
+      const type = activeTab === 'spaza' ? 'shop' : 'supplier';
+      if (await openAdminDiditCheck(type, doc.supplierId, doc.supplierName)) refreshDocs();
       return;
     }
     await updateDocStatus(doc.id, 'approved');
@@ -461,12 +473,34 @@ export default function DocumentVerificationPage() {
                 {/* ── Document List ── */}
                 {isExpanded && (
                   <div className="border-t border-gray-100" style={{ animation: 'expandIn 0.25s ease-out' }}>
-                    {group.identityNotes && (
+                    {(group.identityNotes || needsAdminDecision(group.identityStatus)) && (
                       <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
                         <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Didit verification details</p>
-                        <ul className="mt-1 list-disc pl-5 text-xs text-amber-700 space-y-0.5">
-                          {group.identityNotes.split('\n').map((note) => <li key={note}>{note}</li>)}
-                        </ul>
+                        {group.identityNotes && (
+                          <ul className="mt-1 list-disc pl-5 text-xs text-amber-700 space-y-0.5">
+                            {group.identityNotes.split('\n').map((note) => <li key={note}>{note}</li>)}
+                          </ul>
+                        )}
+                        {needsAdminDecision(group.identityStatus) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <p className="text-xs text-amber-800 flex-1 min-w-[200px]">
+                              Didit {group.identityStatus === 'In Review' ? 'needs a person to review this' : 'did not pass this'}.
+                              Check the details yourself, then decide.
+                            </p>
+                            <button
+                              onClick={() => decideIdentity(supplierId, group.name, true, group.identityNotes)}
+                              className="text-xs font-bold bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700"
+                            >
+                              Approve identity
+                            </button>
+                            <button
+                              onClick={() => decideIdentity(supplierId, group.name, false, group.identityNotes)}
+                              className="text-xs font-bold border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {group.docs.map((doc, idx) => (

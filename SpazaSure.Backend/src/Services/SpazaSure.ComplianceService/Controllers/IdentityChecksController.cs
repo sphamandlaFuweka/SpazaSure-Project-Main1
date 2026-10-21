@@ -139,6 +139,50 @@ public class IdentityChecksController(
         return Ok(ApiResponse<object>.Ok(Describe(subject, [])));
     }
 
+    /// <summary>
+    /// The admin's decision when Didit couldn't settle it: a result "In Review" (e.g. the ID number
+    /// on the document differs from the profile), a decline the admin has checked and overturns, or a
+    /// check that couldn't run. The reason, the admin and the time are recorded with the result.
+    /// </summary>
+    [HttpPost("admin/{subjectType}/{id:guid}/decision")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> DecideForAdmin(string subjectType, Guid id, [FromBody] AdminDecisionBody body, CancellationToken ct)
+    {
+        var reason = body.Reason?.Trim() ?? "";
+        if (reason.Length < 5)
+            return BadRequest(ApiResponse.Fail("Explain your decision in a few words; it is kept with the verification record."));
+
+        IHasIdentityCheck? subject = subjectType.Equals("shop", StringComparison.OrdinalIgnoreCase)
+            ? await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == id, ct)
+            : subjectType.Equals("supplier", StringComparison.OrdinalIgnoreCase)
+                ? await db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
+                : null;
+        if (subject is null) return NotFound(ApiResponse.Fail("Not found."));
+        if (body.Approve && subject.IdentityCheckStatus == "Approved")
+            return Conflict(ApiResponse.Fail("Already verified."));
+        if (subject.IdentityCheckStatus == "In Progress" && subject.IdentityCheckUpdatedAt > DateTime.UtcNow - ServerCheckTimeout)
+            return Conflict(ApiResponse.Fail("A check is still running. Wait for its result before deciding."));
+
+        var admin = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == UserId, ct);
+        var adminName = admin?.DisplayName ?? admin?.Email ?? "a SpazaSure admin";
+        var status = body.Approve ? "Approved" : "Declined";
+        var decision = $"{status} by {adminName} on {DateTime.UtcNow:d MMM yyyy}: {reason}";
+        var notes = string.IsNullOrWhiteSpace(subject.IdentityCheckNotes) ? decision : $"{decision}\n{subject.IdentityCheckNotes}";
+
+        // A new reference, so a late result from the earlier Didit session can't overwrite this decision.
+        var sessionId = $"admin:{Guid.NewGuid():N}";
+        subject.IdentityCheckSessionId = sessionId;
+        subject.IdentityCheckStatus = status;
+        subject.IdentityCheckNotes = notes.Length <= 2000 ? notes : notes[..2000];
+        subject.IdentityCheckUpdatedAt = DateTime.UtcNow;
+        db.AuthAuditLogs.Add(new AuthAuditLog { UserId = UserId, Event = $"identity_decision_by_admin:{status}:{sessionId}" });
+        await db.SaveChangesAsync(ct);
+        NotifyResult(events, subject, sessionId);
+
+        return Ok(ApiResponse<object>.Ok(Describe(subject, []),
+            body.Approve ? "Verified. Their documents can now be approved." : "Recorded as not passed; they have been told."));
+    }
+
     [HttpPost("didit/webhook")]
     [AllowAnonymous]
     [RequestSizeLimit(1_048_576)]
@@ -439,3 +483,6 @@ public class IdentityChecksController(
 
 /// <summary>The admin confirms they have seen the shop owner's original ID document in person.</summary>
 public record AdminCheckBody(bool IdSeenInPerson);
+
+/// <summary>An admin approving or declining an identity or business check, with the reason.</summary>
+public record AdminDecisionBody(bool Approve, string? Reason);

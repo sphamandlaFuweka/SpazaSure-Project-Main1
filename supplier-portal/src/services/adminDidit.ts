@@ -55,3 +55,28 @@ export async function openAdminDiditCheck(type: DiditSubjectType, id: string, na
   toast(`The check for ${name} is still running. Refresh in a minute to see the result.`);
   return 'In Progress';
 }
+
+/**
+ * The admin's decision when Didit couldn't settle a check ("In Review", or a decline the admin has
+ * checked). Asks for the reason, which is kept with the verification record. Returns true if saved.
+ */
+export async function decideAdminIdentity(
+  type: DiditSubjectType, id: string, name: string, approve: boolean, diditFinding?: string | null,
+): Promise<boolean> {
+  const what = type === 'shop' ? "the owner's identity" : 'the business';
+  const finding = diditFinding ? `\n\nDidit's finding: ${diditFinding.split('\n')[0]}` : '';
+  const reason = window.prompt(
+    approve
+      ? `Approve ${what} for ${name}?${finding}\n\nOnly approve once you have checked it yourself. Why are you approving it? (e.g. "Checked the original ID in person")`
+      : `Decline ${what} for ${name}?${finding}\n\nWhy? They will be told.`,
+  );
+  if (reason === null) return false;
+  try {
+    await api.post(`/compliance/identity/admin/${type}/${id}/decision`, { approve, reason });
+    toast.success(approve ? `${name} is verified. Their documents can now be approved.` : `${name} was marked as not passed.`);
+    return true;
+  } catch (error) {
+    toast.error(apiErrorMessage(error, 'Could not save the decision'));
+    return false;
+  }
+}
