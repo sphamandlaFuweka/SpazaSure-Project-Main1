@@ -25,10 +25,16 @@ public static partial class ServerChecks
     {
         var registration = supplier.RegistrationNumber!;
         var vendorData = "supplier:" + supplier.Id;
+        if (sandbox)
+        {
+            return new("In Review",
+                $"Didit sandbox mode: simulated registry and screening results are hidden.\n" +
+                $"Profile submitted for verification: {supplier.CompanyName} (CIPC registration {registration}).\n" +
+                "Run this check with live Didit credentials before approving the business.");
+        }
+
         var companies = await didit.SearchCompanyAsync(registration, vendorData, ct);
-        var company = companies.FirstOrDefault(c => SaValidation.Digits(c.RegistrationNumber) == SaValidation.Digits(registration))
-            // Sandbox returns made-up companies; take the first so the rest of the flow can be tried.
-            ?? (sandbox ? companies.FirstOrDefault() : null);
+        var company = companies.FirstOrDefault(c => SaValidation.Digits(c.RegistrationNumber) == SaValidation.Digits(registration));
         if (company is null)
             return new("Declined", $"No company with registration number {registration} was found on the CIPC register.");
 
@@ -37,7 +43,7 @@ public static partial class ServerChecks
 
         var notes = new List<string> { $"Found on the CIPC register: {company.Name} ({company.RegistrationNumber}), status {company.Status ?? "unknown"}." };
         var review = false;
-        if (!sandbox && !SameCompanyName(company.Name, supplier.CompanyName))
+        if (!SameCompanyName(company.Name, supplier.CompanyName))
         {
             notes.Add($"The registered name \"{company.Name}\" is different from the name on the profile, \"{supplier.CompanyName}\". Check they are the same business.");
             review = true;

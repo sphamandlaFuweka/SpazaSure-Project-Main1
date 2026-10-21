@@ -126,6 +126,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
             e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
             e.HasIndex(s => s.IdentityCheckSessionId);
+            e.Property(s => s.PaystackRecipientCode).HasMaxLength(64);
         });
 
         // SupplierDocument
@@ -315,6 +316,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
                 .HasFilter("group_buy_participant_id IS NOT NULL");
             e.Property(o => o.Subtotal).HasPrecision(10, 2);
             e.Property(o => o.DeliveryFee).HasPrecision(10, 2);
+            e.HasIndex(o => o.PayoutReference);
             e.Property(o => o.DeliveryMarkup).HasPrecision(10, 2);
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);
             e.Property(o => o.PlatformCommission).HasPrecision(10, 2);

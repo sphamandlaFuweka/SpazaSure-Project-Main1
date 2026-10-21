@@ -918,6 +918,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("payment_status");
 
+                    b.Property<DateTime?>("PayoutInitiatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payout_initiated_at");
+
                     b.Property<string>("PayoutReference")
                         .HasColumnType("text")
                         .HasColumnName("payout_reference");
@@ -975,6 +979,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("PaymentProviderReference")
                         .HasDatabaseName("ix_orders_payment_provider_reference");
+
+                    b.HasIndex("PayoutReference")
+                        .HasDatabaseName("ix_orders_payout_reference");
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_orders_shop_id");
@@ -2468,6 +2475,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
+
+                    b.Property<string>("PaystackRecipientCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paystack_recipient_code");
 
                     b.Property<string>("Phone")
                         .IsRequired()

@@ -147,6 +147,39 @@ Before applying the provider-reference migration in production, cancel any
 existing auto-renewing subscriptions in the previous payment provider
 dashboard. Their provider subscription IDs cannot be migrated into Paystack.
 
+## Deliveries and supplier payouts
+
+**SpazaSure delivers.** A supplier accepts an order, packs it and marks it **Ready
+for collection**; admins get an alert. SpazaSure staff then work from the admin
+console's **Deliveries** page: **Collected · out for delivery** when they pick it
+up, and **Delivered** when the shop has it (for cash on delivery, after collecting
+the cash; the shop can also confirm with the delivery code). Suppliers can only
+mark **pickup** orders delivered, when the shop collects from them.
+
+**Suppliers are paid for the goods** (the order subtotal). SpazaSure keeps the
+delivery fee, and the commission and service fee the shop paid. Money becomes
+available the configured number of days after delivery (Settings → payout delay).
+
+**Automatic payouts (Paystack Transfers).** With `PROD_PAYSTACK_AUTOMATIC_PAYOUTS`
+set to `true`, the order service pays every supplier whose money is available,
+every 30 minutes, from the Paystack balance into the bank account on their
+profile (they choose the bank from Paystack's list, which fills in the universal
+branch code). The `transfer.success`, `transfer.failed` and `transfer.reversed`
+webhook events mark payouts paid or failed. A failed payout is not retried
+automatically (each attempt costs R3) until the supplier updates their bank
+details or an admin clicks **Retry** on the Payouts page. Before turning it on:
+
+1. Transfers must be enabled on the Paystack account (registered businesses only).
+2. Turn off OTP for transfers (Paystack dashboard → Settings → Preferences);
+   otherwise every payout waits for a PIN.
+3. Keep enough money in the Paystack balance: with automatic settlement to your
+   bank, the balance may be empty when payouts run. Admins get an alert when the
+   balance is too low, and payouts continue once it's topped up.
+4. Make sure the Live Webhook URL is set (see Paystack above).
+
+With it off (the default), admins pay suppliers by EFT and record it with
+**Mark as paid**.
+
 ## Didit identity checks
 
 > **Suppliers and admin checks need no link.** A supplier's "Verify my business"

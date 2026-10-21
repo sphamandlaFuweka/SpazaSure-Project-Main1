@@ -12,6 +12,28 @@ namespace SpazaSure.OrderService.Controllers;
 [Authorize(Roles = "admin")]
 public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
+    /// <summary>
+    /// SpazaSure's delivery run: orders ready to collect from suppliers, and orders out for delivery,
+    /// with both addresses and phone numbers. Pickup orders (the shop collects) aren't included.
+    /// </summary>
+    [HttpGet("deliveries")]
+    public async Task<IActionResult> Deliveries()
+    {
+        var orders = await db.Orders.AsNoTracking()
+            .Where(o => (o.Status == "ready" || o.Status == "dispatched") && o.DeliveryType != "pickup")
+            .OrderBy(o => o.Status == "dispatched").ThenBy(o => o.UpdatedAt)
+            .Select(o => new
+            {
+                o.Id, o.OrderNumber, o.Status, o.DeliveryType, o.PaymentMethod, o.PaymentStatus, o.TotalAmount,
+                o.UpdatedAt, o.DeliveryCode,
+                items = o.Items.Sum(i => i.Quantity),
+                supplier = new { o.Supplier.CompanyName, o.Supplier.Phone, o.Supplier.Address, o.Supplier.City },
+                shop = new { o.Shop.ShopName, o.Shop.OwnerName, o.Shop.Phone, address = o.DeliveryAddress ?? o.Shop.Address, o.Shop.City },
+            })
+            .ToListAsync();
+        return Ok(ApiResponse<object>.Ok(orders));
+    }
+
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] int page = 1,
@@ -165,7 +187,7 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
         var previousStatus = order.Status;
 
-        var validStatuses = new[] { "pending", "processing", "dispatched", "delivered", "cancelled" };
+        var validStatuses = new[] { "pending", "processing", "ready", "dispatched", "delivered", "cancelled" };
         if (!validStatuses.Contains(req.Status))
             return BadRequest(ApiResponse.Fail("Invalid status."));
 
@@ -209,9 +231,13 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
             var parties = await db.Orders.Where(o => o.Id == order.Id)
                 .Select(o => new { ShopUserId = o.Shop.UserId, SupplierUserId = o.Supplier.UserId })
                 .FirstAsync();
-            var detail = order.Status == "cancelled"
-                ? $"was cancelled by SpazaSure{(string.IsNullOrWhiteSpace(req.Reason) ? "." : $": {req.Reason!.Trim()}")}"
-                : $"was updated to {order.Status} by SpazaSure.";
+            var detail = order.Status switch
+            {
+                "cancelled" => $"was cancelled by SpazaSure{(string.IsNullOrWhiteSpace(req.Reason) ? "." : $": {req.Reason!.Trim()}")}",
+                "dispatched" => "has been collected by SpazaSure and is on its way.",
+                "delivered" => "has been delivered by SpazaSure.",
+                _ => $"was updated to {order.Status} by SpazaSure.",
+            };
             var refund = order.Status == "cancelled" && order.PaymentMethod == ShopWallet.PaymentMethod
                 ? $" R{order.TotalAmount:F2} is back in your wallet." : "";
             var priority = order.Status == "cancelled" ? "high" : "normal";

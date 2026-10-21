@@ -37,6 +37,21 @@ public class ServerChecksTests
     }
 
     [Fact]
+    public async Task SandboxCheck_ShowsProfileBeingChecked_NotSyntheticRegistryData()
+    {
+        const string sandboxCompany = """[{"name":"Sandbox Holdings Ltd","registration_number":"2025/717375/07","status":"Active"}]""";
+
+        var outcome = await ServerChecks.CheckBusinessAsync(Didit(sandboxCompany), Supplier(), sandbox: true, CancellationToken.None);
+
+        outcome.Status.Should().Be("In Review");
+        outcome.Notes.Should().Contain("Fresh Foods SA (Pty) Ltd")
+            .And.Contain("2020/123456/07")
+            .And.Contain("live Didit credentials");
+        outcome.Notes.Should().NotContain("Sandbox Holdings")
+            .And.NotContain("screening: clear");
+    }
+
+    [Fact]
     public async Task NoCompanyWithThatNumber_IsDeclined()
     {
         var other = """[{"name":"Other Co","registration_number":"2019/654321/07","status":"In Business"}]""";

@@ -83,6 +83,14 @@ public class ProfileController(SpazaSureDbContext db, IFileStorageService storag
         supplier.PostalCode         = req.PostalCode         ?? supplier.PostalCode;
         supplier.RegistrationNumber = registration ?? supplier.RegistrationNumber;
         supplier.VatNumber          = req.VatNumber          ?? supplier.VatNumber;
+        var bankChanged = (req.BankAccount != null && req.BankAccount != supplier.BankAccount)
+            || (req.BankBranchCode != null && req.BankBranchCode != supplier.BankBranchCode);
+        if (bankChanged)
+        {
+            // Payouts go to the new account: a new Paystack recipient, and failed payouts are retried
+            supplier.PaystackRecipientCode = null;
+            await SupplierPayoutResults.ClearFailuresAsync(db, supplier.Id, HttpContext.RequestAborted);
+        }
         supplier.BankName           = req.BankName           ?? supplier.BankName;
         supplier.BankAccount        = req.BankAccount        ?? supplier.BankAccount;
         supplier.BankBranchCode     = req.BankBranchCode     ?? supplier.BankBranchCode;

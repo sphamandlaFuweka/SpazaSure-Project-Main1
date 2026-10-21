@@ -23,6 +23,8 @@ public class Supplier : BaseEntity, IHasIdentityCheck
     public string? BankName { get; set; }
     public string? BankAccount { get; set; }
     public string? BankBranchCode { get; set; }
+    /// <summary>Paystack transfer recipient for these bank details; cleared when they change.</summary>
+    public string? PaystackRecipientCode { get; set; }
     public string? LogoUrl { get; set; }
     /// <summary>Business check with Didit (CIPC registration, directors, sanctions).</summary>
     public string? IdentityCheckSessionId { get; set; }

@@ -8,7 +8,7 @@ import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
 import {
-  profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, privacyApi, downloadJson,
+  profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, privacyApi, downloadJson, payoutsApi,
   type IdentityCheck, type DeletionRequest,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -148,6 +148,10 @@ export default function ProfilePage() {
       setLogoUploading(false);
     }
   };
+
+  // Banks Paystack can pay into; if the list can't load, the bank name stays a text box
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  useEffect(() => { payoutsApi.banks().then(setBanks).catch(() => setBanks([])); }, []);
 
   if (loading) return <PageLoader variant="cards" />;
   if (!profile) return null;
@@ -434,11 +438,29 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="label" htmlFor="bankName">Bank name</label>
-                <input id="bankName" {...register('bankName')} placeholder="e.g. FNB" autoComplete="organization" className="input" />
+                {banks.length > 0 ? (
+                  // Paystack's bank list: picking a bank fills in its universal branch code, which payouts need
+                  <select
+                    id="bankName"
+                    className="input"
+                    value={banks.find((b) => b.name === bankName)?.code ?? ''}
+                    onChange={(e) => {
+                      const bank = banks.find((b) => b.code === e.target.value);
+                      setValue('bankName', bank?.name ?? '', { shouldDirty: true });
+                      setValue('bankBranchCode', bank?.code ?? '', { shouldDirty: true });
+                    }}
+                  >
+                    <option value="">{bankName ? `${bankName} (choose again from the list)` : 'Choose your bank'}</option>
+                    {banks.map((b) => <option key={b.code + b.name} value={b.code}>{b.name}</option>)}
+                  </select>
+                ) : (
+                  <input id="bankName" {...register('bankName')} placeholder="e.g. FNB" autoComplete="organization" className="input" />
+                )}
               </div>
               <div>
                 <label className="label" htmlFor="bankBranchCode">Branch code</label>
-                <input id="bankBranchCode" {...register('bankBranchCode')} placeholder="e.g. 250655" inputMode="numeric" autoComplete="off" className="input font-mono" />
+                <input id="bankBranchCode" {...register('bankBranchCode')} placeholder="e.g. 250655" inputMode="numeric" autoComplete="off" className="input font-mono" readOnly={banks.length > 0} />
+                {banks.length > 0 && <p className="text-[11px] text-gray-500 mt-1">The universal branch code, filled in from your bank.</p>}
               </div>
               <div className="md:col-span-2">
                 <label className="label" htmlFor="bankAccount">Account number</label>

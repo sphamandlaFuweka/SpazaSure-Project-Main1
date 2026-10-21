@@ -463,7 +463,7 @@ export default function DocumentVerificationPage() {
                   <div className="border-t border-gray-100" style={{ animation: 'expandIn 0.25s ease-out' }}>
                     {group.identityNotes && (
                       <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Didit warnings</p>
+                        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Didit verification details</p>
                         <ul className="mt-1 list-disc pl-5 text-xs text-amber-700 space-y-0.5">
                           {group.identityNotes.split('\n').map((note) => <li key={note}>{note}</li>)}
                         </ul>

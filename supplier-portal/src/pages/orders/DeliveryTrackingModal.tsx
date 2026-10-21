@@ -77,7 +77,8 @@ const STATUS_MESSAGE: Record<string, { text: string; color: string; bg: string }
   pending:    { text: 'Awaiting your confirmation',            color: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200' },
   confirmed:  { text: 'Confirmed — ready to be prepared',      color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-200' },
   processing: { text: 'Being packed and prepared for dispatch', color: 'text-violet-600',  bg: 'bg-violet-50 border-violet-200' },
-  dispatched: { text: 'Out for delivery to the spaza shop',    color: 'text-green-600',   bg: 'bg-green-50 border-green-200' },
+  ready:      { text: 'Packed: waiting for SpazaSure to collect', color: 'text-sky-600',  bg: 'bg-sky-50 border-sky-200' },
+  dispatched: { text: 'Collected by SpazaSure, out for delivery', color: 'text-green-600',   bg: 'bg-green-50 border-green-200' },
   delivered:  { text: 'Delivered',                             color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
   cancelled:  { text: 'This order was cancelled',              color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
 };

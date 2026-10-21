@@ -133,6 +133,19 @@ public class PaymentController(
                     return await HandleSubscriptionDisabled(data, cancellationToken);
                 case "invoice.payment_failed":
                     return await HandleFailedInvoice(data, cancellationToken);
+                // Automatic supplier payouts (Paystack Transfers)
+                case "transfer.success":
+                case "transfer.failed":
+                case "transfer.reversed":
+                    if (TryGetString(data, "reference", out var payoutReference))
+                    {
+                        var succeeded = eventName.GetString() == "transfer.success";
+                        var reason = succeeded ? null : TryGetString(data, "reason", out var r) && r.Length > 0
+                            ? $"the transfer was {eventName.GetString()![9..]} ({r})"
+                            : $"the transfer was {eventName.GetString()![9..]}";
+                        await SupplierPayoutResults.ApplyAsync(db, events, payoutReference, succeeded, reason, cancellationToken);
+                    }
+                    return Ok();
                 default:
                     return Ok();
             }

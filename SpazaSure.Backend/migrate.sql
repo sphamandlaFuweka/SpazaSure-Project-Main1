@@ -1689,6 +1689,11 @@ CREATE TABLE IF NOT EXISTS account_deletion_requests (
 CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_status ON account_deletion_requests(status);
 CREATE INDEX IF NOT EXISTS ix_account_deletion_requests_user_id ON account_deletion_requests(user_id);
 
+-- Automatic supplier payouts through Paystack Transfers.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_initiated_at timestamp with time zone;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_recipient_code varchar(64);
+CREATE INDEX IF NOT EXISTS ix_orders_payout_reference ON orders(payout_reference);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

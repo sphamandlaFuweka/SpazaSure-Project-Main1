@@ -15,11 +15,12 @@ const orderSteps: { status: OrderStatus; label: string }[] = [
   { status: 'pending',    label: 'Order Placed' },
   { status: 'confirmed',  label: 'Confirmed' },
   { status: 'processing', label: 'Processing' },
-  { status: 'dispatched', label: 'Dispatched' },
+  { status: 'ready',      label: 'Ready' },
+  { status: 'dispatched', label: 'Out for delivery' },
   { status: 'delivered',  label: 'Delivered' },
 ];
 
-const statusOrder = ['pending', 'confirmed', 'processing', 'dispatched', 'delivered'];
+const statusOrder = ['pending', 'confirmed', 'processing', 'ready', 'dispatched', 'delivered'];
 
 export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Props) {
   const [showReceipt, setShowReceipt] = useState(false);
@@ -189,7 +190,7 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
             <p className="text-xs font-bold text-amber-700 uppercase mb-1">Delivery code</p>
             <p className="text-3xl font-black tracking-[0.3em] text-gray-900">{order.deliveryCode}</p>
             <p className="text-xs text-amber-700 mt-2">
-              Give this code to the shop owner when you hand over the goods. They enter it in the SpazaSure app to confirm delivery and pay the cash.
+              SpazaSure's driver gives this code to the shop owner with the goods. They enter it in the SpazaSure app to confirm delivery and pay the cash.
             </p>
           </div>
         )}
@@ -213,11 +214,25 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
         )}
         {order.status === 'processing' && (
           <button
-            onClick={() => { onUpdateStatus(order.id, 'dispatched'); onClose(); }}
+            onClick={() => { onUpdateStatus(order.id, 'ready'); onClose(); }}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
-            <Truck size={16} /> Mark as Dispatched
+            <Truck size={16} /> Packed: ready for collection
           </button>
+        )}
+        {order.status === 'ready' && (
+          order.deliveryOption === 'pickup' ? (
+            <button
+              onClick={() => { onUpdateStatus(order.id, 'delivered'); onClose(); }}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+            >
+              <CheckCircle size={16} /> Handed to the shop
+            </button>
+          ) : (
+            <p className="text-sm text-center text-sky-700 bg-sky-50 border border-sky-200 rounded-2xl p-3">
+              SpazaSure has been notified and will collect this order from you, then deliver it to the shop.
+            </p>
+          )
         )}
 
         {/* View Receipt Button */}

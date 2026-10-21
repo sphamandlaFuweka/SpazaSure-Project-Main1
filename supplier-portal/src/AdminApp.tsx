@@ -24,6 +24,7 @@ const AdminFinancePage = lazy(() => import('./pages/admin/AdminFinancePage'));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 const AdminProjectsPage = lazy(() => import('./pages/admin/AdminProjectsPage'));
 const AdminTeamPage = lazy(() => import('./pages/admin/AdminTeamPage'));
+const AdminDeliveriesPage = lazy(() => import('./pages/admin/AdminDeliveriesPage'));
 const AdminDeletionRequestsPage = lazy(() => import('./pages/admin/AdminDeletionRequestsPage'));
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function AdminApp() {
           <Route path="documents" element={<DocumentVerificationPage />} />
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="deliveries" element={<AdminDeliveriesPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="notifications" element={<AdminNotificationsPage />} />

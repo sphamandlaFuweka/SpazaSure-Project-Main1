@@ -153,7 +153,8 @@ export default function OrdersPage() {
 
   const STATUS_MESSAGES: Partial<Record<OrderStatus, string>> = {
     processing: 'Order accepted. It is now being prepared.',
-    dispatched: 'Order marked as dispatched.',
+    ready:      'Marked ready. SpazaSure will collect it.',
+    delivered:  'Order marked as collected by the shop.',
     cancelled:  'Order rejected. The shop has been notified.',
   };
 
@@ -394,7 +395,7 @@ export default function OrdersPage() {
                       <button onClick={() => setReceiptOrder(order)} className="btn-icon hover:text-emerald-600 hover:bg-emerald-50" title="View Receipt">
                         <Printer size={14} />
                       </button>
-                      {(order.status === 'processing' || order.status === 'dispatched' || order.status === 'delivered') && (
+                      {(order.status === 'processing' || order.status === 'ready' || order.status === 'dispatched' || order.status === 'delivered') && (
                         <button onClick={() => setTrackingOrder(order)} className="btn-icon hover:text-blue-600 hover:bg-blue-50" title="Delivery map">
                           <MapPin size={14} />
                         </button>
@@ -409,8 +410,14 @@ export default function OrdersPage() {
                           </button>
                         </>
                       )}
+                      {/* SpazaSure collects and delivers: the supplier packs the order and marks it ready */}
                       {order.status === 'processing' && (
-                        <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'dispatched')} aria-label="Mark dispatched" className="btn-icon disabled:opacity-40 hover:text-indigo-600 hover:bg-indigo-50" title="Mark Dispatched">
+                        <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'ready')} aria-label="Mark ready for collection" className="btn-icon disabled:opacity-40 hover:text-sky-600 hover:bg-sky-50" title="Ready for collection">
+                          <Package size={14} />
+                        </button>
+                      )}
+                      {order.status === 'ready' && order.deliveryOption === 'pickup' && (
+                        <button disabled={updatingId === order.id} onClick={() => updateStatus(order.id, 'delivered')} aria-label="Handed to the shop" className="btn-icon disabled:opacity-40 hover:text-emerald-600 hover:bg-emerald-50" title="Handed to the shop">
                           <Truck size={14} />
                         </button>
                       )}

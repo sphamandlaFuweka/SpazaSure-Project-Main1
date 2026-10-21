@@ -35,7 +35,7 @@ public class CashOnDeliveryTests
         return (
             new OrdersController(db, events) { ControllerContext = new ControllerContext { HttpContext = http } },
             new SupplierPayoutsController(db) { ControllerContext = new ControllerContext { HttpContext = http } },
-            new AdminPayoutsController(db, events),
+            new AdminPayoutsController(db, events, TestPaystack.Transfers()),
             db, supplier);
     }
 
@@ -57,6 +57,11 @@ public class CashOnDeliveryTests
         JsonSerializer.SerializeToElement(((OkObjectResult)result).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web))
             .GetProperty("data");
 
+    /// <summary>SpazaSure's delivery team (admin) collects and dispatches orders.</summary>
+    private static AdminOrdersController CreateAdmin(SpazaSureDbContext db) =>
+        new(db, new EventPublisher("__nonexistent__", "x", "x"))
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+
     private static ShopOrdersController CreateShopController(SpazaSureDbContext db)
     {
         var shop = db.SpazaShops.First();
@@ -69,12 +74,15 @@ public class CashOnDeliveryTests
     }
 
     [Fact]
-    public async Task DispatchingCashOrder_GeneratesDeliveryCodeForSupplier_AndSupplierCannotMarkDelivered()
+    public async Task SpazaSureDispatchingCashOrder_GeneratesDeliveryCode_AndSupplierCannotDispatchOrDeliver()
     {
         var (orders, _, _, db, supplier) = Create();
         var order = AddOrder(db, supplier, Cod, "processing", "pending");
 
-        (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<OkObjectResult>();
+        // The supplier packs the order; collecting and delivering is SpazaSure's job
+        (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<BadRequestObjectResult>();
+        (await orders.UpdateStatus(order.Id, new UpdateStatusRequest("ready", null))).Should().BeOfType<OkObjectResult>();
+        (await CreateAdmin(db).UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<OkObjectResult>();
 
         var saved = await db.Orders.FindAsync(order.Id);
         saved!.DeliveryCode.Should().MatchRegex(@"^\d{6}$");
@@ -88,7 +96,8 @@ public class CashOnDeliveryTests
     {
         var (orders, _, _, db, supplier) = Create();
         var order = AddOrder(db, supplier, Cod, "processing", "pending");
-        await orders.UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null));
+        await orders.UpdateStatus(order.Id, new UpdateStatusRequest("ready", null));
+        await CreateAdmin(db).UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null));
         var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode!;
         var shop = CreateShopController(db);
 
@@ -119,8 +128,9 @@ public class CashOnDeliveryTests
         var order = AddOrder(db, supplier, Cod, "pending", "pending");
 
         // Unlike Paystack orders, cash orders don't wait for an online payment
-        foreach (var next in new[] { "processing", "dispatched" })
+        foreach (var next in new[] { "processing", "ready" })
             (await orders.UpdateStatus(order.Id, new UpdateStatusRequest(next, null))).Should().BeOfType<OkObjectResult>();
+        (await CreateAdmin(db).UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<OkObjectResult>();
         var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode;
         (await CreateShopController(db).ConfirmDelivery(order.Id, new ConfirmDeliveryRequest(code))).Should().BeOfType<OkObjectResult>();
 
@@ -150,9 +160,9 @@ public class CashOnDeliveryTests
 
         var data = Data(await payouts.Summary());
 
-        // SpazaSure collected the cash and owes the supplier products + delivery (R1,150 each)
-        data.GetProperty("available").GetDecimal().Should().Be(1150m);
-        data.GetProperty("pending").GetDecimal().Should().Be(1150m);
+        // SpazaSure collected the cash and owes the supplier the products (R1,000 each); it keeps the delivery fee
+        data.GetProperty("available").GetDecimal().Should().Be(1000m);
+        data.GetProperty("pending").GetDecimal().Should().Be(1000m);
         data.GetProperty("awaitingDelivery").GetDecimal().Should().Be(0m); // unpaid cash orders aren't owed yet
     }
 
@@ -163,11 +173,11 @@ public class CashOnDeliveryTests
         AddOrder(db, supplier, Cod, "delivered", "paid", DateTime.UtcNow.AddDays(-5));
         AddOrder(db, supplier, "paystack", "delivered", "paid", DateTime.UtcNow.AddDays(-5));
 
-        Data(await admin.List()).GetProperty("totalAvailable").GetDecimal().Should().Be(2300m);
+        Data(await admin.List()).GetProperty("totalAvailable").GetDecimal().Should().Be(2000m);
 
         (await admin.MarkPaid(supplier.Id, new MarkPayoutPaidRequest("EFT-COD-001"))).Should().BeOfType<OkObjectResult>();
         var data = Data(await payouts.Summary());
         data.GetProperty("available").GetDecimal().Should().Be(0m);
-        data.GetProperty("paidOut").GetDecimal().Should().Be(2300m);
+        data.GetProperty("paidOut").GetDecimal().Should().Be(2000m);
     }
 }

@@ -145,6 +145,8 @@ services:
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
+      # Pay suppliers automatically through Paystack Transfers (needs Transfers enabled and OTP off)
+      Paystack__AutomaticPayouts:           ${PROD_PAYSTACK_AUTOMATIC_PAYOUTS:-false}
     depends_on:
       postgres:
         condition: service_healthy

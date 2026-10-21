@@ -493,6 +493,28 @@ export const adminOrdersApi = {
     api.patch(`/admin/orders/${id}/status`, { status, reason }).then((r) => r.data),
 };
 
+/** An order on SpazaSure's delivery run (ready at the supplier, or out for delivery). */
+export interface AdminDelivery {
+  id: string;
+  orderNumber: string;
+  status: 'ready' | 'dispatched';
+  deliveryType: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  totalAmount: number;
+  updatedAt: string;
+  deliveryCode: string | null;
+  items: number;
+  supplier: { companyName: string; phone: string | null; address: string | null; city: string | null };
+  shop: { shopName: string; ownerName: string; phone: string | null; address: string | null; city: string | null };
+}
+
+export const adminDeliveriesApi = {
+  list: () => api.get('/admin/orders/deliveries').then((r) => unwrap<AdminDelivery[]>(r)),
+  updateStatus: (id: string, status: 'dispatched' | 'delivered') =>
+    api.patch(`/admin/orders/${id}/status`, { status }).then((r) => r.data),
+};
+
 // Admin Reports (customer/retailer product & shop reports)
 export const adminReportsApi = {
   list: async (params?: { page?: number; pageSize?: number; status?: string }) => {
@@ -694,17 +716,25 @@ export const adminSettingsApi = {
     api.put('/admin/settings/onboarding-fee', { amount }).then((r) => r.data?.data ?? r.data),
 };
 
-// Supplier payouts: SpazaSure pays suppliers products + delivery after the payout delay
-export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'paid_out';
+// Supplier payouts: SpazaSure delivers, and pays suppliers for the goods after the payout delay
+// (automatically through Paystack when automatic payouts are on)
+export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'processing' | 'failed' | 'paid_out';
 export interface SupplierPayoutSummary {
   payoutDelayDays: number;
   awaitingDelivery: number;
   pending: number;
   available: number;
+  /** Being sent to the supplier's bank by Paystack */
+  processing: number;
+  /** A Paystack payout that failed (usually wrong bank details) */
+  failed: number;
   paidOut: number;
   nextAvailableAt: string | null;
   hasBankDetails: boolean;
-  recent: { id: string; orderNumber: string; amount: number; stage: PayoutStage; deliveredAt: string | null; availableAt: string | null; paidOutAt: string | null; payoutReference: string | null }[];
+  recent: {
+    id: string; orderNumber: string; amount: number; stage: PayoutStage; deliveredAt: string | null;
+    availableAt: string | null; paidOutAt: string | null; payoutReference: string | null; failureReason: string | null;
+  }[];
 }
 export interface AdminPayoutSupplier {
   supplierId: string;
@@ -717,16 +747,26 @@ export interface AdminPayoutSupplier {
   availableOrders: number;
   pendingAmount: number;
   pendingOrders: number;
+  hasBankDetails: boolean;
+  processingAmount: number;
+  failedAmount: number;
+  failureReason: string | null;
 }
 
 export const payoutsApi = {
   supplierSummary: () =>
     api.get('/supplier/payouts').then((r) => (r.data?.data ?? r.data) as SupplierPayoutSummary),
+  /** South African banks Paystack can pay into (name + universal branch code). */
+  banks: () =>
+    api.get('/supplier/payouts/banks').then((r) => (r.data?.data ?? r.data) as { name: string; code: string }[]),
 };
 
 export const adminPayoutsApi = {
   list: () =>
-    api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as { payoutDelayDays: number; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[] }),
+    api.get('/admin/payouts').then((r) => (r.data?.data ?? r.data) as {
+      payoutDelayDays: number; automaticPayouts: boolean; totalAvailable: number; totalPending: number; suppliers: AdminPayoutSupplier[];
+    }),
+  retry: (supplierId: string) => api.post(`/admin/payouts/${supplierId}/retry`).then((r) => r.data),
   markPaid: (supplierId: string, reference: string) =>
     api.post(`/admin/payouts/${supplierId}/mark-paid`, { reference })
       .then((r) => (r.data?.data ?? r.data) as { total: number; orders: number; reference: string }),

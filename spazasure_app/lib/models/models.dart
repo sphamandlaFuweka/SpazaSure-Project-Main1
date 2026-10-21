@@ -119,7 +119,7 @@ class Order {
   final double platformFee;
   final double total;
   final String
-  status; // draft, pending, confirmed, processing, dispatched, delivered, cancelled, disputed
+  status; // draft, pending, confirmed, processing, ready (packed), dispatched (SpazaSure delivering), delivered, cancelled, disputed
   final String deliveryOption; // standard, express, pickup
   final String paymentMethod; // eft, wallet
   final String

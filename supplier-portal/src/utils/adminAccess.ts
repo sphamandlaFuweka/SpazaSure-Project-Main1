@@ -34,6 +34,7 @@ const PAGE_AREAS: Record<string, AdminArea | 'any' | 'master'> = {
   'shops-map': 'trust',
   products: 'marketplace',
   orders: 'marketplace',
+  deliveries: 'marketplace',
   'group-buys': 'marketplace',
   analytics: 'marketplace',
   payouts: 'finance',

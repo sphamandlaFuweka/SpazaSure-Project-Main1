@@ -15,6 +15,9 @@ builder.Services.Configure<DeliveryPricingOptions>(
     builder.Configuration.GetSection("DeliveryPricing"));
 builder.Services.AddScoped<DeliveryPricingService>();
 builder.Services.AddHttpClient<OrderPaystackPaymentService>();
+// Automatic supplier payouts (Paystack Transfers), when Paystack:AutomaticPayouts is true
+builder.Services.AddHttpClient<PaystackTransferService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddHostedService<AutomaticPayoutWorker>();
 
 // RabbitMQ Event Publisher for notifications
 builder.Services.AddSingleton(sp =>
