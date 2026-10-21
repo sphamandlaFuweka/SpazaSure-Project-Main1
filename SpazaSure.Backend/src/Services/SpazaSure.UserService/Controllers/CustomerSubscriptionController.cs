@@ -145,7 +145,8 @@ public sealed class CustomerSubscriptionController(
 
         var email = user.Email;
         if (string.IsNullOrWhiteSpace(email))
-            return BadRequest(ApiResponse.Fail("An email address is required for subscription checkout."));
+            // A real address is needed here: Paystack emails the link to manage or cancel the subscription.
+            return BadRequest(ApiResponse.Fail("Add your email address in your profile first. Paystack emails you the link to manage or cancel SpazaSure Plus."));
         var planCode = paystack.GetPlanCode("CustomerPlusMonthly");
         if (string.IsNullOrWhiteSpace(planCode))
             return StatusCode(StatusCodes.Status503ServiceUnavailable,

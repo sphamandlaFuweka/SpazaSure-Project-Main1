@@ -93,10 +93,20 @@ class ComplianceService {
   }
 
   /// Starts (or resumes) the identity check and returns the Didit link to open.
-  static Future<String> startIdentityCheck() async {
+  /// Starts (or resumes) the identity check. Returns Didit's page and the address Didit opens
+  /// when the owner has finished, which brings them back into the app.
+  static Future<({String url, String doneUrl})> startIdentityCheck() async {
     final res = await ApiService.post('/compliance/identity/shop/session', {});
-    final url = (res['data'] as Map<String, dynamic>?)?['url']?.toString();
+    final data = res['data'] as Map<String, dynamic>?;
+    final url = data?['url']?.toString();
     if (url == null || url.isEmpty) throw ApiException('Could not start the identity check.', 0);
-    return url;
+    final doneUrl = data?['doneUrl']?.toString();
+    return (
+      url: url,
+      doneUrl: doneUrl == null || doneUrl.isEmpty ? defaultIdentityDoneUrl : doneUrl,
+    );
   }
+
+  /// Where Didit sends the owner when they finish (see Didit:ShopCallbackUrl on the server).
+  static const defaultIdentityDoneUrl = 'https://portal.spazasure.co.za/verification-complete';
 }

@@ -220,7 +220,8 @@ public class IdentityChecksController(
         Consents.Record(db, subject.UserId, Consents.IdentityCheck, HttpContext?.Connection.RemoteIpAddress?.ToString());
         await db.SaveChangesAsync(ct);
 
-        return Ok(ApiResponse<object>.Ok(new { url = session.Url, status = session.Status }));
+        // doneUrl: where Didit sends the person when they finish; the app watches for it to close Didit.
+        return Ok(ApiResponse<object>.Ok(new { url = session.Url, status = session.Status, doneUrl = callbackUrl }));
     }
 
     /// <summary>Asks Didit for the latest result when it's still open, in case a webhook was missed.</summary>

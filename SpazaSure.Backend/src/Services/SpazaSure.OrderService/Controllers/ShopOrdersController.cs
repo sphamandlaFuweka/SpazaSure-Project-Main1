@@ -204,11 +204,23 @@ public class ShopOrdersController(
         }
 
         var paymentReference = $"SPZ-{Guid.NewGuid():N}";
-        var checkout = await paystackPayments.CreateCheckoutAsync(
-            createdOrders,
-            shop.Email ?? string.Empty,
-            paymentReference,
-            HttpContext.RequestAborted);
+        OrderPaystackCheckout checkout;
+        try
+        {
+            checkout = await paystackPayments.CreateCheckoutAsync(
+                createdOrders,
+                // Shops often have no email; Paystack still needs one (see PaymentEmail).
+                SpazaSure.Shared.Helpers.PaymentEmail.For(shop.Email, shop.Phone, shop.UserId),
+                paymentReference,
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            // Nothing is kept: the orders are rolled back with the transaction.
+            Console.Error.WriteLine($"[ShopOrders] Paystack checkout failed for shop {shop.Id}: {ex.Message}");
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(
+                "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
+        }
         foreach (var order in createdOrders)
             order.PaymentProviderReference = checkout.Reference;
         await db.SaveChangesAsync();

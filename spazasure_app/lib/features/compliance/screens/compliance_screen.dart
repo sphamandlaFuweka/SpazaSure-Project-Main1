@@ -1,3 +1,4 @@
+import 'package:spazasure_app/features/compliance/screens/identity_check_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,7 +9,6 @@ import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/core/validation/sa_validation.dart';
 import 'package:spazasure_app/services/compliance_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ComplianceScreen extends StatefulWidget {
   const ComplianceScreen({super.key});
@@ -62,7 +62,7 @@ class _ComplianceScreenState extends State<ComplianceScreen>
     super.dispose();
   }
 
-  // The identity check runs in the browser; refresh its status when the owner comes back.
+  // Refresh the identity check's status when the owner comes back to the app.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _loadIdentity();
@@ -130,12 +130,23 @@ class _ComplianceScreenState extends State<ComplianceScreen>
   Future<void> _startIdentityCheck() async {
     setState(() => _startingIdentity = true);
     try {
-      final url = await ComplianceService.startIdentityCheck();
-      final opened = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
+      final check = await ComplianceService.startIdentityCheck();
+      if (!mounted) return;
+      // Didit runs inside the app and closes itself when the owner is done.
+      final completed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => IdentityCheckScreen(checkUrl: check.url, doneUrl: check.doneUrl),
+        ),
       );
-      if (!opened) throw ApiException('Could not open the identity check.', 0);
+      if (!mounted) return;
+      await _loadIdentity();
+      if (completed == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thanks! Your identity check is being processed. The result shows here shortly.')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -266,6 +266,8 @@ services:
       Didit__ShopWorkflowId:                ${PROD_DIDIT_SHOP_WORKFLOW_ID:-}
       Didit__SupplierWorkflowId:            ${PROD_DIDIT_SUPPLIER_WORKFLOW_ID:-}
       Didit__Sandbox:                       ${PROD_DIDIT_SANDBOX:-false}
+      # Didit sends shop owners here when they finish; the app closes Didit when it sees this address
+      Didit__ShopCallbackUrl:               ${PROD_DIDIT_SHOP_CALLBACK_URL:-https://portal.spazasure.co.za/verification-complete}
       Didit__SupplierCallbackUrl:           ${PROD_DIDIT_SUPPLIER_CALLBACK_URL:-https://portal.spazasure.co.za/profile?verification=done}
       # Report evidence photos — same S3 bucket as UserService's uploads.
       Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}

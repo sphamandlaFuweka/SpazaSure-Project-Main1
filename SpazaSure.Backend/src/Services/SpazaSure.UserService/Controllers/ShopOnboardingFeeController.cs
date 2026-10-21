@@ -27,9 +27,8 @@ public class ShopOnboardingFeeController(
         var shop = await db.SpazaShops.Include(s => s.User).FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
         if (shop.OnboardingFeePaid) return Ok(ApiResponse<object>.Ok(new { paid = true }));
-        var email = shop.Email ?? shop.User.Email;
-        if (string.IsNullOrWhiteSpace(email))
-            return BadRequest(ApiResponse.Fail("Add an email address to your shop profile before paying the onboarding fee."));
+        // Shops often have no email; Paystack still needs one (see PaymentEmail).
+        var email = SpazaSure.Shared.Helpers.PaymentEmail.For(shop.Email ?? shop.User.Email, shop.Phone, shop.UserId);
 
         var amount = await GetConfiguredAmount();
         if (amount <= 0) return Ok(ApiResponse<object>.Ok(new { paid = true, amount = 0 }));
