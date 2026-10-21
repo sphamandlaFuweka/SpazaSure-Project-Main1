@@ -6,6 +6,8 @@ export default {
       screens: {
         // Covers 1366x768 and 1280x720 laptop viewports
         compact: { raw: '(max-width: 1366px) and (max-height: 768px)' },
+        // Short browser windows of any width (e.g. a half-height window): pages tighten up to fit
+        short: { raw: '(max-height: 820px)' },
       },
       colors: {
         primary: {

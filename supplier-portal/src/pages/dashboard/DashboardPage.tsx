@@ -15,6 +15,7 @@ import PageLoader from '../../components/ui/PageLoader';
 import { analyticsApi, ordersApi, profileApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { format } from 'date-fns';
+import { shortOrderNumber } from '../../utils';
 import type { AnalyticsSummary, RevenueDataPoint, TopProduct, Order, ComplianceDoc } from '../../types';
 
 // ─── Animated Counter Hook ────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const quickActions = [
 const PIPELINE_META = [
   { status: 'pending',    label: 'Awaiting Acceptance', color: 'bg-amber-400' },
   { status: 'processing', label: 'Being Prepared',      color: 'bg-violet-400' }, // includes confirmed
+  { status: 'ready',      label: 'Ready for Collection', color: 'bg-sky-400' },   // packed; SpazaSure collects
   { status: 'dispatched', label: 'Out for Delivery',    color: 'bg-indigo-400' },
   { status: 'delivered',  label: 'Completed',           color: 'bg-emerald-400' },
 ];
@@ -87,7 +89,7 @@ export default function DashboardPage() {
   const [revenue, setRevenue] = useState<RevenueDataPoint[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [pipelineCounts, setPipelineCounts] = useState<Record<string, number>>({ pending: 0, processing: 0, dispatched: 0, delivered: 0 });
+  const [pipelineCounts, setPipelineCounts] = useState<Record<string, number>>({ pending: 0, processing: 0, ready: 0, dispatched: 0, delivered: 0 });
   const [docs, setDocs] = useState<ComplianceDoc[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -167,7 +169,7 @@ export default function DashboardPage() {
             deliveryDistanceKm: o.deliveryDistanceKm == null ? undefined : Number(o.deliveryDistanceKm),
           }));
           setRecentOrders(mapped.slice(0, 5));
-          const counts = { pending: 0, processing: 0, dispatched: 0, delivered: 0 };
+          const counts = { pending: 0, processing: 0, ready: 0, dispatched: 0, delivered: 0 };
           mapped.forEach((o) => {
             // "confirmed" orders are accepted but not yet packed, so count them as being prepared
             const bucket = o.status === 'confirmed' ? 'processing' : o.status;
@@ -472,40 +474,33 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-400 mt-1 max-w-xs">When spaza shops order your products, the newest ones will show up here.</p>
             </div>
           ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[560px]">
-              <thead>
-                <tr className="border-b border-gray-50 bg-gray-50/60">
-                  <th className="table-header">Order #</th>
-                  <th className="table-header">Shop</th>
-                  <th className="table-header text-right">Total</th>
-                  <th className="table-header text-center">Status</th>
-                  <th className="table-header">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order, i) => (
-                  <tr
-                    key={order.id}
-                    className="table-row cursor-pointer animate-table-row focus:outline-none focus-visible:bg-primary-50"
-                    tabIndex={0}
-                    onClick={() => navigate(`/orders?order=${order.id}`)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/orders?order=${order.id}`); }}
-                  >
-                    <td className="table-cell font-bold text-primary whitespace-nowrap">{order.orderNumber}</td>
-                    <td className="table-cell max-w-[220px]">
-                      {/* One line each; the full address shows on hover */}
-                      <p className="font-semibold text-gray-900 truncate" title={order.shopName}>{order.shopName}</p>
-                      <p className="text-xs text-gray-400 truncate" title={order.shopAddress}>{order.shopAddress}</p>
-                    </td>
-                    <td className="table-cell text-right font-black text-gray-900 tabular-nums whitespace-nowrap">R{order.total.toLocaleString()}</td>
-                    <td className="table-cell text-center whitespace-nowrap"><OrderStatusBadge status={order.status} /></td>
-                    <td className="table-cell text-gray-400 text-xs whitespace-nowrap">{format(new Date(order.createdAt), 'dd MMM yyyy')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          // A list rather than a table: it fits the card at any width, so nothing scrolls sideways
+          <ul className="divide-y divide-gray-50">
+            {recentOrders.map((order) => (
+              <li key={order.id}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/orders?order=${order.id}`)}
+                  className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50/80 focus:outline-none focus-visible:bg-primary-50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-primary truncate" title={order.orderNumber}>{shortOrderNumber(order.orderNumber)}</p>
+                    <p className="text-xs text-gray-500 truncate" title={`${order.shopName} · ${order.shopAddress}`}>
+                      <span className="font-semibold text-gray-700">{order.shopName}</span>
+                      {order.shopAddress ? ` · ${order.shopAddress}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                    <span className="text-sm font-black text-gray-900 tabular-nums">R{order.total.toLocaleString()}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="hidden sm:inline text-[11px] text-gray-400 whitespace-nowrap">{format(new Date(order.createdAt), 'dd MMM')}</span>
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
           )}
         </div>
       </div>

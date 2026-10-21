@@ -113,21 +113,21 @@ export default function LoginPage() {
       : { opacity: 0, transform: 'translateY(24px)' };
 
   return (
-    <div className="login-page relative min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-8 bg-[#F5F7FF] overflow-hidden">
+    <div className="login-page relative min-h-[100dvh] w-full flex items-center justify-center p-3 lg:p-6 short:lg:p-4 bg-[#F5F7FF] overflow-x-hidden">
       {/* Paystack-style dotted map of our supplier network */}
       {/* The map covers the whole page; land and sea dots keep the left side from looking empty */}
       <ConnectivityMap ocean className="absolute inset-0 h-full w-full opacity-[0.35]" />
-      <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[640px]">
+      <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row gap-4 lg:gap-8 lg:h-[min(640px,calc(100dvh-3rem))] short:lg:h-[calc(100dvh-2rem)]">
 
       {/* LEFT PANEL: headline, feature chips and studio shot */}
-      <div className="hidden lg:flex lg:w-[48%] rounded-[1.75rem] relative flex-col overflow-hidden px-10 pt-12 bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 shadow-2xl shadow-primary/20">
+      <div className="hidden lg:flex lg:w-[48%] rounded-[1.75rem] relative flex-col overflow-hidden px-10 pt-12 short:px-8 short:pt-8 bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 shadow-2xl shadow-primary/20">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/10 blur-2xl" />
         {/* Supplier network across southern Africa, behind the headline and photo */}
         <ConnectivityMap tone="dark" className="absolute inset-x-0 -top-[20%] w-full h-[120%] opacity-[0.25]" />
         <div className="absolute bottom-10 -left-20 w-64 h-64 rounded-full bg-accent/20 blur-3xl" />
 
         <div style={stagger(0)} className="relative z-10">
-          <h2 className="text-[2.6rem] font-black text-white leading-[1.1] tracking-tight">
+          <h2 className="text-[2.6rem] short:text-[2rem] font-black text-white leading-[1.1] tracking-tight">
             Simplify your spaza supply with our{' '}
             <span className="relative inline-block">
               dashboard
@@ -135,12 +135,12 @@ export default function LoginPage() {
             </span>
             .
           </h2>
-          <p className="text-white/80 text-sm leading-relaxed mt-5 max-w-sm">
+          <p className="text-white/80 text-sm leading-relaxed mt-5 short:mt-3 max-w-sm">
             {activeRole === 'admin'
               ? 'Verify suppliers, review compliance documents and keep the SpazaSure marketplace running smoothly.'
               : 'Connect with thousands of verified spaza shops. Manage products, orders and payments in one place.'}
           </p>
-          <div className="flex flex-wrap gap-2 mt-5">
+          <div className="flex flex-wrap gap-2 mt-5 short:mt-3">
             {features.map(({ icon: Icon, title }) => (
               <span key={title} className="flex items-center gap-1.5 bg-white/15 border border-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
                 <Icon size={13} /> {title}
@@ -149,11 +149,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div style={stagger(150)} className="relative z-10 flex-1 flex items-end justify-center mt-6">
+        <div style={stagger(150)} className="relative z-10 flex-1 min-h-0 flex items-end justify-center mt-6 short:mt-3">
           <img
-            src="/studioshot_square_plain.png"
+            src="/studioshot_square_plain.webp"
             alt="Shop owner juggling groceries"
-            className="max-h-[420px] w-auto object-contain object-bottom"
+            className="max-h-full w-auto object-contain object-bottom" width={800} height={800} decoding="async"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         </div>
@@ -163,13 +163,13 @@ export default function LoginPage() {
       {/* ═══════════════════════════════════════════════════════
           RIGHT PANEL — Login form (45% desktop, full mobile)
           ═══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex items-start lg:items-center justify-center relative py-8 lg:py-0">
+      <div className="flex-1 flex items-start lg:items-center justify-center relative py-8 short:py-4 lg:py-0">
 
-        <div className="w-full max-w-[460px] bg-white/90 backdrop-blur-sm rounded-[2rem] border border-brand-blue-light shadow-2xl shadow-primary/10 px-6 sm:px-10 py-8 sm:py-10">
+        <div className="w-full max-w-[460px] bg-white/90 backdrop-blur-sm rounded-[2rem] border border-brand-blue-light shadow-2xl shadow-primary/10 px-6 sm:px-10 py-8 sm:py-10 short:py-6 short:sm:py-6">
 
           {/* Logo */}
-          <div style={stagger(0)} className="flex flex-col items-center mb-6">
-            <img src="/spazasure_logo.png" alt="SpazaSure" className="w-14 h-14 object-contain mb-3" />
+          <div style={stagger(0)} className="flex flex-col items-center mb-6 short:mb-3">
+            <img src="/spazasure_logo.png" alt="SpazaSure" width={56} height={56} className="w-14 h-14 short:w-10 short:h-10 object-contain mb-3 short:mb-1.5" />
             <h1 className="text-xl font-black text-gray-900 tracking-tight">SpazaSure</h1>
             <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-400">{activeRole === 'admin' ? 'Admin Console' : 'Supplier Portal'}</p>
           </div>
@@ -177,11 +177,11 @@ export default function LoginPage() {
           {/* Form card */}
           <div
             style={stagger(160)}
-            className="p-2 sm:p-4"
+            className="p-2 sm:p-4 short:sm:py-2"
           >
             {/* Title */}
-            <div className="mb-6">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+            <div className="mb-6 short:mb-4">
+              <h2 className="text-2xl short:text-xl font-black text-gray-900 tracking-tight">
                 {activeRole === 'admin' ? 'Welcome back, Admin' : 'Welcome back'}
               </h2>
               <p className="text-gray-500 text-sm mt-1">
@@ -189,7 +189,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 short:space-y-3">
               {/* Email */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email address</label>
@@ -285,7 +285,7 @@ export default function LoginPage() {
           </div>
 
           {/* Trust badges */}
-          <div style={stagger(280)} className="flex items-center justify-center gap-4 mt-6 text-[11px] text-gray-400 font-medium">
+          <div style={stagger(280)} className="flex items-center justify-center gap-4 mt-6 short:hidden text-[11px] text-gray-400 font-medium">
             <span className="flex items-center gap-1"><Lock size={12} /> SSL Encrypted</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
             <span className="flex items-center gap-1"><BadgeCheck size={12} /> CIPC Verified</span>

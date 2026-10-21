@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { adminDeliveriesApi, apiErrorMessage, type AdminDelivery } from '../../services/api';
 import { Spinner } from '../../components/ui';
+import { shortOrderNumber } from '../../utils';
 
 /**
  * SpazaSure's delivery run. Suppliers pack orders and mark them ready; SpazaSure collects them
@@ -101,7 +102,7 @@ function Column({ title, icon, empty, items, busyId, action }: {
             return (
               <div key={d.id} className="card p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-bold text-gray-900">{d.orderNumber}</p>
+                  <p className="font-bold text-gray-900 truncate" title={d.orderNumber}>{shortOrderNumber(d.orderNumber)}</p>
                   <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(d.updatedAt), { addSuffix: true })}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">

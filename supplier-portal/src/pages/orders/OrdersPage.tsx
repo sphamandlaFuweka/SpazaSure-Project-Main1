@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { ordersApi, profileApi } from '../../services/api';
 import type { Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge, EmptyState, Modal } from '../../components/ui';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, shortOrderNumber } from '../../utils';
 import PageLoader from '../../components/ui/PageLoader';
 import clsx from 'clsx';
 import OrderDetailModal from './OrderDetailModal';
@@ -349,7 +349,7 @@ export default function OrdersPage() {
                   <td className="table-cell">
                     <div>
                       <button onClick={() => setSelected(order)} className="font-bold text-primary hover:underline">
-                        {order.orderNumber}
+                        <span title={order.orderNumber}>{shortOrderNumber(order.orderNumber)}</span>
                       </button>
                       {order.isGroupBuy && (
                         <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 mt-1">Group Buy</p>

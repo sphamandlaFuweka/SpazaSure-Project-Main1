@@ -4,7 +4,7 @@ import { Wallet, AlertTriangle, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import { payoutsApi, type SupplierPayoutSummary, type PayoutStage } from '../../services/api';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, shortOrderNumber } from '../../utils';
 
 const STAGE_LABEL: Record<PayoutStage, { label: string; className: string }> = {
   awaiting_delivery: { label: 'Awaiting delivery', className: 'bg-gray-100 text-ink-2' },
@@ -111,7 +111,7 @@ export default function PayoutsCard() {
                     : r.stage === 'failed' ? (r.failureReason ?? 'Payout failed') : '—';
                 return (
                   <tr key={r.id} className="table-row cursor-pointer" onClick={() => navigate(`/orders?order=${r.id}`)}>
-                    <td className="table-cell font-bold text-brand-blue">{r.orderNumber}</td>
+                    <td className="table-cell font-bold text-brand-blue whitespace-nowrap" title={r.orderNumber}>{shortOrderNumber(r.orderNumber)}</td>
                     <td className="table-cell text-right font-bold">{formatCurrency(r.amount)}</td>
                     <td className="table-cell"><span className={clsx('badge', stage.className)}>{stage.label}</span></td>
                     <td className="table-cell text-xs text-ink-3">{when}</td>

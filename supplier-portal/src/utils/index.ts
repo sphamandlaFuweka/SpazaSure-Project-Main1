@@ -13,3 +13,10 @@ export const truncate = (str: string, max = 40) =>
 
 export const generateSKU = (name: string) =>
   (name ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '-').replace(/-+/g, '-').slice(0, 12);
+
+/**
+ * Long order numbers (group-buy ones carry a 32-character code) shortened for tight spaces,
+ * e.g. "SPZ-GB-0623699635954B6AB1C4C4CAA3DF045C" → "SPZ-GB-0623…F045C". Show the full one on hover.
+ */
+export const shortOrderNumber = (orderNumber: string, max = 18) =>
+  orderNumber.length <= max ? orderNumber : `${orderNumber.slice(0, 11)}…${orderNumber.slice(-5)}`;

@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import { groupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyOrder, GroupBuyProduct, SupplierGroupBuyFilter } from '../../types';
+import { shortOrderNumber } from '../../utils';
 
 const filters: { value: SupplierGroupBuyFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -383,7 +384,7 @@ function OrderList({ orders }: { orders: GroupBuyOrder[] }) {
           <div key={order.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 truncate">{order.shopName || 'Shop'}</p>
-              <p className="text-[11px] text-gray-400">{order.orderNumber}</p>
+              <p className="text-[11px] text-gray-400 truncate" title={order.orderNumber}>{shortOrderNumber(order.orderNumber)}</p>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
               <span className="font-bold text-gray-700">{money(order.subtotal)}</span>

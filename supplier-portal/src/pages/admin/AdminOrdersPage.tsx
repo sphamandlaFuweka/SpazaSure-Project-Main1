@@ -8,6 +8,7 @@ import type { Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge } from '../../components/ui';
 import OrderDetailModal from '../orders/OrderDetailModal';
 import OrderReceiptModal from '../orders/OrderReceiptModal';
+import { shortOrderNumber } from '../../utils';
 
 const statusTabs = [
   { value: 'all',        label: 'All Orders' },
@@ -201,7 +202,7 @@ export default function AdminOrdersPage() {
               {filtered.map((order: any) => (
                 <tr key={order.id} className="table-row">
                   <td className="table-cell">
-                    <button onClick={() => setSelected(mapToOrder(order))} className="font-bold text-blue-600 hover:underline">{order.orderNumber}</button>
+                    <button onClick={() => setSelected(mapToOrder(order))} className="font-bold text-blue-600 hover:underline whitespace-nowrap" title={order.orderNumber}>{shortOrderNumber(order.orderNumber)}</button>
                   </td>
                   <td className="table-cell">
                     <p className="font-semibold text-gray-900">{order.shopName}</p>

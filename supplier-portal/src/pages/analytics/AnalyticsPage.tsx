@@ -11,7 +11,7 @@ import PageLoader from '../../components/ui/PageLoader';
 import PayoutsCard from './PayoutsCard';
 import { analyticsApi, ordersApi, subscriptionApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, shortOrderNumber } from '../../utils';
 import toast from 'react-hot-toast';
 import type { AnalyticsSummary, RevenueDataPoint, TopProduct, Order, SubscriptionPlan } from '../../types';
 
@@ -473,7 +473,7 @@ export default function AnalyticsPage() {
                 )}
                 {recentTransactions.map((o) => (
                   <tr key={o.id} className="table-row cursor-pointer" onClick={() => navigate(`/orders?order=${o.id}`)}>
-                    <td className="table-cell font-bold text-primary">{o.orderNumber}</td>
+                    <td className="table-cell font-bold text-primary whitespace-nowrap" title={o.orderNumber}>{shortOrderNumber(o.orderNumber)}</td>
                     <td className="table-cell text-gray-600">{o.shopName}</td>
                     <td className="table-cell text-right font-bold text-emerald-700">
                       {formatCurrency(o.subtotal)}
