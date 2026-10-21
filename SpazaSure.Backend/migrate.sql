@@ -1694,6 +1694,10 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_initiated_at timestamp with t
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_recipient_code varchar(64);
 CREATE INDEX IF NOT EXISTS ix_orders_payout_reference ON orders(payout_reference);
 
+-- Paystack split payments: the supplier's share settles straight to their Paystack subaccount.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_split_code varchar(64);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_subaccount_code varchar(64);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
