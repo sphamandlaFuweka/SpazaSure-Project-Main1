@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar,
+  ResponsiveContainer,
 } from 'recharts';
 import { StatCard, OrderStatusBadge, AlertBanner, SectionHeader } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
@@ -434,18 +434,24 @@ export default function DashboardPage() {
           {topProducts.length === 0 ? (
             <ChartEmpty height={compact ? 140 : 180} message="Your best sellers will appear here." />
           ) : (
-          <ResponsiveContainer width="100%" height={compact ? 140 : 180}>
-            <BarChart data={topProducts} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="productName" tick={{ fontSize: 10, fill: '#6B7280' }} width={85} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: '12px' }}
-                formatter={(v: number) => [v, 'Units Sold']}
-              />
-              <Bar dataKey="totalSold" fill="#078C50" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+            // A ranked list rather than a chart: product names stay readable at any width
+            <ol className="space-y-3">
+              {topProducts.slice(0, 5).map((p, i) => {
+                const best = Math.max(...topProducts.map((t) => t.totalSold), 1);
+                return (
+                  <li key={`${p.productName}-${i}`} title={`${p.productName}: ${p.totalSold} sold`}>
+                    <div className="flex items-baseline gap-2 text-sm">
+                      <span className="w-4 flex-shrink-0 text-xs font-bold text-gray-400 tabular-nums">{i + 1}</span>
+                      <span className="flex-1 min-w-0 truncate font-semibold text-gray-800">{p.productName}</span>
+                      <span className="flex-shrink-0 text-xs font-bold text-gray-900 tabular-nums">{p.totalSold} sold</span>
+                    </div>
+                    <div className="ml-6 mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-brand-green" style={{ width: `${Math.max(4, (p.totalSold / best) * 100)}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </div>
 
@@ -486,16 +492,15 @@ export default function DashboardPage() {
                     onClick={() => navigate(`/orders?order=${order.id}`)}
                     onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/orders?order=${order.id}`); }}
                   >
-                    <td className="table-cell font-bold text-primary">{order.orderNumber}</td>
-                    <td className="table-cell">
-                      <div>
-                        <p className="font-semibold text-gray-900">{order.shopName}</p>
-                        <p className="text-xs text-gray-400">{order.shopAddress}</p>
-                      </div>
+                    <td className="table-cell font-bold text-primary whitespace-nowrap">{order.orderNumber}</td>
+                    <td className="table-cell max-w-[220px]">
+                      {/* One line each; the full address shows on hover */}
+                      <p className="font-semibold text-gray-900 truncate" title={order.shopName}>{order.shopName}</p>
+                      <p className="text-xs text-gray-400 truncate" title={order.shopAddress}>{order.shopAddress}</p>
                     </td>
-                    <td className="table-cell text-right font-black text-gray-900 tabular-nums">R{order.total.toLocaleString()}</td>
-                    <td className="table-cell text-center"><OrderStatusBadge status={order.status} /></td>
-                    <td className="table-cell text-gray-400 text-xs">{format(new Date(order.createdAt), 'dd MMM yyyy')}</td>
+                    <td className="table-cell text-right font-black text-gray-900 tabular-nums whitespace-nowrap">R{order.total.toLocaleString()}</td>
+                    <td className="table-cell text-center whitespace-nowrap"><OrderStatusBadge status={order.status} /></td>
+                    <td className="table-cell text-gray-400 text-xs whitespace-nowrap">{format(new Date(order.createdAt), 'dd MMM yyyy')}</td>
                   </tr>
                 ))}
               </tbody>

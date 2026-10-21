@@ -402,15 +402,24 @@ export default function AnalyticsPage() {
           {productRevenue.length === 0 ? (
             <ChartEmpty height={200} message="Product revenue will appear after your first sales." />
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={productRevenue} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `R${(v / 1000).toFixed(0)}k` : `R${v}`)} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} width={90} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB' }} formatter={(v: number) => [formatCurrency(v), 'Revenue']} />
-                <Bar dataKey="revenue" fill="#1B4332" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            // A ranked list rather than a sideways chart: product names stay readable at any width
+            <ol className="space-y-3">
+              {productRevenue.slice(0, 6).map((p, i) => {
+                const best = Math.max(...productRevenue.map((r) => r.revenue), 1);
+                return (
+                  <li key={`${p.name}-${i}`} title={`${p.name}: ${formatCurrency(p.revenue)}`}>
+                    <div className="flex items-baseline gap-2 text-sm">
+                      <span className="w-4 flex-shrink-0 text-xs font-bold text-gray-400 tabular-nums">{i + 1}</span>
+                      <span className="flex-1 min-w-0 truncate font-semibold text-gray-800">{p.name}</span>
+                      <span className="flex-shrink-0 text-xs font-bold text-gray-900 tabular-nums">{formatCurrency(p.revenue)}</span>
+                    </div>
+                    <div className="ml-6 mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-[#1B4332]" style={{ width: `${Math.max(4, (p.revenue / best) * 100)}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </div>
       </div>
