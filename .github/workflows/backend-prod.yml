@@ -21,6 +21,10 @@ jobs:
         working-directory: SpazaSure.Backend
     steps:
       - uses: actions/checkout@v4
+      # Catch a malformed compose file (e.g. a key defined twice) before any image is built or the
+      # server is touched. --no-interpolate checks the structure without needing the secrets.
+      - name: Validate production compose file
+        run: docker compose -f docker-compose.prod.yml config --no-interpolate --quiet
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
