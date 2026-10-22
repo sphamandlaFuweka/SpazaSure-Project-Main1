@@ -264,9 +264,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           ),
                         ),
                         Center(
-                          child: Text(
-                            'Try adjusting your search or filters',
-                            style: AppTextStyles.bodySmall,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              'Try adjusting your search or filters. Only suppliers in your province, close to your shop, are shown.',
+                              style: AppTextStyles.bodySmall,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                       ],
@@ -405,7 +409,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Text('Suppliers', style: AppTextStyles.subtitle),
                       const SizedBox(height: 12),
                       if (suppliers.isEmpty)
-                        Text('No suppliers to show yet.', style: AppTextStyles.caption)
+                        Text('No suppliers near your shop yet.', style: AppTextStyles.caption)
                       else
                         Wrap(
                           spacing: 8,

@@ -42,7 +42,7 @@ public class PlatformRulesTests
         var saved = new PlatformRules
         {
             StandardDeliveryFee = 99.5m, ExpressDeliveryFee = 199m, GroupBuyBaseDeliveryFee = 40m,
-            GroupBuyPerKmRate = 6.5m, ShopServiceFeePercent = 1.5m, PayoutDelayDays = 7,
+            GroupBuyPerKmRate = 6.5m, ShopServiceFeePercent = 1.5m, PayoutDelayDays = 7, SupplierReachKm = 80m,
             MaintenanceMode = true, MaintenanceMessage = "Back at 10:00", RequireSupplierApproval = false,
             AutoApproveVerifiedSupplierProducts = true, CashOnDeliveryEnabled = false, CashOnDeliveryMaxOrderTotal = 2500m,
             DepositBankName = "FNB Business", DepositAccountHolder = "SpazaSure Holdings", DepositAccountNumber = "62000000001", DepositBranchCode = "250655",
@@ -52,7 +52,7 @@ public class PlatformRulesTests
         await PlatformSettingsStore.SaveAsync(db, saved); // saving twice updates, never duplicates
 
         (await PlatformSettingsStore.LoadAsync(db)).Should().BeEquivalentTo(saved);
-        (await db.PlatformSettings.CountAsync()).Should().Be(16);
+        (await db.PlatformSettings.CountAsync()).Should().Be(17);
     }
 
     [Theory]

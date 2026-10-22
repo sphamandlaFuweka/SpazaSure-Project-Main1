@@ -346,10 +346,11 @@ export default function AdminSettingsPage() {
                   {([
                     { key: 'standardDeliveryFee', label: 'Standard delivery fee (R)', hint: 'Per supplier on each order. Pickup is always free.', step: '1', max: 5000 },
                     { key: 'expressDeliveryFee', label: 'Express delivery fee (R)', hint: 'Per supplier, same-day delivery.', step: '1', max: 5000 },
-                    { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance Ã— rate.', step: '1', max: 5000 },
+                    { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance × rate.', step: '1', max: 5000 },
                     { key: 'groupBuyPerKmRate', label: 'Group-buy rate per km (R)', hint: 'Straight-line distance from supplier to shop.', step: '0.5', max: 500 },
                     { key: 'shopServiceFeePercent', label: 'Shop service fee (%)', hint: 'Extra % of the product subtotal, charged to the shop on top of the supplier\'s tier commission. 0 = off.', step: '0.1', max: 20 },
                     { key: 'payoutDelayDays', label: 'Supplier payout delay (days)', hint: 'Days after delivery before the supplier\'s money becomes available to pay out.', step: '1', max: 60 },
+                    { key: 'supplierReachKm', label: 'Supplier reach (km)', hint: 'Shops only see and order from suppliers in their province and within this straight-line distance.', step: '1', max: 2000 },
                   ] as const).map(({ key, label, hint, step, max }) => (
                     <div key={key}>
                       <label className="label" htmlFor={key}>{label}</label>

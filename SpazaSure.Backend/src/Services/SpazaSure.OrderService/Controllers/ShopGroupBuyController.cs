@@ -189,6 +189,13 @@ public class ShopGroupBuyController(
                 (g.Status == "active" && g.ExpiresAt <= now)),
             _ => query.Where(g => g.Status == status)
         };
+        // Open group buys only from suppliers near the shop; ones it already joined stay listed
+        if (status is "active" or "other")
+        {
+            var rules = await PlatformSettingsStore.LoadAsync(db);
+            var reachable = await SupplierReach.ReachableSupplierIdsAsync(db, shop, rules.SupplierReachKm);
+            query = query.Where(g => reachable.Contains(g.SupplierId));
+        }
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         return Ok(ApiResponse<object>.Ok(campaigns.Select(GroupBuyResponse.ProjectShop).ToList()));
@@ -233,6 +240,8 @@ public class ShopGroupBuyController(
         }
         if (groupBuy.Status != "active")
             return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
+        if (!SupplierReach.CanServe(shop, groupBuy.Supplier, (await PlatformSettingsStore.LoadAsync(db)).SupplierReachKm))
+            return BadRequest(ApiResponse.Fail($"{groupBuy.Supplier.CompanyName} doesn't deliver to your area."));
 
         var requestedIds = req.Items.Select(i => i.GroupBuyProductId).ToHashSet();
         var requestedProducts = groupBuy.Products.Where(p => requestedIds.Contains(p.Id)).ToList();

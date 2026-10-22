@@ -15,6 +15,22 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    /// <summary>
+    /// Suppliers the shop can buy from (same province, within the admin-set distance), or null
+    /// when the caller has no shop and so isn't limited.
+    /// </summary>
+    private async Task<HashSet<Guid>?> ReachableSuppliersAsync(SpazaSure.Infrastructure.Entities.SpazaShop? shop)
+    {
+        if (shop is null) return null;
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        return await SupplierReach.ReachableSupplierIdsAsync(db, shop, rules.SupplierReachKm);
+    }
+
+    private Task<SpazaSure.Infrastructure.Entities.SpazaShop?> CurrentShopAsync() =>
+        Guid.TryParse(User?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId)
+            : Task.FromResult<SpazaSure.Infrastructure.Entities.SpazaShop?>(null);
+
     [HttpGet("products")]
     public async Task<IActionResult> Products(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
@@ -22,9 +38,10 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         [FromQuery] Guid? supplierId = null, [FromQuery] string sort = "popular")
     {
         // Get the shop's location for proximity sorting
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        var shop = await CurrentShopAsync();
         var shopCity = shop?.City?.ToLower() ?? "";
         var shopProvince = shop?.Province?.ToLower() ?? "";
+        var reachable = await ReachableSuppliersAsync(shop);
 
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -33,6 +50,8 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             .Include(p => p.Category).Include(p => p.Supplier)
             .Where(p => p.IsAvailable && p.IsApproved && p.StockQty > 0)
             .Where(p => p.Supplier.Status == "active" || p.Supplier.Status == "verified");
+        if (reachable is not null)
+            query = query.Where(p => reachable.Contains(p.SupplierId));
 
         // Case-insensitive, so "maize" finds "Maize Meal"
         var term = search?.Trim().ToLower();
@@ -90,6 +109,8 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.IsAvailable && x.IsApproved
                 && (x.Supplier.Status == "active" || x.Supplier.Status == "verified"));
         if (p is null) return NotFound(ApiResponse.Fail("Product not found."));
+        if (await ReachableSuppliersAsync(await CurrentShopAsync()) is { } reachable && !reachable.Contains(p.SupplierId))
+            return NotFound(ApiResponse.Fail("This supplier doesn't deliver to your area."));
         return Ok(ApiResponse<object>.Ok(new {
             p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
             p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
@@ -104,11 +125,15 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     [HttpGet("categories")]
     public async Task<IActionResult> Categories()
     {
+        var reachable = await ReachableSuppliersAsync(await CurrentShopAsync());
+        var limited = reachable is not null;
+        var supplierIds = reachable ?? [];
         var items = await db.Set<SpazaSure.Infrastructure.Entities.Category>()
             .Where(c => c.IsActive).OrderBy(c => c.SortOrder)
             .Select(c => new { c.Id, c.Name, c.Slug, c.ParentId, c.IconUrl,
                 ProductCount = c.Products.Count(p => p.IsAvailable && p.IsApproved && p.StockQty > 0
-                    && (p.Supplier.Status == "active" || p.Supplier.Status == "verified")) })
+                    && (p.Supplier.Status == "active" || p.Supplier.Status == "verified")
+                    && (!limited || supplierIds.Contains(p.SupplierId))) })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
@@ -117,11 +142,14 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     public async Task<IActionResult> Suppliers()
     {
         // Get shop location for nearby indicator
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        var shop = await CurrentShopAsync();
         var shopCity = shop?.City?.ToLower() ?? "";
         var shopProvince = shop?.Province?.ToLower() ?? "";
+        var reachable = await ReachableSuppliersAsync(shop);
 
-        var items = await db.Suppliers.Where(s => s.Status == "active" || s.Status == "verified")
+        var suppliers = db.Suppliers.Where(s => s.Status == "active" || s.Status == "verified");
+        if (reachable is not null) suppliers = suppliers.Where(s => reachable.Contains(s.Id));
+        var items = await suppliers
             .OrderByDescending(s => s.City != null && s.City.ToLower() == shopCity)
             .ThenByDescending(s => s.Province != null && s.Province.ToLower() == shopProvince)
             .ThenBy(s => s.CompanyName)

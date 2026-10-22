@@ -21,6 +21,8 @@ public sealed record PlatformRules
     public decimal ShopServiceFeePercent { get; init; } = 0m;
     /// <summary>Days after delivery before a supplier's payout becomes available.</summary>
     public int PayoutDelayDays { get; init; } = 3;
+    /// <summary>Furthest a shop can be from a supplier (km, straight line) to see and order from it. Same province is also required.</summary>
+    public decimal SupplierReachKm { get; init; } = 50m;
     /// <summary>When on, shops and suppliers see a maintenance message; admins keep working.</summary>
     public bool MaintenanceMode { get; init; } = false;
     public string MaintenanceMessage { get; init; } = DefaultMaintenanceMessage;
@@ -50,6 +52,7 @@ public sealed record PlatformRules
         if (GroupBuyPerKmRate is < 0 or > 500) return "Group-buy rate per km must be between R0 and R500.";
         if (ShopServiceFeePercent is < 0 or > 20) return "Shop service fee must be between 0% and 20%.";
         if (PayoutDelayDays is < 0 or > 60) return "Payout delay must be between 0 and 60 days.";
+        if (SupplierReachKm is < 1 or > 2000) return "Supplier reach must be between 1 and 2,000 km.";
         if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
@@ -72,6 +75,7 @@ public static class PlatformSettingsStore
     public const string GroupBuyPerKmRateKey = "group_buy_delivery_per_km";
     public const string ShopServiceFeePercentKey = "shop_service_fee_percent";
     public const string PayoutDelayDaysKey = "payout_delay_days";
+    public const string SupplierReachKmKey = "supplier_reach_km";
     public const string MaintenanceModeKey = "maintenance_mode";
     public const string MaintenanceMessageKey = "maintenance_message";
     public const string RequireSupplierApprovalKey = "require_supplier_approval";
@@ -95,6 +99,7 @@ public static class PlatformSettingsStore
             GroupBuyPerKmRate = Dec(values, GroupBuyPerKmRateKey, d.GroupBuyPerKmRate),
             ShopServiceFeePercent = Dec(values, ShopServiceFeePercentKey, d.ShopServiceFeePercent),
             PayoutDelayDays = values.TryGetValue(PayoutDelayDaysKey, out var days) && int.TryParse(days, out var n) ? n : d.PayoutDelayDays,
+            SupplierReachKm = Dec(values, SupplierReachKmKey, d.SupplierReachKm),
             MaintenanceMode = Bool(values, MaintenanceModeKey, d.MaintenanceMode),
             MaintenanceMessage = values.TryGetValue(MaintenanceMessageKey, out var msg) && !string.IsNullOrWhiteSpace(msg) ? msg : d.MaintenanceMessage,
             RequireSupplierApproval = Bool(values, RequireSupplierApprovalKey, d.RequireSupplierApproval),
@@ -118,6 +123,7 @@ public static class PlatformSettingsStore
             [GroupBuyPerKmRateKey] = Fmt(rules.GroupBuyPerKmRate),
             [ShopServiceFeePercentKey] = Fmt(rules.ShopServiceFeePercent),
             [PayoutDelayDaysKey] = rules.PayoutDelayDays.ToString(CultureInfo.InvariantCulture),
+            [SupplierReachKmKey] = Fmt(rules.SupplierReachKm),
             [MaintenanceModeKey] = rules.MaintenanceMode ? "true" : "false",
             [MaintenanceMessageKey] = rules.MaintenanceMessage.Trim(),
             [RequireSupplierApprovalKey] = rules.RequireSupplierApproval ? "true" : "false",

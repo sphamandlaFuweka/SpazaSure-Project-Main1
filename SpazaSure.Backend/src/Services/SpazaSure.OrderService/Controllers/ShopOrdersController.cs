@@ -66,6 +66,12 @@ public class ShopOrdersController(
         // Group items by supplier (one order per supplier)
         var grouped = lines.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
         var rules = await PlatformSettingsStore.LoadAsync(db);
+        // Shops only buy from suppliers near them (also enforced here, not just hidden in the marketplace)
+        var outOfReach = products.Select(p => p.Supplier).DistinctBy(s => s.Id)
+            .Where(s => !SupplierReach.CanServe(shop, s, rules.SupplierReachKm)).Select(s => s.CompanyName).ToList();
+        if (outOfReach.Count > 0)
+            return BadRequest(ApiResponse.Fail(
+                $"{string.Join(", ", outOfReach)} doesn't deliver to your area. Remove those items from your cart and try again."));
         var isCashOnDelivery = paymentMethod == CashOnDelivery;
         var isWallet = paymentMethod == ShopWallet.PaymentMethod;
         if (isCashOnDelivery && !rules.CashOnDeliveryEnabled)

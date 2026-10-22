@@ -691,6 +691,8 @@ export interface PlatformRules {
   groupBuyPerKmRate: number;
   shopServiceFeePercent: number;
   payoutDelayDays: number;
+  /** Furthest a shop can be from a supplier (km) to see and order from it; same province is also required */
+  supplierReachKm: number;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   requireSupplierApproval: boolean;
