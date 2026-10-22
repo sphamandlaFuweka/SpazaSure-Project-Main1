@@ -39,4 +39,27 @@ public class Supplier : BaseEntity, IHasIdentityCheck
     public User User { get; set; } = null!;
     public ICollection<Product> Products { get; set; } = [];
     public ICollection<SupplierDocument> Documents { get; set; } = [];
+    /// <summary>Warehouses and depots the supplier also delivers from, besides the head office address above.</summary>
+    public ICollection<SupplierBranch> Branches { get; set; } = [];
+}
+
+/// <summary>
+/// A warehouse or depot a supplier delivers from, e.g. its Durban, Johannesburg and Cape Town
+/// warehouses. Shops near any active branch can buy from the supplier.
+/// </summary>
+public class SupplierBranch : BaseEntity
+{
+    public Guid SupplierId { get; set; }
+    /// <summary>What the supplier calls it, e.g. "Durban warehouse".</summary>
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string Province { get; set; } = string.Empty;
+    public string? PostalCode { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    /// <summary>A paused branch serves no shops until it is switched back on.</summary>
+    public bool IsActive { get; set; } = true;
+
+    public Supplier Supplier { get; set; } = null!;
 }

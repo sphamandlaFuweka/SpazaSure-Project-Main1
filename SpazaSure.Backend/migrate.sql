@@ -1698,6 +1698,34 @@ CREATE INDEX IF NOT EXISTS ix_orders_payout_reference ON orders(payout_reference
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_split_code varchar(64);
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_subaccount_code varchar(64);
 
+-- Supplier branches (warehouses such as Durban, JHB and Cape Town) and where each group buy is open.
+CREATE TABLE IF NOT EXISTS supplier_branches (
+    id uuid NOT NULL CONSTRAINT pk_supplier_branches PRIMARY KEY,
+    supplier_id uuid NOT NULL CONSTRAINT fk_supplier_branches_suppliers_supplier_id REFERENCES suppliers(id) ON DELETE CASCADE,
+    name varchar(80) NOT NULL,
+    address varchar(300) NOT NULL,
+    city varchar(100) NOT NULL,
+    province varchar(100) NOT NULL,
+    postal_code varchar(10),
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    is_active boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_supplier_branches_supplier_id_is_active ON supplier_branches(supplier_id, is_active);
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS supplier_branch_id uuid;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS area_city varchar(100);
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS area_province varchar(100);
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS area_latitude double precision;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS area_longitude double precision;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS area_radius_km numeric(7,1);
+CREATE INDEX IF NOT EXISTS ix_group_buys_supplier_branch_id ON group_buys(supplier_branch_id);
+DO $$ BEGIN
+    ALTER TABLE group_buys ADD CONSTRAINT fk_group_buys_supplier_branches_supplier_branch_id
+        FOREIGN KEY (supplier_branch_id) REFERENCES supplier_branches(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- Shop delivery ratings and issue reports. Not EF entities: ShopOrderRatingController reads and
 -- writes them with raw SQL, so they only exist if this script creates them.
 CREATE TABLE IF NOT EXISTS delivery_ratings (

@@ -55,7 +55,7 @@ public class ShopOrdersController(
         var productIds = lines.Select(i => i.ProductId).ToList();
         // Same rule as the marketplace: only approved, listed products from active suppliers.
         var products = await db.Products
-            .Include(p => p.Supplier)
+            .Include(p => p.Supplier).ThenInclude(s => s.Branches) // any branch near the shop can serve it
             .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved
                 && (p.Supplier.Status == "active" || p.Supplier.Status == "verified"))
             .ToListAsync();

@@ -571,6 +571,29 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("approved_by_user_id");
 
+                    b.Property<string>("AreaCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("area_city");
+
+                    b.Property<double?>("AreaLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_latitude");
+
+                    b.Property<double?>("AreaLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_longitude");
+
+                    b.Property<string>("AreaProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("area_province");
+
+                    b.Property<decimal?>("AreaRadiusKm")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)")
+                        .HasColumnName("area_radius_km");
+
                     b.Property<string>("BannerImageUrl")
                         .HasColumnType("text")
                         .HasColumnName("banner_image_url");
@@ -631,6 +654,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<Guid?>("SupplierBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_branch_id");
+
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
@@ -662,6 +689,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_group_buys_status");
+
+                    b.HasIndex("SupplierBranchId")
+                        .HasDatabaseName("ix_group_buys_supplier_branch_id");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_group_buys_supplier_id");
@@ -913,11 +943,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("payment_provider_reference");
 
-                    b.Property<string>("PaystackSplitCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("paystack_split_code");
-
                     b.Property<string>("PaymentStatus")
                         .IsRequired()
                         .HasColumnType("text")
@@ -930,6 +955,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<string>("PayoutReference")
                         .HasColumnType("text")
                         .HasColumnName("payout_reference");
+
+                    b.Property<string>("PaystackSplitCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paystack_split_code");
 
                     b.Property<decimal>("PlatformCommission")
                         .HasPrecision(10, 2)
@@ -1250,67 +1280,6 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("allergens");
 
-                    b.Property<string>("Brand")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("brand");
-
-                    b.Property<string>("PackSize")
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)")
-                        .HasColumnName("pack_size");
-
-                    b.Property<string>("CountryOfOrigin")
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)")
-                        .HasColumnName("country_of_origin");
-
-                    b.Property<string>("Manufacturer")
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)")
-                        .HasColumnName("manufacturer");
-
-                    b.Property<string>("ServingSize")
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)")
-                        .HasColumnName("serving_size");
-
-                    b.Property<string>("ServingsPerPack")
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)")
-                        .HasColumnName("servings_per_pack");
-
-                    b.Property<string>("Ingredients")
-                        .HasColumnType("text")
-                        .HasColumnName("ingredients");
-
-                    b.Property<string>("UsageInstructions")
-                        .HasColumnType("text")
-                        .HasColumnName("usage_instructions");
-
-                    b.Property<string>("StorageInstructions")
-                        .HasColumnType("text")
-                        .HasColumnName("storage_instructions");
-
-                    b.Property<string>("Warnings")
-                        .HasColumnType("text")
-                        .HasColumnName("warnings");
-
-                    b.Property<string>("NutritionInfo")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("nutrition_info");
-
-                    b.Property<string>("Specifications")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("specifications");
-
-                    b.Property<string>("AuthenticityTips")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("authenticity_tips");
-
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("approved_at");
@@ -1319,13 +1288,28 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("approved_by");
 
+                    b.Property<string>("AuthenticityTips")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("authenticity_tips");
+
                     b.Property<string>("Barcode")
                         .HasColumnType("text")
                         .HasColumnName("barcode");
 
+                    b.Property<string>("Brand")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("brand");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
+
+                    b.Property<string>("CountryOfOrigin")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("country_of_origin");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1340,6 +1324,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("images");
 
+                    b.Property<string>("Ingredients")
+                        .HasColumnType("text")
+                        .HasColumnName("ingredients");
+
                     b.Property<bool>("IsApproved")
                         .HasColumnType("boolean")
                         .HasColumnName("is_approved");
@@ -1352,6 +1340,11 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_food_item");
 
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("manufacturer");
+
                     b.Property<int>("MinOrderQty")
                         .HasColumnType("integer")
                         .HasColumnName("min_order_qty");
@@ -1361,19 +1354,48 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<string>("NutritionInfo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nutrition_info");
+
+                    b.Property<string>("PackSize")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pack_size");
+
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("price");
+
+                    b.Property<string>("ServingSize")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("serving_size");
+
+                    b.Property<string>("ServingsPerPack")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("servings_per_pack");
 
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("sku");
 
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("specifications");
+
                     b.Property<int>("StockQty")
                         .HasColumnType("integer")
                         .HasColumnName("stock_qty");
+
+                    b.Property<string>("StorageInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("storage_instructions");
 
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
@@ -1387,6 +1409,14 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("UsageInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("usage_instructions");
+
+                    b.Property<string>("Warnings")
+                        .HasColumnType("text")
+                        .HasColumnName("warnings");
 
                     b.HasKey("Id")
                         .HasName("pk_products");
@@ -2547,6 +2577,75 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("suppliers", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SupplierBranch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("city");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("postal_code");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("province");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_supplier_branches");
+
+                    b.HasIndex("SupplierId", "IsActive")
+                        .HasDatabaseName("ix_supplier_branches_supplier_id_is_active");
+
+                    b.ToTable("supplier_branches", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SupplierDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2900,6 +2999,12 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_group_buys_products_product_id");
 
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SupplierBranch", "SupplierBranch")
+                        .WithMany()
+                        .HasForeignKey("SupplierBranchId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_group_buys_supplier_branches_supplier_branch_id");
+
                     b.HasOne("SpazaSure.Infrastructure.Entities.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
@@ -2912,6 +3017,8 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Supplier");
+
+                    b.Navigation("SupplierBranch");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyParticipant", b =>
@@ -3267,6 +3374,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SupplierBranch", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Supplier", "Supplier")
+                        .WithMany("Branches")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_supplier_branches_suppliers_supplier_id");
+
+                    b.Navigation("Supplier");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SupplierDocument", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.Supplier", "Supplier")
@@ -3375,6 +3494,8 @@ namespace SpazaSure.Infrastructure.Migrations
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Supplier", b =>
                 {
+                    b.Navigation("Branches");
+
                     b.Navigation("Documents");
 
                     b.Navigation("Products");

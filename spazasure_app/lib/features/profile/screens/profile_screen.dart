@@ -689,7 +689,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
       text: longitude?.toString() ?? '',
     );
     var addressConfirmed = latitude != null && longitude != null;
+    var locationPicked = false;
+    var saving = false;
     String? postalCode;
+
+    Future<void> saveProfile(
+      BuildContext sheetContext,
+      StateSetter setSaveState,
+    ) async {
+      if (shopCtrl.text.trim().isEmpty ||
+          ownerCtrl.text.trim().isEmpty ||
+          phoneCtrl.text.trim().isEmpty ||
+          addressCtrl.text.trim().isEmpty ||
+          cityCtrl.text.trim().isEmpty ||
+          provinceCtrl.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Complete all shop and contact fields before saving.',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+      if (addressCtrl.text != address && !addressConfirmed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pick your address from the suggestions to confirm it.',
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      setSaveState(() => saving = true);
+      try {
+        final locationChanged =
+            addressCtrl.text.trim() != address.trim() ||
+            cityCtrl.text.trim() != city.trim() ||
+            provinceCtrl.text.trim() != province.trim();
+        final keepSelectedLocation = !locationChanged || locationPicked;
+        await ProfileService.updateProfile({
+          'shopName': shopCtrl.text.trim(),
+          'ownerName': ownerCtrl.text.trim(),
+          'phone': phoneCtrl.text.trim(),
+          'email': emailCtrl.text.trim(),
+          'address': addressCtrl.text.trim(),
+          'city': cityCtrl.text.trim(),
+          'province': provinceCtrl.text.trim(),
+          if (postalCode != null) 'postalCode': postalCode,
+          'latitude': !keepSelectedLocation || latitudeCtrl.text.trim().isEmpty
+              ? null
+              : double.tryParse(latitudeCtrl.text.trim()),
+          'longitude':
+              !keepSelectedLocation || longitudeCtrl.text.trim().isEmpty
+              ? null
+              : double.tryParse(longitudeCtrl.text.trim()),
+        });
+        if (sheetContext.mounted) Navigator.pop(sheetContext);
+        await _loadProfile();
+        if (!mounted) return;
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not save your profile: ${e.toString().replaceFirst('Exception: ', '')}',
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } finally {
+        if (sheetContext.mounted) setSaveState(() => saving = false);
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -735,80 +820,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 12),
                     Text('Shop Details', style: AppTextStyles.h3),
                     const Spacer(),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (addressCtrl.text != address && !addressConfirmed) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'Pick your address from the suggestions to confirm it.',
-                              ),
-                              backgroundColor: AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await ProfileService.updateProfile({
-                            'shopName': shopCtrl.text,
-                            'ownerName': ownerCtrl.text,
-                            'phone': phoneCtrl.text,
-                            'email': emailCtrl.text,
-                            'address': addressCtrl.text,
-                            'city': cityCtrl.text,
-                            'province': provinceCtrl.text,
-                            if (postalCode != null) 'postalCode': postalCode,
-                            'latitude': latitudeCtrl.text.trim().isEmpty
-                                ? null
-                                : double.tryParse(latitudeCtrl.text.trim()),
-                            'longitude': longitudeCtrl.text.trim().isEmpty
-                                ? null
-                                : double.tryParse(longitudeCtrl.text.trim()),
-                          });
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                          }
-                          await _loadProfile();
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Profile updated!'),
-                              backgroundColor: AppColors.success,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Could not save your profile: ${e.toString().replaceFirst('Exception: ', '')}',
-                              ),
-                              backgroundColor: AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
                   ],
                 ),
               ),
@@ -839,6 +850,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: 'Address',
                           confirmed: addressConfirmed,
                           onSelected: (s) => setFieldState(() {
+                            locationPicked = true;
                             addressConfirmed = true;
                             addressCtrl.text = s.addressLine.isEmpty
                                 ? s.label
@@ -861,6 +873,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _editField('Province', provinceCtrl, Icons.map_outlined),
                     const SizedBox(height: 40),
                   ],
+                ),
+              ),
+              StatefulBuilder(
+                builder: (context, setSaveState) => SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () => saveProfile(ctx, setSaveState),
+                        icon: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(saving ? 'Saving...' : 'Save changes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],

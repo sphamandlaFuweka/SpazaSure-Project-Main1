@@ -15,7 +15,8 @@ namespace SpazaSure.OrderService.Controllers;
 internal static class GroupBuyResponse
 {
     internal static IQueryable<GroupBuy> WithGraph(IQueryable<GroupBuy> query) => query
-        .Include(g => g.Supplier)
+        .Include(g => g.Supplier).ThenInclude(s => s.Branches)
+        .Include(g => g.SupplierBranch)
         .Include(g => g.CreatedByShop)
         .Include(g => g.Products).ThenInclude(p => p.Product)
         .Include(g => g.Products).ThenInclude(p => p.Items)
@@ -37,6 +38,7 @@ internal static class GroupBuyResponse
             SupplierName = groupBuy.Supplier.CompanyName,
             CreatedByShopName = groupBuy.CreatedByShop?.ShopName ?? "",
             groupBuy.CreatedByRole,
+            Area = ProjectArea(groupBuy),
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
             ParticipantCount = groupBuy.Participants.Count(p => p.Status != "cancelled"),
@@ -75,6 +77,7 @@ internal static class GroupBuyResponse
             SupplierName = groupBuy.Supplier.CompanyName,
             CreatedByShopName = groupBuy.CreatedByShop?.ShopName ?? "",
             groupBuy.CreatedByRole,
+            Area = ProjectArea(groupBuy),
             groupBuy.RejectionNote,
             groupBuy.ApprovedAt,
             groupBuy.ExpiresAt,
@@ -111,6 +114,21 @@ internal static class GroupBuyResponse
             }).ToList()
         };
     }
+
+    /// <summary>Where shops must be to join; null for campaigns from before areas existed.</summary>
+    private static object? ProjectArea(GroupBuy groupBuy) => GroupBuyArea.HasArea(groupBuy)
+        ? new
+        {
+            groupBuy.SupplierBranchId,
+            BranchName = groupBuy.SupplierBranchId is null ? "Head office" : groupBuy.SupplierBranch?.Name ?? "Branch",
+            City = groupBuy.AreaCity,
+            Province = groupBuy.AreaProvince,
+            Latitude = groupBuy.AreaLatitude,
+            Longitude = groupBuy.AreaLongitude,
+            RadiusKm = groupBuy.AreaRadiusKm,
+            Description = GroupBuyArea.Describe(groupBuy),
+        }
+        : null;
 
     private static object ProjectParticipants(GroupBuy groupBuy) =>
         groupBuy.Participants.Select(p => new
@@ -189,16 +207,41 @@ public class ShopGroupBuyController(
                 (g.Status == "active" && g.ExpiresAt <= now)),
             _ => query.Where(g => g.Status == status)
         };
-        // Open group buys only from suppliers near the shop; ones it already joined stay listed
+        // Open group buys only for the shop's area; ones it already joined stay listed
         if (status is "active" or "other")
         {
-            var rules = await PlatformSettingsStore.LoadAsync(db);
-            var reachable = await SupplierReach.ReachableSupplierIdsAsync(db, shop, rules.SupplierReachKm);
-            query = query.Where(g => reachable.Contains(g.SupplierId));
+            var visible = await OpenToShopAsync(shop, now);
+            query = query.Where(g => visible.Contains(g.Id));
         }
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         return Ok(ApiResponse<object>.Ok(campaigns.Select(GroupBuyResponse.ProjectShop).ToList()));
+    }
+
+    /// <summary>
+    /// Ids of the live campaigns whose area contains the shop. Older campaigns without an area
+    /// are open to shops their supplier can reach.
+    /// </summary>
+    private async Task<HashSet<Guid>> OpenToShopAsync(SpazaShop shop, DateTime now)
+    {
+        var live = await db.GroupBuys.AsNoTracking()
+            .Where(g => g.Status == "active" && g.ExpiresAt > now)
+            .Select(g => new GroupBuy
+            {
+                Id = g.Id, SupplierId = g.SupplierId, AreaCity = g.AreaCity, AreaProvince = g.AreaProvince,
+                AreaLatitude = g.AreaLatitude, AreaLongitude = g.AreaLongitude, AreaRadiusKm = g.AreaRadiusKm,
+            })
+            .ToListAsync();
+        HashSet<Guid>? reachable = null;
+        if (live.Any(g => !GroupBuyArea.HasArea(g)))
+        {
+            var rules = await PlatformSettingsStore.LoadAsync(db);
+            reachable = await SupplierReach.ReachableSupplierIdsAsync(db, shop, rules.SupplierReachKm);
+        }
+        return live
+            .Where(g => GroupBuyArea.HasArea(g) ? GroupBuyArea.Contains(g, shop, 0m) : reachable!.Contains(g.SupplierId))
+            .Select(g => g.Id)
+            .ToHashSet();
     }
 
     [HttpGet("{id:guid}")]
@@ -240,8 +283,10 @@ public class ShopGroupBuyController(
         }
         if (groupBuy.Status != "active")
             return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
-        if (!SupplierReach.CanServe(shop, groupBuy.Supplier, (await PlatformSettingsStore.LoadAsync(db)).SupplierReachKm))
-            return BadRequest(ApiResponse.Fail($"{groupBuy.Supplier.CompanyName} doesn't deliver to your area."));
+        if (!GroupBuyArea.Contains(groupBuy, shop, (await PlatformSettingsStore.LoadAsync(db)).SupplierReachKm))
+            return BadRequest(ApiResponse.Fail(GroupBuyArea.HasArea(groupBuy)
+                ? $"This group buy is only open to {GroupBuyArea.Describe(groupBuy)}, and your shop is outside that area."
+                : $"{groupBuy.Supplier.CompanyName} doesn't deliver to your area."));
 
         var requestedIds = req.Items.Select(i => i.GroupBuyProductId).ToHashSet();
         var requestedProducts = groupBuy.Products.Where(p => requestedIds.Contains(p.Id)).ToList();
@@ -632,7 +677,11 @@ public class SupplierGroupBuyController(
                     "New qualified items cannot be added because an affected group buy order is no longer pending.",
                     nonPendingOrders));
 
-            if (!ValidCoordinates(supplier.Latitude, supplier.Longitude))
+            // Orders leave from the branch the campaign runs from (its area centre), else the head office
+            var (fromLatitude, fromLongitude) = groupBuy.AreaLatitude is not null && groupBuy.AreaLongitude is not null
+                ? (groupBuy.AreaLatitude, groupBuy.AreaLongitude)
+                : (supplier.Latitude, supplier.Longitude);
+            if (!ValidCoordinates(fromLatitude, fromLongitude))
                 return BadRequest(ApiResponse.Fail("Supplier delivery coordinates are missing or invalid."));
             var invalidShops = eligible
                 .Where(x => string.IsNullOrWhiteSpace(x.Participant.Shop.Address) ||
@@ -695,7 +744,7 @@ public class SupplierGroupBuyController(
                 {
                     rules ??= await PlatformSettingsStore.LoadAsync(db);
                     var delivery = pricing.Calculate(
-                        supplier.Latitude!.Value, supplier.Longitude!.Value,
+                        fromLatitude!.Value, fromLongitude!.Value,
                         shop.Latitude!.Value, shop.Longitude!.Value,
                         rules.GroupBuyBaseDeliveryFee, rules.GroupBuyPerKmRate);
                     order = new Order

@@ -30,9 +30,25 @@ public class GroupBuy : BaseEntity
     public DateTime? ApprovedAt { get; set; }
     public string? RejectionNote { get; set; }
 
+    /// <summary>
+    /// The branch (warehouse) that supplies this campaign; null when it ships from the head office.
+    /// The area below is copied from it when the campaign is created, so editing or removing the
+    /// branch later doesn't move a running campaign.
+    /// </summary>
+    public Guid? SupplierBranchId { get; set; }
+    /// <summary>Where shops must be to join: the city the campaign is advertised for, e.g. "Durban".</summary>
+    public string? AreaCity { get; set; }
+    public string? AreaProvince { get; set; }
+    /// <summary>Centre of the area, normally the supplying branch.</summary>
+    public double? AreaLatitude { get; set; }
+    public double? AreaLongitude { get; set; }
+    /// <summary>Shops further than this from the centre can't see or join the campaign.</summary>
+    public decimal? AreaRadiusKm { get; set; }
+
     public Product Product { get; set; } = null!;
     public Supplier Supplier { get; set; } = null!;
     public SpazaShop? CreatedByShop { get; set; }
+    public SupplierBranch? SupplierBranch { get; set; }
     public ICollection<GroupBuyProduct> Products { get; set; } = [];
     public ICollection<GroupBuyParticipant> Participants { get; set; } = [];
 }

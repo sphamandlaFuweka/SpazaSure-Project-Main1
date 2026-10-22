@@ -61,6 +61,10 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
                 IsVerified = s.Status == "verified",
                 s.Status,
                 IdentityCheckStatus = s.IdentityCheckStatus,
+                s.City,
+                s.Province,
+                Branches = s.Branches.Where(b => b.IsActive).OrderBy(b => b.Name)
+                    .Select(b => new { b.Id, b.Name, b.City, b.Province }).ToList(),
                 JoinedAt = s.CreatedAt,
                 Documents = s.Documents.Select(d => new
                 {

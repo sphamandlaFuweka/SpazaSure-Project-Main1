@@ -14,6 +14,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<AuthAuditLog> AuthAuditLogs => Set<AuthAuditLog>();
     public DbSet<AccountDeletionRequest> AccountDeletionRequests => Set<AccountDeletionRequest>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
     public DbSet<ShopDocument> ShopDocuments => Set<ShopDocument>();
@@ -128,6 +129,19 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(s => s.IdentityCheckSessionId);
             e.Property(s => s.PaystackRecipientCode).HasMaxLength(64);
             e.Property(s => s.PaystackSubaccountCode).HasMaxLength(64);
+        });
+
+        // SupplierBranch: the supplier's warehouses and depots
+        model.Entity<SupplierBranch>(e =>
+        {
+            e.ToTable("supplier_branches");
+            e.Property(b => b.Name).HasMaxLength(80);
+            e.Property(b => b.Address).HasMaxLength(300);
+            e.Property(b => b.City).HasMaxLength(100);
+            e.Property(b => b.Province).HasMaxLength(100);
+            e.Property(b => b.PostalCode).HasMaxLength(10);
+            e.HasIndex(b => new { b.SupplierId, b.IsActive });
+            e.HasOne(b => b.Supplier).WithMany(s => s.Branches).HasForeignKey(b => b.SupplierId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // SupplierDocument
@@ -375,6 +389,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(g => g.Product).WithMany().HasForeignKey(g => g.ProductId);
             e.HasOne(g => g.Supplier).WithMany().HasForeignKey(g => g.SupplierId);
             e.HasOne(g => g.CreatedByShop).WithMany().HasForeignKey(g => g.CreatedByShopId);
+            e.HasOne(g => g.SupplierBranch).WithMany().HasForeignKey(g => g.SupplierBranchId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(g => g.AreaCity).HasMaxLength(100);
+            e.Property(g => g.AreaProvince).HasMaxLength(100);
+            e.Property(g => g.AreaRadiusKm).HasPrecision(7, 1);
         });
 
         // GroupBuyProduct

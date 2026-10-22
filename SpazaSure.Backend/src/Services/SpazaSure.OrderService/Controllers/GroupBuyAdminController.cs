@@ -19,7 +19,10 @@ public record NewGroupBuyRequest(
     int DurationDays,
     List<NewGroupBuyProduct>? Products,
     Guid? SupplierId = null,
-    string? BannerImageUrl = null);
+    string? BannerImageUrl = null,
+    // Which warehouse supplies the campaign (null = head office) and how far from it shops may join
+    Guid? SupplierBranchId = null,
+    decimal? AreaRadiusKm = null);
 
 public record RejectGroupBuyRequest(string? Note);
 
@@ -44,6 +47,26 @@ internal static class GroupBuyFactory
                banner.StartsWith("https://", StringComparison.OrdinalIgnoreCase))))
             return (null, "The banner image must be an uploaded image.");
 
+        var supplier = await db.Suppliers.AsNoTracking().Include(s => s.Branches)
+            .FirstOrDefaultAsync(s => s.Id == supplierId);
+        if (supplier is null) return (null, "Choose a supplier.");
+        SupplierReach.Location from;
+        if (req.SupplierBranchId is { } branchId)
+        {
+            var branch = supplier.Branches.FirstOrDefault(b => b.Id == branchId && b.IsActive);
+            if (branch is null) return (null, "Choose one of the supplier's active branches.");
+            from = new SupplierReach.Location(branch.Id, branch.Name, branch.City, branch.Province, branch.Latitude, branch.Longitude);
+        }
+        else
+        {
+            from = SupplierReach.Locations(supplier).First();
+            if (from.Latitude is null && string.IsNullOrWhiteSpace(from.City))
+                return (null, "The supplier's head office has no address yet. Choose a branch, or ask the supplier to add their address.");
+        }
+        var radius = req.AreaRadiusKm ?? (await PlatformSettingsStore.LoadAsync(db)).SupplierReachKm;
+        if (radius < 1 || radius > GroupBuyArea.MaxRadiusKm)
+            return (null, $"The area radius must be between 1 and {GroupBuyArea.MaxRadiusKm:0} km.");
+
         var ids = req.Products.Select(p => p.ProductId).ToList();
         var products = await db.Products
             .Where(p => ids.Contains(p.Id) && p.SupplierId == supplierId && p.IsApproved && p.IsAvailable)
@@ -62,6 +85,12 @@ internal static class GroupBuyFactory
             Status = status,
             CreatedByRole = role,
             CreatedByUserId = createdByUserId,
+            SupplierBranchId = from.BranchId,
+            AreaCity = string.IsNullOrWhiteSpace(from.City) ? null : from.City.Trim(),
+            AreaProvince = string.IsNullOrWhiteSpace(from.Province) ? null : from.Province.Trim(),
+            AreaLatitude = from.Latitude,
+            AreaLongitude = from.Longitude,
+            AreaRadiusKm = Math.Round(radius, 1),
         };
 
         foreach (var input in req.Products)
@@ -153,6 +182,25 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         return Ok(ApiResponse<object>.Ok(products));
     }
 
+    /// <summary>Where the supplier can run a campaign from: its head office and active branches.</summary>
+    [HttpGet("suppliers/{supplierId:guid}/branches")]
+    public async Task<IActionResult> SupplierBranches(Guid supplierId)
+    {
+        var supplier = await db.Suppliers.AsNoTracking().Include(s => s.Branches)
+            .FirstOrDefaultAsync(s => s.Id == supplierId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            DefaultRadiusKm = Math.Min(rules.SupplierReachKm, GroupBuyArea.MaxRadiusKm),
+            MaxRadiusKm = GroupBuyArea.MaxRadiusKm,
+            HeadOffice = new { supplier.Address, supplier.City, supplier.Province, supplier.Latitude, supplier.Longitude },
+            Branches = supplier.Branches.Where(b => b.IsActive).OrderBy(b => b.Name)
+                .Select(b => new { b.Id, b.Name, b.Address, b.City, b.Province, b.Latitude, b.Longitude })
+                .ToList(),
+        }));
+    }
+
     /// <summary>Admin-created campaigns skip the approval queue and go live straight away.</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] NewGroupBuyRequest req)
@@ -173,7 +221,7 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
             supplierId: supplierUserId.ToString(),
             type: "order",
             title: "New group buy for your products",
-            message: $"SpazaSure started '{groupBuy.Title}'. Accept the request once shops reach the target, then dispatch.",
+            message: $"SpazaSure started '{groupBuy.Title}' for {GroupBuyArea.Describe(groupBuy)}. Accept the request once shops reach the target, then dispatch.",
             priority: "normal",
             referenceId: groupBuy.Id.ToString(),
             routingKey: "notification.group_buy");
@@ -302,7 +350,8 @@ public class GroupBuyAdvertController(SpazaSureDbContext db) : ControllerBase
         {
             var left = Math.Max((int)Math.Ceiling((groupBuy!.ExpiresAt - DateTime.UtcNow).TotalDays), 0);
             html.Append("<div class=\"head\"><h1>").Append(E(groupBuy.Title)).Append("</h1><p>From ")
-                .Append(E(groupBuy.Supplier.CompanyName)).Append(" &middot; ").Append(left).Append(" day(s) left</p></div><div class=\"body\">");
+                .Append(E(groupBuy.Supplier.CompanyName)).Append(" &middot; ").Append(left).Append(" day(s) left</p></div><div class=\"body\">")
+                .Append("<p class=\"pill\">Open to ").Append(E(GroupBuyArea.Describe(groupBuy))).Append("</p>");
             if (!string.IsNullOrWhiteSpace(groupBuy.BannerImageUrl))
                 html.Append("<img src=\"").Append(E(groupBuy.BannerImageUrl)).Append("\" alt=\"\" style=\"width:100%;border-radius:12px;margin-bottom:12px\">");
             if (!string.IsNullOrWhiteSpace(groupBuy.Description))
