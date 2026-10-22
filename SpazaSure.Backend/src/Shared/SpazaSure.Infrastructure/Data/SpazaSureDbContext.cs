@@ -17,6 +17,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();
     public DbSet<ProductBranchStock> ProductBranchStock => Set<ProductBranchStock>();
     public DbSet<Driver> Drivers => Set<Driver>();
+    public DbSet<DriverDocument> DriverDocuments => Set<DriverDocument>();
     public DbSet<TaxInvoice> TaxInvoices => Set<TaxInvoice>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
@@ -167,6 +168,15 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(d => d.BadgeCode).HasMaxLength(12);
             e.HasIndex(d => d.AccessToken).IsUnique();
             e.HasIndex(d => d.BadgeCode).IsUnique();
+        });
+
+        model.Entity<DriverDocument>(e =>
+        {
+            e.ToTable("driver_documents");
+            e.Property(d => d.DocType).HasMaxLength(20);
+            e.Property(d => d.DocUrl).HasMaxLength(500);
+            e.HasIndex(d => new { d.DriverId, d.DocType }).IsUnique();
+            e.HasOne(d => d.Driver).WithMany(d => d.Documents).HasForeignKey(d => d.DriverId).OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<TaxInvoice>(e =>

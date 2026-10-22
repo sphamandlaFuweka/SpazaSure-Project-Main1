@@ -10,6 +10,7 @@ using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.PaymentService.Services;
 using SpazaSure.Shared.Helpers;
+using SpazaSure.Shared.Storage;
 using SpazaSure.Tests.Helpers;
 using SpazaSure.VerificationService.Controllers;
 using Xunit;
@@ -28,6 +29,36 @@ public class DeliveryInvoiceTests
         .Build();
 
     private sealed record Fixture(SpazaSureDbContext Db, SpazaShop Shop, Supplier Supplier, Order Order);
+
+    /// <summary>Remembers what was saved and deleted instead of touching the disk.</summary>
+    private sealed class FakeStorage : IFileStorageService
+    {
+        public List<string> Saved { get; } = [];
+        public List<string> Deleted { get; } = [];
+        public Task<string> SaveAsync(Stream content, string key, string contentType, CancellationToken ct = default)
+        {
+            Saved.Add(key);
+            return Task.FromResult("/delivery-uploads/" + key);
+        }
+        public Task DeleteAsync(string urlOrKey, CancellationToken ct = default)
+        {
+            Deleted.Add(urlOrKey);
+            return Task.CompletedTask;
+        }
+    }
+
+    private static IFormFile Pdf(string name = "doc.pdf") =>
+        new FormFile(new MemoryStream(new byte[] { 1, 2, 3 }), 0, 3, "file", name) { Headers = new HeaderDictionary(), ContentType = "application/pdf" };
+
+    private static string InAYear => DateTime.UtcNow.AddYears(1).ToString("yyyy-MM-dd");
+
+    /// <summary>Uploads a valid licence, PrDP and ID, which a driver needs before they can be allocated.</summary>
+    private static async Task UploadPaperwork(DriversController drivers, Guid driverId)
+    {
+        (await drivers.UploadDocument(driverId, "licence", InAYear, Pdf())).Should().BeOfType<OkObjectResult>();
+        (await drivers.UploadDocument(driverId, "prdp", InAYear, Pdf())).Should().BeOfType<OkObjectResult>();
+        (await drivers.UploadDocument(driverId, "id_document", null, Pdf())).Should().BeOfType<OkObjectResult>();
+    }
 
     private static Fixture Create(string? vatNumber = "4123456789")
     {
@@ -71,7 +102,7 @@ public class DeliveryInvoiceTests
     {
         var f = Create();
         var admin = As(Guid.NewGuid(), "admin");
-        var drivers = new DriversController(f.Db, Config) { ControllerContext = admin };
+        var drivers = new DriversController(f.Db, Config, new FakeStorage()) { ControllerContext = admin };
 
         var driver = Data(await drivers.Create(new DriverRequest("Thabo Nkosi", "082 555 1234", "Bakkie", "nd 123-456", "Gauteng")));
         var driverId = driver.GetProperty("id").GetGuid();
@@ -81,6 +112,7 @@ public class DeliveryInvoiceTests
         link.Should().StartWith("https://api.example.test/driver/");
 
         var deliveries = new DeliveriesController(f.Db, new EventPublisher("__nonexistent__", "x", "x")) { ControllerContext = admin };
+        await UploadPaperwork(drivers, driverId);
         (await deliveries.Assign(f.Order.Id, new AssignDriverRequest(driverId))).Should().BeOfType<OkObjectResult>();
 
         // The driver shares their location from their link
@@ -185,5 +217,52 @@ public class DeliveryInvoiceTests
         var other = new SpazaSure.UserService.Controllers.ShopProfileController(f.Db, null!, new EventPublisher("__nonexistent__", "x", "x"), null!)
         { ControllerContext = As(Guid.NewGuid(), "spaza_owner") };
         (await other.ReplyToReview(review.Id, new SpazaSure.UserService.Controllers.ReviewReplyRequest("hi"))).Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task Driver_CannotBeAllocated_UntilTheirLicencePrdpAndIdAreUploaded_AndInDate()
+    {
+        var f = Create();
+        var admin = As(Guid.NewGuid(), "admin");
+        var storage = new FakeStorage();
+        var drivers = new DriversController(f.Db, Config, storage) { ControllerContext = admin };
+        var deliveries = new DeliveriesController(f.Db, new EventPublisher("__nonexistent__", "x", "x")) { ControllerContext = admin };
+        var driverId = Data(await drivers.Create(new DriverRequest("Sipho Dube", "082 555 9999", "Truck", "ND 9", null))).GetProperty("id").GetGuid();
+
+        var refused = await deliveries.Assign(f.Order.Id, new AssignDriverRequest(driverId));
+        refused.Should().BeOfType<BadRequestObjectResult>();
+        JsonSerializer.SerializeToElement(((ObjectResult)refused).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            .GetProperty("message").GetString().Should().Contain("no driving licence uploaded").And.Contain("no prdp uploaded");
+
+        // The licence and PrDP need an expiry date that hasn't passed
+        (await drivers.UploadDocument(driverId, "licence", null, Pdf())).Should().BeOfType<BadRequestObjectResult>();
+        (await drivers.UploadDocument(driverId, "licence", DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd"), Pdf())).Should().BeOfType<BadRequestObjectResult>();
+        (await drivers.UploadDocument(driverId, "passport", null, Pdf())).Should().BeOfType<BadRequestObjectResult>();
+        (await drivers.UploadDocument(driverId, "licence", InAYear, Pdf("virus.exe"))).Should().BeOfType<BadRequestObjectResult>();
+
+        await UploadPaperwork(drivers, driverId);
+        storage.Saved.Should().OnlyContain(k => k.StartsWith($"driver-docs/{driverId}/"));
+        var listed = Data(await drivers.List())[0];
+        listed.GetProperty("paperworkProblems").GetArrayLength().Should().Be(0);
+        listed.GetProperty("documents").EnumerateArray().Should().OnlyContain(d => d.GetProperty("uploaded").GetBoolean());
+        (await deliveries.Assign(f.Order.Id, new AssignDriverRequest(driverId))).Should().BeOfType<OkObjectResult>();
+
+        // Replacing a document deletes the old copy
+        await drivers.UploadDocument(driverId, "prdp", InAYear, Pdf());
+        storage.Deleted.Should().ContainSingle(d => d.Contains("/prdp_"));
+
+        // An expired PrDP stops further allocations
+        var prdp = f.Db.DriverDocuments.Single(d => d.DriverId == driverId && d.DocType == "prdp");
+        prdp.ExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2));
+        await f.Db.SaveChangesAsync();
+        (await deliveries.Assign(f.Order.Id, new AssignDriverRequest(driverId))).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public void DriverDocuments_AreSignedPrivateFiles()
+    {
+        PrivateFiles.Configure("test-secret-test-secret-test-secret");
+        PrivateFiles.IsPrivate("/delivery-uploads/driver-docs/abc/licence_1.pdf").Should().BeTrue();
+        PrivateFiles.Link("/delivery-uploads/driver-docs/abc/licence_1.pdf").Should().Contain("sig=");
     }
 }

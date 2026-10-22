@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Truck, PackageCheck, MapPin, Phone, CheckCircle, RefreshCw, Banknote, Package, UserRound, Plus, Copy, Pencil, Link2, Loader2 } from 'lucide-react';
+import { Truck, PackageCheck, MapPin, Phone, CheckCircle, RefreshCw, Banknote, Package, UserRound, Plus, Copy, Pencil, Link2, Loader2, FileText, AlertTriangle, Upload, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import {
-  adminDeliveriesApi, adminDriversApi, apiErrorMessage,
-  type AdminDelivery, type Driver, type DriverInput,
+  adminDeliveriesApi, adminDriversApi, apiErrorMessage, resolveUploadUrl,
+  type AdminDelivery, type Driver, type DriverInput, type DriverDocument,
 } from '../../services/api';
 import { Modal, Spinner } from '../../components/ui';
 import { shortOrderNumber } from '../../utils';
@@ -21,6 +21,8 @@ export default function AdminDeliveriesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [tab, setTab] = useState<'deliveries' | 'drivers'>('deliveries');
   const [editing, setEditing] = useState<Driver | 'new' | null>(null);
+  /** Driver whose documents are open for uploading. */
+  const [papersFor, setPapersFor] = useState<Driver | null>(null);
 
   const load = () =>
     Promise.all([adminDeliveriesApi.list(), adminDriversApi.list()])
@@ -101,7 +103,7 @@ export default function AdminDeliveriesPage() {
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : tab === 'drivers' ? (
-        <DriversPanel drivers={drivers} onAdd={() => setEditing('new')} onEdit={setEditing} onChanged={load} />
+        <DriversPanel drivers={drivers} onAdd={() => setEditing('new')} onEdit={setEditing} onPapers={setPapersFor} onChanged={load} />
       ) : (
         <div className="grid gap-5 lg:grid-cols-3">
           <Column
@@ -123,7 +125,17 @@ export default function AdminDeliveriesPage() {
 
       {editing && (
         <DriverForm driver={editing === 'new' ? null : editing} onClose={() => setEditing(null)}
-          onSaved={(d, isNew) => { setEditing(null); load(); if (isNew) copyLink(d); }} />
+          onSaved={(d, isNew) => {
+            setEditing(null);
+            load();
+            // A new driver needs their documents before they can be allocated
+            if (isNew) { copyLink(d); setPapersFor(d); }
+          }} />
+      )}
+
+      {papersFor && (
+        <DriverDocumentsModal driver={papersFor} onClose={() => setPapersFor(null)}
+          onChanged={(d) => { setPapersFor(d); load(); }} />
       )}
     </div>
   );
@@ -136,8 +148,8 @@ const copyLink = (d: Driver) =>
   ).then(() => toast.success('Driver link copied. Send it to them on WhatsApp.'))
     .catch(() => toast.error('Could not copy. Copy the link from the driver list instead.'));
 
-function DriversPanel({ drivers, onAdd, onEdit, onChanged }: {
-  drivers: Driver[]; onAdd: () => void; onEdit: (d: Driver) => void; onChanged: () => void;
+function DriversPanel({ drivers, onAdd, onEdit, onPapers, onChanged }: {
+  drivers: Driver[]; onAdd: () => void; onEdit: (d: Driver) => void; onPapers: (d: Driver) => void; onChanged: () => void;
 }) {
   const resetLink = async (d: Driver) => {
     if (!window.confirm(`Make a new link for ${d.fullName}? Their current link stops working straight away.`)) return;
@@ -176,7 +188,17 @@ function DriversPanel({ drivers, onAdd, onEdit, onChanged }: {
                 <p className="text-xs text-gray-400">
                   {d.openJobs} open deliver{d.openJobs === 1 ? 'y' : 'ies'} · {d.lastSeenAt ? `location shared ${formatDistanceToNow(new Date(d.lastSeenAt), { addSuffix: true })}` : 'has not shared a location yet'}
                 </p>
+                {d.paperworkProblems.length > 0 ? (
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
+                    <AlertTriangle size={12} /> Can't be allocated: {d.paperworkProblems.join(', ').toLowerCase()}
+                  </p>
+                ) : (
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                    <CheckCircle size={12} /> Licence, PrDP and ID on file
+                  </p>
+                )}
               </div>
+              <button className="btn-secondary inline-flex items-center gap-1.5 text-xs" onClick={() => onPapers(d)}><FileText size={13} /> Documents</button>
               <button className="btn-secondary inline-flex items-center gap-1.5 text-xs" onClick={() => copyLink(d)}><Copy size={13} /> Copy link</button>
               <button className="btn-icon" title="New link (stops the old one)" onClick={() => resetLink(d)}><Link2 size={14} /></button>
               <button className="btn-icon" title="Edit" onClick={() => onEdit(d)}><Pencil size={14} /></button>
@@ -253,6 +275,89 @@ function DriverForm({ driver, onClose, onSaved }: { driver: Driver | null; onClo
   );
 }
 
+/** Upload or replace a driver's licence, PrDP and ID. Files are private: links work for 30 minutes. */
+function DriverDocumentsModal({ driver, onClose, onChanged }: { driver: Driver; onClose: () => void; onChanged: (d: Driver) => void }) {
+  return (
+    <Modal title={`${driver.fullName}: documents`} onClose={onClose}>
+      <div className="p-6 space-y-3">
+        <p className="text-sm text-gray-500">
+          A driver needs a valid driving licence, a professional driving permit (PrDP) and their ID document before they can be allocated deliveries.
+        </p>
+        {driver.documents.map((doc) => (
+          <DocumentRow key={doc.docType} driver={driver} doc={doc} onChanged={onChanged} />
+        ))}
+        <div className="flex justify-end pt-2">
+          <button className="btn-secondary" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function DocumentRow({ driver, doc, onChanged }: { driver: Driver; doc: DriverDocument; onChanged: (d: Driver) => void }) {
+  const needsExpiry = doc.docType !== 'id_document';
+  const [file, setFile] = useState<File | null>(null);
+  const [expiry, setExpiry] = useState(doc.expiryDate ?? '');
+  const [busy, setBusy] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const expired = !!doc.expiryDate && doc.expiryDate <= today;
+  const title = doc.label.charAt(0).toUpperCase() + doc.label.slice(1);
+
+  const upload = async () => {
+    if (!file) { toast.error('Choose a file first'); return; }
+    if (needsExpiry && !expiry) { toast.error(`Enter the ${doc.label}'s expiry date`); return; }
+    setBusy(true);
+    try {
+      const updated = await adminDriversApi.uploadDocument(driver.id, doc.docType, file, needsExpiry ? expiry : undefined);
+      toast.success(`${title} uploaded`);
+      setFile(null);
+      onChanged(updated);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not upload the document'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold text-gray-900 text-sm">{title}</p>
+        {!doc.uploaded ? (
+          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">Missing</span>
+        ) : expired ? (
+          <span className="text-[11px] font-bold text-red-700 bg-red-50 rounded-full px-2 py-0.5">Expired {doc.expiryDate}</span>
+        ) : (
+          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">
+            On file{doc.expiryDate ? ` · valid to ${doc.expiryDate}` : ''}
+          </span>
+        )}
+      </div>
+      {doc.uploaded && doc.docUrl && (
+        <a href={resolveUploadUrl(doc.docUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+          <ExternalLink size={12} /> View current file
+        </a>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 min-w-[180px]">
+          <span className="text-[11px] text-gray-500">{doc.uploaded ? 'Replace with' : 'Upload'} (PDF, JPG, PNG, max 10MB)</span>
+          <input type="file" accept=".pdf,image/jpeg,image/png,image/webp" className="block w-full text-xs mt-1"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        </label>
+        {needsExpiry && (
+          <label>
+            <span className="text-[11px] text-gray-500">Expiry date</span>
+            <input type="date" min={today} className="input mt-1 text-sm py-1.5" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+          </label>
+        )}
+        <button className="btn-primary inline-flex items-center gap-1.5 text-sm" disabled={busy || !file} onClick={upload}>
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Upload
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Column({ title, icon, empty, items, busyId, drivers, onAssign, action }: {
   title: string;
   icon: React.ReactNode;
@@ -297,7 +402,10 @@ function Column({ title, icon, empty, items, busyId, drivers, onAssign, action }
                     onChange={(e) => onAssign(d, e.target.value)}>
                     <option value="">{d.driver ? 'Remove driver' : 'Allocate a driver...'}</option>
                     {drivers.map((dr) => (
-                      <option key={dr.id} value={dr.id}>{dr.fullName} · {dr.vehicleRegistration}{dr.openJobs ? ` (${dr.openJobs} open)` : ''}</option>
+                      // Drivers without a valid licence, PrDP and ID can't be chosen
+                      <option key={dr.id} value={dr.id} disabled={dr.paperworkProblems.length > 0 && dr.id !== d.driver?.id}>
+                        {dr.fullName} · {dr.vehicleRegistration}{dr.openJobs ? ` (${dr.openJobs} open)` : ''}{dr.paperworkProblems.length > 0 ? ' - documents needed' : ''}
+                      </option>
                     ))}
                   </select>
                   {d.driver && (

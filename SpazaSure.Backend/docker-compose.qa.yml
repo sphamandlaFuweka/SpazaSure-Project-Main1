@@ -242,6 +242,8 @@ services:
       dockerfile: src/Services/SpazaSure.DeliveryService/Dockerfile
     container_name: spazasure-qa-delivery
     restart: unless-stopped
+    volumes:
+      - qa_delivery_uploads:/app/uploads
     environment:
       ASPNETCORE_ENVIRONMENT:               QA
       ASPNETCORE_URLS:                      http://+:5141
@@ -335,4 +337,5 @@ volumes:
   qa_postgres_data:
   qa_uploads:
   qa_compliance_uploads:
+  qa_delivery_uploads:
   qa_rabbitmq_data:

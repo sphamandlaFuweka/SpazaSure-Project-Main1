@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Http;
 namespace SpazaSure.Shared.Helpers;
 
 /// <summary>
-/// Compliance documents (owner IDs, permits, CIPC certificates) and report photos hold personal
+/// Compliance documents (owner IDs, permits, CIPC certificates, driver licences) and report photos hold personal
 /// information (POPIA s19), so they are not public files. The API hands out links signed for
 /// 30 minutes to the people allowed to see them, and the file server refuses any other request.
 /// Product images, logos and profile photos stay public.
@@ -16,10 +16,10 @@ public static class PrivateFiles
 {
     public static readonly TimeSpan LinkLifetime = TimeSpan.FromMinutes(30);
 
-    private static readonly HashSet<string> FileRoots = new(StringComparer.OrdinalIgnoreCase) { "uploads", "compliance-uploads" };
+    private static readonly HashSet<string> FileRoots = new(StringComparer.OrdinalIgnoreCase) { "uploads", "compliance-uploads", "delivery-uploads" };
     private static readonly HashSet<string> PrivateFolders = new(StringComparer.OrdinalIgnoreCase)
     {
-        "shop-docs", "supplier-docs", "report-photos",
+        "shop-docs", "supplier-docs", "report-photos", "driver-docs",
     };
 
     private static byte[]? _key;

@@ -1793,6 +1793,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_tax_invoices_invoice_number ON tax_invoices
 ALTER TABLE shop_reviews ADD COLUMN IF NOT EXISTS owner_reply varchar(1000);
 ALTER TABLE shop_reviews ADD COLUMN IF NOT EXISTS owner_replied_at timestamp with time zone;
 
+-- Drivers' licence, PrDP and ID documents (private files served by the delivery service).
+CREATE TABLE IF NOT EXISTS driver_documents (
+    id uuid NOT NULL CONSTRAINT pk_driver_documents PRIMARY KEY,
+    driver_id uuid NOT NULL CONSTRAINT fk_driver_documents_drivers_driver_id REFERENCES drivers(id) ON DELETE CASCADE,
+    doc_type varchar(20) NOT NULL,
+    doc_url varchar(500) NOT NULL,
+    expiry_date date,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_driver_documents_driver_id_doc_type ON driver_documents(driver_id, doc_type);
+
 -- Shop delivery ratings and issue reports. Not EF entities: ShopOrderRatingController reads and
 -- writes them with raw SQL, so they only exist if this script creates them.
 CREATE TABLE IF NOT EXISTS delivery_ratings (

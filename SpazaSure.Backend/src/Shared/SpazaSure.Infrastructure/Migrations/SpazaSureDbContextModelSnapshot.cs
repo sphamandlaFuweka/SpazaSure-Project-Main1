@@ -600,6 +600,51 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("drivers", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.DriverDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DocType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("doc_type");
+
+                    b.Property<string>("DocUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("doc_url");
+
+                    b.Property<Guid>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_driver_documents");
+
+                    b.HasIndex("DriverId", "DocType")
+                        .IsUnique()
+                        .HasDatabaseName("ix_driver_documents_driver_id_doc_type");
+
+                    b.ToTable("driver_documents", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Faq", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3218,6 +3263,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.DriverDocument", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Driver", "Driver")
+                        .WithMany("Documents")
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_driver_documents_drivers_driver_id");
+
+                    b.Navigation("Driver");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuy", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "CreatedByShop")
@@ -3725,6 +3782,11 @@ namespace SpazaSure.Infrastructure.Migrations
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Category", b =>
                 {
                     b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Driver", b =>
+                {
+                    b.Navigation("Documents");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuy", b =>

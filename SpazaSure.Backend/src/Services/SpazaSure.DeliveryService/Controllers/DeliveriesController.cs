@@ -48,9 +48,14 @@ public class DeliveriesController(SpazaSureDbContext db, EventPublisher events) 
         Driver? driver = null;
         if (req.DriverId is { } driverId)
         {
-            driver = await db.Drivers.FirstOrDefaultAsync(d => d.Id == driverId);
+            driver = await db.Drivers.Include(d => d.Documents).FirstOrDefaultAsync(d => d.Id == driverId);
             if (driver is null) return NotFound(ApiResponse.Fail("Driver not found."));
             if (!driver.IsActive) return BadRequest(ApiResponse.Fail($"{driver.FullName} is switched off. Switch them on first."));
+            // Only drivers with a valid licence, PrDP and ID on file deliver for SpazaSure
+            if (DriverPaperwork.Problems(driver) is { Count: > 0 } problems)
+                return BadRequest(ApiResponse.Fail(
+                    $"{driver.FullName} can't be allocated yet: {string.Join("; ", problems).ToLowerInvariant()}. Upload their documents on the Drivers tab.",
+                    problems));
         }
 
         var changed = order.DriverId != driver?.Id;

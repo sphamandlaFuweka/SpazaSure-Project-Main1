@@ -554,6 +554,22 @@ export interface Driver {
   openJobs: number;
   /** Private link the driver opens on their phone to see their jobs and share their location. */
   driverLink: string;
+  /** Licence, PrDP and ID, in that order; docUrl is a signed link valid for 30 minutes. */
+  documents: DriverDocument[];
+  /** Why the driver can't be allocated deliveries yet; empty when their papers are in order. */
+  paperworkProblems: string[];
+}
+
+export type DriverDocType = 'licence' | 'prdp' | 'id_document';
+
+export interface DriverDocument {
+  docType: DriverDocType;
+  label: string;
+  uploaded: boolean;
+  docUrl: string | null;
+  /** yyyy-MM-dd; set for the licence and PrDP. */
+  expiryDate: string | null;
+  uploadedAt: string | null;
 }
 
 export type DriverInput = Pick<Driver, 'fullName' | 'phone' | 'vehicleType' | 'vehicleRegistration' | 'area' | 'isActive'>;
@@ -563,6 +579,15 @@ export const adminDriversApi = {
   create: (body: DriverInput) => api.post('/admin/drivers', body).then((r) => unwrap<Driver>(r)),
   update: (id: string, body: DriverInput) => api.put(`/admin/drivers/${id}`, body).then((r) => unwrap<Driver>(r)),
   resetLink: (id: string) => api.post(`/admin/drivers/${id}/reset-link`).then((r) => unwrap<Driver>(r)),
+  /** Uploads or replaces the licence, PrDP or ID; the licence and PrDP need their expiry date. */
+  uploadDocument: (id: string, docType: DriverDocType, file: File, expiryDate?: string) => {
+    const form = new FormData();
+    form.append('docType', docType);
+    form.append('file', file);
+    if (expiryDate) form.append('expiryDate', expiryDate);
+    return api.post(`/admin/drivers/${id}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => unwrap<Driver>(r));
+  },
 };
 
 export const adminDeliveriesApi = {

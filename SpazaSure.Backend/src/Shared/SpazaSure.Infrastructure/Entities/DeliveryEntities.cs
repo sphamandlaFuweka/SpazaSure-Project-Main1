@@ -23,6 +23,29 @@ public class Driver : BaseEntity
     public double? LastLatitude { get; set; }
     public double? LastLongitude { get; set; }
     public DateTime? LastSeenAt { get; set; }
+
+    public ICollection<DriverDocument> Documents { get; set; } = [];
+}
+
+/// <summary>
+/// A driver's document, uploaded by an admin: driving licence, professional driving permit
+/// (PrDP, needed to carry goods for reward) or ID. Private, like shop and supplier documents.
+/// </summary>
+public class DriverDocument : BaseEntity
+{
+    public const string Licence = "licence";
+    public const string Prdp = "prdp";
+    public const string IdDocument = "id_document";
+    public static readonly string[] Types = [Licence, Prdp, IdDocument];
+
+    public Guid DriverId { get; set; }
+    /// <summary>licence, prdp or id_document.</summary>
+    public string DocType { get; set; } = string.Empty;
+    public string DocUrl { get; set; } = string.Empty;
+    /// <summary>When the licence or PrDP stops being valid; IDs don't expire.</summary>
+    public DateOnly? ExpiryDate { get; set; }
+
+    public Driver Driver { get; set; } = null!;
 }
 
 /// <summary>

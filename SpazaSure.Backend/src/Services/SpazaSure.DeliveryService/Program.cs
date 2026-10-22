@@ -5,10 +5,22 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Shared.Helpers;
+using SpazaSure.Shared.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+// Drivers' licence, PrDP and ID documents: local disk in development, the S3 bucket in production
+if (string.Equals(builder.Configuration["Storage:Provider"], "s3", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.Configure<S3StorageOptions>(builder.Configuration.GetSection("Storage:S3"));
+    builder.Services.AddSingleton<IFileStorageService, S3FileStorageService>();
+}
+else
+{
+    builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+}
 builder.Services.AddEndpointsApiExplorer();
 
 // RabbitMQ Event Publisher: shops hear when a driver is allocated to their order
@@ -80,6 +92,23 @@ builder.Services.AddCors(opt =>
 builder.Services.AddScoped<SpazaSure.Shared.Helpers.IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
 
 var app = builder.Build();
+SpazaSure.Shared.Helpers.PrivateFiles.Configure(builder.Configuration["Jwt:Secret"]);
+// Driver documents hold ID numbers, so they need a signed link (POPIA s19).
+SpazaSure.Shared.Helpers.PrivateFiles.UsePrivateFiles(app);
+
+// Local-storage files get their own "/delivery-uploads" prefix: "/uploads" is routed to UserService
+// and "/compliance-uploads" to ComplianceService.
+if (!string.Equals(builder.Configuration["Storage:Provider"], "s3", StringComparison.OrdinalIgnoreCase))
+{
+    var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+        RequestPath = "/delivery-uploads",
+        ServeUnknownFileTypes = false,
+    });
+}
 
 app.UseSpazaSureExceptionHandling();
 app.UseCors("SupplierPortal");

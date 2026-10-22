@@ -1,16 +1,34 @@
--- SpazaSure demo/local seed data
+-- SpazaSure local/QA seed data: the minimum to log in and try every app.
+-- One admin, the SpazaSure (Pty) Ltd supplier with its product catalogue, one spaza shop
+-- and one customer, plus the supplier subscription plans. No orders, group buys or other
+-- activity: those come from using the apps.
 -- Run AFTER migrate.sql (which creates the schema plus baseline roles/categories).
 -- Safe to re-run: every statement is idempotent (WHERE NOT EXISTS / ON CONFLICT).
 --
--- Demo login credentials (password is the same for all three, for convenience):
---   Admin:     admin@spazasure.co.za    / Password123!
---   Supplier:  thabo@freshfoods.co.za   / Password123!
---   Shop owner: sipho@cornershop.co.za  / Password123!
+-- Login credentials (password is the same for all four, for convenience):
+--   Admin:      admin@spazasure.co.za     / Password123!
+--   Supplier:   supplier@spazasure.co.za  / Password123!
+--   Shop owner: sipho@cornershop.co.za    / Password123!
+--   Customer:   zanele@example.co.za      / Password123!
 --
 -- The password hash below is a bcrypt hash of "Password123!" (cost 10),
 -- compatible with BCrypt.Net-Next as used in AuthenticationService.cs.
 
 BEGIN;
+
+-- =========================================================================
+-- 0. Remove the sample orders and group buy older versions of this file
+--    created. Only those exact demo rows (fixed IDs) are touched.
+-- =========================================================================
+
+DELETE FROM tax_invoices WHERE order_id IN (
+    '00000000-0000-0000-0006-000000000001', '00000000-0000-0000-0006-000000000002', '00000000-0000-0000-0006-000000000003');
+DELETE FROM order_items WHERE order_id IN (
+    '00000000-0000-0000-0006-000000000001', '00000000-0000-0000-0006-000000000002', '00000000-0000-0000-0006-000000000003');
+DELETE FROM orders WHERE id IN (
+    '00000000-0000-0000-0006-000000000001', '00000000-0000-0000-0006-000000000002', '00000000-0000-0000-0006-000000000003');
+DELETE FROM group_buy_participants WHERE group_buy_id = '00000000-0000-0000-0007-000000000001';
+DELETE FROM group_buys WHERE id = '00000000-0000-0000-0007-000000000001';
 
 -- =========================================================================
 -- 1. Demo users (one per role). Previously this file assumed a supplier
@@ -25,11 +43,15 @@ SELECT '00000000-0000-0000-0001-000000000001', 'admin@spazasure.co.za', '+278100
        (SELECT id FROM roles WHERE name = 'admin'), 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@spazasure.co.za');
 
+-- Databases seeded before the rename get the new supplier login on the same user row
+UPDATE users SET email = 'supplier@spazasure.co.za'
+WHERE id = '00000000-0000-0000-0002-000000000001' AND email = 'thabo@freshfoods.co.za';
+
 INSERT INTO users (id, email, phone, password_hash, role_id, status)
-SELECT '00000000-0000-0000-0002-000000000001', 'thabo@freshfoods.co.za', '+27810000002',
+SELECT '00000000-0000-0000-0002-000000000001', 'supplier@spazasure.co.za', '+27810000002',
        '$2b$10$KJYHL0OnwL/dVv5PiNW36eUn3r6ilXPDcr1TEwoTTLqNTJQdSmILO',
        (SELECT id FROM roles WHERE name = 'supplier'), 'active'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'thabo@freshfoods.co.za');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = '00000000-0000-0000-0002-000000000001' OR email = 'supplier@spazasure.co.za');
 
 INSERT INTO users (id, email, phone, password_hash, role_id, status)
 SELECT '00000000-0000-0000-0004-000000000001', 'sipho@cornershop.co.za', '+27810000003',
@@ -60,16 +82,17 @@ INSERT INTO suppliers (
 )
 SELECT
     '00000000-0000-0000-0003-000000000001',
-    (SELECT id FROM users WHERE email = 'thabo@freshfoods.co.za'),
-    'Fresh Foods SA (Pty) Ltd', '2020/123456/07', '4123456789', 'Thabo Nkosi',
-    '+27810000002', 'thabo@freshfoods.co.za', '12 Industrial Road, Johannesburg',
+    (SELECT id FROM users WHERE email = 'supplier@spazasure.co.za'),
+    'SpazaSure (Pty) Ltd', '2020/123456/07', '4123456789', 'SpazaSure Supply Team',
+    '+27810000002', 'supplier@spazasure.co.za', '12 Industrial Road, Johannesburg',
     'Johannesburg', 'Gauteng', 'silver', 'verified', 3.00
 WHERE NOT EXISTS (SELECT 1 FROM suppliers WHERE id = '00000000-0000-0000-0003-000000000001');
 
 -- Keep it up to date if it already existed from a previous partial run.
 UPDATE suppliers SET
-  company_name = 'Fresh Foods SA (Pty) Ltd',
-  contact_person = 'Thabo Nkosi',
+  company_name = 'SpazaSure (Pty) Ltd',
+  contact_person = 'SpazaSure Supply Team',
+  email = 'supplier@spazasure.co.za',
   status = 'verified',
   tier = 'silver',
   commission_rate = 3.00,
@@ -89,8 +112,7 @@ WHERE NOT EXISTS (
 );
 
 -- =========================================================================
--- 3. A spaza shop (buyer side) so Orders/Group Buy have a realistic
---    counterparty instead of dangling FK references.
+-- 3. One spaza shop, to order from the supplier.
 -- =========================================================================
 
 INSERT INTO spaza_shops (
@@ -106,7 +128,7 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM spaza_shops WHERE id = '00000000-0000-0000-0005-000000000001');
 
 -- =========================================================================
--- 4. Product catalog for the demo supplier.
+-- 4. SpazaSure's product catalogue.
 -- =========================================================================
 
 INSERT INTO products (id, supplier_id, category_id, name, description, sku, price, stock_qty, min_order_qty, unit, images, is_available, is_approved, is_food_item, created_at, updated_at)
@@ -162,46 +184,7 @@ SELECT (SELECT id FROM products WHERE sku = 'CM-2L-6'), 'SPZ-QR-CM2L6-0001', 'B2
 WHERE NOT EXISTS (SELECT 1 FROM product_qr_codes WHERE qr_code = 'SPZ-QR-CM2L6-0001');
 
 -- =========================================================================
--- 5. A handful of sample orders across different statuses, so the Orders /
---    Analytics / Dashboard pages have something real to render instead of
---    empty states on a fresh database.
--- =========================================================================
-
-INSERT INTO orders (id, order_number, shop_id, supplier_id, status, subtotal, delivery_fee, platform_commission, total_amount, payment_status, created_at)
-SELECT '00000000-0000-0000-0006-000000000001', 'ORD-1001',
-       '00000000-0000-0000-0005-000000000001', '00000000-0000-0000-0003-000000000001',
-       'pending', 899.90, 50.00, 26.99, 949.90, 'pending', NOW() - INTERVAL '1 day'
-WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_number = 'ORD-1001');
-
-INSERT INTO orders (id, order_number, shop_id, supplier_id, status, subtotal, delivery_fee, platform_commission, total_amount, payment_status, created_at)
-SELECT '00000000-0000-0000-0006-000000000002', 'ORD-1002',
-       '00000000-0000-0000-0005-000000000001', '00000000-0000-0000-0003-000000000001',
-       'processing', 429.90, 50.00, 12.90, 479.90, 'paid', NOW() - INTERVAL '2 days'
-WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_number = 'ORD-1002');
-
-INSERT INTO orders (id, order_number, shop_id, supplier_id, status, subtotal, delivery_fee, platform_commission, total_amount, payment_status, created_at)
-SELECT '00000000-0000-0000-0006-000000000003', 'ORD-1003',
-       '00000000-0000-0000-0005-000000000001', '00000000-0000-0000-0003-000000000001',
-       'delivered', 259.99, 50.00, 7.80, 309.99, 'paid', NOW() - INTERVAL '5 days'
-WHERE NOT EXISTS (SELECT 1 FROM orders WHERE order_number = 'ORD-1003');
-
-INSERT INTO order_items (order_id, product_id, quantity, original_unit_price, unit_price, line_total)
-SELECT '00000000-0000-0000-0006-000000000001', p.id, 10, p.price, p.price, p.price * 10
-FROM products p WHERE p.sku = 'WS-MM-10'
-AND NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = '00000000-0000-0000-0006-000000000001' AND product_id = p.id);
-
-INSERT INTO order_items (order_id, product_id, quantity, original_unit_price, unit_price, line_total)
-SELECT '00000000-0000-0000-0006-000000000002', p.id, 10, p.price, p.price, p.price * 10
-FROM products p WHERE p.sku = 'TR-2K'
-AND NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = '00000000-0000-0000-0006-000000000002' AND product_id = p.id);
-
-INSERT INTO order_items (order_id, product_id, quantity, original_unit_price, unit_price, line_total)
-SELECT '00000000-0000-0000-0006-000000000003', p.id, 1, p.price, p.price, p.price
-FROM products p WHERE p.sku = 'AB-WB-20'
-AND NOT EXISTS (SELECT 1 FROM order_items WHERE order_id = '00000000-0000-0000-0006-000000000003' AND product_id = p.id);
-
--- =========================================================================
--- 6. Subscription plans (Basic/Bronze/Silver/Gold, matching the tier
+-- 5. Subscription plans (Basic/Bronze/Silver/Gold, matching the tier
 --    comparison shown in the Supplier Portal's Analytics page). Without
 --    these, GET /supplier/subscription/plans returns an empty list on a
 --    fresh database and the Upgrade page has nothing to show.
@@ -222,28 +205,5 @@ WHERE NOT EXISTS (SELECT 1 FROM subscription_plans WHERE tier = 'silver');
 INSERT INTO subscription_plans (tier, name, description, monthly_price, annual_price, commission_rate, max_listings, max_orders, has_analytics, has_priority_support, has_bulk_pricing, has_api_access, has_custom_branding, sort_order)
 SELECT 'gold', 'Gold', 'For high-volume suppliers', 5500, 55000, 2.00, 1000, 10000, true, true, true, true, true, 4
 WHERE NOT EXISTS (SELECT 1 FROM subscription_plans WHERE tier = 'gold');
-
--- =========================================================================
--- 7. A sample group buy (Bulk Maize Meal), so the Group Buy page has
---    something real to render instead of an empty state on a fresh DB.
--- =========================================================================
-
-INSERT INTO group_buys (id, title, description, product_id, supplier_id, target_qty, current_qty, original_price, discount_price, discount_pct, expires_at, status, created_by_shop_id)
-SELECT
-    '00000000-0000-0000-0007-000000000001',
-    'Bulk Maize Meal Group Buy', 'Order together with other shops to unlock a bulk discount on 10kg bags.',
-    (SELECT id FROM products WHERE sku = 'WS-MM-10'),
-    '00000000-0000-0000-0003-000000000001',
-    100, 20, 89.99, 76.49, 15,
-    NOW() + INTERVAL '9 days', 'active',
-    '00000000-0000-0000-0005-000000000001'
-WHERE NOT EXISTS (SELECT 1 FROM group_buys WHERE id = '00000000-0000-0000-0007-000000000001');
-
-INSERT INTO group_buy_participants (group_buy_id, shop_id, quantity, status)
-SELECT '00000000-0000-0000-0007-000000000001', '00000000-0000-0000-0005-000000000001', 20, 'joined'
-WHERE NOT EXISTS (
-    SELECT 1 FROM group_buy_participants
-    WHERE group_buy_id = '00000000-0000-0000-0007-000000000001' AND shop_id = '00000000-0000-0000-0005-000000000001'
-);
 
 COMMIT;

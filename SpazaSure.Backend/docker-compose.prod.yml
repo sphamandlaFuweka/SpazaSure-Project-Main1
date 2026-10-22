@@ -49,7 +49,7 @@ services:
       BACKUP_RETENTION_DAYS: ${PROD_BACKUP_RETENTION_DAYS:-14}
       BACKUP_INTERVAL_SECONDS: ${PROD_BACKUP_INTERVAL_SECONDS:-86400}
       # Uploaded documents and photos, archived alongside the database backup
-      UPLOADS_DIRS: /uploads/users /uploads/compliance
+      UPLOADS_DIRS: /uploads/users /uploads/compliance /uploads/delivery
       # Optional off-site copy, e.g. u12345@u12345.your-storagebox.de:spazasure (key: backups/offsite_key)
       OFFSITE_TARGET: ${PROD_BACKUP_OFFSITE_TARGET:-}
       OFFSITE_SSH_PORT: ${PROD_BACKUP_OFFSITE_PORT:-23}
@@ -58,6 +58,7 @@ services:
       - ./backup-postgres.sh:/scripts/backup-postgres.sh:ro
       - prod_uploads:/uploads/users:ro
       - prod_compliance_uploads:/uploads/compliance:ro
+      - prod_delivery_uploads:/uploads/delivery:ro
     entrypoint: ["/bin/sh", "/scripts/backup-postgres.sh"]
     depends_on:
       postgres:
@@ -294,6 +295,9 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-delivery:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-delivery
     restart: always
+    # Drivers' licence, PrDP and ID documents when Storage__Provider is local
+    volumes:
+      - prod_delivery_uploads:/app/uploads
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5141
@@ -303,6 +307,16 @@ services:
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
       Jwt__Secret:                          ${PROD_JWT_SECRET}
       PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
+      Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
+      Storage__Local__UrlPrefix:            /delivery-uploads
+      Storage__S3__BucketName:              ${PROD_S3_BUCKET_NAME}
+      Storage__S3__ServiceUrl:              ${PROD_S3_SERVICE_URL}
+      Storage__S3__Region:                  ${PROD_S3_REGION:-auto}
+      Storage__S3__AccessKey:               ${PROD_S3_ACCESS_KEY}
+      Storage__S3__SecretKey:               ${PROD_S3_SECRET_KEY}
+      Storage__S3__PublicBaseUrl:           ${PROD_S3_PUBLIC_URL}
+      Storage__S3__ForcePathStyle:          "true"
+      Storage__S3__UsePublicReadAcl:        "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -383,4 +397,5 @@ volumes:
   prod_postgres_data:
   prod_uploads:
   prod_compliance_uploads:
+  prod_delivery_uploads:
   prod_rabbitmq_data:
