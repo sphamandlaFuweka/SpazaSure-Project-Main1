@@ -45,6 +45,8 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
                 p.MinOrderQty, p.IsFoodItem, p.CategoryId,
                 Category = p.Category == null ? null : p.Category.Name,
                 HasQrCode = p.QrCodes.Any(q => q.OrderItemId == null),
+                // Stock per branch; empty when the product isn't tracked per branch
+                BranchStock = p.BranchStock.Select(s => new { s.SupplierBranchId, BranchName = s.SupplierBranch.Name, s.StockQty }).ToList(),
                 p.CreatedAt
             }).ToListAsync();
 
@@ -72,6 +74,8 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
                 p.MinOrderQty, p.IsFoodItem, p.CategoryId,
                 Category = p.Category == null ? null : p.Category.Name,
                 HasQrCode = p.QrCodes.Any(q => q.OrderItemId == null),
+                // Stock per branch; empty when the product isn't tracked per branch
+                BranchStock = p.BranchStock.Select(s => new { s.SupplierBranchId, BranchName = s.SupplierBranch.Name, s.StockQty }).ToList(),
                 p.CreatedAt
             }).FirstOrDefaultAsync();
 
@@ -122,8 +126,14 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
-        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
+        var product = await db.Products.Include(p => p.BranchStock)
+            .FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
         if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
+        // The total can't drop below what sits at the branches; the head office holds the rest
+        var atBranches = product.BranchStock.Sum(s => s.StockQty);
+        if (req.StockQty < atBranches)
+            return BadRequest(ApiResponse.Fail(
+                $"{atBranches} units of this product are at your branches. Lower the branch stock first, or enter at least {atBranches}."));
         // A product can keep a category an admin later hid; only a change must pick an active one.
         if (await ValidateRequestAsync(req, supplier.Id, product) is { } invalid) return BadRequest(ApiResponse.Fail(invalid));
 
@@ -145,6 +155,88 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         await db.SaveChangesAsync();
         return Ok(ApiResponse<object>.Ok((await ProductDetail(product.Id, supplier.Id))!));
     }
+
+    /// <summary>
+    /// How the product's stock is spread over the head office and each branch. When the product
+    /// isn't tracked per branch, every location can ship the full total.
+    /// </summary>
+    [HttpGet("{id:guid}/branch-stock")]
+    public async Task<IActionResult> GetBranchStock(Guid id)
+    {
+        var supplier = await db.Suppliers.Include(s => s.Branches).FirstOrDefaultAsync(s => s.UserId == SupplierId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        var product = await db.Products.AsNoTracking().Include(p => p.BranchStock)
+            .FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
+        if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
+        return Ok(ApiResponse<object>.Ok(BranchStockView(product, supplier)));
+    }
+
+    /// <summary>Sets the quantity at the head office and at each branch; the product's total becomes their sum.</summary>
+    [HttpPut("{id:guid}/branch-stock")]
+    public async Task<IActionResult> SetBranchStock(Guid id, [FromBody] BranchStockRequest req)
+    {
+        var supplier = await db.Suppliers.Include(s => s.Branches).FirstOrDefaultAsync(s => s.UserId == SupplierId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        var product = await db.Products.Include(p => p.BranchStock)
+            .FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
+        if (product is null) return NotFound(ApiResponse.Fail("Product not found."));
+
+        if (!req.TrackPerBranch)
+        {
+            // Back to one shared total that every location can ship from
+            db.ProductBranchStock.RemoveRange(product.BranchStock);
+            await db.SaveChangesAsync();
+            product.BranchStock.Clear();
+            return Ok(ApiResponse<object>.Ok(BranchStockView(product, supplier), "Stock is shared by all your locations again."));
+        }
+
+        var rows = req.Branches ?? [];
+        if (req.HeadOfficeQty < 0 || rows.Any(r => r.StockQty < 0))
+            return BadRequest(ApiResponse.Fail("Stock can't be negative."));
+        if (rows.Select(r => r.SupplierBranchId).Distinct().Count() != rows.Count)
+            return BadRequest(ApiResponse.Fail("Each branch can only be listed once."));
+        if (rows.Any(r => supplier.Branches.All(b => b.Id != r.SupplierBranchId)))
+            return BadRequest(ApiResponse.Fail("One of those branches isn't yours. Refresh and try again."));
+        if (supplier.Branches.Count == 0)
+            return BadRequest(ApiResponse.Fail("Add a branch on your profile first."));
+
+        foreach (var row in product.BranchStock.Where(s => rows.All(r => r.SupplierBranchId != s.SupplierBranchId)).ToList())
+        {
+            db.ProductBranchStock.Remove(row);
+            product.BranchStock.Remove(row);
+        }
+        foreach (var input in rows)
+        {
+            var row = product.BranchStock.FirstOrDefault(s => s.SupplierBranchId == input.SupplierBranchId);
+            if (row is null)
+            {
+                row = new ProductBranchStock { ProductId = product.Id, SupplierBranchId = input.SupplierBranchId };
+                db.ProductBranchStock.Add(row);
+                product.BranchStock.Add(row);
+            }
+            row.StockQty = input.StockQty;
+            row.UpdatedAt = DateTime.UtcNow;
+        }
+        product.StockQty = req.HeadOfficeQty + rows.Sum(r => r.StockQty);
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(BranchStockView(product, supplier), "Stock per branch saved."));
+    }
+
+    private static object BranchStockView(Product product, Supplier supplier) => new
+    {
+        product.Id,
+        TotalStock = product.StockQty,
+        TrackPerBranch = BranchStock.IsTracked(product),
+        HeadOfficeQty = BranchStock.HeadOfficeQty(product),
+        Branches = supplier.Branches.OrderBy(b => b.Name).Select(b => new
+        {
+            SupplierBranchId = b.Id,
+            b.Name,
+            b.City,
+            b.IsActive,
+            StockQty = product.BranchStock.FirstOrDefault(s => s.SupplierBranchId == b.Id)?.StockQty ?? 0,
+        }).ToList(),
+    };
 
     /// <summary>The product information block, for editing in the supplier portal.</summary>
     [HttpGet("{id:guid}/info")]
@@ -282,3 +374,6 @@ public record ProductRequest(
     bool IsFoodItem = false,
     ProductInfoRequest? Info = null
 );
+
+public record BranchStockRequest(bool TrackPerBranch, int HeadOfficeQty, List<BranchStockRow>? Branches);
+public record BranchStockRow(Guid SupplierBranchId, int StockQty);

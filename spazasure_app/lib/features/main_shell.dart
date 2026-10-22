@@ -10,6 +10,7 @@ import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
 import 'package:spazasure_app/features/compliance/screens/compliance_screen.dart';
 import 'package:spazasure_app/features/profile/screens/profile_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
+import 'package:spazasure_app/core/i18n/app_language.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -49,27 +50,27 @@ class _MainShellState extends State<MainShell> {
         onTap: (index) => setState(() => _currentIndex = index),
         centerIndex: 2,
         items: [
-          const AppNavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
-          const AppNavItem(
+          AppNavItem(Icons.home_outlined, Icons.home_rounded, tr('nav.home')),
+          AppNavItem(
             Icons.receipt_long_outlined,
             Icons.receipt_long_rounded,
-            'Orders',
+            tr('nav.orders'),
           ),
           AppNavItem(
             Icons.shopping_cart_outlined,
             Icons.shopping_cart_rounded,
-            'Cart',
+            tr('nav.cart'),
             badge: cartCount,
           ),
-          const AppNavItem(
+          AppNavItem(
             Icons.verified_user_outlined,
             Icons.verified_user_rounded,
-            'Docs',
+            tr('nav.docs'),
           ),
-          const AppNavItem(
+          AppNavItem(
             Icons.person_outline_rounded,
             Icons.person_rounded,
-            'Profile',
+            tr('nav.profile'),
           ),
         ],
       ),

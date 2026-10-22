@@ -38,22 +38,27 @@ public static class SupplierReach
 
     /// <summary>The closest of the supplier's locations that can serve the shop, or null when none can.</summary>
     public static Location? NearestServing(SpazaShop shop, Supplier supplier, decimal reachKm) =>
+        ServingLocations(shop, supplier, reachKm).FirstOrDefault();
+
+    /// <summary>Every location that can serve the shop, nearest first (unknown distances last).</summary>
+    public static List<Location> ServingLocations(SpazaShop shop, Supplier supplier, decimal reachKm) =>
         Locations(supplier)
             .Where(l => CanServe(shop, l, reachKm))
             .OrderBy(l => Distance(shop, l) ?? double.MaxValue)
-            .FirstOrDefault();
+            .ToList();
+
+    /// <summary>Straight-line km from the location to the shop, when both are on the map.</summary>
+    public static double? Distance(SpazaShop shop, Location location) =>
+        shop.Latitude is { } shopLat && shop.Longitude is { } shopLng &&
+        location.Latitude is { } lat && location.Longitude is { } lng
+            ? DistanceKm(shopLat, shopLng, lat, lng)
+            : null;
 
     private static bool CanServe(SpazaShop shop, Location location, decimal reachKm)
     {
         if (!SameProvince(shop.Province, location.Province)) return false;
         return Distance(shop, location) is not { } km || km <= (double)reachKm;
     }
-
-    private static double? Distance(SpazaShop shop, Location location) =>
-        shop.Latitude is { } shopLat && shop.Longitude is { } shopLng &&
-        location.Latitude is { } lat && location.Longitude is { } lng
-            ? DistanceKm(shopLat, shopLng, lat, lng)
-            : null;
 
     /// <summary>Ids of the active suppliers this shop can buy from.</summary>
     public static async Task<HashSet<Guid>> ReachableSupplierIdsAsync(

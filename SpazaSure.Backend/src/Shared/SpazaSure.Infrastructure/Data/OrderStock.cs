@@ -27,13 +27,14 @@ public static class OrderStock
             ? order.Items.ToList()
             : await db.OrderItems.Where(i => i.OrderId == order.Id).ToListAsync(ct);
         var productIds = items.Select(i => i.ProductId).Distinct().ToList();
-        var products = await db.Products.Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
+        var products = await db.Products.Include(p => p.BranchStock)
+            .Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
+        // Stock comes from (and goes back to) the branch the order ships from
         foreach (var item in items)
         {
             if (!products.TryGetValue(item.ProductId, out var product)) continue;
-            product.StockQty = holdsNow
-                ? Math.Max(0, product.StockQty - item.Quantity)
-                : product.StockQty + item.Quantity;
+            if (holdsNow) BranchStock.Take(product, order.SupplierBranchId, item.Quantity);
+            else BranchStock.Return(product, order.SupplierBranchId, item.Quantity);
         }
     }
 }

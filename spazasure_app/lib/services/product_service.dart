@@ -173,7 +173,21 @@ class ProductService {
       supplierTier: (i['supplierTier'] as String?)?.toLowerCase(),
       supplierCommissionRate:
           (i['supplierCommissionRate'] as num?)?.toDouble() ?? 5,
+      branchStockNote: _branchStockNote(i['availability']),
+      outOfStockNearYou: (i['availability'] as Map?)?['inStockNearYou'] == false,
     );
+  }
+
+  /// Tells the shop when its nearest branch of the supplier doesn't have the product.
+  static String? _branchStockNote(dynamic availability) {
+    if (availability is! Map) return null;
+    if (availability['inStockAtNearest'] == true) return null;
+    final nearest = availability['nearestBranch']?.toString();
+    final shipsFrom = availability['shipsFrom']?.toString();
+    if (shipsFrom != null) {
+      return nearest == null ? 'Ships from $shipsFrom' : 'Not at $nearest · ships from $shipsFrom';
+    }
+    return nearest == null ? 'Out of stock near you' : 'Out of stock at $nearest, near you';
   }
 
   static String _slugToIcon(String slug) {

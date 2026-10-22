@@ -53,6 +53,13 @@ class Product {
   final String? supplierTier; // basic, bronze, silver, gold
   final double supplierCommissionRate;
 
+  /// Set when the shop's nearest branch of the supplier doesn't have this product, e.g.
+  /// "Not at Durban warehouse · ships from JHB warehouse". Null when it's in stock nearby.
+  final String? branchStockNote;
+
+  /// True when no branch that delivers to the shop has any of it.
+  final bool outOfStockNearYou;
+
   const Product({
     required this.id,
     required this.name,
@@ -76,6 +83,8 @@ class Product {
     this.supplierCity,
     this.supplierTier,
     this.supplierCommissionRate = 5,
+    this.branchStockNote,
+    this.outOfStockNearYou = false,
   });
 }
 
@@ -133,6 +142,12 @@ class Order {
   final DateTime createdAt;
   final DateTime? estimatedDelivery;
 
+  /// The supplier's branch (warehouse) the order ships from, or "Head office".
+  final String? shipsFrom;
+
+  /// The driver SpazaSure allocated to deliver the order.
+  final String? driverName;
+
   const Order({
     required this.id,
     required this.orderNumber,
@@ -156,7 +171,13 @@ class Order {
     this.deliveryLongitude,
     required this.createdAt,
     this.estimatedDelivery,
+    this.shipsFrom,
+    this.driverName,
   });
+
+  /// Invoices are issued once the supplier confirms the order.
+  bool get canHaveInvoice =>
+      const ['confirmed', 'processing', 'ready', 'dispatched', 'delivered'].contains(status);
 }
 
 // Order Item

@@ -344,8 +344,9 @@ export default function AdminSettingsPage() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {([
-                    { key: 'standardDeliveryFee', label: 'Standard delivery fee (R)', hint: 'Per supplier on each order. Pickup is always free.', step: '1', max: 5000 },
-                    { key: 'expressDeliveryFee', label: 'Express delivery fee (R)', hint: 'Per supplier, same-day delivery.', step: '1', max: 5000 },
+                    { key: 'standardDeliveryFee', label: 'Standard delivery fee (R)', hint: 'Minimum per supplier on each order. Pickup is always free.', step: '1', max: 5000 },
+                    { key: 'expressDeliveryFee', label: 'Express delivery fee (R)', hint: 'Express adds the difference between this and the standard fee.', step: '1', max: 5000 },
+                    { key: 'deliveryPerKmRate', label: 'Delivery rate per km (R)', hint: 'Distance from the branch that ships the order to the shop. Charged instead of the standard fee when it comes to more, so far deliveries pay their real cost.', step: '0.5', max: 500 },
                     { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance × rate.', step: '1', max: 5000 },
                     { key: 'groupBuyPerKmRate', label: 'Group-buy rate per km (R)', hint: 'Straight-line distance from supplier to shop.', step: '0.5', max: 500 },
                     { key: 'shopServiceFeePercent', label: 'Shop service fee (%)', hint: 'Extra % of the product subtotal, charged to the shop on top of the supplier\'s tier commission. 0 = off.', step: '0.1', max: 20 },

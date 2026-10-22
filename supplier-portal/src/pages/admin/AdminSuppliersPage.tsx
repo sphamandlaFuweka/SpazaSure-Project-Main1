@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, CheckCircle, Clock, Eye, ShieldCheck, Users, Store,
   X, Phone, Mail, MapPin, FileText, Calendar, Ban, ExternalLink, Download,
@@ -6,9 +6,10 @@ import {
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl, apiErrorMessage } from '../../services/api';
+import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl, apiErrorMessage, adminBranchesApi } from '../../services/api';
+import BranchesTab from '../profile/BranchesTab';
 import { openAdminDiditCheck } from '../../services/adminDidit';
-import { TierBadge, Spinner } from '../../components/ui';
+import { TierBadge, Spinner, Modal } from '../../components/ui';
 import { Check as CheckIc, X as XIc } from 'lucide-react';
 
 type MainTab = 'suppliers' | 'spaza-owners';
@@ -66,6 +67,9 @@ export default function AdminSuppliersPage() {
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierFilter, setSupplierFilter] = useState<FilterStatus>('all');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  /** Supplier whose branches are open for editing. */
+  const [branchesFor, setBranchesFor] = useState<Supplier | null>(null);
+  const branchesApi = useMemo(() => (branchesFor ? adminBranchesApi(branchesFor.id) : null), [branchesFor]);
 
   // Spaza Owner state
   const [spazaOwners, setSpazaOwners] = useState<SpazaOwner[]>([]);
@@ -689,6 +693,14 @@ export default function AdminSuppliersPage() {
         )}
 
         {/* ─── SUPPLIER DETAIL MODAL ─── */}
+        {branchesFor && branchesApi && (
+          <Modal title={`${branchesFor.companyName}: branches`} onClose={() => setBranchesFor(null)} size="lg">
+            <div className="p-4">
+              <BranchesTab key={branchesFor.id} api={branchesApi} forAdmin />
+            </div>
+          </Modal>
+        )}
+
         {selectedSupplier && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedSupplier(null)} />
@@ -774,6 +786,15 @@ export default function AdminSuppliersPage() {
                     <p className="relative text-xs text-gray-500 font-semibold mt-1">Total Revenue</p>
                   </div>
                 </div>
+
+                {/* Branches: admins add or fix warehouses for suppliers who struggle with the portal */}
+                <button
+                  onClick={() => setBranchesFor(selectedSupplier)}
+                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-800 hover:border-primary hover:text-primary transition-colors"
+                >
+                  Branches &amp; warehouses
+                  <span className="block text-xs font-normal text-gray-500">Add, edit or pause the places this supplier delivers from</span>
+                </button>
 
                 {/* Documents */}
                 {selectedSupplier.documents && selectedSupplier.documents.length > 0 && (

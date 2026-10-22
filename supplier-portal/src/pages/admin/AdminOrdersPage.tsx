@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Eye, CheckCircle, XCircle, Truck, ShoppingCart, Clock, DollarSign, Loader2, Receipt } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Truck, ShoppingCart, Clock, DollarSign, Loader2, Receipt, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
-import { adminOrdersApi } from '../../services/api';
+import { adminOrdersApi, invoicesApi } from '../../services/api';
 import type { DeliveryDispute, Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge } from '../../components/ui';
 import OrderDetailModal from '../orders/OrderDetailModal';
@@ -195,6 +195,8 @@ export default function AdminOrdersPage() {
       deliveryDistanceKm: o.deliveryDistanceKm == null ? undefined : Number(o.deliveryDistanceKm),
       deliveryLatitude: o.deliveryLatitude == null ? undefined : Number(o.deliveryLatitude),
       deliveryLongitude: o.deliveryLongitude == null ? undefined : Number(o.deliveryLongitude),
+      shipsFrom: o.shipsFrom ?? undefined,
+      driverName: o.driverName ?? null,
     };
   };
 
@@ -315,6 +317,11 @@ export default function AdminOrdersPage() {
                       <button onClick={() => setReceiptOrder(mapToOrder(order))} className="p-2 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all" title="View Receipt">
                         <Receipt size={14} />
                       </button>
+                      {['confirmed', 'processing', 'ready', 'dispatched', 'delivered'].includes(order.status) && (
+                        <button onClick={() => invoicesApi.open(order.id).catch(() => undefined)} className="p-2 rounded-lg text-gray-400 hover:text-primary hover:bg-primary-50 transition-all" title="Tax invoice (PDF)">
+                          <FileText size={14} />
+                        </button>
+                      )}
                       {order.status === 'pending' && (
                         <>
                           <button onClick={() => updateStatus(order.id, 'processing')} className="p-2 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all" title="Accept">

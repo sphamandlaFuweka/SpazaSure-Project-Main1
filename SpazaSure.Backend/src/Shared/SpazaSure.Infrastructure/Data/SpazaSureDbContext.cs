@@ -15,6 +15,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<AccountDeletionRequest> AccountDeletionRequests => Set<AccountDeletionRequest>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();
+    public DbSet<ProductBranchStock> ProductBranchStock => Set<ProductBranchStock>();
+    public DbSet<Driver> Drivers => Set<Driver>();
+    public DbSet<TaxInvoice> TaxInvoices => Set<TaxInvoice>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
     public DbSet<ShopDocument> ShopDocuments => Set<ShopDocument>();
@@ -144,6 +147,43 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasOne(b => b.Supplier).WithMany(s => s.Branches).HasForeignKey(b => b.SupplierId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        model.Entity<ProductBranchStock>(e =>
+        {
+            e.ToTable("product_branch_stock");
+            e.HasIndex(s => new { s.ProductId, s.SupplierBranchId }).IsUnique();
+            e.HasOne(s => s.Product).WithMany(p => p.BranchStock).HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.SupplierBranch).WithMany().HasForeignKey(s => s.SupplierBranchId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<Driver>(e =>
+        {
+            e.ToTable("drivers");
+            e.Property(d => d.FullName).HasMaxLength(120);
+            e.Property(d => d.Phone).HasMaxLength(20);
+            e.Property(d => d.VehicleType).HasMaxLength(40);
+            e.Property(d => d.VehicleRegistration).HasMaxLength(20);
+            e.Property(d => d.Area).HasMaxLength(100);
+            e.Property(d => d.AccessToken).HasMaxLength(64);
+            e.Property(d => d.BadgeCode).HasMaxLength(12);
+            e.HasIndex(d => d.AccessToken).IsUnique();
+            e.HasIndex(d => d.BadgeCode).IsUnique();
+        });
+
+        model.Entity<TaxInvoice>(e =>
+        {
+            e.ToTable("tax_invoices");
+            e.HasIndex(i => i.OrderId).IsUnique();
+            e.HasIndex(i => new { i.SupplierId, i.SequenceNumber }).IsUnique();
+            e.HasIndex(i => i.InvoiceNumber).IsUnique();
+            e.Property(i => i.InvoiceNumber).HasMaxLength(40);
+            e.Property(i => i.SupplierVatNumber).HasMaxLength(20);
+            e.Property(i => i.VerificationCode).HasMaxLength(32);
+            e.Property(i => i.GoodsTotalInclVat).HasPrecision(12, 2);
+            e.Property(i => i.VatAmount).HasPrecision(12, 2);
+            e.HasOne(i => i.Order).WithMany().HasForeignKey(i => i.OrderId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.Supplier).WithMany().HasForeignKey(i => i.SupplierId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         // SupplierDocument
         model.Entity<SupplierDocument>(e =>
         {
@@ -234,6 +274,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         model.Entity<ShopReview>(e =>
         {
             e.ToTable("shop_reviews");
+            e.Property(r => r.OwnerReply).HasMaxLength(1000);
             e.HasIndex(r => new { r.ShopId, r.ReviewerUserId }).IsUnique();
             e.HasOne(r => r.Shop).WithMany().HasForeignKey(r => r.ShopId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.Reviewer).WithMany().HasForeignKey(r => r.ReviewerUserId).OnDelete(DeleteBehavior.Cascade);
@@ -341,6 +382,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(o => o.PaystackSplitCode).HasMaxLength(64);
             e.HasOne(o => o.Shop).WithMany().HasForeignKey(o => o.ShopId);
             e.HasOne(o => o.Supplier).WithMany().HasForeignKey(o => o.SupplierId);
+            e.HasOne(o => o.SupplierBranch).WithMany().HasForeignKey(o => o.SupplierBranchId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(o => o.Driver).WithMany().HasForeignKey(o => o.DriverId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(o => o.GroupBuy).WithMany().HasForeignKey(o => o.GroupBuyId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(o => o.GroupBuyParticipant).WithMany().HasForeignKey(o => o.GroupBuyParticipantId)
                 .OnDelete(DeleteBehavior.Restrict);

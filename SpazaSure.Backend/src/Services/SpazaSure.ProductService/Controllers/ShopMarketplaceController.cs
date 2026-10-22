@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Shared.Models;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace SpazaSure.ProductService.Controllers;
 
@@ -99,7 +101,55 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
                            (p.Supplier.Province != null && p.Supplier.Province.ToLower() == shopProvince),
             }).ToListAsync();
 
-        return Ok(ApiResponse<object>.Ok(new { total, page, pageSize, items }));
+        var availability = await AvailabilityAsync(shop, items.Select(i => i.Id).ToList());
+        return Ok(ApiResponse<object>.Ok(new { total, page, pageSize, items = WithAvailability(items, i => i.Id, availability) }));
+    }
+
+    /// <summary>
+    /// Whether each product is in stock at the shop's nearest branch of its supplier, and if not,
+    /// which further branch would ship it, so the shop knows before it orders.
+    /// </summary>
+    private async Task<Dictionary<Guid, object>> AvailabilityAsync(
+        SpazaSure.Infrastructure.Entities.SpazaShop? shop, List<Guid> productIds)
+    {
+        if (shop is null || productIds.Count == 0) return [];
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var products = await db.Products.AsNoTracking()
+            .Include(p => p.BranchStock)
+            .Include(p => p.Supplier).ThenInclude(s => s.Branches)
+            .Where(p => productIds.Contains(p.Id))
+            .ToListAsync();
+        return products.ToDictionary(p => p.Id, p =>
+        {
+            var serving = SupplierReach.ServingLocations(shop, p.Supplier, rules.SupplierReachKm);
+            var nearest = serving.FirstOrDefault();
+            var shipsFrom = serving.FirstOrDefault(l => BranchStock.AvailableAt(p, l.BranchId) > 0);
+            static string Name(SupplierReach.Location l) => l.BranchId is null ? "Head office" : l.Name;
+            return (object)new
+            {
+                NearestBranch = nearest is null ? null : Name(nearest),
+                NearestBranchCity = nearest?.City,
+                InStockAtNearest = nearest is not null && BranchStock.AvailableAt(p, nearest.BranchId) > 0,
+                AvailableAtNearest = nearest is null ? 0 : BranchStock.AvailableAt(p, nearest.BranchId),
+                ShipsFrom = shipsFrom is null ? null : Name(shipsFrom),
+                ShipsFromCity = shipsFrom?.City,
+                InStockNearYou = shipsFrom is not null,
+            };
+        });
+    }
+
+    /// <summary>Adds an "availability" field to each projected product.</summary>
+    private static JsonArray WithAvailability<T>(IEnumerable<T> items, Func<T, Guid> id, Dictionary<Guid, object> availability)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var array = new JsonArray();
+        foreach (var item in items)
+        {
+            var node = JsonSerializer.SerializeToNode(item, options)!.AsObject();
+            node["availability"] = availability.TryGetValue(id(item), out var a) ? JsonSerializer.SerializeToNode(a, options) : null;
+            array.Add(node);
+        }
+        return array;
     }
 
     [HttpGet("products/{id:guid}")]
@@ -111,7 +161,10 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         if (p is null) return NotFound(ApiResponse.Fail("Product not found."));
         if (await ReachableSuppliersAsync(await CurrentShopAsync()) is { } reachable && !reachable.Contains(p.SupplierId))
             return NotFound(ApiResponse.Fail("This supplier doesn't deliver to your area."));
+        var shopForAvailability = await CurrentShopAsync();
+        var availability = (await AvailabilityAsync(shopForAvailability, [p.Id])).GetValueOrDefault(p.Id);
         return Ok(ApiResponse<object>.Ok(new {
+            Availability = availability,
             p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
             p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,

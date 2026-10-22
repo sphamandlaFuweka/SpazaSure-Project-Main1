@@ -30,8 +30,8 @@ public static class AdminAccess
     public static readonly IReadOnlyList<(string Key, string Label, string Description)> Areas =
     [
         (Trust, "Trust & safety", "Suppliers and shops, documents, customer reports, shops map"),
-        (Marketplace, "Marketplace", "Products, categories, orders, group buys and analytics"),
-        (Finance, "Finance", "Supplier payouts, wallet deposits and withdrawals, ledger, finance reports"),
+        (Marketplace, "Marketplace", "Products, categories, orders, group buys, drivers and deliveries, analytics"),
+        (Finance, "Finance", "Supplier payouts, wallet deposits and withdrawals, ledger, tax invoices, finance reports"),
         (Projects, "Projects & impact", "Project management, MEL and reporting workspace"),
         (Settings, "Platform settings", "Platform rules, fees, maintenance mode and FAQs"),
     ];
@@ -54,6 +54,9 @@ public static class AdminAccess
         ("/api/admin/group-buy", Marketplace), // also covers /api/admin/group-buy-banner
         ("/api/admin/analytics", Marketplace),
         ("/api/admin/categories", Marketplace),
+        ("/api/admin/drivers", Marketplace),
+        ("/api/admin/deliveries", Marketplace),
+        ("/api/admin/invoices", Finance),
         ("/api/admin/payouts", Finance),
         ("/api/admin/wallet-top-ups", Finance),
         ("/api/admin/wallet-withdrawals", Finance),

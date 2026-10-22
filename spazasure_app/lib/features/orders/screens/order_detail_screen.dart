@@ -8,6 +8,7 @@ import 'package:spazasure_app/core/widgets/custom_button.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   const OrderDetailScreen({super.key});
@@ -22,6 +23,12 @@ class OrderDetailScreen extends StatelessWidget {
         title: Text(order.orderNumber),
         backgroundColor: AppColors.surface,
         actions: [
+          if (order.canHaveInvoice)
+            IconButton(
+              icon: const Icon(Icons.description_outlined),
+              tooltip: 'Tax invoice (PDF)',
+              onPressed: () => _openInvoice(context, order),
+            ),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             onPressed: () =>
@@ -285,6 +292,24 @@ class OrderDetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            if (order.shipsFrom != null || order.driverName != null)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (order.shipsFrom != null)
+                      _infoRow(Icons.warehouse_outlined, 'Ships from ${order.shipsFrom}'),
+                    if (order.driverName != null)
+                      _infoRow(Icons.local_shipping_outlined, 'Driver: ${order.driverName}'),
+                  ],
+                ),
+              ),
             const SizedBox(height: 100),
           ],
         ),
@@ -387,6 +412,32 @@ class OrderDetailScreen extends StatelessWidget {
         }),
       ),
     );
+  }
+
+  Widget _infoRow(IconData icon, String text) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
+          ],
+        ),
+      );
+
+  /// Opens the invoice PDF in the phone's browser, where it can be saved or shared.
+  Future<void> _openInvoice(BuildContext context, Order order) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final url = await OrderService.invoiceLink(order.id);
+      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!opened) throw StateError('Could not open the invoice.');
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(e is ApiException ? e.message : 'Could not open the invoice. Try again.'),
+        backgroundColor: AppColors.error,
+      ));
+    }
   }
 
   Widget _buildSection(String title, Widget child) {

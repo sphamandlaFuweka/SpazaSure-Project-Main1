@@ -319,14 +319,45 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
                 title: Text('No reviews yet'),
               ),
             ),
-          ..._reviews.map(
-            (review) => Card(
-              child: ListTile(
-                title: Text('${review['rating'] ?? 0} stars'),
-                subtitle: Text(review['comment']?.toString() ?? ''),
+          ..._reviews.map((review) {
+            final reply = review['ownerReply']?.toString().trim() ?? '';
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${review['rating'] ?? 0} stars', style: AppTextStyles.subtitle.copyWith(fontSize: 14)),
+                    if ((review['comment']?.toString() ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(review['comment'].toString(), style: AppTextStyles.bodySmall),
+                    ],
+                    // The shop owner's answer
+                    if (reply.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryTint,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Reply from the shop',
+                                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                            const SizedBox(height: 2),
+                            Text(reply, style: AppTextStyles.bodySmall),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );

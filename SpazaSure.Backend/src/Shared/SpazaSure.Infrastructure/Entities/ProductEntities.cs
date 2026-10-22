@@ -26,6 +26,8 @@ public class Product : BaseEntity
     public decimal Price { get; set; }
     public int MinOrderQty { get; set; } = 1;
     public int StockQty { get; set; } = 0;
+    /// <summary>Per-branch quantities; empty when the supplier doesn't track stock per branch.</summary>
+    public ICollection<ProductBranchStock> BranchStock { get; set; } = [];
     public string Unit { get; set; } = "unit";
     public string Images { get; set; } = "[]";            // JSON array of URLs
     public bool IsAvailable { get; set; } = true;

@@ -89,6 +89,33 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/spazasure-analytics:${{ steps.tag.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/spazasure-analytics:latest
+      - name: Build and push delivery-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.DeliveryService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-delivery:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-delivery:latest
+      - name: Build and push payment-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.PaymentService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-payment:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-payment:latest
+      - name: Build and push verification-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/Services/SpazaSure.VerificationService/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/spazasure-verification:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/spazasure-verification:latest
       - name: Build and push compliance-service
         uses: docker/build-push-action@v5
         with:
@@ -205,4 +232,4 @@ jobs:
             $compose rm -f db-init >/dev/null 2>&1 || true
             docker rm -f spazasure-prod-db-init 2>/dev/null || true
             $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
-            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway postgres-backup
+            $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service delivery-service payment-service verification-service gateway postgres-backup

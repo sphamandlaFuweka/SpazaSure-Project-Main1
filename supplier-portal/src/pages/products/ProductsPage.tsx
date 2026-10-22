@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Product, ComplianceDoc } from '../../types';
 import { EmptyState } from '../../components/ui';
@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import ProductFormModal from './ProductFormModal';
 import BarcodeModal from './BarcodeModal';
 import ProductCodesModal from './ProductCodesModal';
+import BranchStockModal from './BranchStockModal';
 import BulkUploadModal from './BulkUploadModal';
 import { productsApi, profileApi } from '../../services/api';
 import { Star } from 'lucide-react';
@@ -62,6 +63,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [codesProduct, setCodesProduct] = useState<Product | null>(null);
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -392,6 +394,9 @@ export default function ProductsPage() {
                   <button onClick={() => setBarcodeProduct(p)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View QR & Barcode">
                     <QrCode size={16} />
                   </button>
+                  <button onClick={() => setStockProduct(p)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Stock per branch" aria-label="Stock per branch">
+                    <Warehouse size={14} />
+                  </button>
                   <button onClick={() => setCodesProduct(p)} className="p-1.5 text-primary hover:bg-primary-50 rounded-lg transition-colors" title="Authenticity codes">
                     <ShieldCheck size={16} />
                   </button>
@@ -475,6 +480,9 @@ export default function ProductsPage() {
                         <button onClick={() => setBarcodeProduct(p)} className="btn-icon hover:text-emerald-600 hover:bg-emerald-50" title="View QR & Barcode">
                           <QrCode size={14} />
                         </button>
+                        <button onClick={() => setStockProduct(p)} className="btn-icon hover:text-primary hover:bg-primary-50" title="Stock per branch" aria-label="Stock per branch">
+                          <Warehouse size={14} />
+                        </button>
                         <button onClick={() => setCodesProduct(p)} className="btn-icon hover:text-primary hover:bg-primary-50" title="Authenticity codes">
                           <ShieldCheck size={14} />
                         </button>
@@ -500,6 +508,9 @@ export default function ProductsPage() {
         />
       )}
 
+      {stockProduct && (
+        <BranchStockModal product={stockProduct} onClose={() => setStockProduct(null)} onSaved={loadProducts} />
+      )}
       {barcodeProduct && (
         <BarcodeModal
           product={barcodeProduct}

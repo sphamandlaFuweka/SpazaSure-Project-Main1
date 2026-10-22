@@ -18,7 +18,7 @@ internal static class GroupBuyResponse
         .Include(g => g.Supplier).ThenInclude(s => s.Branches)
         .Include(g => g.SupplierBranch)
         .Include(g => g.CreatedByShop)
-        .Include(g => g.Products).ThenInclude(p => p.Product)
+        .Include(g => g.Products).ThenInclude(p => p.Product).ThenInclude(p => p.BranchStock)
         .Include(g => g.Products).ThenInclude(p => p.Items)
         .Include(g => g.Participants).ThenInclude(p => p.Shop)
         .Include(g => g.Participants).ThenInclude(p => p.Items)
@@ -301,10 +301,13 @@ public class ShopGroupBuyController(
             if (input.Quantity <= 0 || input.Quantity < product.Product.MinOrderQty)
                 return BadRequest(ApiResponse.Fail(
                     $"Minimum order for '{product.Product.Name}' is {product.Product.MinOrderQty}."));
+            // Stock at the branch the campaign ships from
             var committed = product.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
-            if (committed + input.Quantity > product.Product.StockQty)
-                return BadRequest(ApiResponse.Fail(
-                    $"Requested commitments for '{product.Product.Name}' exceed available stock of {product.Product.StockQty}."));
+            var available = BranchStock.AvailableAt(product.Product, groupBuy.SupplierBranchId);
+            if (committed + input.Quantity > available)
+                return BadRequest(ApiResponse.Fail(available - committed <= 0
+                    ? $"'{product.Product.Name}' is out of stock at the branch supplying this group buy."
+                    : $"Only {available - committed} more of '{product.Product.Name}' can be committed; that is what the supplying branch has left."));
         }
 
         var participant = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id);
@@ -706,8 +709,8 @@ public class SupplierGroupBuyController(
                 .GroupBy(i => i.GroupBuyProductId)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
             var insufficientStock = qualified.Values
-                .Where(p => quantitiesByProduct.GetValueOrDefault(p.Id) > p.Product.StockQty)
-                .Select(p => $"{p.Product.Name}: requested {quantitiesByProduct.GetValueOrDefault(p.Id)}, available {p.Product.StockQty}")
+                .Where(p => quantitiesByProduct.GetValueOrDefault(p.Id) > BranchStock.AvailableAt(p.Product, groupBuy.SupplierBranchId))
+                .Select(p => $"{p.Product.Name}: requested {quantitiesByProduct.GetValueOrDefault(p.Id)}, available {BranchStock.AvailableAt(p.Product, groupBuy.SupplierBranchId)}")
                 .ToList();
             if (insufficientStock.Count > 0)
                 return BadRequest(ApiResponse.Fail("Confirmed quantities exceed available stock.", insufficientStock));
@@ -756,6 +759,7 @@ public class SupplierGroupBuyController(
                         GroupBuyParticipantId = entry.Participant.Id,
                         GroupBuy = groupBuy,
                         GroupBuyParticipant = entry.Participant,
+                        SupplierBranchId = groupBuy.SupplierBranchId,
                         Status = "pending",
                         DeliveryType = "standard",
                         DeliveryAddress = shop.Address!.Trim(),
@@ -791,7 +795,7 @@ public class SupplierGroupBuyController(
             foreach (var product in qualified.Values)
             {
                 var approvedQuantity = quantitiesByProduct.GetValueOrDefault(product.Id);
-                product.Product.StockQty -= approvedQuantity;
+                BranchStock.Take(product.Product, groupBuy.SupplierBranchId, approvedQuantity);
                 if (approvedQuantity > 0 && !product.Items.Any(i => i.Status == "joined"))
                     product.Status = "approved";
             }

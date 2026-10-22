@@ -121,7 +121,7 @@ jobs:
             $compose rm -f db-init >/dev/null 2>&1 || true
             $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init || { diagnostics; exit 1; }
             echo 'STAGE: rebuilding application services'
-            $compose up -d --build --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service gateway || { diagnostics; exit 1; }
+            $compose up -d --build --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service delivery-service payment-service verification-service gateway || { diagnostics; exit 1; }
 
             suffix=$(date +%s)
             email="qa-smoke-${suffix}@spazasure.test"

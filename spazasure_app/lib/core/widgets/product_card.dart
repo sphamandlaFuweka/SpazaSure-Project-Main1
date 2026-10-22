@@ -225,6 +225,17 @@ class ProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (product.branchStockNote != null)
+                    Text(
+                      product.branchStockNote!,
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: product.outOfStockNearYou ? AppColors.error : AppColors.accentDark,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   if (product.supplierCity != null &&
                       product.supplierCity!.isNotEmpty)
                     Row(

@@ -27,6 +27,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double? _walletBalance;
   ShopProfile? _profile;
 
+  /// Server quotes per delivery option: real per-km fees from the branch that ships each order.
+  final Map<String, CheckoutQuote> _quotes = {};
+  String _quotedCart = '';
+
   @override
   void initState() {
     super.initState();
@@ -46,13 +50,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Fetches fresh quotes whenever the cart changes. Until they arrive (or if they fail) the
+  /// flat fees from the platform settings are shown.
+  void _refreshQuotes(CartProvider cart) {
+    final signature = [for (final i in cart.items) '${i.product.id}x${i.quantity}'].join(',');
+    if (signature == _quotedCart || cart.isEmpty) return;
+    _quotedCart = signature;
+    for (final option in const ['standard', 'express']) {
+      OrderService.quote(items: cart.items, deliveryOption: option).then((q) {
+        if (mounted && _quotedCart == signature) setState(() => _quotes[option] = q);
+      }).catchError((_) {});
+    }
+  }
+
+  double _deliveryFee(CartProvider cart, String option) =>
+      option == 'pickup' ? 0 : _quotes[option]?.deliveryFeeTotal ?? cart.deliveryFee(option);
+
+  double _total(CartProvider cart) => cart.subtotal + _deliveryFee(cart, _deliveryOption) + cart.platformFee();
+
+  /// Stock problems at the branch that delivers to the shop; pickup has none to report here.
+  List<String> get _problems => _deliveryOption == 'pickup' ? const [] : _quotes[_deliveryOption]?.problems ?? const [];
+
   /// The wallet can pay only when its balance covers the whole order
   bool _walletAllowed(CartProvider cart) =>
-      _walletBalance != null && _walletBalance! >= cart.total(_deliveryOption);
+      _walletBalance != null && _walletBalance! >= _total(cart);
 
   /// Cash on delivery only when the admin allows it and the total is within the limit
   bool _codAllowed(CartProvider cart) =>
-      cart.settings.cashOnDeliveryAllowedFor(cart.total(_deliveryOption));
+      cart.settings.cashOnDeliveryAllowedFor(_total(cart));
 
   String _effectiveMethod(CartProvider cart) =>
       (_paymentMethod == OrderService.cashOnDelivery && !_codAllowed(cart)) ||
@@ -72,8 +97,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
-    final total = cart.total(_deliveryOption);
+    _refreshQuotes(cart);
+    final total = _total(cart);
     final method = _effectiveMethod(cart);
+    final quote = _deliveryOption == 'pickup' ? null : _quotes[_deliveryOption];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -90,6 +117,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _addressCard(),
           const SizedBox(height: 12),
           _deliveryChoices(cart),
+          if (quote != null && quote.suppliers.any((s) => s.shipsFrom != null)) ...[
+            const SizedBox(height: 10),
+            _card(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final s in quote.suppliers.where((s) => s.shipsFrom != null))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warehouse_outlined, size: 16, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${s.supplierName}: ships from ${s.shipsFrom}'
+                              '${s.shipsFromCity == null || s.shipsFromCity!.isEmpty ? '' : ', ${s.shipsFromCity}'}'
+                              '${s.distanceKm == null ? '' : ' · ${s.distanceKm!.toStringAsFixed(0)} km'}',
+                              style: AppTextStyles.caption,
+                            ),
+                          ),
+                          if (s.deliveryFee != null)
+                            Text('R${s.deliveryFee!.toStringAsFixed(2)}', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (_problems.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.redTint,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Text('Not in stock near you', style: AppTextStyles.subtitle.copyWith(color: AppColors.error, fontSize: 14)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  for (final p in _problems)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(p, style: AppTextStyles.bodySmall),
+                    ),
+                  const SizedBox(height: 6),
+                  Text('Remove those items or lower the quantity in your cart.', style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 22),
           _sectionTitle('Payment method'),
           _card(
@@ -140,7 +229,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Column(
               children: [
                 _amountRow('Items (${cart.count})', cart.subtotal),
-                _amountRow('Delivery', cart.deliveryFee(_deliveryOption)),
+                _amountRow('Delivery', _deliveryFee(cart, _deliveryOption)),
                 _amountRow(
                   cart.settings.shopServiceFeePercent > 0
                       ? 'Service fee (${cart.settings.shopServiceFeePercent.toStringAsFixed(1)}%)'
@@ -180,7 +269,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  onPressed: _placing || cart.isEmpty ? null : () => _placeOrder(cart),
+                  onPressed: _placing || cart.isEmpty || _problems.isNotEmpty ? null : () => _placeOrder(cart),
                   child: _placing
                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
                       : Text(
@@ -313,7 +402,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           color: _deliveryOption == id ? Colors.white : AppColors.textPrimary,
                         )),
                     Text(
-                      cart.deliveryFee(id) == 0 ? detail : 'R${cart.deliveryFee(id).toStringAsFixed(0)}',
+                      _deliveryFee(cart, id) == 0 ? detail : 'R${_deliveryFee(cart, id).toStringAsFixed(0)}',
                       style: AppTextStyles.caption.copyWith(
                         fontSize: 11,
                         color: _deliveryOption == id ? Colors.white70 : AppColors.textSecondary,
@@ -414,7 +503,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       final method = _effectiveMethod(cart);
-      final total = cart.total(_deliveryOption);
+      final total = _total(cart);
       if (method == OrderService.wallet || method == OrderService.cashOnDelivery) {
         final placed = await OrderService.placeOrder(
           items: cart.items.toList(),

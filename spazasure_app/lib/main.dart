@@ -3,6 +3,7 @@ import 'package:spazasure_app/services/api_service.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/i18n/app_language.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/product_provider.dart';
@@ -42,6 +43,7 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  AppLanguage.load();
   final auth = AuthProvider()..init();
   // When a session can't be renewed, sign out and go back to login instead of leaving
   // every screen failing while the app still looks signed in.
@@ -85,6 +87,14 @@ class SpazaSureApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Every screen reads its text through tr(), so the whole app rebuilds in the new language
+    return ValueListenableBuilder<String>(
+      valueListenable: AppLanguage.code,
+      builder: (context, _, __) => _app(context),
+    );
+  }
+
+  Widget _app(BuildContext context) {
     return MaterialApp(
       title: 'SpazaSure',
       debugShowCheckedModeBanner: false,

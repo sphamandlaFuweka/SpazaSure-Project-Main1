@@ -37,8 +37,15 @@ public class Order : BaseEntity
     public string? PayoutReference { get; set; }
     /// <summary>When an automatic Paystack payout to the supplier was started; PaidOutAt is set once it succeeds.</summary>
     public DateTime? PayoutInitiatedAt { get; set; }
+    /// <summary>The branch (warehouse) the order ships from; null for the head office.</summary>
+    public Guid? SupplierBranchId { get; set; }
+    /// <summary>The driver an admin allocated to deliver this order.</summary>
+    public Guid? DriverId { get; set; }
+    public DateTime? DriverAssignedAt { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
+    public SupplierBranch? SupplierBranch { get; set; }
+    public Driver? Driver { get; set; }
     public Supplier Supplier { get; set; } = null!;
     public GroupBuy? GroupBuy { get; set; }
     public GroupBuyParticipant? GroupBuyParticipant { get; set; }

@@ -21,6 +21,57 @@ class OrderCheckout {
   bool get isCashOnDelivery => paymentMethod == OrderService.cashOnDelivery;
 }
 
+/// What checkout will charge, worked out by the server: the branch each supplier ships from,
+/// the distance-based delivery fee, and any stock problem that stops the order.
+class CheckoutQuote {
+  final double deliveryFeeTotal;
+  final bool canCheckout;
+  final List<SupplierQuote> suppliers;
+
+  const CheckoutQuote({required this.deliveryFeeTotal, required this.canCheckout, required this.suppliers});
+
+  factory CheckoutQuote.fromJson(Map<String, dynamic> json) => CheckoutQuote(
+    deliveryFeeTotal: (json['deliveryFeeTotal'] as num?)?.toDouble() ?? 0,
+    canCheckout: json['canCheckout'] != false,
+    suppliers: (json['suppliers'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(SupplierQuote.fromJson)
+        .toList(),
+  );
+
+  List<String> get problems => [for (final s in suppliers) if (s.problem != null) s.problem!];
+}
+
+class SupplierQuote {
+  final String supplierName;
+  final String? shipsFrom;
+  final String? shipsFromCity;
+  final double? distanceKm;
+  final double? deliveryFee;
+  final String? problem;
+
+  const SupplierQuote({
+    required this.supplierName,
+    this.shipsFrom,
+    this.shipsFromCity,
+    this.distanceKm,
+    this.deliveryFee,
+    this.problem,
+  });
+
+  factory SupplierQuote.fromJson(Map<String, dynamic> json) {
+    final from = json['shipsFrom'] as Map<String, dynamic>?;
+    return SupplierQuote(
+      supplierName: json['supplierName']?.toString() ?? '',
+      shipsFrom: from?['name']?.toString(),
+      shipsFromCity: from?['city']?.toString(),
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
+      problem: json['problem']?.toString(),
+    );
+  }
+}
+
 class OrderService {
   static const paystack = 'paystack';
   static const cashOnDelivery = 'cash_on_delivery';
@@ -36,6 +87,17 @@ class OrderService {
     } catch (_) {
       return false; // the webhook still confirms it later
     }
+  }
+
+  /// The delivery fees and shipping branches for the cart, before the shop pays.
+  static Future<CheckoutQuote> quote({required List<CartItem> items, required String deliveryOption}) async {
+    final res = await ApiService.post('/shop/orders/quote', {
+      'deliveryType': deliveryOption,
+      'items': [
+        for (final i in items) {'productId': i.product.id, 'quantity': i.quantity, 'unitPrice': i.product.price},
+      ],
+    });
+    return CheckoutQuote.fromJson(res['data'] as Map<String, dynamic>);
   }
 
   static Future<OrderCheckout> placeOrder({
@@ -70,6 +132,15 @@ class OrderService {
       paymentMethod: method,
       totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0,
     );
+  }
+
+  /// A link to the order's invoice PDF (valid for 30 minutes). The invoice is issued in the
+  /// supplier's name the first time it's asked for; a tax invoice when the supplier is VAT registered.
+  static Future<String> invoiceLink(String orderId) async {
+    final res = await ApiService.get('/invoices/orders/$orderId');
+    final url = (res['data'] as Map<String, dynamic>)['downloadUrl']?.toString();
+    if (url == null || url.isEmpty) throw StateError('The invoice is not available yet.');
+    return url;
   }
 
   static Future<List<Order>> getOrders({String? status}) async {
@@ -149,6 +220,8 @@ class OrderService {
       deliveryDistanceKm: (o['deliveryDistanceKm'] as num?)?.toDouble(),
       deliveryLatitude: (o['deliveryLatitude'] as num?)?.toDouble(),
       deliveryLongitude: (o['deliveryLongitude'] as num?)?.toDouble(),
+      shipsFrom: o['shipsFrom']?.toString(),
+      driverName: o['driverName']?.toString(),
       createdAt: DateTime.tryParse(o['createdAt'] ?? '') ?? DateTime.now(),
       estimatedDelivery: o['estimatedDelivery'] != null
           ? DateTime.tryParse(o['estimatedDelivery'])

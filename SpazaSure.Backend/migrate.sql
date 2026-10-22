@@ -1726,6 +1726,73 @@ DO $$ BEGIN
         FOREIGN KEY (supplier_branch_id) REFERENCES supplier_branches(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- Stock per branch, the branch each order ships from, drivers, tax invoices and review replies.
+CREATE TABLE IF NOT EXISTS product_branch_stock (
+    id uuid NOT NULL CONSTRAINT pk_product_branch_stock PRIMARY KEY,
+    product_id uuid NOT NULL CONSTRAINT fk_product_branch_stock_product_product_id REFERENCES products(id) ON DELETE CASCADE,
+    supplier_branch_id uuid NOT NULL CONSTRAINT fk_product_branch_stock_supplier_branch_supplier_branch_id REFERENCES supplier_branches(id) ON DELETE CASCADE,
+    stock_qty integer NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_product_branch_stock_product_id_supplier_branch_id ON product_branch_stock(product_id, supplier_branch_id);
+CREATE INDEX IF NOT EXISTS ix_product_branch_stock_supplier_branch_id ON product_branch_stock(supplier_branch_id);
+
+CREATE TABLE IF NOT EXISTS drivers (
+    id uuid NOT NULL CONSTRAINT pk_drivers PRIMARY KEY,
+    full_name varchar(120) NOT NULL,
+    phone varchar(20) NOT NULL,
+    vehicle_type varchar(40) NOT NULL,
+    vehicle_registration varchar(20) NOT NULL,
+    area varchar(100),
+    is_active boolean NOT NULL,
+    access_token varchar(64) NOT NULL,
+    badge_code varchar(12) NOT NULL,
+    last_latitude double precision,
+    last_longitude double precision,
+    last_seen_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_drivers_access_token ON drivers(access_token);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_drivers_badge_code ON drivers(badge_code);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS supplier_branch_id uuid;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_id uuid;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_assigned_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_orders_supplier_branch_id ON orders(supplier_branch_id);
+CREATE INDEX IF NOT EXISTS ix_orders_driver_id ON orders(driver_id);
+DO $$ BEGIN
+    ALTER TABLE orders ADD CONSTRAINT fk_orders_supplier_branches_supplier_branch_id
+        FOREIGN KEY (supplier_branch_id) REFERENCES supplier_branches(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+    ALTER TABLE orders ADD CONSTRAINT fk_orders_drivers_driver_id
+        FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS tax_invoices (
+    id uuid NOT NULL CONSTRAINT pk_tax_invoices PRIMARY KEY,
+    order_id uuid NOT NULL CONSTRAINT fk_tax_invoices_order_order_id REFERENCES orders(id) ON DELETE RESTRICT,
+    supplier_id uuid NOT NULL CONSTRAINT fk_tax_invoices_suppliers_supplier_id REFERENCES suppliers(id) ON DELETE RESTRICT,
+    sequence_number integer NOT NULL,
+    invoice_number varchar(40) NOT NULL,
+    is_tax_invoice boolean NOT NULL,
+    supplier_vat_number varchar(20),
+    goods_total_incl_vat numeric(12,2) NOT NULL,
+    vat_amount numeric(12,2) NOT NULL,
+    verification_code varchar(32) NOT NULL,
+    issued_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_tax_invoices_order_id ON tax_invoices(order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_tax_invoices_supplier_id_sequence_number ON tax_invoices(supplier_id, sequence_number);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_tax_invoices_invoice_number ON tax_invoices(invoice_number);
+
+ALTER TABLE shop_reviews ADD COLUMN IF NOT EXISTS owner_reply varchar(1000);
+ALTER TABLE shop_reviews ADD COLUMN IF NOT EXISTS owner_replied_at timestamp with time zone;
+
 -- Shop delivery ratings and issue reports. Not EF entities: ShopOrderRatingController reads and
 -- writes them with raw SQL, so they only exist if this script creates them.
 CREATE TABLE IF NOT EXISTS delivery_ratings (

@@ -289,6 +289,71 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # Drivers, allocating them to orders and live tracking
+  delivery-service:
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-delivery:${IMAGE_TAG:?IMAGE_TAG must be set}
+    container_name: spazasure-prod-delivery
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ASPNETCORE_URLS:                      http://+:5141
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  # Tax invoices (PDF) for orders
+  payment-service:
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-payment:${IMAGE_TAG:?IMAGE_TAG must be set}
+    container_name: spazasure-prod-payment
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ASPNETCORE_URLS:                      http://+:5038
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  # Public checks for invoices and drivers
+  verification-service:
+    image: ${REGISTRY:?REGISTRY must be set}/spazasure-verification:${IMAGE_TAG:?IMAGE_TAG must be set}
+    container_name: spazasure-prod-verification
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT:               Production
+      ASPNETCORE_URLS:                      http://+:5000
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
+      Jwt__Secret:                          ${PROD_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
   gateway:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-gateway:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-gateway
@@ -310,18 +375,12 @@ services:
       - notification-service
       - analytics-service
       - compliance-service
+      - delivery-service
+      - payment-service
+      - verification-service
 
 volumes:
   prod_postgres_data:
   prod_uploads:
   prod_compliance_uploads:
   prod_rabbitmq_data:
-
-# Note: SpazaSure.PaymentService, SpazaSure.DeliveryService, and
-# SpazaSure.VerificationService are NOT included above — they're empty
-# scaffold projects (default `dotnet new webapi` boilerplate, no
-# controllers, not referenced by the Gateway's routing config). Payment
-# logic actually lives in UserService's PaymentController, and delivery
-# pricing lives in OrderService's DeliveryPricingService. Don't deploy
-# these three unless you've actually built real functionality into them
-# first — right now they'd just be dead containers burning compute.

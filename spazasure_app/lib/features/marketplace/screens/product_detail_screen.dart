@@ -299,7 +299,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        product.stockQuantity > 20
+                        product.outOfStockNearYou
+                            ? 'Out of stock near you'
+                            : product.stockQuantity > 20
                             ? 'In Stock (${product.stockQuantity} available)'
                             : product.stockQuantity > 0
                             ? 'Low Stock (${product.stockQuantity} left)'
@@ -314,6 +316,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ],
                   ),
+                  if (product.branchStockNote != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.warehouse_outlined, size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            product.branchStockNote!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: product.outOfStockNearYou ? AppColors.error : AppColors.accentDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 16),

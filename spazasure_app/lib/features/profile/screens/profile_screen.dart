@@ -11,6 +11,8 @@ import 'package:spazasure_app/core/widgets/editable_avatar.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/profile_service.dart';
+import 'package:spazasure_app/core/i18n/app_language.dart';
+import 'package:spazasure_app/core/widgets/language_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -291,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _statCard(
             '⭐',
             ratingAvg > 0 ? ratingAvg.toStringAsFixed(1) : 'New',
-            ratingCount == 1 ? '1 review' : '$ratingCount reviews',
+            ratingCount == 1 ? '1 ${tr('shop.review')}' : '$ratingCount ${tr('shop.reviews')}',
             const Color(0xFFFFA726),
             () => _showReviews(context),
           ),
@@ -299,15 +301,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _statCard(
             '🛡️',
             _complianceLabel(complianceStatus),
-            'Compliance',
+            tr('shop.complianceStat'),
             _complianceColor(complianceStatus),
             _openCompliance,
           ),
           const SizedBox(width: 10),
           _statCard(
             '💳',
-            onboardingFeePaid ? 'Paid' : 'Due',
-            'Onboarding',
+            onboardingFeePaid ? tr('shop.paid') : tr('shop.due'),
+            tr('shop.onboardingStat'),
             onboardingFeePaid ? AppColors.success : AppColors.error,
             () {
               if (onboardingFeePaid || _startingPayment) {
@@ -390,11 +392,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     double? latitude,
     double? longitude,
   ) {
-    return _menuSection('Account', Icons.person_outline, [
+    return _menuSection(tr('shop.account'), Icons.person_outline, [
       _menuTile(
         Icons.store_rounded,
-        'Shop Details',
-        'Edit your shop info',
+        tr('shop.details'),
+        tr('shop.detailsSub'),
         AppColors.primary,
         () => _showShopDetails(
           context,
@@ -411,22 +413,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       _menuTile(
         Icons.verified_rounded,
-        'My SpazaSure sticker',
-        'Shop number, QR code & verification',
+        tr('shop.sticker'),
+        tr('shop.stickerSub'),
         const Color(0xFF078C50),
         () => Navigator.pushNamed(context, '/my-sticker'),
       ),
       _menuTile(
         Icons.account_balance_wallet_rounded,
-        'SpazaSure Wallet',
-        'Balance & transactions',
+        tr('shop.wallet'),
+        tr('shop.walletSub'),
         const Color(0xFF2196F3),
         () => Navigator.pushNamed(context, '/wallet'),
       ),
       _menuTile(
         Icons.shopping_bag_rounded,
-        'My Orders',
-        'View order history',
+        tr('shop.orders'),
+        tr('shop.ordersSub'),
         const Color(0xFF9C27B0),
         () => Navigator.pushNamed(context, '/orders'),
       ),
@@ -440,18 +442,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool onboardingFeePaid,
     double onboardingFeeAmount,
   ) {
-    return _menuSection('Compliance & Security', Icons.shield_outlined, [
+    return _menuSection(tr('shop.compliance'), Icons.shield_outlined, [
       _menuTile(
         Icons.description_rounded,
-        'My Documents',
-        'Upload & manage docs',
+        tr('shop.documents'),
+        tr('shop.documentsSub'),
         const Color(0xFFFF9800),
         _openCompliance,
       ),
       _menuTile(
         Icons.verified_user_rounded,
-        'Verification Status',
-        'Check account status',
+        tr('shop.verification'),
+        tr('shop.verificationSub'),
         AppColors.success,
         () => _showVerificationStatus(context),
       ),
@@ -474,8 +476,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       _menuTile(
         Icons.qr_code_scanner_rounded,
-        'Scan Product',
-        'Verify product authenticity',
+        tr('shop.scan'),
+        tr('shop.scanSub'),
         const Color(0xFF00BCD4),
         () => Navigator.pushNamed(context, '/qr-scanner'),
       ),
@@ -483,28 +485,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAppSection() {
-    return _menuSection('App & Support', Icons.settings_outlined, [
+    return _menuSection(tr('shop.app'), Icons.settings_outlined, [
       _menuTile(
         Icons.notifications_rounded,
-        'Notifications',
-        'Alerts & updates',
+        tr('shop.notifications'),
+        tr('shop.notificationsSub'),
         const Color(0xFFE91E63),
         () => Navigator.pushNamed(context, '/notifications'),
       ),
       _menuTile(
         Icons.headset_mic_rounded,
-        'Help & Support',
-        'Get assistance',
+        tr('shop.help'),
+        tr('shop.helpSub'),
         const Color(0xFF607D8B),
         () => _showHelpSupport(context),
       ),
       _menuTile(
         Icons.info_rounded,
-        'About SpazaSure',
-        'Version & info',
+        tr('shop.about'),
+        tr('shop.aboutSub'),
         const Color(0xFF795548),
         () => _showAbout(context),
       ),
+      const LanguagePickerTile(),
     ]).animate().fadeIn(delay: 250.ms).slideY(begin: 0.03, end: 0);
   }
 
@@ -857,7 +860,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text('Shop Details', style: AppTextStyles.h3),
+                    Text(tr('shop.details'), style: AppTextStyles.h3),
                     const Spacer(),
                   ],
                 ),
@@ -1140,6 +1143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _reviewTile(ShopReview review) {
     final date = review.date;
     final comment = review.comment?.trim() ?? '';
+    final reply = review.ownerReply?.trim() ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -1169,9 +1173,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: comment.isEmpty ? AppColors.textHint : null,
             ),
           ),
+          if (reply.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Your reply: $reply', style: AppTextStyles.bodySmall),
+            ),
+          ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _replyToReview(review),
+              icon: Icon(reply.isEmpty ? Icons.reply_rounded : Icons.edit_outlined, size: 16),
+              label: Text(reply.isEmpty ? 'Reply' : 'Edit reply'),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// Customers see the owner's reply under the review, and the reviewer is told about it.
+  Future<void> _replyToReview(ShopReview review) async {
+    final controller = TextEditingController(text: review.ownerReply ?? '');
+    final reply = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reply to review'),
+        content: TextField(
+          controller: controller,
+          maxLength: 1000,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Thank the customer or explain what you have fixed',
+          ),
+        ),
+        actions: [
+          if ((review.ownerReply ?? '').isNotEmpty)
+            TextButton(onPressed: () => Navigator.pop(ctx, ''), child: const Text('Remove reply')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Post')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reply == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ProfileService.replyToReview(review.id, reply);
+      if (!mounted) return;
+      // Reopen the list so it shows the new reply
+      Navigator.of(context).pop();
+      _showReviews(context);
+      messenger.showSnackBar(SnackBar(
+        content: Text(reply.isEmpty ? 'Reply removed' : 'Reply posted'),
+        backgroundColor: AppColors.success,
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+    }
   }
 
   Widget _stars(int rating) => Row(
@@ -1262,10 +1328,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Text('Verification Status', style: AppTextStyles.h3),
+              Text(tr('shop.verification'), style: AppTextStyles.h3),
               const SizedBox(height: 20),
               _verifyRow(
-                'Account',
+                tr('shop.account'),
                 status == 'verified' || status == 'active'
                     ? 'Verified'
                     : 'Pending',
@@ -1278,7 +1344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 10),
               _verifyRow(
-                'Compliance',
+                tr('shop.complianceStat'),
                 _complianceLabel(complianceStatus),
                 _complianceColor(complianceStatus),
                 complianceStatus == 'green'
@@ -1382,7 +1448,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Text('Help & Support', style: AppTextStyles.h3),
+              Text(tr('shop.help'), style: AppTextStyles.h3),
               const SizedBox(height: 20),
               _supportItem(
                 Icons.email_rounded,

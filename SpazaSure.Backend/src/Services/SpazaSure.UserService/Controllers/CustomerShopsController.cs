@@ -84,7 +84,7 @@ public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSign
         var reviews = await db.ShopReviews
             .Where(r => r.ShopId == id)
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new { r.Id, r.Rating, r.Comment, r.CreatedAt })
+            .Select(r => new { r.Id, r.Rating, r.Comment, r.CreatedAt, r.OwnerReply, r.OwnerRepliedAt })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(reviews));
     }

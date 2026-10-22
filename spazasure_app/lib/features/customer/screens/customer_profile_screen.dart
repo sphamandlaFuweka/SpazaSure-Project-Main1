@@ -10,6 +10,8 @@ import 'package:spazasure_app/features/customer/screens/customer_scan_history_sc
 import 'package:spazasure_app/features/customer/screens/customer_subscription_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/customer_profile_service.dart';
+import 'package:spazasure_app/core/i18n/app_language.dart';
+import 'package:spazasure_app/core/widgets/language_picker.dart';
 
 /// The customer role's own Profile tab — deliberately distinct from the
 /// shop-owner ProfileScreen: a customer isn't running a shop, so this shows
@@ -81,12 +83,12 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Edit profile', style: AppTextStyles.h3),
+                  Text(tr('profile.edit'), style: AppTextStyles.h3),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: first,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'First name'),
+                    decoration: InputDecoration(labelText: tr('profile.firstName')),
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? 'Enter your first name'
                         : null,
@@ -95,7 +97,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   TextFormField(
                     controller: last,
                     textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Last name'),
+                    decoration: InputDecoration(labelText: tr('profile.lastName')),
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? 'Enter your last name'
                         : null,
@@ -104,7 +106,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   TextFormField(
                     controller: email,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(labelText: tr('profile.email')),
                     validator: (v) {
                       final t = (v ?? '').trim();
                       if (t.isEmpty) return null;
@@ -289,7 +291,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               Row(
                 children: [
                   IconButton(
-                    tooltip: 'Edit profile',
+                    tooltip: tr('profile.edit'),
                     onPressed: _showEdit,
                     icon: const Icon(
                       Icons.edit_rounded,
@@ -298,8 +300,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                     ),
                   ),
                   const Spacer(),
-                  const Text(
-                    'My Profile',
+                  Text(
+                    tr('profile.title'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -355,20 +357,20 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     int? age,
   ) {
     return _sectionCard(
-      title: 'Account details',
+      title: tr('profile.account'),
       children: [
         _infoTile(
           Icons.badge_rounded,
-          'First name',
+          tr('profile.firstName'),
           firstName.isNotEmpty ? firstName : '—',
         ),
         _infoTile(
           Icons.badge_rounded,
-          'Last name',
+          tr('profile.lastName'),
           lastName.isNotEmpty ? lastName : '—',
         ),
-        _infoTile(Icons.email_rounded, 'Email', email.isNotEmpty ? email : '—'),
-        _infoTile(Icons.phone_rounded, 'Phone', phone.isNotEmpty ? phone : '—'),
+        _infoTile(Icons.email_rounded, tr('profile.email'), email.isNotEmpty ? email : '—'),
+        _infoTile(Icons.phone_rounded, tr('profile.phone'), phone.isNotEmpty ? phone : '—'),
         _infoTile(Icons.cake_rounded, 'Age', age != null ? '$age' : '—'),
       ],
     );
@@ -376,15 +378,15 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   Widget _buildAllergiesSection(List<String> allergies) {
     return _sectionCard(
-      title: 'Declared allergies',
+      title: tr('profile.allergies'),
       subtitle:
           'Every product you scan is checked against these automatically.',
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           child: allergies.isEmpty
-              ? const Text(
-                  'None declared',
+              ? Text(
+                  tr('profile.noAllergies'),
                   style: TextStyle(color: AppColors.textHint),
                 )
               : Wrap(
@@ -408,15 +410,15 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   Widget _buildMenuSection() {
     return _sectionCard(
-      title: 'Activity',
+      title: tr('profile.activity'),
       children: [
         ListTile(
           leading: const Icon(
             Icons.workspace_premium_rounded,
             color: AppColors.primary,
           ),
-          title: const Text('SpazaSure membership'),
-          subtitle: const Text('Manage Free and Plus plans'),
+          title: Text(tr('profile.membership')),
+          subtitle: Text(tr('profile.membershipSub')),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => Navigator.push(
             context,
@@ -427,8 +429,8 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         ),
         ListTile(
           leading: const Icon(Icons.history_rounded, color: AppColors.primary),
-          title: const Text('Scan history'),
-          subtitle: const Text('Everything you\'ve scanned and reported'),
+          title: Text(tr('profile.scanHistory')),
+          subtitle: Text(tr('profile.scanHistorySub')),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => Navigator.push(
             context,
@@ -439,13 +441,19 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         ),
         ListTile(
           leading: const Icon(Icons.redeem_rounded, color: AppColors.primary),
-          title: const Text('My rewards'),
-          subtitle: const Text('Points, vouchers, and redemptions'),
+          title: Text(tr('home.rewards')),
+          subtitle: Text(tr('profile.rewardsSub')),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CustomerRewardsScreen()),
           ),
+        ),
+        // Also saved as the customer's preferred language, so it follows them to a new phone
+        LanguagePickerTile(
+          onChanged: (code) => CustomerProfileService.updateProfile(
+            preferredLanguage: AppLanguage.supported[code],
+          ).catchError((_) {}),
         ),
       ],
     );
@@ -463,7 +471,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             Navigator.pushNamedAndRemoveUntil(context, '/login', (r) => false);
           },
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('Sign out'),
+          label: Text(tr('profile.signOut')),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.error,
             side: const BorderSide(color: AppColors.error),

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle, XCircle, Truck, MapPin, CreditCard, Package, Printer, ShieldAlert } from 'lucide-react';
+import { CheckCircle, XCircle, Truck, MapPin, CreditCard, Package, Printer, ShieldAlert, FileText, Loader2 } from 'lucide-react';
+import { invoicesApi } from '../../services/api';
 import { format } from 'date-fns';
 import type { DeliveryDispute, Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge, Modal } from '../../components/ui';
@@ -36,6 +37,13 @@ export default function OrderDetailModal({
   onResolveDispute,
 }: Props) {
   const [showReceipt, setShowReceipt] = useState(false);
+  const [openingInvoice, setOpeningInvoice] = useState(false);
+  // Invoices exist once the order is confirmed; not for pending or cancelled orders
+  const invoiceable = ['confirmed', 'processing', 'ready', 'dispatched', 'delivered'].includes(order.status);
+  const openInvoice = async () => {
+    setOpeningInvoice(true);
+    try { await invoicesApi.open(order.id); } catch { /* the API interceptor shows the message */ } finally { setOpeningInvoice(false); }
+  };
   const [resolutionNote, setResolutionNote] = useState('');
   const currentStep = statusOrder.indexOf(order.status);
   const hasDiscount = Number(order.totalDiscount ?? 0) > 0 || order.items.some((item) => Number(item.discountAmount ?? 0) > 0);
@@ -103,6 +111,12 @@ export default function OrderDetailModal({
               <p className="text-xs text-gray-500 font-semibold mt-1">
                 Delivery distance: {order.deliveryDistanceKm.toFixed(1)} km
               </p>
+            )}
+            {order.shipsFrom && (
+              <p className="text-xs text-gray-700 font-semibold mt-1">Ships from: {order.shipsFrom}</p>
+            )}
+            {order.driverName && (
+              <p className="text-xs text-gray-500 mt-1">SpazaSure driver: {order.driverName}</p>
             )}
             {order.estimatedDelivery && (
               <p className="text-xs text-primary font-semibold mt-1">
@@ -333,6 +347,15 @@ export default function OrderDetailModal({
         >
           <Printer size={16} /> View Receipt
         </button>
+        {invoiceable && (
+          <button
+            onClick={openInvoice}
+            disabled={openingInvoice}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary bg-primary-50 hover:bg-primary-100 rounded-xl transition-colors disabled:opacity-60"
+          >
+            {openingInvoice ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} Tax invoice (PDF)
+          </button>
+        )}
       </div>
 
       {showReceipt && (

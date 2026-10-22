@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/i18n/app_language.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/api_service.dart';
@@ -35,8 +36,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> init() async {
     _session = await AuthService.getSession();
+    _applyLanguage();
     _initialized = true;
     notifyListeners();
+  }
+
+  /// Customers see the app in the language they chose at registration, unless they changed it.
+  void _applyLanguage() {
+    if (_session?.role == 'customer') AppLanguage.applyPreference(_session!.preferredLanguage);
   }
 
   Future<void> loginShop(String phone, String password) async {
@@ -46,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> loginCustomer(String phone, String password) async {
     _session = await AuthService.loginCustomer(phone, password);
+    _applyLanguage();
     notifyListeners();
   }
 
@@ -91,6 +99,7 @@ class AuthProvider extends ChangeNotifier {
       marketingOptIn: marketingOptIn,
       acceptedPrivacyNotice: acceptedPrivacyNotice,
     );
+    _applyLanguage();
     notifyListeners();
   }
 

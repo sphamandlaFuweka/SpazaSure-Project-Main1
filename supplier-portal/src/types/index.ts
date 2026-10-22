@@ -153,6 +153,10 @@ export interface Order {
   deliveryDistanceKm?: number;
   deliveryLatitude?: number;
   deliveryLongitude?: number;
+  /** The branch (warehouse) the order ships from, or "Head office". */
+  shipsFrom?: string;
+  /** The driver SpazaSure allocated to deliver it. */
+  driverName?: string | null;
 }
 
 export interface DeliveryDispute {

@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { Loader2, MapPin, Pencil, Plus, Trash2, Warehouse } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
-import { branchesApi, type SupplierBranchInput } from '../../services/api';
+import { branchesApi, type BranchesApi, type SupplierBranchInput } from '../../services/api';
 import type { SupplierBranch } from '../../types';
 
 const empty: SupplierBranchInput = {
@@ -14,26 +14,31 @@ const empty: SupplierBranchInput = {
  * The supplier's warehouses and depots. Shops near any active branch can buy from the supplier,
  * and SpazaSure runs group buys from one branch to the shops around it.
  */
-export default function BranchesTab() {
+export default function BranchesTab({ api = branchesApi, forAdmin = false }: {
+  /** Admins pass adminBranchesApi(supplierId) to manage a supplier's branches for them. */
+  api?: BranchesApi;
+  forAdmin?: boolean;
+}) {
   const [branches, setBranches] = useState<SupplierBranch[] | null>(null);
   const [editing, setEditing] = useState<SupplierBranch | 'new' | null>(null);
 
-  const load = () => branchesApi.list().then(setBranches).catch(() => setBranches([]));
+  const load = () => api.list().then(setBranches).catch(() => setBranches([]));
+  // Parents key this by supplier, so the api is fixed for its lifetime
   useEffect(() => { load(); }, []);
 
   const toggle = async (branch: SupplierBranch) => {
     try {
       const { id, ...rest } = branch;
-      await branchesApi.update(id, { ...rest, isActive: !branch.isActive });
+      await api.update(id, { ...rest, isActive: !branch.isActive });
       toast.success(branch.isActive ? 'Branch paused' : 'Branch switched on');
       load();
     } catch { /* the API interceptor shows the message */ }
   };
 
   const remove = async (branch: SupplierBranch) => {
-    if (!confirm(`Remove ${branch.name}? Group buys already running from it keep their area.`)) return;
+    if (!confirm(`Remove ${branch.name}? Stock recorded at it counts as head office stock again, and group buys already running from it keep their area.`)) return;
     try {
-      await branchesApi.remove(branch.id);
+      await api.remove(branch.id);
       toast.success('Branch removed');
       load();
     } catch { /* the API interceptor shows the message */ }
@@ -45,8 +50,9 @@ export default function BranchesTab() {
         <div>
           <h2 className="font-bold text-gray-900">Branches &amp; warehouses</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Add every place you deliver from, e.g. your Durban, Johannesburg and Cape Town warehouses.
-            Shops near any active branch can order from you, and group buys run from one branch to the shops around it.
+            {forAdmin
+              ? 'Every place this supplier delivers from. Shops near any active branch can order from them; orders ship from the nearest branch that has the stock.'
+              : 'Add every place you deliver from, e.g. your Durban, Johannesburg and Cape Town warehouses. Shops near any active branch can order from you, orders ship from the nearest branch that has the stock, and group buys run from one branch to the shops around it.'}
           </p>
         </div>
         <button className="btn-primary flex items-center gap-2 shrink-0" onClick={() => setEditing('new')}>
@@ -59,7 +65,7 @@ export default function BranchesTab() {
       ) : branches.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
           <Warehouse className="mx-auto mb-2 text-gray-300" size={28} />
-          No branches yet. Until you add one, shops are matched to your head office address.
+          {forAdmin ? 'No branches yet. Shops are matched to the head office address.' : 'No branches yet. Until you add one, shops are matched to your head office address.'}
         </div>
       ) : (
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
@@ -87,6 +93,7 @@ export default function BranchesTab() {
 
       {editing && (
         <BranchForm
+          api={api}
           branch={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
@@ -96,7 +103,7 @@ export default function BranchesTab() {
   );
 }
 
-function BranchForm({ branch, onClose, onSaved }: { branch: SupplierBranch | null; onClose: () => void; onSaved: () => void }) {
+function BranchForm({ api, branch, onClose, onSaved }: { api: BranchesApi; branch: SupplierBranch | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<SupplierBranchInput>(() => {
     if (!branch) return empty;
     const { id: _id, ...rest } = branch;
@@ -113,8 +120,8 @@ function BranchForm({ branch, onClose, onSaved }: { branch: SupplierBranch | nul
     if (!form.city.trim() || !form.province.trim()) { toast.error('Enter the city and province'); return; }
     setBusy(true);
     try {
-      if (branch) await branchesApi.update(branch.id, form);
-      else await branchesApi.create(form);
+      if (branch) await api.update(branch.id, form);
+      else await api.create(form);
       toast.success(branch ? 'Branch updated' : 'Branch added');
       onSaved();
     } catch {

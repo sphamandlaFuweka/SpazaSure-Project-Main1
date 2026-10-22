@@ -8,6 +8,7 @@ import 'package:spazasure_app/features/customer/screens/customer_reports_screen.
 import 'package:spazasure_app/features/customer/screens/customer_home_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_profile_screen.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
+import 'package:spazasure_app/core/i18n/app_language.dart';
 
 class CustomerShell extends StatefulWidget {
   const CustomerShell({super.key});
@@ -32,23 +33,24 @@ class _CustomerShellState extends State<CustomerShell> {
     const CustomerHomeScreen(),
     const CustomerShopsScreen(),
     _index == 2
-        ? const QrScannerScreen(customerMode: true)
-        : const SizedBox.shrink(),
-    const CustomerReportsScreen(),
-    const CustomerProfileScreen(),
+        ? QrScannerScreen(customerMode: true)
+        : SizedBox.shrink(),
+    CustomerReportsScreen(),
+    CustomerProfileScreen(),
   ];
 
-  static const _items = [
-    AppNavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
-    AppNavItem(Icons.storefront_outlined, Icons.storefront_rounded, 'Shops'),
+  // A getter, so the labels follow the app language
+  static List<AppNavItem> get _items => [
+    AppNavItem(Icons.home_outlined, Icons.home_rounded, tr('nav.home')),
+    AppNavItem(Icons.storefront_outlined, Icons.storefront_rounded, tr('nav.shops')),
     // Centre action: scan a product to verify it
     AppNavItem(
       Icons.qr_code_scanner_rounded,
       Icons.qr_code_scanner_rounded,
-      'Verify',
+      tr('nav.verify'),
     ),
-    AppNavItem(Icons.flag_outlined, Icons.flag_rounded, 'Reports'),
-    AppNavItem(Icons.person_outline_rounded, Icons.person_rounded, 'Profile'),
+    AppNavItem(Icons.flag_outlined, Icons.flag_rounded, tr('nav.reports')),
+    AppNavItem(Icons.person_outline_rounded, Icons.person_rounded, tr('nav.profile')),
   ];
 
   @override

@@ -21,15 +21,21 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
     public async Task<IActionResult> Deliveries()
     {
         var orders = await db.Orders.AsNoTracking()
-            .Where(o => (o.Status == "ready" || o.Status == "dispatched") && o.DeliveryType != "pickup")
+            // Orders still being packed are listed too, so a driver can be allocated ahead of collection
+            .Where(o => (o.Status == "confirmed" || o.Status == "processing" || o.Status == "ready" || o.Status == "dispatched")
+                && o.DeliveryType != "pickup")
             .OrderBy(o => o.Status == "dispatched").ThenBy(o => o.UpdatedAt)
             .Select(o => new
             {
                 o.Id, o.OrderNumber, o.Status, o.DeliveryType, o.PaymentMethod, o.PaymentStatus, o.TotalAmount,
                 o.UpdatedAt, o.DeliveryCode,
                 items = o.Items.Sum(i => i.Quantity),
-                supplier = new { o.Supplier.CompanyName, o.Supplier.Phone, o.Supplier.Address, o.Supplier.City },
+                // Collect from the branch the order ships from, else the head office
+                supplier = o.SupplierBranch != null
+                    ? new { o.Supplier.CompanyName, o.Supplier.Phone, Address = (string?)o.SupplierBranch.Address, City = (string?)o.SupplierBranch.City, BranchName = (string?)o.SupplierBranch.Name }
+                    : new { o.Supplier.CompanyName, o.Supplier.Phone, o.Supplier.Address, o.Supplier.City, BranchName = (string?)null },
                 shop = new { o.Shop.ShopName, o.Shop.OwnerName, o.Shop.Phone, address = o.DeliveryAddress ?? o.Shop.Address, o.Shop.City },
+                driver = o.Driver == null ? null : new { o.Driver.Id, o.Driver.FullName, o.Driver.Phone, o.Driver.VehicleRegistration, o.Driver.LastSeenAt },
             })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(orders));
@@ -81,6 +87,9 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
                 o.DeliveryLatitude,
                 o.DeliveryLongitude,
                 o.DeliveryDistanceKm,
+                // The branch (warehouse) the order ships from, and the driver allocated to deliver it
+                ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 o.GroupBuyId,

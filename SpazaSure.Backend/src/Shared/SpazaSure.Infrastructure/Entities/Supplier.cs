@@ -63,3 +63,18 @@ public class SupplierBranch : BaseEntity
 
     public Supplier Supplier { get; set; } = null!;
 }
+
+/// <summary>
+/// How much of a product one branch holds. Product.StockQty stays the supplier's total; the head
+/// office holds whatever isn't at a branch. A product with no rows isn't tracked per branch, so
+/// every location can ship it.
+/// </summary>
+public class ProductBranchStock : BaseEntity
+{
+    public Guid ProductId { get; set; }
+    public Guid SupplierBranchId { get; set; }
+    public int StockQty { get; set; }
+
+    public Product Product { get; set; } = null!;
+    public SupplierBranch SupplierBranch { get; set; } = null!;
+}

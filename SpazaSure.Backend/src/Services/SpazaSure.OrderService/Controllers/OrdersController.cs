@@ -59,6 +59,9 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.DeliveryLatitude,
                 o.DeliveryLongitude,
                 o.DeliveryDistanceKm,
+                // The branch (warehouse) the order ships from, and the driver allocated to deliver it
+                ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 DirectPaystackSplit = o.PaystackSplitCode != null,
@@ -135,6 +138,9 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
                 o.DeliveryLatitude,
                 o.DeliveryLongitude,
                 o.DeliveryDistanceKm,
+                // The branch (warehouse) the order ships from, and the driver allocated to deliver it
+                ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 DirectPaystackSplit = o.PaystackSplitCode != null,

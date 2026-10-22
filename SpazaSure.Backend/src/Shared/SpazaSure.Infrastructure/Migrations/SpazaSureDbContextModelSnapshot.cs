@@ -514,6 +514,92 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("customer_vouchers", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Driver", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("access_token");
+
+                    b.Property<string>("Area")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("area");
+
+                    b.Property<string>("BadgeCode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("badge_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("full_name");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<double?>("LastLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("last_latitude");
+
+                    b.Property<double?>("LastLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("last_longitude");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VehicleRegistration")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("vehicle_registration");
+
+                    b.Property<string>("VehicleType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("vehicle_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_drivers");
+
+                    b.HasIndex("AccessToken")
+                        .IsUnique()
+                        .HasDatabaseName("ix_drivers_access_token");
+
+                    b.HasIndex("BadgeCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_drivers_badge_code");
+
+                    b.ToTable("drivers", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Faq", b =>
                 {
                     b.Property<Guid>("Id")
@@ -909,6 +995,14 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("delivery_type");
 
+                    b.Property<DateTime?>("DriverAssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("driver_assigned_at");
+
+                    b.Property<Guid?>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
+
                     b.Property<Guid?>("GroupBuyId")
                         .HasColumnType("uuid")
                         .HasColumnName("group_buy_id");
@@ -984,6 +1078,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("subtotal");
 
+                    b.Property<Guid?>("SupplierBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_branch_id");
+
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
@@ -999,6 +1097,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_orders");
+
+                    b.HasIndex("DriverId")
+                        .HasDatabaseName("ix_orders_driver_id");
 
                     b.HasIndex("GroupBuyParticipantId")
                         .IsUnique()
@@ -1020,6 +1121,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_orders_shop_id");
+
+                    b.HasIndex("SupplierBranchId")
+                        .HasDatabaseName("ix_orders_supplier_branch_id");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_orders_supplier_id");
@@ -1429,6 +1533,46 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_products_supplier_id_sku");
 
                     b.ToTable("products", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductBranchStock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("StockQty")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock_qty");
+
+                    b.Property<Guid>("SupplierBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_branch_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_product_branch_stock");
+
+                    b.HasIndex("SupplierBranchId")
+                        .HasDatabaseName("ix_product_branch_stock_supplier_branch_id");
+
+                    b.HasIndex("ProductId", "SupplierBranchId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_product_branch_stock_product_id_supplier_branch_id");
+
+                    b.ToTable("product_branch_stock", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductQrCode", b =>
@@ -2041,6 +2185,15 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("OwnerRepliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("owner_replied_at");
+
+                    b.Property<string>("OwnerReply")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("owner_reply");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer")
@@ -2817,6 +2970,86 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("supplier_subscriptions", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.TaxInvoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<decimal>("GoodsTotalInclVat")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("goods_total_incl_vat");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<bool>("IsTaxInvoice")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_tax_invoice");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence_number");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierVatNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("supplier_vat_number");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<string>("VerificationCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("verification_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tax_invoices");
+
+                    b.HasIndex("InvoiceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tax_invoices_invoice_number");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tax_invoices_order_id");
+
+                    b.HasIndex("SupplierId", "SequenceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tax_invoices_supplier_id_sequence_number");
+
+                    b.ToTable("tax_invoices", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3086,6 +3319,12 @@ namespace SpazaSure.Infrastructure.Migrations
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Order", b =>
                 {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_orders_drivers_driver_id");
+
                     b.HasOne("SpazaSure.Infrastructure.Entities.GroupBuy", "GroupBuy")
                         .WithMany()
                         .HasForeignKey("GroupBuyId")
@@ -3105,12 +3344,20 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_orders_spaza_shops_shop_id");
 
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SupplierBranch", "SupplierBranch")
+                        .WithMany()
+                        .HasForeignKey("SupplierBranchId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_orders_supplier_branches_supplier_branch_id");
+
                     b.HasOne("SpazaSure.Infrastructure.Entities.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_orders_suppliers_supplier_id");
+
+                    b.Navigation("Driver");
 
                     b.Navigation("GroupBuy");
 
@@ -3119,6 +3366,8 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Shop");
 
                     b.Navigation("Supplier");
+
+                    b.Navigation("SupplierBranch");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.OrderItem", b =>
@@ -3169,6 +3418,27 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductBranchStock", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Product", "Product")
+                        .WithMany("BranchStock")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_branch_stock_product_product_id");
+
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SupplierBranch", "SupplierBranch")
+                        .WithMany()
+                        .HasForeignKey("SupplierBranchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_product_branch_stock_supplier_branch_supplier_branch_id");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("SupplierBranch");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ProductQrCode", b =>
@@ -3419,6 +3689,27 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.TaxInvoice", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tax_invoices_order_order_id");
+
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tax_invoices_suppliers_supplier_id");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Supplier");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.User", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.Role", "Role")
@@ -3465,6 +3756,8 @@ namespace SpazaSure.Infrastructure.Migrations
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Product", b =>
                 {
+                    b.Navigation("BranchStock");
+
                     b.Navigation("QrCodes");
                 });
 

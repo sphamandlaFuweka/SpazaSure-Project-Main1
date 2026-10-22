@@ -14,6 +14,11 @@ public sealed record PlatformRules
     public decimal StandardDeliveryFee { get; init; } = 150m;
     /// <summary>Delivery fee per supplier for "express" orders (R). Pickup is always free.</summary>
     public decimal ExpressDeliveryFee { get; init; } = 250m;
+    /// <summary>
+    /// Normal orders: rate per km from the shipping branch to the shop (R). A shop pays this when it
+    /// comes to more than the standard fee, so far-away deliveries cost what they really cost.
+    /// </summary>
+    public decimal DeliveryPerKmRate { get; init; } = 8m;
     /// <summary>Group buys: base delivery fee (R) plus a rate per km.</summary>
     public decimal GroupBuyBaseDeliveryFee { get; init; } = 50m;
     public decimal GroupBuyPerKmRate { get; init; } = 8m;
@@ -49,6 +54,7 @@ public sealed record PlatformRules
         if (StandardDeliveryFee is < 0 or > 5000) return "Standard delivery fee must be between R0 and R5,000.";
         if (ExpressDeliveryFee is < 0 or > 5000) return "Express delivery fee must be between R0 and R5,000.";
         if (GroupBuyBaseDeliveryFee is < 0 or > 5000) return "Group-buy base delivery fee must be between R0 and R5,000.";
+        if (DeliveryPerKmRate is < 0 or > 500) return "Delivery rate per km must be between R0 and R500.";
         if (GroupBuyPerKmRate is < 0 or > 500) return "Group-buy rate per km must be between R0 and R500.";
         if (ShopServiceFeePercent is < 0 or > 20) return "Shop service fee must be between 0% and 20%.";
         if (PayoutDelayDays is < 0 or > 60) return "Payout delay must be between 0 and 60 days.";
@@ -73,6 +79,7 @@ public static class PlatformSettingsStore
     public const string ExpressDeliveryFeeKey = "delivery_fee_express";
     public const string GroupBuyBaseDeliveryFeeKey = "group_buy_delivery_base_fee";
     public const string GroupBuyPerKmRateKey = "group_buy_delivery_per_km";
+    public const string DeliveryPerKmRateKey = "delivery_per_km";
     public const string ShopServiceFeePercentKey = "shop_service_fee_percent";
     public const string PayoutDelayDaysKey = "payout_delay_days";
     public const string SupplierReachKmKey = "supplier_reach_km";
@@ -97,6 +104,7 @@ public static class PlatformSettingsStore
             ExpressDeliveryFee = Dec(values, ExpressDeliveryFeeKey, d.ExpressDeliveryFee),
             GroupBuyBaseDeliveryFee = Dec(values, GroupBuyBaseDeliveryFeeKey, d.GroupBuyBaseDeliveryFee),
             GroupBuyPerKmRate = Dec(values, GroupBuyPerKmRateKey, d.GroupBuyPerKmRate),
+            DeliveryPerKmRate = Dec(values, DeliveryPerKmRateKey, d.DeliveryPerKmRate),
             ShopServiceFeePercent = Dec(values, ShopServiceFeePercentKey, d.ShopServiceFeePercent),
             PayoutDelayDays = values.TryGetValue(PayoutDelayDaysKey, out var days) && int.TryParse(days, out var n) ? n : d.PayoutDelayDays,
             SupplierReachKm = Dec(values, SupplierReachKmKey, d.SupplierReachKm),
@@ -121,6 +129,7 @@ public static class PlatformSettingsStore
             [ExpressDeliveryFeeKey] = Fmt(rules.ExpressDeliveryFee),
             [GroupBuyBaseDeliveryFeeKey] = Fmt(rules.GroupBuyBaseDeliveryFee),
             [GroupBuyPerKmRateKey] = Fmt(rules.GroupBuyPerKmRate),
+            [DeliveryPerKmRateKey] = Fmt(rules.DeliveryPerKmRate),
             [ShopServiceFeePercentKey] = Fmt(rules.ShopServiceFeePercent),
             [PayoutDelayDaysKey] = rules.PayoutDelayDays.ToString(CultureInfo.InvariantCulture),
             [SupplierReachKmKey] = Fmt(rules.SupplierReachKm),

@@ -256,7 +256,7 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         var reviews = await db.ShopReviews.AsNoTracking()
             .Where(r => r.ShopId == shop.Id)
             .OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt)
-            .Select(r => new { r.Id, r.Rating, r.Comment, r.CreatedAt, r.UpdatedAt })
+            .Select(r => new { r.Id, r.Rating, r.Comment, r.CreatedAt, r.UpdatedAt, r.OwnerReply, r.OwnerRepliedAt })
             .ToListAsync();
 
         return Ok(ApiResponse<object>.Ok(new
@@ -270,6 +270,36 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
             Reviews = reviews,
         }));
     }
+
+    /// <summary>The owner's public answer to a review; an empty reply removes it. The reviewer is told.</summary>
+    [HttpPut("reviews/{id:guid}/reply")]
+    public async Task<IActionResult> ReplyToReview(Guid id, [FromBody] ReviewReplyRequest req)
+    {
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
+        var review = await db.ShopReviews.FirstOrDefaultAsync(r => r.Id == id && r.ShopId == shop.Id);
+        if (review is null) return NotFound(ApiResponse.Fail("Review not found."));
+
+        var reply = req.Reply?.Trim();
+        if (reply?.Length > 1000) return BadRequest(ApiResponse.Fail("Keep your reply under 1,000 characters."));
+        var isNew = string.IsNullOrEmpty(review.OwnerReply);
+        review.OwnerReply = string.IsNullOrEmpty(reply) ? null : reply;
+        review.OwnerRepliedAt = review.OwnerReply is null ? null : DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        if (review.OwnerReply is not null && isNew)
+            events.PublishNotification(
+                supplierId: review.ReviewerUserId.ToString(),
+                type: "system",
+                title: $"{shop.ShopName} replied to your review",
+                message: review.OwnerReply,
+                priority: "normal",
+                referenceId: shop.Id.ToString(),
+                routingKey: "notification.review_reply");
+        return Ok(ApiResponse<object>.Ok(
+            new { review.Id, review.OwnerReply, review.OwnerRepliedAt },
+            review.OwnerReply is null ? "Reply removed." : "Reply posted."));
+    }
 }
 
 public record UpdateShopProfileRequest(
@@ -277,3 +307,5 @@ public record UpdateShopProfileRequest(
     string? Address, string? City, string? Province, string? PostalCode,
     double? Latitude = null, double? Longitude = null, string? IdNumber = null
 );
+
+public record ReviewReplyRequest(string? Reply);

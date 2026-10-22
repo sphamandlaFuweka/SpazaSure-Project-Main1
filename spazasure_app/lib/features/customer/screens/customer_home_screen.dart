@@ -8,6 +8,7 @@ import 'package:spazasure_app/core/widgets/notification_popup_host.dart';
 import 'package:spazasure_app/features/customer/screens/ask_spazasure_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dart';
+import 'package:spazasure_app/core/i18n/app_language.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -76,10 +77,10 @@ class CustomerHomeScreen extends StatelessWidget {
                     // Website-style headline: punchline highlighted in brand yellow
                     Text.rich(
                       TextSpan(
-                        text: 'Shop smarter. ',
-                        children: const [
+                        text: tr('home.taglineShop'),
+                        children: [
                           TextSpan(
-                            text: 'Stay safe.',
+                            text: tr('home.taglineSafe'),
                             style: TextStyle(color: AppColors.accent),
                           ),
                         ],
@@ -91,7 +92,7 @@ class CustomerHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Verify products and find trusted shops in your community.',
+                      tr('home.intro'),
                       style: AppTextStyles.body.copyWith(color: Colors.white70),
                     ),
                   ],
@@ -104,8 +105,8 @@ class CustomerHomeScreen extends StatelessWidget {
         _action(
           context,
           Icons.qr_code_scanner_rounded,
-          'Verify a product',
-          'Scan a barcode or QR code',
+          tr('home.verifyProduct'),
+          tr('home.verifyProductSub'),
           AppColors.primary,
           () => Navigator.push(
             context,
@@ -118,8 +119,8 @@ class CustomerHomeScreen extends StatelessWidget {
         _action(
           context,
           Icons.verified_rounded,
-          'Verify a shop',
-          'Scan the shop sticker or enter its shop number',
+          tr('home.verifyShop'),
+          tr('home.verifyShopSub'),
           AppColors.success,
           () => Navigator.pushNamed(context, '/verify-shop'),
         ),
@@ -127,8 +128,8 @@ class CustomerHomeScreen extends StatelessWidget {
         _action(
           context,
           Icons.card_giftcard_rounded,
-          'My rewards',
-          'Earn 5 points per scan and redeem R20 vouchers',
+          tr('home.rewards'),
+          tr('home.rewardsSub'),
           AppColors.secondary,
           () => Navigator.push(
             context,
@@ -139,8 +140,8 @@ class CustomerHomeScreen extends StatelessWidget {
         _action(
           context,
           Icons.warning_amber_rounded,
-          'Report a concern',
-          'Flag fake, expired, or unsafe goods',
+          tr('home.report'),
+          tr('home.reportSub'),
           AppColors.error,
           () => Navigator.push(
             context,
@@ -148,24 +149,24 @@ class CustomerHomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text('Learn before you buy', style: AppTextStyles.h3),
+        Text(tr('home.learn'), style: AppTextStyles.h3),
         const SizedBox(height: 10),
         _infoCard(
           context,
           Icons.school_rounded,
-          'Safety basics',
-          'Learn how to spot suspicious packaging and unsafe products.',
+          tr('home.safety'),
+          tr('home.safetySub'),
           const SafetyBasicsScreen(),
         ),
         _infoCard(
           context,
           Icons.smart_toy_rounded,
-          'Kwazi authenticity guide',
-          'Chat with Kwazi when a product does not look right.',
+          tr('home.kwazi'),
+          tr('home.kwaziSub'),
           null,
         ),
         const SizedBox(height: 16),
-        Text('Recent activity', style: AppTextStyles.h3),
+        Text(tr('home.recent'), style: AppTextStyles.h3),
         const SizedBox(height: 10),
         Card(
           child: ListTile(
@@ -173,8 +174,8 @@ class CustomerHomeScreen extends StatelessWidget {
               Icons.history_rounded,
               color: AppColors.primary,
             ),
-            title: const Text('Your recent scans will appear here'),
-            subtitle: const Text('Start by verifying a product.'),
+            title: Text(tr('home.recentEmpty')),
+            subtitle: Text(tr('home.recentEmptySub')),
           ),
         ),
       ],

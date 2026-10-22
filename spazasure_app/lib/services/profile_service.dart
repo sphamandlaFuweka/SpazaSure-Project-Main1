@@ -97,6 +97,11 @@ class ProfileService {
     return data['checkoutUrl']?.toString();
   }
 
+  /// Posts (or changes) the owner's public answer to a review; an empty reply removes it.
+  static Future<void> replyToReview(String reviewId, String reply) async {
+    await ApiService.put('/shop/profile/reviews/$reviewId/reply', {'reply': reply});
+  }
+
   static Future<ShopReviews> getReviews() async {
     final res = await ApiService.get('/shop/profile/reviews');
     return ShopReviews.fromJson(res['data'] as Map<String, dynamic>);
@@ -166,17 +171,22 @@ class ShopReview {
   final String? comment;
   final DateTime? date;
 
+  /// The owner's public answer, shown under the review to customers.
+  final String? ownerReply;
+
   const ShopReview({
     required this.id,
     required this.rating,
     this.comment,
     this.date,
+    this.ownerReply,
   });
 
   factory ShopReview.fromJson(Map<String, dynamic> json) => ShopReview(
     id: json['id']?.toString() ?? '',
     rating: (json['rating'] as num?)?.toInt() ?? 0,
     comment: json['comment']?.toString(),
+    ownerReply: json['ownerReply']?.toString(),
     date: DateTime.tryParse(
       (json['updatedAt'] ?? json['createdAt'])?.toString() ?? '',
     )?.toLocal(),

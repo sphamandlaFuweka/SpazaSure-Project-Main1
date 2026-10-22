@@ -8,6 +8,9 @@ public class ShopReview : BaseEntity
     public Guid ReviewerUserId { get; set; }
     public int Rating { get; set; }
     public string? Comment { get; set; }
+    /// <summary>The shop owner's public answer to the review.</summary>
+    public string? OwnerReply { get; set; }
+    public DateTime? OwnerRepliedAt { get; set; }
     public SpazaShop Shop { get; set; } = null!;
     public User Reviewer { get; set; } = null!;
 }

@@ -235,6 +235,80 @@ services:
       db-init:
         condition: service_completed_successfully
 
+  # Drivers, allocating them to orders and live tracking
+  delivery-service:
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.DeliveryService/Dockerfile
+    container_name: spazasure-qa-delivery
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT:               QA
+      ASPNETCORE_URLS:                      http://+:5141
+      Urls:                                 http://+:5141
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
+      Jwt__Secret:                          ${QA_JWT_SECRET}
+      PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
+  # Tax invoices (PDF) for orders
+  payment-service:
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.PaymentService/Dockerfile
+    container_name: spazasure-qa-payment
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT:               QA
+      ASPNETCORE_URLS:                      http://+:5038
+      Urls:                                 http://+:5038
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
+      Jwt__Secret:                          ${QA_JWT_SECRET}
+      PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
+  # Public checks for invoices and drivers
+  verification-service:
+    build:
+      context: .
+      dockerfile: src/Services/SpazaSure.VerificationService/Dockerfile
+    container_name: spazasure-qa-verification
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT:               QA
+      ASPNETCORE_URLS:                      http://+:5000
+      Urls:                                 http://+:5000
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"
+      RabbitMQ__Host:                       rabbitmq
+      RabbitMQ__Username:                   spazasure
+      RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
+      Jwt__Secret:                          ${QA_JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
   gateway:
     build:
       context: .
@@ -253,6 +327,9 @@ services:
       - notification-service
       - analytics-service
       - compliance-service
+      - delivery-service
+      - payment-service
+      - verification-service
 
 volumes:
   qa_postgres_data:

@@ -22,6 +22,75 @@ public class ShopOrdersController(
     public const string CashOnDelivery = "cash_on_delivery";
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    /// <summary>Approved, listed products from active suppliers, with what checkout needs to pick a branch.</summary>
+    private Task<List<Product>> LoadOrderableAsync(List<Guid> productIds) =>
+        db.Products
+            .Include(p => p.Supplier).ThenInclude(s => s.Branches)
+            .Include(p => p.BranchStock)
+            .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved
+                && (p.Supplier.Status == "active" || p.Supplier.Status == "verified"))
+            .ToListAsync();
+
+    /// <summary>Where each supplier's part of the cart ships from, keyed by supplier id.</summary>
+    private static Dictionary<Guid, BranchStock.Choice> Plan(
+        SpazaShop shop, List<Product> products, List<PlaceOrderItemRequest> lines, PlatformRules rules) =>
+        lines.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId)
+            .ToDictionary(g => g.Key, g => BranchStock.ChooseLocation(
+                shop,
+                products.First(p => p.SupplierId == g.Key).Supplier,
+                rules.SupplierReachKm,
+                g.Select(i => (products.First(p => p.Id == i.ProductId), i.Quantity)).ToList()));
+
+    /// <summary>
+    /// What checkout will charge before the shop pays: per supplier, the branch it ships from, the
+    /// distance and the delivery fee, or the stock problem that stops it.
+    /// </summary>
+    [HttpPost("quote")]
+    public async Task<IActionResult> Quote([FromBody] QuoteOrderRequest req)
+    {
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        if (req.Items is null || req.Items.Count == 0) return BadRequest(ApiResponse.Fail("Add at least one item."));
+
+        var lines = req.Items.GroupBy(i => i.ProductId)
+            .Select(g => new PlaceOrderItemRequest(g.Key, g.Sum(i => i.Quantity), 0m)).ToList();
+        var products = await LoadOrderableAsync(lines.Select(l => l.ProductId).ToList());
+        var missing = lines.Where(l => products.All(p => p.Id != l.ProductId)).Select(l => l.ProductId).ToList();
+        lines = lines.Where(l => !missing.Contains(l.ProductId)).ToList();
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+
+        var suppliers = Plan(shop, products, lines, rules).Select(entry =>
+        {
+            var (supplierId, choice) = (entry.Key, entry.Value);
+            var supplier = products.First(p => p.SupplierId == supplierId).Supplier;
+            var subtotal = lines.Where(l => products.First(p => p.Id == l.ProductId).SupplierId == supplierId)
+                .Sum(l => products.First(p => p.Id == l.ProductId).Price * l.Quantity);
+            return new
+            {
+                SupplierId = supplierId,
+                SupplierName = supplier.CompanyName,
+                ShipsFrom = choice.From is null ? null : new
+                {
+                    choice.From.BranchId,
+                    Name = choice.From.BranchId is null ? "Head office" : choice.From.Name,
+                    choice.From.City,
+                },
+                DistanceKm = choice.DistanceKm is { } km ? Math.Round(km, 1) : (double?)null,
+                Subtotal = subtotal,
+                DeliveryFee = choice.From is null ? (decimal?)null : DeliveryFees.For(rules, req.DeliveryType, choice.DistanceKm),
+                choice.Problem,
+            };
+        }).ToList();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            Suppliers = suppliers,
+            UnavailableProductIds = missing,
+            DeliveryFeeTotal = suppliers.Sum(s => s.DeliveryFee ?? 0m),
+            CanCheckout = missing.Count == 0 && suppliers.All(s => s.Problem is null),
+        }));
+    }
+
     /// <summary>
     /// Place a new order from the spaza shop mobile app
     /// </summary>
@@ -54,11 +123,7 @@ public class ShopOrdersController(
         // Load products and validate
         var productIds = lines.Select(i => i.ProductId).ToList();
         // Same rule as the marketplace: only approved, listed products from active suppliers.
-        var products = await db.Products
-            .Include(p => p.Supplier).ThenInclude(s => s.Branches) // any branch near the shop can serve it
-            .Where(p => productIds.Contains(p.Id) && p.IsAvailable && p.IsApproved
-                && (p.Supplier.Status == "active" || p.Supplier.Status == "verified"))
-            .ToListAsync();
+        var products = await LoadOrderableAsync(productIds);
 
         if (products.Count != lines.Count)
             return BadRequest(ApiResponse.Fail("One or more products are no longer available. Refresh your cart and try again."));
@@ -66,12 +131,13 @@ public class ShopOrdersController(
         // Group items by supplier (one order per supplier)
         var grouped = lines.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
         var rules = await PlatformSettingsStore.LoadAsync(db);
-        // Shops only buy from suppliers near them (also enforced here, not just hidden in the marketplace)
-        var outOfReach = products.Select(p => p.Supplier).DistinctBy(s => s.Id)
-            .Where(s => !SupplierReach.CanServe(shop, s, rules.SupplierReachKm)).Select(s => s.CompanyName).ToList();
-        if (outOfReach.Count > 0)
+        // Each supplier's order ships from its nearest branch that has everything in stock. Shops
+        // only buy from suppliers near them (also enforced here, not just hidden in the marketplace).
+        var shipping = Plan(shop, products, lines, rules);
+        var problems = shipping.Values.Where(c => c.Problem is not null).Select(c => c.Problem!).ToList();
+        if (problems.Count > 0)
             return BadRequest(ApiResponse.Fail(
-                $"{string.Join(", ", outOfReach)} doesn't deliver to your area. Remove those items from your cart and try again."));
+                $"{string.Join(" ", problems)} Remove or reduce those items and try again.", problems));
         var isCashOnDelivery = paymentMethod == CashOnDelivery;
         var isWallet = paymentMethod == ShopWallet.PaymentMethod;
         if (isCashOnDelivery && !rules.CashOnDeliveryEnabled)
@@ -85,6 +151,7 @@ public class ShopOrdersController(
         foreach (var group in grouped)
         {
             var supplier = products.First(p => p.SupplierId == group.Key).Supplier;
+            var from = shipping[group.Key];
             var orderItems = new List<OrderItem>();
             decimal subtotal = 0;
 
@@ -93,8 +160,9 @@ public class ShopOrdersController(
                 var product = products.First(p => p.Id == item.ProductId);
                 if (item.Quantity < 1)
                     return BadRequest(ApiResponse.Fail($"Choose at least one unit of '{product.Name}'."));
-                if (item.Quantity > product.StockQty)
-                    return BadRequest(ApiResponse.Fail($"Only {product.StockQty} units of '{product.Name}' are available."));
+                var available = BranchStock.AvailableAt(product, from.From!.BranchId);
+                if (item.Quantity > available)
+                    return BadRequest(ApiResponse.Fail($"Only {available} units of '{product.Name}' are available."));
 
                 var unitPrice = product.Price;
                 var lineTotal = unitPrice * item.Quantity;
@@ -115,12 +183,9 @@ public class ShopOrdersController(
             // Fees come from admin platform settings (see PlatformRules for defaults).
             // The shop pays the supplier's tier commission plus any shop service fee on top
             // of the subtotal; both are SpazaSure revenue, so they're stored together.
-            var deliveryFee = req.DeliveryType?.ToLowerInvariant() switch
-            {
-                "express" => rules.ExpressDeliveryFee,
-                "pickup" => 0m,
-                _ => rules.StandardDeliveryFee
-            };
+            // Delivery is priced on the distance from the shipping branch (see DeliveryFees)
+            var deliveryFee = DeliveryFees.For(rules, req.DeliveryType, from.DistanceKm);
+            var deliversToShop = string.IsNullOrWhiteSpace(req.DeliveryAddress) || req.DeliveryAddress == shop.Address;
             var platformCommission = Math.Round(
                 subtotal * ((supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m), 2);
             var totalAmount = subtotal + deliveryFee + platformCommission;
@@ -136,6 +201,10 @@ public class ShopOrdersController(
                 Status = "pending",
                 DeliveryType = req.DeliveryType ?? "standard",
                 DeliveryAddress = req.DeliveryAddress ?? shop.Address,
+                DeliveryLatitude = deliversToShop ? shop.Latitude : null,
+                DeliveryLongitude = deliversToShop ? shop.Longitude : null,
+                DeliveryDistanceKm = from.DistanceKm is { } km ? Math.Round((decimal)km, 2) : null,
+                SupplierBranchId = from.From!.BranchId,
                 Subtotal = subtotal,
                 DeliveryFee = deliveryFee,
                 PlatformCommission = platformCommission,
@@ -325,6 +394,9 @@ public class ShopOrdersController(
                 o.DeliveryLatitude,
                 o.DeliveryLongitude,
                 o.DeliveryDistanceKm,
+                // The branch (warehouse) the order ships from, and the driver allocated to deliver it
+                ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 o.Notes,
@@ -395,6 +467,9 @@ public class ShopOrdersController(
                 o.DeliveryLatitude,
                 o.DeliveryLongitude,
                 o.DeliveryDistanceKm,
+                // The branch (warehouse) the order ships from, and the driver allocated to deliver it
+                ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 o.Notes,
@@ -504,3 +579,5 @@ public record PlaceOrderItemRequest(
 );
 
 public record ConfirmPaymentRequest(string OrderNumber);
+
+public record QuoteOrderRequest(List<PlaceOrderItemRequest>? Items, string? DeliveryType);

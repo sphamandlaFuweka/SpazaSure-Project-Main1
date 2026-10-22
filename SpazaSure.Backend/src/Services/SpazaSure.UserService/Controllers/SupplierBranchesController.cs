@@ -18,7 +18,7 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize(Roles = "supplier")]
 public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
 {
-    private const int MaxBranches = 50;
+    internal const int MaxBranches = 50;
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -48,7 +48,7 @@ public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
 
         var error = Validate(req);
         if (error is not null) return BadRequest(ApiResponse.Fail(error));
-        if (await NameTakenAsync(supplierId, req.Name!, null))
+        if (await NameTakenAsync(db, supplierId, req.Name!, null))
             return Conflict(ApiResponse.Fail("You already have a branch with this name."));
 
         var branch = new SupplierBranch { SupplierId = supplierId };
@@ -67,7 +67,7 @@ public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
 
         var error = Validate(req);
         if (error is not null) return BadRequest(ApiResponse.Fail(error));
-        if (await NameTakenAsync(supplierId, req.Name!, id))
+        if (await NameTakenAsync(db, supplierId, req.Name!, id))
             return Conflict(ApiResponse.Fail("You already have a branch with this name."));
 
         Apply(branch, req);
@@ -89,14 +89,14 @@ public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse.Ok("Branch removed."));
     }
 
-    private Task<bool> NameTakenAsync(Guid supplierId, string name, Guid? exceptId)
+    internal static Task<bool> NameTakenAsync(SpazaSureDbContext db, Guid supplierId, string name, Guid? exceptId)
     {
         var lowered = name.Trim().ToLower();
         return db.SupplierBranches.AnyAsync(b =>
             b.SupplierId == supplierId && b.Id != exceptId && b.Name.ToLower() == lowered);
     }
 
-    private static string? Validate(SupplierBranchRequest req)
+    internal static string? Validate(SupplierBranchRequest req)
     {
         if ((req.Name?.Trim().Length ?? 0) is < 2 or > 80) return "Give the branch a name (2 to 80 characters), e.g. Durban warehouse.";
         if (string.IsNullOrWhiteSpace(req.Address) || req.Address.Trim().Length > 300) return "Enter the branch address.";
@@ -108,7 +108,7 @@ public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
         return AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
     }
 
-    private static void Apply(SupplierBranch branch, SupplierBranchRequest req)
+    internal static void Apply(SupplierBranch branch, SupplierBranchRequest req)
     {
         branch.Name = req.Name!.Trim();
         branch.Address = req.Address!.Trim();
@@ -120,7 +120,7 @@ public class SupplierBranchesController(SpazaSureDbContext db) : ControllerBase
         branch.IsActive = req.IsActive ?? branch.IsActive;
     }
 
-    private static object Project(SupplierBranch b) => new
+    internal static object Project(SupplierBranch b) => new
     {
         b.Id, b.Name, b.Address, b.City, b.Province, b.PostalCode, b.Latitude, b.Longitude, b.IsActive, b.CreatedAt,
     };

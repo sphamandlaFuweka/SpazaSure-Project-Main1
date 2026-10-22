@@ -524,7 +524,7 @@ export const adminOrdersApi = {
 export interface AdminDelivery {
   id: string;
   orderNumber: string;
-  status: 'ready' | 'dispatched';
+  status: 'confirmed' | 'processing' | 'ready' | 'dispatched';
   deliveryType: string;
   paymentMethod: string;
   paymentStatus: string;
@@ -532,12 +532,44 @@ export interface AdminDelivery {
   updatedAt: string;
   deliveryCode: string | null;
   items: number;
-  supplier: { companyName: string; phone: string | null; address: string | null; city: string | null };
+  /** branchName is set when the order ships from one of the supplier's branches. */
+  supplier: { companyName: string; phone: string | null; address: string | null; city: string | null; branchName?: string | null };
   shop: { shopName: string; ownerName: string; phone: string | null; address: string | null; city: string | null };
+  driver?: { id: string; fullName: string; phone: string; vehicleRegistration: string; lastSeenAt?: string | null } | null;
 }
+
+/** A driver SpazaSure delivers with. Admins register them and allocate them to orders. */
+export interface Driver {
+  id: string;
+  fullName: string;
+  phone: string;
+  vehicleType: string;
+  vehicleRegistration: string;
+  area?: string | null;
+  isActive: boolean;
+  badgeCode: string;
+  lastLatitude?: number | null;
+  lastLongitude?: number | null;
+  lastSeenAt?: string | null;
+  openJobs: number;
+  /** Private link the driver opens on their phone to see their jobs and share their location. */
+  driverLink: string;
+}
+
+export type DriverInput = Pick<Driver, 'fullName' | 'phone' | 'vehicleType' | 'vehicleRegistration' | 'area' | 'isActive'>;
+
+export const adminDriversApi = {
+  list: () => api.get('/admin/drivers').then((r) => unwrap<Driver[]>(r)),
+  create: (body: DriverInput) => api.post('/admin/drivers', body).then((r) => unwrap<Driver>(r)),
+  update: (id: string, body: DriverInput) => api.put(`/admin/drivers/${id}`, body).then((r) => unwrap<Driver>(r)),
+  resetLink: (id: string) => api.post(`/admin/drivers/${id}/reset-link`).then((r) => unwrap<Driver>(r)),
+};
 
 export const adminDeliveriesApi = {
   list: () => api.get('/admin/orders/deliveries').then((r) => unwrap<AdminDelivery[]>(r)),
+  /** Allocates a driver to the order; null takes the driver off it. */
+  assignDriver: (orderId: string, driverId: string | null) =>
+    api.put(`/admin/deliveries/${orderId}/driver`, { driverId }).then((r) => r.data),
   updateStatus: (id: string, status: 'dispatched' | 'delivered') =>
     api.patch(`/admin/orders/${id}/status`, { status }).then((r) => r.data),
 };
@@ -604,6 +636,69 @@ function mapProfile(raw: any): SupplierProfile {
 }
 
 export type SupplierBranchInput = Omit<SupplierBranch, 'id'>;
+
+/** Branch management for one supplier: the supplier's own, or an admin's on their behalf. */
+export interface BranchesApi {
+  list: () => Promise<SupplierBranch[]>;
+  create: (body: SupplierBranchInput) => Promise<SupplierBranch>;
+  update: (id: string, body: SupplierBranchInput) => Promise<SupplierBranch>;
+  remove: (id: string) => Promise<unknown>;
+}
+
+export const adminBranchesApi = (supplierId: string): BranchesApi => ({
+  list: () => api.get(`/admin/suppliers/${supplierId}/branches`).then((r) => (r.data?.data ?? r.data ?? []) as SupplierBranch[]),
+  create: (body) => api.post(`/admin/suppliers/${supplierId}/branches`, body).then((r) => (r.data?.data ?? r.data) as SupplierBranch),
+  update: (id, body) => api.put(`/admin/suppliers/${supplierId}/branches/${id}`, body).then((r) => (r.data?.data ?? r.data) as SupplierBranch),
+  remove: (id) => api.delete(`/admin/suppliers/${supplierId}/branches/${id}`).then((r) => r.data),
+});
+
+/** How a product's stock is spread over the head office and branches. */
+export interface ProductBranchStock {
+  id: string;
+  totalStock: number;
+  trackPerBranch: boolean;
+  headOfficeQty: number;
+  branches: { supplierBranchId: string; name: string; city: string; isActive: boolean; stockQty: number }[];
+}
+
+export const branchStockApi = {
+  get: (productId: string) => api.get(`/supplier/products/${productId}/branch-stock`).then((r) => unwrap<ProductBranchStock>(r)),
+  set: (productId: string, body: { trackPerBranch: boolean; headOfficeQty: number; branches: { supplierBranchId: string; stockQty: number }[] }) =>
+    api.put(`/supplier/products/${productId}/branch-stock`, body).then((r) => unwrap<ProductBranchStock>(r)),
+};
+
+/** The invoice for an order's goods, issued in the supplier's name. */
+export interface OrderInvoice {
+  id: string;
+  invoiceNumber: string;
+  isTaxInvoice: boolean;
+  supplierVatNumber?: string | null;
+  issuedAt: string;
+  goodsTotalInclVat: number;
+  vatAmount: number;
+  orderNumber: string;
+  orderId: string;
+  supplierName: string;
+  shopName: string;
+  /** Signed link to the PDF, valid for 30 minutes. */
+  downloadUrl: string;
+  verifyUrl: string;
+}
+
+export const invoicesApi = {
+  /** Issues the invoice the first time it's asked for, once the supplier has confirmed the order. */
+  forOrder: (orderId: string) => api.get(`/invoices/orders/${orderId}`).then((r) => unwrap<OrderInvoice>(r)),
+  /** Opens the PDF in a new tab. */
+  open: async (orderId: string) => {
+    const invoice = await invoicesApi.forOrder(orderId);
+    window.open(invoice.downloadUrl, '_blank', 'noopener');
+    return invoice;
+  },
+  supplierList: (page = 1) => api.get('/invoices/supplier', { params: { page } })
+    .then((r) => unwrap<{ total: number; items: OrderInvoice[] }>(r)),
+  adminList: (params?: { supplierId?: string; from?: string; to?: string; page?: number }) =>
+    api.get('/admin/invoices', { params }).then((r) => unwrap<{ total: number; items: OrderInvoice[] }>(r)),
+};
 
 // Branches: the supplier's warehouses and depots
 export const branchesApi = {
@@ -728,6 +823,8 @@ export interface PlatformRules {
   expressDeliveryFee: number;
   groupBuyBaseDeliveryFee: number;
   groupBuyPerKmRate: number;
+  /** Normal orders: R per km from the shipping branch, charged when more than the standard fee. */
+  deliveryPerKmRate: number;
   shopServiceFeePercent: number;
   payoutDelayDays: number;
   /** Furthest a shop can be from a supplier (km) to see and order from it; same province is also required */
