@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { CheckCircle, Clock, XCircle, Upload, AlertTriangle, Zap, Shield, Building2, CreditCard, Camera, Loader2, Eye, FileText, X, Download, ExternalLink, MapPin, Landmark, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Clock, Warehouse, XCircle, Upload, AlertTriangle, Zap, Shield, Building2, CreditCard, Camera, Loader2, Eye, FileText, X, Download, ExternalLink, MapPin, Landmark, LockKeyhole, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { SupplierProfile, ComplianceDoc } from '../../types';
 import { TierBadge, AlertBanner } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import AddressAutocomplete from '../../components/ui/AddressAutocomplete';
+import BranchesTab from './BranchesTab';
 import {
   profileApi, resolveUploadUrl, businessCheckApi, apiErrorMessage, privacyApi, downloadJson, payoutsApi,
   type IdentityCheck, type DeletionRequest,
@@ -45,7 +46,7 @@ export default function ProfilePage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoDragOver, setLogoDragOver]   = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'company' | 'banking' | 'documents' | 'subscription'>(
+  const [activeTab, setActiveTab] = useState<'company' | 'branches' | 'banking' | 'documents' | 'subscription'>(
     // Didit sends suppliers back here after the business check
     () => (new URLSearchParams(window.location.search).has('verification') ? 'documents' : 'company'));
   const [previewDoc, setPreviewDoc] = useState<ComplianceDoc & { label: string } | null>(null);
@@ -170,6 +171,7 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: 'company',      label: 'Company Info',   icon: Building2 },
+    { id: 'branches',     label: 'Branches',        icon: Warehouse },
     { id: 'banking',      label: 'Banking',         icon: CreditCard },
     { id: 'documents',    label: 'Documents',       icon: Shield },
     { id: 'subscription', label: 'Subscription',    icon: Zap },
@@ -352,6 +354,8 @@ export default function ProfilePage() {
           </form>
         </div>
       )}
+
+      {activeTab === 'branches' && <BranchesTab />}
 
       {/* Banking Tab */}
       {activeTab === 'banking' && (

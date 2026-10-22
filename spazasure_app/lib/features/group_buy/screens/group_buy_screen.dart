@@ -261,6 +261,25 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                     ),
                   ],
                 ),
+                if (group.areaLabel != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.place_outlined,
+                        size: 16,
+                        color: AppColors.textHint,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Open to shops ${group.areaLabel!.replaceFirst('Within', 'within')}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 14),
                 ...group.products.map(_buildProductProgress),
                 Container(
@@ -419,6 +438,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     final message =
         'Group buy: ${group.title}\n'
         'From ${group.supplierName}\n'
+        '${group.areaLabel == null ? '' : 'For shops ${group.areaLabel!.replaceFirst('Within', 'within')}\n'}'
         '$lines\n\n'
         'Join on the SpazaSure app and save together:\n${_advertLink(group)}';
     await Clipboard.setData(ClipboardData(text: message));

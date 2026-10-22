@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Ban, Plus, ChevronDown, ChevronUp, Users, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, Plus, ChevronDown, ChevronUp, Users, Loader2, MapPin } from 'lucide-react';
 import { adminGroupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
@@ -130,6 +130,10 @@ export default function AdminGroupBuysPage() {
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {g.supplierName} &middot; {g.products.length} product{g.products.length === 1 ? '' : 's'} &middot; {g.participantCount} shop{g.participantCount === 1 ? '' : 's'} joined
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <MapPin size={12} />
+                      {g.area ? <>From {g.area.branchName} &middot; open to {g.area.description}</> : 'Open to shops near the supplier (no area set)'}
                     </p>
                     {g.description && <p className="text-sm text-gray-500 mt-1">{g.description}</p>}
                     {g.rejectionNote && <p className="text-sm text-red-700 mt-2">Note: {g.rejectionNote}</p>}

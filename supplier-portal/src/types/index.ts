@@ -195,6 +195,36 @@ export interface NewGroupBuyRequest {
   bannerImageUrl?: string;
   durationDays: number;
   products: { productId: string; targetQty: number; discountPct: number }[];
+  /** The branch (warehouse) that supplies the campaign; omitted for the head office. */
+  supplierBranchId?: string;
+  /** Shops further than this from the branch can't see or join the campaign. */
+  areaRadiusKm?: number;
+}
+
+/** A supplier warehouse or depot, e.g. its Durban, Johannesburg and Cape Town warehouses. */
+export interface SupplierBranch {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  province: string;
+  postalCode?: string | null;
+  latitude: number;
+  longitude: number;
+  isActive: boolean;
+}
+
+/** Where shops must be to join a group buy. */
+export interface GroupBuyArea {
+  supplierBranchId?: string | null;
+  branchName: string;
+  city?: string | null;
+  province?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusKm: number;
+  /** e.g. "shops within 40 km of Durban, KwaZulu-Natal" */
+  description: string;
 }
 
 export interface GroupBuyProduct {
@@ -236,6 +266,8 @@ export interface GroupBuy {
   supplierName: string;
   createdByShopName: string;
   createdByRole?: 'supplier' | 'admin' | 'shop';
+  /** Null for campaigns from before group buys had an area. */
+  area?: GroupBuyArea | null;
   rejectionNote?: string | null;
   approvedAt?: string | null;
   expiresAt: string;

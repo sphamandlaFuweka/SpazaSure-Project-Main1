@@ -56,6 +56,9 @@ class GroupBuy {
   final String supplierId;
   final String supplierName;
   final String createdByShopName;
+
+  /// Where shops must be to join, e.g. "Within 40 km of Durban"; null for older campaigns.
+  final String? areaLabel;
   final DateTime? expiresAt;
   final String status;
   final int participantCount;
@@ -71,6 +74,7 @@ class GroupBuy {
     required this.supplierId,
     required this.supplierName,
     required this.createdByShopName,
+    this.areaLabel,
     required this.expiresAt,
     required this.status,
     required this.participantCount,
@@ -90,6 +94,7 @@ class GroupBuy {
       supplierId: json['supplierId']?.toString() ?? '',
       supplierName: json['supplierName']?.toString() ?? '',
       createdByShopName: json['createdByShopName']?.toString() ?? '',
+      areaLabel: _areaLabel(json['area']),
       expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
       status: json['status']?.toString() ?? 'active',
       participantCount: (json['participantCount'] as num?)?.toInt() ?? 0,
@@ -100,6 +105,18 @@ class GroupBuy {
           .toList(),
       participants: json['participants'] as List<dynamic>? ?? const [],
     );
+  }
+
+  static String? _areaLabel(dynamic area) {
+    if (area is! Map<String, dynamic>) return null;
+    final radius = (area['radiusKm'] as num?)?.toDouble();
+    final city = area['city']?.toString().trim() ?? '';
+    final place = city.isNotEmpty ? city : area['province']?.toString().trim() ?? '';
+    if (radius == null || place.isEmpty) return null;
+    final km = radius == radius.roundToDouble()
+        ? radius.toStringAsFixed(0)
+        : radius.toStringAsFixed(1);
+    return 'Within $km km of $place';
   }
 }
 

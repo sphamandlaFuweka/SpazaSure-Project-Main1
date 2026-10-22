@@ -258,6 +258,11 @@ function GroupCard({
               <span>{group.participantCount} shop{group.participantCount === 1 ? '' : 's'}</span>
               <span>{group.products.length} product{group.products.length === 1 ? '' : 's'}</span>
               <span>{live ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining` : 'Closed to new shops'}</span>
+              {group.area && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin size={12} /> From <strong className="text-gray-700">{group.area.branchName}</strong> to {group.area.description}
+                </span>
+              )}
             </div>
           </div>
           {acceptable && (

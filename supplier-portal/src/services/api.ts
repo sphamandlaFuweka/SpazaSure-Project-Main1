@@ -1,7 +1,7 @@
 ﻿import axios from 'axios';
 import toast from 'react-hot-toast';
 import { emptyProductInfo } from '../types';
-import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest, DeliveryDispute, SupplierRating } from '../types';
+import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest, DeliveryDispute, SupplierRating, SupplierBranch } from '../types';
 import env from '../config/env';
 import { AUTH_STORAGE_KEY } from '../config/target';
 import type { AccessLevel, AdminArea, AdminProfile } from '../utils/adminAccess';
@@ -334,6 +334,14 @@ export const groupBuyApi = {
     api.post(`/supplier/group-buy/${id}/dispatch`).then((r) => r.data?.data ?? r.data),
 };
 
+/** Where an admin can run a supplier's campaign from: the head office or one of its branches. */
+export interface SupplierBranchOptions {
+  defaultRadiusKm: number;
+  maxRadiusKm: number;
+  headOffice: { address?: string | null; city?: string | null; province?: string | null; latitude?: number | null; longitude?: number | null };
+  branches: Omit<SupplierBranch, 'isActive' | 'postalCode'>[];
+}
+
 export interface SupplierProductOption { id: string; name: string; price: number; stockQty: number; minOrderQty: number; isApproved?: boolean; isAvailable?: boolean }
 
 // Admin group buys: create for any supplier, clear older supplier proposals, monitor, cancel
@@ -343,6 +351,8 @@ export const adminGroupBuyApi = {
     const data = res.data?.data ?? res.data;
     return Array.isArray(data) ? data : [];
   },
+  supplierBranches: (supplierId: string) =>
+    api.get(`/admin/group-buy/suppliers/${supplierId}/branches`).then((r) => (r.data?.data ?? r.data) as SupplierBranchOptions),
   supplierProducts: (supplierId: string) =>
     api.get(`/admin/group-buy/suppliers/${supplierId}/products`).then((r) => (r.data?.data ?? r.data ?? []) as SupplierProductOption[]),
   create: (body: NewGroupBuyRequest) => api.post('/admin/group-buy', body).then((r) => r.data),
@@ -592,6 +602,18 @@ function mapProfile(raw: any): SupplierProfile {
     })),
   };
 }
+
+export type SupplierBranchInput = Omit<SupplierBranch, 'id'>;
+
+// Branches: the supplier's warehouses and depots
+export const branchesApi = {
+  list: () => api.get('/supplier/profile/branches').then((r) => (r.data?.data ?? r.data ?? []) as SupplierBranch[]),
+  create: (body: SupplierBranchInput) =>
+    api.post('/supplier/profile/branches', body).then((r) => (r.data?.data ?? r.data) as SupplierBranch),
+  update: (id: string, body: SupplierBranchInput) =>
+    api.put(`/supplier/profile/branches/${id}`, body).then((r) => (r.data?.data ?? r.data) as SupplierBranch),
+  remove: (id: string) => api.delete(`/supplier/profile/branches/${id}`).then((r) => r.data),
+};
 
 // Profile
 export const profileApi = {

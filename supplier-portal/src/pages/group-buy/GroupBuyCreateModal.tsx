@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Loader2, MapPin, Plus, Trash2, X } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import {
   adminGroupBuyApi, adminProductsApi, adminSuppliersApi,
-  type SupplierProductOption,
+  type SupplierBranchOptions, type SupplierProductOption,
 } from '../../services/api';
 import type { Product } from '../../types';
 
@@ -20,6 +20,10 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   const [suppliers, setSuppliers] = useState<{ id: string; companyName: string }[]>([]);
   const [supplierId, setSupplierId] = useState('');
   const [products, setProducts] = useState<SupplierProductOption[]>([]);
+  const [places, setPlaces] = useState<SupplierBranchOptions | null>(null);
+  /** '' is the head office */
+  const [branchId, setBranchId] = useState('');
+  const [radiusKm, setRadiusKm] = useState(40);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [days, setDays] = useState(7);
@@ -47,7 +51,17 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
 
   useEffect(() => {
     setLines([{ productId: '', targetQty: 50, discountPct: 10 }]);
+    setPlaces(null);
+    setBranchId('');
     if (supplierId) {
+      adminGroupBuyApi.supplierBranches(supplierId)
+        .then((p) => {
+          setPlaces(p);
+          setRadiusKm(Math.min(40, p.defaultRadiusKm));
+          // A supplier with warehouses usually runs each campaign from one of them
+          if (p.branches.length > 0 && !p.headOffice.city && p.headOffice.latitude == null) setBranchId(p.branches[0].id);
+        })
+        .catch(() => toast.error("Could not load the supplier's branches"));
       const supplierName = suppliers.find((s) => s.id === supplierId)?.companyName;
       // Fallback to the admin products list (the same data as the Products page) when the dedicated endpoint returns nothing.
       const fromProductsPage = () => adminProductsApi.list({ pageSize: 500, search: supplierName })
@@ -74,8 +88,16 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   const update = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
+  const chosenBranch = places?.branches.find((b) => b.id === branchId);
+  const areaPlace = chosenBranch
+    ? `${chosenBranch.city}, ${chosenBranch.province}`
+    : [places?.headOffice.city, places?.headOffice.province].filter(Boolean).join(', ');
+  const headOfficeMissing = !!places && !places.headOffice.city && places.headOffice.latitude == null;
+
   const submit = async () => {
     if (!supplierId) { toast.error('Choose a supplier'); return; }
+    if (!branchId && headOfficeMissing) { toast.error('Choose the branch this group buy runs from'); return; }
+    if (!(radiusKm >= 1 && radiusKm <= (places?.maxRadiusKm ?? 300))) { toast.error(`The area radius must be between 1 and ${places?.maxRadiusKm ?? 300} km`); return; }
     if (title.trim().length < 3) { toast.error('Give the group buy a title'); return; }
     if (lines.some((l) => !l.productId)) { toast.error('Choose a product on every line'); return; }
     setBusy(true);
@@ -91,6 +113,8 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
         bannerImageUrl,
         durationDays: days,
         products: lines,
+        supplierBranchId: branchId || undefined,
+        areaRadiusKm: radiusKm,
       };
       const res = await adminGroupBuyApi.create(body);
       toast.success(res?.message ?? 'Group buy created');
@@ -117,6 +141,35 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.companyName}</option>)}
           </select>
         </div>
+
+        {supplierId && (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="label">Supplied from</label>
+                <select className="input" value={branchId} onChange={(e) => setBranchId(e.target.value)} disabled={!places}>
+                  <option value="" disabled={headOfficeMissing}>
+                    Head office{places?.headOffice.city ? ` (${places.headOffice.city})` : headOfficeMissing ? ' (no address yet)' : ''}
+                  </option>
+                  {places?.branches.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.city})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Area radius (km)</label>
+                <input className="input" type="number" min={1} max={places?.maxRadiusKm ?? 300} value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 flex items-start gap-1.5">
+              <MapPin size={13} className="mt-0.5 shrink-0 text-primary" />
+              {areaPlace
+                ? <>Only shops within <b>{radiusKm || 0} km</b> of <b>{areaPlace}</b> will see and be able to join this group buy.</>
+                : 'Choose where the stock ships from. Only shops around it can join.'}
+            </p>
+            {places && places.branches.length === 0 && (
+              <p className="text-[11px] text-gray-400">This supplier hasn't added any branches, so the campaign runs from their head office.</p>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2">
