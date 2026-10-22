@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2, User,
-  LogOut, ChevronLeft, ChevronRight, Crown, Users, Bell, Sparkles, BadgeCheck,
+  LogOut, ChevronLeft, ChevronRight, Crown, Users, Bell, Sparkles, BadgeCheck, MessageSquareText,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -18,6 +18,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/orders',    icon: ShoppingCart,    label: 'Orders' },
+      { to: '/feedback',  icon: MessageSquareText, label: 'Ratings & Disputes' },
       { to: '/products',  icon: Package,         label: 'Products' },
       { to: '/group-buy', icon: Users,           label: 'Group Buy Requests' },
     ],

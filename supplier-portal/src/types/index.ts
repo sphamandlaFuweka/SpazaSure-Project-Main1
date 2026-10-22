@@ -155,6 +155,33 @@ export interface Order {
   deliveryLongitude?: number;
 }
 
+export interface DeliveryDispute {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  shopName: string;
+  issueType: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  resolution?: string | null;
+  resolutionNote?: string | null;
+  resolvedAt?: string | null;
+  refundReference?: string | null;
+  refundStatus?: string | null;
+}
+
+export interface SupplierRating {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  shopName: string;
+  deliveryRating: number;
+  supplierRating: number;
+  comment: string;
+  createdAt: string;
+}
+
 // Group Buy
 /** Admin list filters. */
 export type GroupBuyFilter = 'all' | 'active' | 'pending' | 'completed' | 'rejected' | 'cancelled';

@@ -169,10 +169,13 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
       NotificationService.openOrder(navigator, referenceId);
       return;
     }
+    if (type == 'chat') {
+      navigator.pushNamed('/inbox', arguments: referenceId);
+      return;
+    }
     final route = switch (type) {
       'wallet' => '/wallet',
       'group_buy' => '/group-buy',
-      'chat' => '/inbox',
       _ => '/inbox',
     };
     navigator.pushNamed(route);

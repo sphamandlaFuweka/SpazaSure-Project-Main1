@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -123,6 +124,42 @@ public class MissedWebhookTests
         OrderPayments.CoversOrders(25000, orders).Should().BeTrue();
         OrderPayments.CoversOrders(25750, orders).Should().BeTrue();
         OrderPayments.CoversOrders(24999, orders).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefundAsync_RequestsTheExactOrderAmountInMinorUnits()
+    {
+        HttpMethod? sentMethod = null;
+        Uri? sentUri = null;
+        string? sentBody = null;
+        var handler = new FakePaystack(request =>
+        {
+            sentMethod = request.Method;
+            sentUri = request.RequestUri;
+            sentBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"status":true,"data":{"id":12345,"status":"pending"}}""",
+                    Encoding.UTF8, "application/json"),
+            };
+        });
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Paystack:SecretKey"] = "sk_test_x",
+        }).Build();
+        var service = new OrderPaystackPaymentService(new HttpClient(handler), config);
+
+        var refund = await service.RefundAsync(Reference, 12.34m, "Order dispute refund");
+
+        refund.Id.Should().Be("12345");
+        refund.Status.Should().Be("pending");
+        sentMethod.Should().Be(HttpMethod.Post);
+        sentUri!.AbsolutePath.Should().Be("/refund");
+        using var payload = JsonDocument.Parse(sentBody!);
+        payload.RootElement.GetProperty("transaction").GetString().Should().Be(Reference);
+        payload.RootElement.GetProperty("amount").GetInt64().Should().Be(1234);
+        payload.RootElement.GetProperty("currency").GetString().Should().Be("ZAR");
     }
 
     private sealed class FakePaystack(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

@@ -10,6 +10,7 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/products/ProductsPage'));
 const OrdersPage = lazy(() => import('./pages/orders/OrdersPage'));
+const FeedbackPage = lazy(() => import('./pages/feedback/FeedbackPage'));
 const AnalyticsPage = lazy(() => import('./pages/analytics/AnalyticsPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
@@ -45,6 +46,7 @@ export default function SupplierApp() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="feedback" element={<FeedbackPage />} />
           <Route path="group-buy" element={<GroupBuyPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />

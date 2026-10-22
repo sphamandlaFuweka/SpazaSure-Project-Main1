@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import { adminOrdersApi } from '../../services/api';
-import type { Order, OrderStatus } from '../../types';
+import type { DeliveryDispute, Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge } from '../../components/ui';
 import OrderDetailModal from '../orders/OrderDetailModal';
 import OrderReceiptModal from '../orders/OrderReceiptModal';
@@ -17,6 +17,7 @@ const statusTabs = [
   { value: 'processing', label: 'Processing' },
   { value: 'dispatched', label: 'Dispatched' },
   { value: 'delivered',  label: 'Delivered' },
+  { value: 'disputed',   label: 'Disputed' },
   { value: 'cancelled',  label: 'Cancelled' },
 ];
 
@@ -26,6 +27,9 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState<Order | null>(null);
+  const [selectedDispute, setSelectedDispute] = useState<DeliveryDispute | null>(null);
+  const [disputeLoading, setDisputeLoading] = useState(false);
+  const [resolvingDispute, setResolvingDispute] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [summary, setSummary] = useState<any>({});
 
@@ -60,6 +64,24 @@ export default function AdminOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedOrderId]);
 
+  useEffect(() => {
+    let current = true;
+    setSelectedDispute(null);
+    if (!selected || selected.status !== 'disputed') {
+      setDisputeLoading(false);
+      return () => { current = false; };
+    }
+    setDisputeLoading(true);
+    adminOrdersApi.getDispute(selected.id)
+      .then((dispute) => { if (current) setSelectedDispute(dispute); })
+      .catch(() => { if (current) toast.error('Could not load the delivery dispute'); })
+      .finally(() => { if (current) setDisputeLoading(false); });
+    return () => { current = false; };
+    // The selected order only changes when the detail view opens another order.
+    // Keep its dispute visible after the resolution changes the order status.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   const closeDetail = () => {
     setSelected(null);
     if (searchParams.has('order')) {
@@ -78,6 +100,44 @@ export default function AdminOrdersPage() {
       if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status } : null);
     } catch {
       toast.error('Failed to update order status');
+    }
+  };
+
+  const resolveDispute = async (
+    resolution: 'release_supplier' | 'refund_shop' | 'confirm_refund',
+    note?: string,
+  ) => {
+    if (!selected) return;
+    setResolvingDispute(true);
+    try {
+      const result = await adminOrdersApi.resolveDispute(selected.id, resolution, note);
+      setOrders((prev) => prev.map((o) => o.id === selected.id ? { ...o, status: result.status } : o));
+      setSelected((prev) => prev ? { ...prev, status: result.status as OrderStatus } : null);
+      setSelectedDispute((prev) => prev ? {
+        ...prev,
+        status: result.disputeStatus,
+        resolution: resolution === 'confirm_refund' ? prev.resolution : resolution,
+        resolutionNote: note ?? prev.resolutionNote,
+        refundStatus: result.refundStatus ?? prev.refundStatus,
+      } : prev);
+      toast.success(
+        result.disputeStatus === 'refund_pending_manual'
+          ? 'Dispute held open until the manual refund is confirmed'
+          : result.disputeStatus === 'refund_pending'
+            ? 'Paystack refund requested; the dispute remains visible while it processes'
+            : 'Dispute resolved',
+      );
+      void loadOrders();
+    } catch {
+      toast.error('Could not resolve this dispute');
+      try {
+        const dispute = await adminOrdersApi.getDispute(selected.id);
+        setSelectedDispute(dispute);
+      } catch {
+        toast.error('Could not refresh the dispute status');
+      }
+    } finally {
+      setResolvingDispute(false);
     }
   };
 
@@ -170,7 +230,11 @@ export default function AdminOrdersPage() {
       {/* Status Tabs */}
       <div className="flex items-center gap-0.5 border-b border-gray-200 overflow-x-auto">
         {statusTabs.map(({ value, label }) => {
-          const count = value === 'all' ? (summary.totalOrders ?? orders.length) : orders.filter((o) => o.status === value).length;
+          const count = value === 'all'
+            ? (summary.totalOrders ?? orders.length)
+            : value === 'disputed'
+              ? (summary.disputedCount ?? orders.filter((o) => o.status === value).length)
+              : orders.filter((o) => o.status === value).length;
           return (
             <button key={value} onClick={() => setStatusFilter(value)}
               className={clsx('flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-all whitespace-nowrap',
@@ -280,7 +344,18 @@ export default function AdminOrdersPage() {
         )}
       </div>
 
-      {selected && <OrderDetailModal order={selected} onClose={closeDetail} onUpdateStatus={updateStatus} />}
+      {selected && (
+        <OrderDetailModal
+          key={selected.id}
+          order={selected}
+          onClose={closeDetail}
+          onUpdateStatus={updateStatus}
+          dispute={selectedDispute}
+          disputeLoading={disputeLoading}
+          resolvingDispute={resolvingDispute}
+          onResolveDispute={resolveDispute}
+        />
+      )}
       {receiptOrder && <OrderReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />}
     </div>
   );

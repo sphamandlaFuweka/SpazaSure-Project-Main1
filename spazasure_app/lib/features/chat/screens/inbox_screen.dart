@@ -10,10 +10,16 @@ import 'package:spazasure_app/services/notification_service.dart';
 
 /// Chats with shops (or, for a shop owner, with customers) plus news and alerts, in two tabs.
 class InboxScreen extends StatefulWidget {
-  const InboxScreen({super.key, required this.asShop, this.initialTab = 0});
+  const InboxScreen({
+    super.key,
+    required this.asShop,
+    this.initialTab = 0,
+    this.initialChatId,
+  });
 
   final bool asShop;
   final int initialTab;
+  final String? initialChatId;
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -23,6 +29,7 @@ class _InboxScreenState extends State<InboxScreen> {
   List<ChatSummary>? _chats;
   List<AppNotification>? _alerts;
   String? _chatError;
+  bool _openedInitialChat = false;
 
   @override
   void initState() {
@@ -39,9 +46,40 @@ class _InboxScreenState extends State<InboxScreen> {
         _chats = chats;
         _chatError = null;
       });
+      if (!_openedInitialChat && widget.initialChatId != null) {
+        _openedInitialChat = true;
+        ChatSummary? initialChat;
+        for (final chat in chats) {
+          if (chat.id == widget.initialChatId) {
+            initialChat = chat;
+            break;
+          }
+        }
+        final chatToOpen = initialChat;
+        if (chatToOpen != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _openChat(chatToOpen);
+          });
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => _chatError = e.toString());
     }
+  }
+
+  Future<void> _openChat(ChatSummary chat) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatThreadScreen(
+          chatId: chat.id,
+          title: chat.title,
+          asShop: widget.asShop,
+          verified: chat.verified,
+        ),
+      ),
+    );
+    if (mounted) _loadChats();
   }
 
   Future<void> _loadAlerts() async {
@@ -223,20 +261,7 @@ class _InboxScreenState extends State<InboxScreen> {
             ),
         ],
       ),
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatThreadScreen(
-              chatId: c.id,
-              title: c.title,
-              asShop: widget.asShop,
-              verified: c.verified,
-            ),
-          ),
-        );
-        _loadChats();
-      },
+      onTap: () => _openChat(c),
     );
   }
 

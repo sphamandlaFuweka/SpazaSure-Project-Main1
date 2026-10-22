@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { CheckCircle, XCircle, Truck, MapPin, CreditCard, Package, Printer } from 'lucide-react';
+import { CheckCircle, XCircle, Truck, MapPin, CreditCard, Package, Printer, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
-import type { Order, OrderStatus } from '../../types';
+import type { DeliveryDispute, Order, OrderStatus } from '../../types';
 import { OrderStatusBadge, PaymentStatusBadge, Modal } from '../../components/ui';
 import OrderReceiptModal from './OrderReceiptModal';
 
@@ -9,6 +9,10 @@ interface Props {
   order: Order;
   onClose: () => void;
   onUpdateStatus: (id: string, status: OrderStatus) => void;
+  dispute?: DeliveryDispute | null;
+  disputeLoading?: boolean;
+  resolvingDispute?: boolean;
+  onResolveDispute?: (resolution: 'release_supplier' | 'refund_shop' | 'confirm_refund', note?: string) => void;
 }
 
 const orderSteps: { status: OrderStatus; label: string }[] = [
@@ -22,8 +26,17 @@ const orderSteps: { status: OrderStatus; label: string }[] = [
 
 const statusOrder = ['pending', 'confirmed', 'processing', 'ready', 'dispatched', 'delivered'];
 
-export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Props) {
+export default function OrderDetailModal({
+  order,
+  onClose,
+  onUpdateStatus,
+  dispute,
+  disputeLoading = false,
+  resolvingDispute = false,
+  onResolveDispute,
+}: Props) {
   const [showReceipt, setShowReceipt] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState('');
   const currentStep = statusOrder.indexOf(order.status);
   const hasDiscount = Number(order.totalDiscount ?? 0) > 0 || order.items.some((item) => Number(item.discountAmount ?? 0) > 0);
 
@@ -98,6 +111,105 @@ export default function OrderDetailModal({ order, onClose, onUpdateStatus }: Pro
             )}
           </div>
         </div>
+
+        {disputeLoading && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            Loading delivery dispute…
+          </div>
+        )}
+        {dispute && (
+          <section className="rounded-2xl border border-red-200 bg-red-50/60 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <ShieldAlert size={18} className="mt-0.5 text-red-600" />
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-extrabold text-red-900">Delivery dispute: {dispute.issueType}</h3>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold capitalize text-red-800">
+                    {dispute.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{dispute.description}</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Reported {format(new Date(dispute.createdAt), 'dd MMM yyyy, HH:mm')}
+                </p>
+                {dispute.resolutionNote && (
+                  <p className="mt-2 rounded-xl bg-white/80 p-3 text-sm text-gray-700">
+                    Admin note: {dispute.resolutionNote}
+                  </p>
+                )}
+                {dispute.refundStatus && (
+                  <p className="mt-2 text-xs font-semibold text-gray-600">
+                    Refund status: {dispute.refundStatus}
+                    {dispute.refundReference ? ` · Reference ${dispute.refundReference}` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {dispute.status === 'open' && onResolveDispute && (
+              <>
+                <label className="block text-xs font-bold text-gray-600" htmlFor="dispute-resolution-note">Resolution note</label>
+                <textarea
+                  id="dispute-resolution-note"
+                  value={resolutionNote}
+                  onChange={(event) => setResolutionNote(event.target.value)}
+                  maxLength={1000}
+                  rows={2}
+                  className="input w-full resize-y"
+                  placeholder="Add a note for the shop and supplier (optional)"
+                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    disabled={resolvingDispute}
+                    onClick={() => onResolveDispute('release_supplier', resolutionNote.trim() || undefined)}
+                    className="btn-primary flex-1 disabled:opacity-50"
+                  >
+                    Uphold delivery · release payout
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resolvingDispute}
+                    onClick={() => onResolveDispute('refund_shop', resolutionNote.trim() || undefined)}
+                    className="btn-danger flex-1 disabled:opacity-50"
+                  >
+                    Uphold shop · refund payment
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Paystack refunds are requested automatically. Cash-on-delivery cases stay open until an admin confirms the manual refund.
+                </p>
+              </>
+            )}
+
+            {(dispute.status.startsWith('refund_pending') || dispute.status === 'refund_requesting') && onResolveDispute && (
+              <div className="space-y-2">
+                <p className="text-sm text-amber-800">
+                  {dispute.status === 'refund_pending_manual'
+                    ? 'Send the cash-on-delivery refund outside SpazaSure before confirming it here.'
+                    : 'Verify the refund is complete with Paystack before confirming it here.'}
+                </p>
+                <textarea
+                  value={resolutionNote}
+                  onChange={(event) => setResolutionNote(event.target.value)}
+                  maxLength={1000}
+                  rows={2}
+                  className="input w-full resize-y"
+                  placeholder="Refund confirmation or receipt reference"
+                  aria-label="Refund confirmation note"
+                />
+                <button
+                  type="button"
+                  disabled={resolvingDispute || !resolutionNote.trim()}
+                  onClick={() => onResolveDispute('confirm_refund', resolutionNote.trim() || undefined)}
+                  className="btn-primary w-full disabled:opacity-50"
+                >
+                  Confirm refund completed
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Order Items */}
         <div>

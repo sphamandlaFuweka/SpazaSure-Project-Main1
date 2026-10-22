@@ -31,6 +31,12 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
             .Include(o => o.Supplier)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.ShopId == shop.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.Status != "delivered" || order.PaymentStatus != "paid")
+            return BadRequest(ApiResponse.Fail("You can only rate an order after it has been delivered and paid."));
+        if (req.DeliveryRating is < 1 or > 5 || req.SupplierRating is < 1 or > 5)
+            return BadRequest(ApiResponse.Fail("Ratings must be between 1 and 5."));
+        if (req.Comment?.Length > 1000)
+            return BadRequest(ApiResponse.Fail("Comments must be 1,000 characters or fewer."));
 
         // Save rating to delivery_ratings table
         await db.Database.ExecuteSqlRawAsync(@"
@@ -67,6 +73,14 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
             .Include(o => o.Supplier)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.ShopId == shop.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.Status != "delivered" || order.PaymentStatus != "paid")
+            return BadRequest(ApiResponse.Fail("You can only report an issue with a delivered and paid order."));
+        if (string.IsNullOrWhiteSpace(req.IssueType) ||
+            req.IssueType.Length > 100 ||
+            !DeliveryIssueTypes.Values.Contains(req.IssueType, StringComparer.Ordinal))
+            return BadRequest(ApiResponse.Fail("Choose a valid issue type."));
+        if (string.IsNullOrWhiteSpace(req.Description) || req.Description.Length > 1000)
+            return BadRequest(ApiResponse.Fail("Describe the issue in 1,000 characters or fewer."));
 
         // Save issue report to delivery_disputes table
         await db.Database.ExecuteSqlRawAsync(@"
@@ -89,6 +103,9 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
             referenceId: order.Id.ToString(),
             routingKey: "order.disputed"
         );
+        await AdminAlerts.NotifyAdminsAsync(db, events, "order", "Delivery dispute reported",
+            $"{shop.ShopName} reported {req.IssueType} for order {order.OrderNumber}. Review it in Admin → Orders → Disputed.",
+            order.Id.ToString(), "high");
 
         return Ok(ApiResponse.Ok("Issue reported. We will investigate and contact you."));
     }
@@ -138,7 +155,8 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
 
         var disputes = await db.Database.SqlQueryRaw<DisputeResult>(@"
             SELECT dd.id, dd.order_id, dd.issue_type, dd.description, dd.status,
-                   dd.created_at, o.order_number, s.shop_name
+                   dd.created_at, dd.resolution, dd.resolution_note, dd.resolved_at,
+                   dd.refund_reference, dd.refund_status, o.order_number, s.shop_name
             FROM delivery_disputes dd
             JOIN orders o ON dd.order_id = o.id
             JOIN spaza_shops s ON dd.shop_id = s.id
@@ -147,7 +165,7 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
 
         return Ok(ApiResponse<object>.Ok(new
         {
-            openCount = disputes.Count(d => d.Status == "open"),
+            openCount = disputes.Count(d => d.Status is not ("resolved" or "closed")),
             disputes = disputes.Select(d => new
             {
                 d.Id, d.OrderId, d.OrderNumber, d.ShopName,
@@ -160,6 +178,18 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
 // DTOs
 public record RateDeliveryRequest(int DeliveryRating, int SupplierRating, string? Comment);
 public record ReportIssueRequest(string IssueType, string Description);
+
+internal static class DeliveryIssueTypes
+{
+    public static readonly string[] Values =
+    [
+        "Damaged Items",
+        "Missing Items",
+        "Wrong Items",
+        "Late Delivery",
+        "Other"
+    ];
+}
 
 // Query result models. SqlQueryRaw maps these through the snake_case naming convention,
 // so the SQL must return snake_case column names (order_id, created_at...).
@@ -185,4 +215,9 @@ public class DisputeResult
     public string Description { get; set; } = "";
     public string Status { get; set; } = "";
     public DateTime CreatedAt { get; set; }
+    public string? Resolution { get; set; }
+    public string? ResolutionNote { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public string? RefundReference { get; set; }
+    public string? RefundStatus { get; set; }
 }

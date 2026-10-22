@@ -181,9 +181,11 @@ class OrderDetailScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Builder(
                     builder: (context) {
-                      final paid = order.paymentStatus == 'paid' ||
+                      final paid =
+                          order.paymentStatus == 'paid' ||
                           order.paymentStatus == 'released';
-                      final cod = order.paymentMethod == OrderService.cashOnDelivery;
+                      final cod =
+                          order.paymentMethod == OrderService.cashOnDelivery;
                       final label = cod
                           ? (paid
                                 ? 'Paid in cash on delivery'
@@ -191,9 +193,13 @@ class OrderDetailScreen extends StatelessWidget {
                           : order.paymentMethod == OrderService.paystack
                           ? (paid ? 'Paid with Paystack' : 'Awaiting payment')
                           : order.paymentMethod == OrderService.wallet
-                          ? (paid ? 'Paid from your SpazaSure wallet' : 'Payment pending')
+                          ? (paid
+                                ? 'Paid from your SpazaSure wallet'
+                                : 'Payment pending')
                           : (paid ? 'Payment completed' : 'Payment pending');
-                      final color = paid ? AppColors.success : AppColors.warning;
+                      final color = paid
+                          ? AppColors.success
+                          : AppColors.warning;
                       return Row(
                         children: [
                           Icon(
@@ -209,7 +215,9 @@ class OrderDetailScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               label,
-                              style: AppTextStyles.caption.copyWith(color: color),
+                              style: AppTextStyles.caption.copyWith(
+                                color: color,
+                              ),
                             ),
                           ),
                         ],
@@ -425,7 +433,9 @@ class OrderDetailScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text('Confirm Delivery', style: AppTextStyles.h3),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -554,14 +564,25 @@ class OrderDetailScreen extends StatelessWidget {
                 style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
-              ...issueTypes.map(
-                (type) => RadioListTile<String>(
-                  title: Text(type, style: AppTextStyles.bodySmall),
-                  value: type,
-                  groupValue: selectedType,
-                  onChanged: (v) => setDialogState(() => selectedType = v!),
-                  dense: true,
-                  activeColor: AppColors.primary,
+              RadioGroup<String>(
+                groupValue: selectedType,
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => selectedType = value);
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: issueTypes
+                      .map(
+                        (type) => RadioListTile<String>(
+                          title: Text(type, style: AppTextStyles.bodySmall),
+                          value: type,
+                          dense: true,
+                          fillColor: WidgetStatePropertyAll(AppColors.primary),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
               const SizedBox(height: 12),

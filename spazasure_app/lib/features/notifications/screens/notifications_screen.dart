@@ -92,6 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     'account': Icons.verified_outlined,
                     'wallet': Icons.account_balance_wallet_outlined,
                     'group_buy': Icons.groups_outlined,
+                    'chat': Icons.chat_bubble_outline_rounded,
                     'system': Icons.info_outline,
                   };
                   final colors = {
@@ -101,6 +102,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     'account': AppColors.info,
                     'wallet': AppColors.success,
                     'group_buy': AppColors.accent,
+                    'chat': AppColors.primary,
                     'system': AppColors.textSecondary,
                   };
 
@@ -211,6 +213,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
     if (notif.type == 'order' || notif.type == 'delivery') {
       NotificationService.openOrder(Navigator.of(context), notif.referenceId);
+      return;
+    }
+    if (notif.type == 'chat') {
+      Navigator.pushNamed(context, '/inbox', arguments: notif.referenceId);
       return;
     }
     final route = switch (notif.type) {

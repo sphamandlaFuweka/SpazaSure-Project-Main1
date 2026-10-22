@@ -1,7 +1,7 @@
 ﻿import axios from 'axios';
 import toast from 'react-hot-toast';
 import { emptyProductInfo } from '../types';
-import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest } from '../types';
+import type { Product, ProductFormData, ProductInfo, ProductQrCodeData, Order, OrderStatus, AnalyticsSummary, RevenueDataPoint, TopProduct, SupplierProfile, PaginatedResponse, SubscribeRequest, GroupBuy, GroupBuyFilter, SupplierGroupBuyFilter, NewGroupBuyRequest, DeliveryDispute, SupplierRating } from '../types';
 import env from '../config/env';
 import { AUTH_STORAGE_KEY } from '../config/target';
 import type { AccessLevel, AdminArea, AdminProfile } from '../utils/adminAccess';
@@ -474,6 +474,13 @@ export const ordersApi = {
     api.patch(`/supplier/orders/${id}/status`, { status, reason }).then((r) => r.data),
 };
 
+export const supplierFeedbackApi = {
+  ratings: () =>
+    api.get('/supplier/orders/ratings').then(unwrap<{ averageDeliveryRating: number; averageSupplierRating: number; totalRatings: number; ratings: SupplierRating[] }>),
+  disputes: () =>
+    api.get('/supplier/orders/disputes').then(unwrap<{ openCount: number; disputes: DeliveryDispute[] }>),
+};
+
 // Admin Orders (all platform orders)
 export const adminOrdersApi = {
   list: async (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
@@ -491,6 +498,16 @@ export const adminOrdersApi = {
     api.get(`/admin/orders/${id}`).then((r) => r.data?.data ?? r.data),
   updateStatus: (id: string, status: string, reason?: string) =>
     api.patch(`/admin/orders/${id}/status`, { status, reason }).then((r) => r.data),
+  getDispute: (id: string) =>
+    api.get(`/admin/orders/${id}/dispute`).then(unwrap<DeliveryDispute>),
+  resolveDispute: (id: string, resolution: 'release_supplier' | 'refund_shop' | 'confirm_refund', note?: string) =>
+    api.post(`/admin/orders/${id}/resolve-dispute`, { resolution, note }).then(unwrap<{
+      id: string;
+      status: string;
+      disputeStatus: string;
+      refundStatus?: string;
+      message?: string;
+    }>),
 };
 
 /** An order on SpazaSure's delivery run (ready at the supplier, or out for delivery). */

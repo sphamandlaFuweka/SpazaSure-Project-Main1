@@ -10,6 +10,7 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
     private readonly string _secretKey = config["Paystack:SecretKey"] ?? string.Empty;
     private readonly string _callbackUrl =
         config["Paystack:CallbackUrls:ShopCheckout"] ?? string.Empty;
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_secretKey);
 
     /// <summary>
     /// Asks Paystack whether a checkout was paid, for when the webhook was missed or is late.
@@ -53,6 +54,53 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
         if (paid is not { } cents || !SpazaSure.Infrastructure.Data.OrderPayments.CoversOrders(cents, orders)) return false;
         await SpazaSure.Infrastructure.Data.OrderPayments.MarkPaidAsync(db, events, orders, cancellationToken);
         return true;
+    }
+
+    public async Task<OrderPaystackRefund> RefundAsync(
+        string reference, decimal amount, string reason, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_secretKey))
+            throw new InvalidOperationException("Paystack is not configured for refunds.");
+        if (string.IsNullOrWhiteSpace(reference))
+            throw new InvalidOperationException("The paid order has no Paystack reference.");
+        if (amount <= 0m)
+            throw new InvalidOperationException("The refund amount must be greater than zero.");
+
+        var amountInMinorUnits = decimal.ToInt64(
+            decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero));
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.paystack.co/refund")
+        {
+            Content = JsonContent.Create(new
+            {
+                transaction = reference,
+                amount = amountInMinorUnits,
+                currency = "ZAR",
+                customer_note = reason,
+                merchant_note = reason
+            })
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.True ||
+            !root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
+        {
+            var message = root.TryGetProperty("message", out var apiMessage)
+                ? apiMessage.GetString()
+                : null;
+            throw new InvalidOperationException(
+                $"Paystack could not start the refund: {message ?? "unknown API response"}");
+        }
+
+        var refundId = data.TryGetProperty("id", out var id) ? id.ToString() : null;
+        var refundStatus = data.TryGetProperty("status", out var refundState) ? refundState.GetString() : null;
+        if (string.IsNullOrWhiteSpace(refundId) || string.IsNullOrWhiteSpace(refundStatus))
+            throw new InvalidOperationException("Paystack returned an incomplete refund response.");
+
+        return new OrderPaystackRefund(refundId, refundStatus);
     }
 
     public async Task<OrderPaystackCheckout> CreateCheckoutAsync(
@@ -122,3 +170,4 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
 }
 
 public sealed record OrderPaystackCheckout(string AuthorizationUrl, string Reference, string SplitCode);
+public sealed record OrderPaystackRefund(string Id, string Status);

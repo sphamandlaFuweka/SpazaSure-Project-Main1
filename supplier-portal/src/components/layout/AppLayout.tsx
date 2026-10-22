@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
   products: 'Products',
   orders: 'Orders',
+  feedback: 'Ratings & Disputes',
   analytics: 'Analytics',
   notifications: 'Notifications',
   profile: 'Profile & Documents',

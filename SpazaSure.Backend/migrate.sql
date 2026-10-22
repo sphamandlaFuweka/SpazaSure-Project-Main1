@@ -1731,6 +1731,11 @@ CREATE TABLE IF NOT EXISTS delivery_disputes (
     CONSTRAINT "FK_delivery_disputes_spaza_shops_shop_id" FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE,
     CONSTRAINT "FK_delivery_disputes_suppliers_supplier_id" FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
 );
+ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS resolution text;
+ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS resolution_note text;
+ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS resolved_at timestamp with time zone;
+ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS refund_reference text;
+ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS refund_status text;
 CREATE INDEX IF NOT EXISTS ix_delivery_disputes_supplier_id ON delivery_disputes(supplier_id, created_at);
 
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,

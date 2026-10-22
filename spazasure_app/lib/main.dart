@@ -56,7 +56,9 @@ void main() {
       final messenger = ScaffoldMessenger.maybeOf(nav.context);
       nav.pushNamedAndRemoveUntil('/login', (_) => false);
       messenger?.showSnackBar(
-        const SnackBar(content: Text('Your session has ended. Please sign in again.')),
+        const SnackBar(
+          content: Text('Your session has ended. Please sign in again.'),
+        ),
       );
     } finally {
       expiring = false;
@@ -124,10 +126,22 @@ class SpazaSureApp extends StatelessWidget {
               // Wait for the saved session so customers don't get the shop's inbox
               final auth = ctx.watch<AuthProvider>();
               if (!auth.initialized) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               }
               final asShop = auth.session?.role != 'customer';
-              return InboxScreen(key: ValueKey(asShop), asShop: asShop);
+              final arguments = settings.arguments;
+              final chatId = arguments is String
+                  ? arguments
+                  : arguments is Map
+                  ? arguments['chatId']?.toString()
+                  : null;
+              return InboxScreen(
+                key: ValueKey(asShop),
+                asShop: asShop,
+                initialChatId: chatId,
+              );
             },
           ),
         };

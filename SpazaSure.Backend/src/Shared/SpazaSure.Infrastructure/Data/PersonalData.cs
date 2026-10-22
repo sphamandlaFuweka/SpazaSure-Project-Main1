@@ -54,7 +54,7 @@ public static class PersonalData
         shop.Address, shop.City, shop.Province, shop.PostalCode, shop.Latitude, shop.Longitude,
         registrationDetails = shop.RegistrationDetails, shop.Status, shopNumber = shop.ShopCode,
         identityCheck = new { status = shop.IdentityCheckStatus, updatedAt = shop.IdentityCheckUpdatedAt },
-        documents = Documents(shop.Documents.Select(d => (d.DocType, d.Status, d.DocUrl, d.ExpiryDate, d.RejectionNote, d.CreatedAt))),
+        documents = Documents(shop.Documents.Select(d => (d.DocType, d.Status, (string?)d.DocUrl, d.ExpiryDate, d.RejectionNote, d.CreatedAt))),
         orders = await db.Orders.AsNoTracking().Where(o => o.ShopId == shop.Id).OrderByDescending(o => o.CreatedAt)
             .Select(o => new { o.OrderNumber, o.CreatedAt, o.Status, o.TotalAmount, o.PaymentStatus, o.DeliveryAddress })
             .ToListAsync(ct),
@@ -70,7 +70,7 @@ public static class PersonalData
         supplier.Phone, supplier.Email, supplier.Address, supplier.City, supplier.Province, supplier.PostalCode,
         supplier.BankName, supplier.BankAccount, supplier.BankBranchCode, supplier.Status, supplier.Tier,
         businessCheck = new { status = supplier.IdentityCheckStatus, updatedAt = supplier.IdentityCheckUpdatedAt },
-        documents = Documents(supplier.Documents.Select(d => (d.DocType, d.Status, d.DocUrl, d.ExpiryDate, d.RejectionNote, d.CreatedAt))),
+        documents = Documents(supplier.Documents.Select(d => (d.DocType, d.Status, (string?)d.DocUrl, d.ExpiryDate, d.RejectionNote, d.CreatedAt))),
         subscriptions = await db.SupplierSubscriptions.AsNoTracking().Where(s => s.SupplierId == supplier.Id)
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new { s.CreatedAt, s.Status, s.BillingCycle, s.AmountPaid, s.StartDate, s.EndDate })
@@ -102,7 +102,7 @@ public static class PersonalData
     };
 
     private static IEnumerable<object> Documents(
-        IEnumerable<(string Type, string Status, string Url, DateOnly? Expiry, string? RejectionNote, DateTime Uploaded)> docs) =>
+        IEnumerable<(string Type, string Status, string? Url, DateOnly? Expiry, string? RejectionNote, DateTime Uploaded)> docs) =>
         docs.Select(d => new { type = d.Type, status = d.Status, link = PrivateFiles.Link(d.Url), expiry = d.Expiry, rejectionNote = d.RejectionNote, uploaded = d.Uploaded });
 
     /// <summary>
