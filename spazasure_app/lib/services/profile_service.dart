@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'api_service.dart';
 
 class ShopProfile {
@@ -71,9 +73,15 @@ class ShopProfile {
 }
 
 class ProfileService {
+  /// The shop's profile picture, kept up to date by [getProfile] so every screen showing
+  /// the avatar (home, profile) changes as soon as a new picture is uploaded.
+  static final photoUrl = ValueNotifier<String?>(null);
+
   static Future<ShopProfile> getProfile() async {
     final res = await ApiService.get('/shop/profile');
-    return ShopProfile.fromJson(res['data'] as Map<String, dynamic>);
+    final profile = ShopProfile.fromJson(res['data'] as Map<String, dynamic>);
+    photoUrl.value = profile.profilePhotoUrl;
+    return profile;
   }
 
   static Future<void> updateProfile(Map<String, dynamic> updates) async {

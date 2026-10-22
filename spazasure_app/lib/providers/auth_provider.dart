@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/profile_service.dart';
 import '../services/api_service.dart';
 import '../services/push_service.dart';
 
@@ -163,6 +164,7 @@ class AuthProvider extends ChangeNotifier {
     if (_session == null) return;
     await AuthService.logout();
     _session = null;
+    ProfileService.photoUrl.value = null;
     notifyListeners();
   }
 
@@ -171,6 +173,7 @@ class AuthProvider extends ChangeNotifier {
     await PushService.unregister();
     await AuthService.logout();
     _session = null;
+    ProfileService.photoUrl.value = null;
     notifyListeners();
   }
 }
