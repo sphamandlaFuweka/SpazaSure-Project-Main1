@@ -5,6 +5,9 @@ $base = $PSScriptRoot
 
 Write-Host "Starting SpazaSure Backend Services..." -ForegroundColor Cyan
 
+# Local development database (no-op if it was never set up on this machine)
+& (Join-Path $base "Start-LocalDb.ps1")
+
 # Kill any old instances first
 Get-Process | Where-Object { $_.Name -like "*dotnet*" } | ForEach-Object {
     $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine

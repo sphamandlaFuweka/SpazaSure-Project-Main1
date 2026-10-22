@@ -3,7 +3,6 @@
 # =============================================
 
 # Exclude folders NOT part of this repo
-consumer_app/
 Script database/
 docs/
 .sixth/
