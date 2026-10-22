@@ -89,6 +89,11 @@ class ProfileService {
     return data['checkoutUrl']?.toString();
   }
 
+  static Future<ShopReviews> getReviews() async {
+    final res = await ApiService.get('/shop/profile/reviews');
+    return ShopReviews.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
   static Future<OnboardingPaymentStatus> getOnboardingPaymentStatus() async {
     final response = await ApiService.get('/shop/profile/onboarding-fee');
     return OnboardingPaymentStatus.fromJson(
@@ -114,4 +119,58 @@ class OnboardingPaymentStatus {
         amount: (json['amount'] as num?)?.toDouble() ?? 0,
         paymentReference: json['paymentReference']?.toString(),
       );
+}
+
+/// What customers said about the shop. Reviewers are anonymous.
+class ShopReviews {
+  final double average;
+  final int count;
+
+  /// Number of reviews per star rating, keyed 1 to 5.
+  final Map<int, int> breakdown;
+  final List<ShopReview> reviews;
+
+  const ShopReviews({
+    required this.average,
+    required this.count,
+    required this.breakdown,
+    required this.reviews,
+  });
+
+  factory ShopReviews.fromJson(Map<String, dynamic> json) => ShopReviews(
+    average: (json['average'] as num?)?.toDouble() ?? 0,
+    count: (json['count'] as num?)?.toInt() ?? 0,
+    breakdown: {
+      for (final row in (json['breakdown'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>())
+        (row['stars'] as num?)?.toInt() ?? 0: (row['count'] as num?)?.toInt() ?? 0,
+    },
+    reviews: (json['reviews'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopReview.fromJson)
+        .toList(),
+  );
+}
+
+class ShopReview {
+  final String id;
+  final int rating;
+  final String? comment;
+  final DateTime? date;
+
+  const ShopReview({
+    required this.id,
+    required this.rating,
+    this.comment,
+    this.date,
+  });
+
+  factory ShopReview.fromJson(Map<String, dynamic> json) => ShopReview(
+    id: json['id']?.toString() ?? '',
+    rating: (json['rating'] as num?)?.toInt() ?? 0,
+    comment: json['comment']?.toString(),
+    date: DateTime.tryParse(
+      (json['updatedAt'] ?? json['createdAt'])?.toString() ?? '',
+    )?.toLocal(),
+  );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/widgets/notification_detail_sheet.dart';
 import 'package:spazasure_app/core/widgets/notification_popup_host.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/notification_service.dart';
@@ -85,26 +86,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 itemCount: _notifications.length,
                 itemBuilder: (context, index) {
                   final notif = _notifications[index];
-                  final icons = {
-                    'order': Icons.receipt_long,
-                    'delivery': Icons.local_shipping,
-                    'compliance': Icons.verified_user,
-                    'account': Icons.verified_outlined,
-                    'wallet': Icons.account_balance_wallet_outlined,
-                    'group_buy': Icons.groups_outlined,
-                    'chat': Icons.chat_bubble_outline_rounded,
-                    'system': Icons.info_outline,
-                  };
-                  final colors = {
-                    'order': AppColors.info,
-                    'delivery': AppColors.accent,
-                    'compliance': AppColors.warning,
-                    'account': AppColors.info,
-                    'wallet': AppColors.success,
-                    'group_buy': AppColors.accent,
-                    'chat': AppColors.primary,
-                    'system': AppColors.textSecondary,
-                  };
+                  const icons = notificationIcons;
+                  const colors = notificationColors;
 
                   return GestureDetector(
                     onTap: () => _open(notif),
@@ -187,7 +170,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  /// Marks the notification read and opens the screen it is about
+  /// Marks the notification read and shows it in full, with a button to what it is about
   void _open(AppNotification notif) {
     if (!notif.isRead) {
       NotificationService.markAsRead(notif.id);
@@ -211,20 +194,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .where((n) => !n.isRead)
           .length;
     }
-    if (notif.type == 'order' || notif.type == 'delivery') {
-      NotificationService.openOrder(Navigator.of(context), notif.referenceId);
-      return;
-    }
-    if (notif.type == 'chat') {
-      Navigator.pushNamed(context, '/inbox', arguments: notif.referenceId);
-      return;
-    }
-    final route = switch (notif.type) {
-      'wallet' => '/wallet',
-      'group_buy' => '/group-buy',
-      _ => null,
-    };
-    if (route != null) Navigator.pushNamed(context, route);
+    showNotificationDetail(context, notif);
   }
 
   String _timeAgo(DateTime date) {

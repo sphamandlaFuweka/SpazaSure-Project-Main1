@@ -20,6 +20,51 @@ class NotificationService {
     navigator.pushNamed('/orders');
   }
 
+  /// Screens notifications without an order or chat open, by type.
+  static const _routes = {
+    'wallet': '/wallet',
+    'group_buy': '/group-buy',
+    'compliance': '/compliance',
+  };
+
+  /// Whether a notification of this type has a screen to open.
+  static bool canOpen(String type) =>
+      type == 'order' ||
+      type == 'delivery' ||
+      type == 'chat' ||
+      _routes.containsKey(type);
+
+  /// Button text for the screen a notification opens, e.g. "View order".
+  static String actionLabel(String type) => switch (type) {
+    'order' => 'View order',
+    'delivery' => 'Track delivery',
+    'chat' => 'Open chat',
+    'wallet' => 'Open wallet',
+    'group_buy' => 'View group buy',
+    'compliance' => 'Open my documents',
+    _ => 'Open',
+  };
+
+  /// Opens the screen a notification is about. Returns false when it has none.
+  static Future<bool> openTarget(
+    NavigatorState navigator,
+    String type,
+    String? referenceId,
+  ) async {
+    if (type == 'order' || type == 'delivery') {
+      await openOrder(navigator, referenceId);
+      return true;
+    }
+    if (type == 'chat') {
+      navigator.pushNamed('/inbox', arguments: referenceId);
+      return true;
+    }
+    final route = _routes[type];
+    if (route == null) return false;
+    navigator.pushNamed(route);
+    return true;
+  }
+
   /// Fetch notifications for the logged-in user (shop owner or supplier).
   static Future<List<AppNotification>> getNotifications({
     int page = 1,

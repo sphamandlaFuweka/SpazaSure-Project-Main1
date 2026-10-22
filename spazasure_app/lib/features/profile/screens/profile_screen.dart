@@ -291,8 +291,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _statCard(
             '⭐',
             ratingAvg > 0 ? ratingAvg.toStringAsFixed(1) : 'New',
-            '$ratingCount reviews',
+            ratingCount == 1 ? '1 review' : '$ratingCount reviews',
             const Color(0xFFFFA726),
+            () => _showReviews(context),
           ),
           const SizedBox(width: 10),
           _statCard(
@@ -300,6 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _complianceLabel(complianceStatus),
             'Compliance',
             _complianceColor(complianceStatus),
+            _openCompliance,
           ),
           const SizedBox(width: 10),
           _statCard(
@@ -307,45 +309,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onboardingFeePaid ? 'Paid' : 'Due',
             'Onboarding',
             onboardingFeePaid ? AppColors.success : AppColors.error,
+            () {
+              if (onboardingFeePaid || _startingPayment) {
+                _showVerificationStatus(context);
+              } else {
+                _payOnboardingFee();
+              }
+            },
           ),
         ],
       ),
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05, end: 0);
   }
 
-  Widget _statCard(String emoji, String value, String label, Color color) {
+  Widget _statCard(
+    String emoji,
+    String value,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+          child: Ink(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 22)),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
+            child: Column(
+              children: [
+                Text(emoji, style: const TextStyle(fontSize: 22)),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(fontSize: 10),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(label, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Documents decide the compliance status, so refresh it when the owner comes back.
+  Future<void> _openCompliance() async {
+    await Navigator.pushNamed(context, '/compliance');
+    if (mounted) _loadProfile();
   }
 
   Widget _buildAccountSection(
@@ -415,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'My Documents',
         'Upload & manage docs',
         const Color(0xFFFF9800),
-        () => Navigator.pushNamed(context, '/compliance'),
+        _openCompliance,
       ),
       _menuTile(
         Icons.verified_user_rounded,
@@ -428,10 +459,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onboardingFeePaid ? Icons.check_circle : Icons.payments_outlined,
         onboardingFeePaid ? 'Onboarding Fee Paid' : 'Pay Onboarding Fee',
         onboardingFeePaid
-            ? 'Payment confirmed'
+            ? 'Payment confirmed — tap to view status'
+            : _startingPayment
+            ? 'Starting payment... — tap to view status'
             : 'R${onboardingFeeAmount.toStringAsFixed(2)} once-off',
         onboardingFeePaid ? AppColors.success : AppColors.error,
-        onboardingFeePaid || _startingPayment ? () {} : _payOnboardingFee,
+        () {
+          if (onboardingFeePaid || _startingPayment) {
+            _showVerificationStatus(context);
+          } else {
+            _payOnboardingFee();
+          }
+        },
       ),
       _menuTile(
         Icons.qr_code_scanner_rounded,
@@ -950,6 +989,202 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  // ── Reviews ──
+  void _showReviews(BuildContext context) {
+    final future = ProfileService.getReviews();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.92,
+        builder: (ctx, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: FutureBuilder<ShopReviews>(
+            future: future,
+            builder: (ctx, snap) {
+              final children = <Widget>[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('Customer reviews', style: AppTextStyles.h3),
+                const SizedBox(height: 16),
+              ];
+              final data = snap.data;
+              if (snap.connectionState != ConnectionState.done) {
+                children.add(
+                  const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                );
+              } else if (snap.hasError || data == null) {
+                children.add(
+                  Text(
+                    'Could not load your reviews. Check your connection and try again.',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                );
+              } else {
+                children
+                  ..add(_reviewSummary(data))
+                  ..add(const SizedBox(height: 20));
+                if (data.reviews.isEmpty) {
+                  children.add(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(
+                        'No reviews yet. Customers can rate your shop in the SpazaSure customer app.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ),
+                  );
+                } else {
+                  children.addAll(data.reviews.map(_reviewTile));
+                }
+              }
+              return ListView(
+                controller: controller,
+                padding: const EdgeInsets.all(24),
+                children: children,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _reviewSummary(ShopReviews data) {
+    final maxCount = data.breakdown.values.fold<int>(
+      0,
+      (a, b) => b > a ? b : a,
+    );
+    return Row(
+      children: [
+        Column(
+          children: [
+            Text(
+              data.count == 0 ? '-' : data.average.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800),
+            ),
+            _stars(data.average.round()),
+            const SizedBox(height: 4),
+            Text(
+              data.count == 1 ? '1 review' : '${data.count} reviews',
+              style: AppTextStyles.caption,
+            ),
+          ],
+        ),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            children: [
+              for (var stars = 5; stars >= 1; stars--)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        child: Text('$stars', style: AppTextStyles.caption),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: maxCount == 0
+                                ? 0
+                                : (data.breakdown[stars] ?? 0) / maxCount,
+                            minHeight: 6,
+                            backgroundColor: AppColors.divider,
+                            color: const Color(0xFFFFA726),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${data.breakdown[stars] ?? 0}',
+                          textAlign: TextAlign.right,
+                          style: AppTextStyles.caption,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _reviewTile(ShopReview review) {
+    final date = review.date;
+    final comment = review.comment?.trim() ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FF),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _stars(review.rating),
+              const Spacer(),
+              if (date != null)
+                Text(
+                  '${date.day.toString().padLeft(2, '0')}/'
+                  '${date.month.toString().padLeft(2, '0')}/${date.year}',
+                  style: AppTextStyles.caption,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            comment.isEmpty ? 'No comment left.' : comment,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: comment.isEmpty ? AppColors.textHint : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stars(int rating) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (var i = 1; i <= 5; i++)
+        Icon(
+          i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
+          size: 16,
+          color: const Color(0xFFFFA726),
+        ),
+    ],
+  );
 
   // ── Verification Status ──
   Future<void> _payOnboardingFee() async {

@@ -162,23 +162,17 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
     _navigateFor(n.type, n.referenceId);
   }
 
-  void _navigateFor(String type, String? referenceId) {
+  /// Opens what the notification is about; ones without a screen (account, system)
+  /// open the notifications list, where the full message can be read.
+  Future<void> _navigateFor(String type, String? referenceId) async {
     final navigator = widget.navigatorKey.currentState;
     if (navigator == null) return;
-    if (type == 'order' || type == 'delivery') {
-      NotificationService.openOrder(navigator, referenceId);
-      return;
-    }
-    if (type == 'chat') {
-      navigator.pushNamed('/inbox', arguments: referenceId);
-      return;
-    }
-    final route = switch (type) {
-      'wallet' => '/wallet',
-      'group_buy' => '/group-buy',
-      _ => '/inbox',
-    };
-    navigator.pushNamed(route);
+    final opened = await NotificationService.openTarget(
+      navigator,
+      type,
+      referenceId,
+    );
+    if (!opened) navigator.pushNamed('/notifications');
   }
 
   /// The user tapped a phone notification

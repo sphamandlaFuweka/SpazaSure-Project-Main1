@@ -245,6 +245,31 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
 
         return Ok(ApiResponse<object>.Ok(docs));
     }
+
+    /// <summary>What customers said about the owner's shop. Reviewers stay anonymous, as on the customer side.</summary>
+    [HttpGet("reviews")]
+    public async Task<IActionResult> GetReviews()
+    {
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop profile not found."));
+
+        var reviews = await db.ShopReviews.AsNoTracking()
+            .Where(r => r.ShopId == shop.Id)
+            .OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt)
+            .Select(r => new { r.Id, r.Rating, r.Comment, r.CreatedAt, r.UpdatedAt })
+            .ToListAsync();
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            Average = reviews.Count == 0 ? 0m : Math.Round((decimal)reviews.Average(r => r.Rating), 2),
+            reviews.Count,
+            // Count per star, 5 down to 1
+            Breakdown = Enumerable.Range(1, 5).Reverse()
+                .Select(stars => new { Stars = stars, Count = reviews.Count(r => r.Rating == stars) })
+                .ToList(),
+            Reviews = reviews,
+        }));
+    }
 }
 
 public record UpdateShopProfileRequest(
