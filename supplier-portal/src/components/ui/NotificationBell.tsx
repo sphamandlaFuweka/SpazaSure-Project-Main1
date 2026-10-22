@@ -19,6 +19,7 @@ interface Notification {
   createdAt: string;
   read: boolean;
   priority?: 'high' | 'normal';
+  referenceId?: string;
 }
 
 export default function NotificationBell({ variant = 'supplier' }: { variant?: 'supplier' | 'admin' }) {
@@ -33,7 +34,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
   const open_ = useCallback((n: Notification) => {
     notificationsApi.markRead(n.id).catch(() => {});
     setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x));
-    const route = notificationRoute(n.type, variant);
+    const route = notificationRoute(n.type, variant, n.referenceId);
     if (route) navigate(route);
   }, [navigate, variant]);
 
@@ -81,6 +82,7 @@ export default function NotificationBell({ variant = 'supplier' }: { variant?: '
           createdAt: n.createdAt ?? new Date().toISOString(),
           read: n.isRead ?? n.read ?? false,
           priority: n.priority ?? 'normal',
+          referenceId: n.referenceId ?? undefined,
         }));
         if (seen.current) {
           const fresh = mapped.filter((n) => !n.read && !seen.current!.has(n.id));

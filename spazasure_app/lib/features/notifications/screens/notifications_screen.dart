@@ -200,6 +200,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     type: n.type,
                     createdAt: n.createdAt,
                     isRead: true,
+                    referenceId: n.referenceId,
                   )
                 : n,
         ];
@@ -208,8 +209,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .where((n) => !n.isRead)
           .length;
     }
+    if (notif.type == 'order' || notif.type == 'delivery') {
+      NotificationService.openOrder(Navigator.of(context), notif.referenceId);
+      return;
+    }
     final route = switch (notif.type) {
-      'order' || 'delivery' => '/orders',
       'wallet' => '/wallet',
       'group_buy' => '/group-buy',
       _ => null,

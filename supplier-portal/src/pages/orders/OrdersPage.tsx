@@ -108,12 +108,6 @@ export default function OrdersPage() {
         const raw = response?.data?.items ?? response?.data ?? response?.items ?? [];
         const mapped = (Array.isArray(raw) ? raw : []).map(mapOrder);
         setOrders(mapped);
-        // Deep link from the dashboard / notifications: /orders?order=<id>
-        const linkedId = searchParams.get('order');
-        if (linkedId) {
-          const linked = mapped.find((o) => o.id === linkedId || o.orderNumber === linkedId);
-          if (linked) setSelected(linked);
-        }
       } else {
         setLoadError(true);
       }
@@ -127,11 +121,18 @@ export default function OrdersPage() {
         setIsCompliant(missing.length === 0);
       }
     }).finally(() => setLoading(false));
-    // searchParams is only read for the initial deep link
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  // Deep link from the dashboard / notifications: /orders?order=<id>. Also reacts when a
+  // notification is opened while this page is already showing.
+  const linkedId = searchParams.get('order');
+  useEffect(() => {
+    if (!linkedId) return;
+    const linked = orders.find((o) => o.id === linkedId || o.orderNumber === linkedId);
+    if (linked) setSelected(linked);
+  }, [linkedId, orders]);
 
   const closeDetail = () => {
     setSelected(null);

@@ -46,7 +46,7 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
   Timer? _hideTimer;
 
   /// A push tapped before the user was signed in (app cold start)
-  String? _pendingPushType;
+  Map<String, dynamic>? _pendingPush;
 
   @override
   void initState() {
@@ -66,13 +66,16 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
       if (loggedIn) {
         _start();
         PushService.register();
-        final pending = _pendingPushType;
+        final pending = _pendingPush;
         if (pending != null) {
-          _pendingPushType = null;
+          _pendingPush = null;
           // Let the splash screen finish routing to home first
           Future.delayed(
             const Duration(seconds: 2),
-            () => _navigateFor(pending),
+            () => _navigateFor(
+              pending['type']?.toString() ?? 'system',
+              pending['referenceId']?.toString(),
+            ),
           );
         }
       } else {
@@ -156,29 +159,34 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
     if (NotificationPopupHost.unreadCount.value > 0) {
       NotificationPopupHost.unreadCount.value--;
     }
-    _navigateFor(n.type);
+    _navigateFor(n.type, n.referenceId);
   }
 
-  void _navigateFor(String type) {
+  void _navigateFor(String type, String? referenceId) {
+    final navigator = widget.navigatorKey.currentState;
+    if (navigator == null) return;
+    if (type == 'order' || type == 'delivery') {
+      NotificationService.openOrder(navigator, referenceId);
+      return;
+    }
     final route = switch (type) {
-      'order' || 'delivery' => '/orders',
       'wallet' => '/wallet',
       'group_buy' => '/group-buy',
       'chat' => '/inbox',
       _ => '/inbox',
     };
-    widget.navigatorKey.currentState?.pushNamed(route);
+    navigator.pushNamed(route);
   }
 
   /// The user tapped a phone notification
   void _openFromPush(Map<String, dynamic> data) {
     final type = data['type']?.toString() ?? 'system';
     if (!_loggedIn) {
-      _pendingPushType = type; // opened once the session has loaded
+      _pendingPush = data; // opened once the session has loaded
       return;
     }
     _check();
-    _navigateFor(type);
+    _navigateFor(type, data['referenceId']?.toString());
   }
 
   @override

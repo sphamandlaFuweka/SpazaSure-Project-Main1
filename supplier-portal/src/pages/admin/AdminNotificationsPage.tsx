@@ -17,6 +17,7 @@ interface AdminNotification {
   createdAt: string;
   read: boolean;
   priority: 'high' | 'normal';
+  referenceId?: string;
 }
 
 const typeConfig: Record<NotifType, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
@@ -56,6 +57,7 @@ export default function AdminNotificationsPage() {
         createdAt: n.createdAt ?? new Date().toISOString(),
         read: n.isRead ?? n.read ?? false,
         priority: n.priority === 'high' ? 'high' : 'normal',
+        referenceId: n.referenceId ?? undefined,
       })));
     } catch {
       setNotifications([]);
@@ -89,7 +91,7 @@ export default function AdminNotificationsPage() {
 
   const open = (n: AdminNotification) => {
     if (!n.read) markRead(n.id);
-    const target = notificationRoute(n.type, 'admin');
+    const target = notificationRoute(n.type, 'admin', n.referenceId);
     if (target) navigate(target);
   };
 

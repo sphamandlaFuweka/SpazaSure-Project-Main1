@@ -255,6 +255,9 @@ class AppNotification {
   final DateTime createdAt;
   final String? actionRoute;
 
+  /// Id of what the notification is about (the order id for order and delivery notifications)
+  final String? referenceId;
+
   const AppNotification({
     required this.id,
     required this.title,
@@ -263,5 +266,6 @@ class AppNotification {
     this.isRead = false,
     required this.createdAt,
     this.actionRoute,
+    this.referenceId,
   });
 }

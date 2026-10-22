@@ -17,6 +17,7 @@ interface Notification {
   createdAt: string;
   isRead: boolean;
   priority?: 'high' | 'normal';
+  referenceId?: string;
 }
 
 const typeConfig: Record<NotifType, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -66,6 +67,7 @@ export default function NotificationsPage() {
         createdAt: n.createdAt ?? new Date().toISOString(),
         isRead: n.isRead ?? false,
         priority: n.priority ?? 'normal',
+        referenceId: n.referenceId ?? undefined,
       })));
     } catch {
       setNotifications([]);
@@ -99,7 +101,7 @@ export default function NotificationsPage() {
 
   const open = (n: Notification) => {
     if (!n.isRead) void markRead(n.id);
-    const target = notificationRoute(n.type, 'supplier');
+    const target = notificationRoute(n.type, 'supplier', n.referenceId);
     if (target) navigate(target);
   };
 

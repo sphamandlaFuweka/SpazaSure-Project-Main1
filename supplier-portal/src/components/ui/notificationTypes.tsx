@@ -27,6 +27,13 @@ const ADMIN_ROUTES: Record<string, string> = {
   wallet: '/admin/deposits', account: '/admin/suppliers', supplier: '/admin/suppliers', report: '/admin/reports', group_buy: '/admin/group-buys',
 };
 
-/** Page a notification opens, or undefined if it has none. */
-export const notificationRoute = (type: string | undefined, variant: 'supplier' | 'admin') =>
-  (IS_ADMIN_APP && variant === 'admin' ? ADMIN_ROUTES : SUPPLIER_ROUTES)[type ?? ''];
+/**
+ * Page a notification opens, or undefined if it has none. Order notifications carry the order id
+ * as referenceId; the orders pages open that order straight away (/orders?order=<id>).
+ */
+export const notificationRoute = (type: string | undefined, variant: 'supplier' | 'admin', referenceId?: string | null) => {
+  const route = (IS_ADMIN_APP && variant === 'admin' ? ADMIN_ROUTES : SUPPLIER_ROUTES)[type ?? ''];
+  if (route && referenceId && (type === 'order' || type === 'delivery'))
+    return `${route}?order=${encodeURIComponent(referenceId)}`;
+  return route;
+};

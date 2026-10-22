@@ -1,7 +1,25 @@
+import 'package:flutter/widgets.dart';
+
 import 'api_service.dart';
+import 'order_service.dart';
 import '../models/models.dart';
 
 class NotificationService {
+  /// Opens the order an order or delivery notification is about. Falls back to the
+  /// orders list when there is no order id or the order can't be loaded.
+  static Future<void> openOrder(NavigatorState navigator, String? orderId) async {
+    if (orderId != null && orderId.isNotEmpty) {
+      try {
+        final order = await OrderService.getOrder(orderId);
+        navigator.pushNamed('/order-detail', arguments: order);
+        return;
+      } catch (_) {
+        // Deleted, or not this shop's order: show the list instead
+      }
+    }
+    navigator.pushNamed('/orders');
+  }
+
   /// Fetch notifications for the logged-in user (shop owner or supplier).
   static Future<List<AppNotification>> getNotifications({
     int page = 1,
@@ -23,6 +41,7 @@ class NotificationService {
                 createdAt:
                     DateTime.tryParse(n['createdAt'] ?? '') ?? DateTime.now(),
                 isRead: n['isRead'] ?? false,
+                referenceId: n['referenceId']?.toString(),
               ),
             )
             .toList();

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Eye, CheckCircle, XCircle, Truck, ShoppingCart, Clock, DollarSign, Loader2, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -45,6 +46,27 @@ export default function AdminOrdersPage() {
   }, [statusFilter, search]);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  // Deep link from notifications: /admin/orders?order=<id>. Fetched on its own, since the
+  // order may not be in the current tab or first page of the list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedOrderId = searchParams.get('order');
+  useEffect(() => {
+    if (!linkedOrderId) return;
+    adminOrdersApi.get(linkedOrderId)
+      .then((o) => { if (o) setSelected(mapToOrder(o)); })
+      .catch(() => toast.error('That order could not be found'));
+    // mapToOrder is a plain mapping recreated each render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedOrderId]);
+
+  const closeDetail = () => {
+    setSelected(null);
+    if (searchParams.has('order')) {
+      searchParams.delete('order');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const filtered = orders;
 
@@ -258,7 +280,7 @@ export default function AdminOrdersPage() {
         )}
       </div>
 
-      {selected && <OrderDetailModal order={selected} onClose={() => setSelected(null)} onUpdateStatus={updateStatus} />}
+      {selected && <OrderDetailModal order={selected} onClose={closeDetail} onUpdateStatus={updateStatus} />}
       {receiptOrder && <OrderReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />}
     </div>
   );
