@@ -10,7 +10,9 @@ namespace SpazaSure.OrderService.Controllers;
 
 [ApiController]
 [Route("api/shop/orders")]
-[Authorize(Roles = "spaza_owner")]
+// Not a class-level role: the supplier endpoints below live here too, and a class-level
+// Roles = "spaza_owner" would apply on top of their own [Authorize] and lock suppliers out.
+[Authorize]
 public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -19,6 +21,7 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Submit a delivery rating for an order
     /// </summary>
     [HttpPost("{orderId:guid}/rate")]
+    [Authorize(Roles = "spaza_owner")]
     public async Task<IActionResult> RateDelivery(Guid orderId, [FromBody] RateDeliveryRequest req)
     {
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
@@ -54,6 +57,7 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Report an issue with a delivery
     /// </summary>
     [HttpPost("{orderId:guid}/report-issue")]
+    [Authorize(Roles = "spaza_owner")]
     public async Task<IActionResult> ReportIssue(Guid orderId, [FromBody] ReportIssueRequest req)
     {
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
@@ -93,17 +97,14 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Get ratings for supplier's orders (supplier-facing)
     /// </summary>
     [HttpGet("/api/supplier/orders/ratings")]
-    [Authorize]
     public async Task<IActionResult> GetRatings()
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
         var ratings = await db.Database.SqlQueryRaw<RatingResult>(@"
-            SELECT dr.id, dr.order_id as ""OrderId"", dr.delivery_rating as ""DeliveryRating"",
-                   dr.supplier_rating as ""SupplierRating"", dr.comment as ""Comment"",
-                   dr.created_at as ""CreatedAt"", o.order_number as ""OrderNumber"",
-                   s.shop_name as ""ShopName""
+            SELECT dr.id, dr.order_id, dr.delivery_rating, dr.supplier_rating, dr.comment,
+                   dr.created_at, o.order_number, s.shop_name
             FROM delivery_ratings dr
             JOIN orders o ON dr.order_id = o.id
             JOIN spaza_shops s ON dr.shop_id = s.id
@@ -130,17 +131,14 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Get delivery disputes (supplier-facing)
     /// </summary>
     [HttpGet("/api/supplier/orders/disputes")]
-    [Authorize]
     public async Task<IActionResult> GetDisputes()
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
         var disputes = await db.Database.SqlQueryRaw<DisputeResult>(@"
-            SELECT dd.id, dd.order_id as ""OrderId"", dd.issue_type as ""IssueType"",
-                   dd.description as ""Description"", dd.status as ""Status"",
-                   dd.created_at as ""CreatedAt"", o.order_number as ""OrderNumber"",
-                   s.shop_name as ""ShopName""
+            SELECT dd.id, dd.order_id, dd.issue_type, dd.description, dd.status,
+                   dd.created_at, o.order_number, s.shop_name
             FROM delivery_disputes dd
             JOIN orders o ON dd.order_id = o.id
             JOIN spaza_shops s ON dd.shop_id = s.id
@@ -163,7 +161,8 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
 public record RateDeliveryRequest(int DeliveryRating, int SupplierRating, string? Comment);
 public record ReportIssueRequest(string IssueType, string Description);
 
-// Query result models
+// Query result models. SqlQueryRaw maps these through the snake_case naming convention,
+// so the SQL must return snake_case column names (order_id, created_at...).
 public class RatingResult
 {
     public Guid Id { get; set; }

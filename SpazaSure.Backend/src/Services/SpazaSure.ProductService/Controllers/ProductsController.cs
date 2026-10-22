@@ -56,12 +56,24 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
     {
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == SupplierId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
-        var product = await db.Products.Include(p => p.Category)
-            .FirstOrDefaultAsync(p => p.Id == id && p.SupplierId == supplier.Id);
+        var product = await ProductDetail(id, supplier.Id);
         return product is null
             ? NotFound(ApiResponse.Fail("Product not found."))
-            : Ok(ApiResponse<Product>.Ok(product));
+            : Ok(ApiResponse<object>.Ok(product));
     }
+
+    // Same shape as a List item. Returning the Product entity itself fails to serialize: the tracked
+    // supplier links back to its products (Product.Supplier.Products.Supplier...).
+    private async Task<object?> ProductDetail(Guid id, Guid supplierId) =>
+        await db.Products.AsNoTracking().Where(p => p.Id == id && p.SupplierId == supplierId)
+            .Select(p => new {
+                p.Id, p.Name, p.Sku, p.Barcode, p.Price, p.StockQty, p.Unit,
+                p.IsAvailable, p.IsApproved, p.Images, p.Description,
+                p.MinOrderQty, p.IsFoodItem, p.CategoryId,
+                Category = p.Category == null ? null : p.Category.Name,
+                HasQrCode = p.QrCodes.Any(q => q.OrderItemId == null),
+                p.CreatedAt
+            }).FirstOrDefaultAsync();
 
     [HttpPost]
     public async Task<IActionResult> Create(ProductRequest req)
@@ -131,7 +143,7 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         if (req.Info is not null && ProductInfo.Apply(product, req.Info) is { } infoError)
             return BadRequest(ApiResponse.Fail(infoError));
         await db.SaveChangesAsync();
-        return Ok(ApiResponse<Product>.Ok(product));
+        return Ok(ApiResponse<object>.Ok((await ProductDetail(product.Id, supplier.Id))!));
     }
 
     /// <summary>The product information block, for editing in the supplier portal.</summary>

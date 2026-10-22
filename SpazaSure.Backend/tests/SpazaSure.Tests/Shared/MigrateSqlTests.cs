@@ -55,4 +55,26 @@ public class MigrateSqlTests
         var missing = columns.Where(c => !Exists(c.Table, c.Column)).Select(c => $"{c.Table}.{c.Column}").ToList();
         missing.Should().BeEmpty("migrate.sql must create every column the code uses, or production queries fail");
     }
+
+    /// <summary>
+    /// Tables used only through raw SQL (ExecuteSqlRaw / SqlQueryRaw) are invisible to the EF snapshot,
+    /// so the test above can't catch them. delivery_ratings and delivery_disputes were once missing.
+    /// </summary>
+    [Fact]
+    public void EveryTableInRawSql_IsCreatedByMigrateSql()
+    {
+        var sql = File.ReadAllText(BackendFile("migrate.sql")).ToLowerInvariant();
+        var tables = Directory.EnumerateFiles(BackendFile("src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                     && !f.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}"))
+            .SelectMany(f => Regex.Matches(File.ReadAllText(f), @"\b(?:INSERT INTO|UPDATE|FROM|JOIN)\s+""?(?<t>[a-z][a-z0-9_]+)""?\b")
+                .Select(m => m.Groups["t"].Value))
+            .Where(t => t.Contains('_') || t.EndsWith('s'))
+            .Distinct()
+            .ToList();
+        tables.Should().Contain("delivery_ratings", "the raw SQL scan should have found the rating queries");
+
+        var missing = tables.Where(t => !Regex.IsMatch(sql, $@"create table if not exists ""?{t}""?\s*\(")).ToList();
+        missing.Should().BeEmpty("migrate.sql must create every table raw SQL queries use, or production queries fail");
+    }
 }

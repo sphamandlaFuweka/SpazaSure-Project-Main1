@@ -1698,6 +1698,41 @@ CREATE INDEX IF NOT EXISTS ix_orders_payout_reference ON orders(payout_reference
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_split_code varchar(64);
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS paystack_subaccount_code varchar(64);
 
+-- Shop delivery ratings and issue reports. Not EF entities: ShopOrderRatingController reads and
+-- writes them with raw SQL, so they only exist if this script creates them.
+CREATE TABLE IF NOT EXISTS delivery_ratings (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    order_id uuid NOT NULL,
+    shop_id uuid NOT NULL,
+    supplier_id uuid NOT NULL,
+    delivery_rating integer NOT NULL,
+    supplier_rating integer NOT NULL,
+    comment text NOT NULL DEFAULT '',
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_delivery_ratings" PRIMARY KEY (id),
+    CONSTRAINT "UQ_delivery_ratings_order_id" UNIQUE (order_id),
+    CONSTRAINT "FK_delivery_ratings_orders_order_id" FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_delivery_ratings_spaza_shops_shop_id" FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_delivery_ratings_suppliers_supplier_id" FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_delivery_ratings_supplier_id ON delivery_ratings(supplier_id, created_at);
+
+CREATE TABLE IF NOT EXISTS delivery_disputes (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    order_id uuid NOT NULL,
+    shop_id uuid NOT NULL,
+    supplier_id uuid NOT NULL,
+    issue_type text NOT NULL,
+    description text NOT NULL,
+    status text NOT NULL DEFAULT 'open',
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_delivery_disputes" PRIMARY KEY (id),
+    CONSTRAINT "FK_delivery_disputes_orders_order_id" FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_delivery_disputes_spaza_shops_shop_id" FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    CONSTRAINT "FK_delivery_disputes_suppliers_supplier_id" FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_delivery_disputes_supplier_id ON delivery_disputes(supplier_id, created_at);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
