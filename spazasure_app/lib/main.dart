@@ -28,6 +28,7 @@ import 'features/shop_verification/shop_verify_screen.dart';
 import 'features/notifications/screens/notifications_screen.dart';
 import 'features/notifications/screens/report_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
+import 'features/academy/screens/academy_screen.dart';
 import 'features/group_buy/screens/group_buy_screen.dart';
 import 'features/marketplace/screens/qr_scanner_screen.dart';
 import 'features/orders/screens/rate_delivery_screen.dart';
@@ -124,6 +125,7 @@ class SpazaSureApp extends StatelessWidget {
           '/compliance': () => const ComplianceScreen(),
           '/notifications': () => const NotificationsScreen(),
           '/wallet': () => const WalletScreen(),
+          '/academy': () => const AcademyScreen(),
           '/group-buy': () => const GroupBuyScreen(),
           '/qr-scanner': () => const QrScannerScreen(),
           '/report': () => const ReportScreen(),

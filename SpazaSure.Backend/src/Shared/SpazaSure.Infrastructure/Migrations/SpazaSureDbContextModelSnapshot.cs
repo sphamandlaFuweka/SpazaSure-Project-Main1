@@ -1997,6 +1997,170 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopBusinessProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AcceptsCardPayments")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accepts_card_payments");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<string>("CipcRegistrationNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cipc_registration_number");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FullTimeStaff")
+                        .HasColumnType("integer")
+                        .HasColumnName("full_time_staff");
+
+                    b.Property<string>("Goals")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("goals");
+
+                    b.Property<bool>("HasBusinessBankAccount")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_business_bank_account");
+
+                    b.Property<string>("LegalStructure")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("legal_structure");
+
+                    b.Property<string>("MainSuppliers")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("main_suppliers");
+
+                    b.Property<decimal?>("MonthlyRent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("monthly_rent");
+
+                    b.Property<int>("PartTimeStaff")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_time_staff");
+
+                    b.Property<string>("PremisesType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("premises_type");
+
+                    b.Property<string>("SarsTaxNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sars_tax_number");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateOnly?>("StartedTradingOn")
+                        .HasColumnType("date")
+                        .HasColumnName("started_trading_on");
+
+                    b.Property<int>("TradingDaysPerWeek")
+                        .HasColumnType("integer")
+                        .HasColumnName("trading_days_per_week");
+
+                    b.Property<string>("TradingHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("trading_hours");
+
+                    b.Property<string>("TradingLicenceNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("trading_licence_number");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VatNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("vat_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_business_profiles");
+
+                    b.HasIndex("ShopId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_shop_business_profiles_shop_id");
+
+                    b.ToTable("shop_business_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopCashEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("direction");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_cash_entries");
+
+                    b.HasIndex("ShopId", "OccurredOn")
+                        .HasDatabaseName("ix_shop_cash_entries_shop_id_occurred_on");
+
+                    b.ToTable("shop_cash_entries", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2110,6 +2274,53 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_shop_documents_shop_id");
 
                     b.ToTable("shop_documents", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopLessonProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LessonKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("lesson_key");
+
+                    b.Property<int>("QuizScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("quiz_score");
+
+                    b.Property<int>("QuizTotal")
+                        .HasColumnType("integer")
+                        .HasColumnName("quiz_total");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_lesson_progress");
+
+                    b.HasIndex("ShopId", "LessonKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_shop_lesson_progress_shop_id_lesson_key");
+
+                    b.ToTable("shop_lesson_progress", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopMessage", b =>
@@ -2267,6 +2478,160 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_shop_reviews_shop_id_reviewer_user_id");
 
                     b.ToTable("shop_reviews", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopStockItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("barcode");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("category");
+
+                    b.Property<decimal>("CostPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("cost_price");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("ReorderLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("reorder_level");
+
+                    b.Property<decimal>("SellingPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("selling_price");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_stock_items");
+
+                    b.HasIndex("ShopId")
+                        .HasDatabaseName("ix_shop_stock_items_shop_id");
+
+                    b.HasIndex("ShopId", "ProductId")
+                        .HasDatabaseName("ix_shop_stock_items_shop_id_product_id");
+
+                    b.ToTable("shop_stock_items", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopStockMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shop_id");
+
+                    b.Property<Guid?>("SourceOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_order_id");
+
+                    b.Property<Guid>("StockItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stock_item_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shop_stock_movements");
+
+                    b.HasIndex("SourceOrderId")
+                        .HasDatabaseName("ix_shop_stock_movements_source_order_id");
+
+                    b.HasIndex("StockItemId")
+                        .HasDatabaseName("ix_shop_stock_movements_stock_item_id");
+
+                    b.HasIndex("ShopId", "OccurredOn")
+                        .HasDatabaseName("ix_shop_stock_movements_shop_id_occurred_on");
+
+                    b.ToTable("shop_stock_movements", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopWalletLedgerEntry", b =>
@@ -3575,6 +3940,30 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopBusinessProfile", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_business_profiles_spaza_shops_shop_id");
+
+                    b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopCashEntry", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_cash_entries_spaza_shops_shop_id");
+
+                    b.Navigation("Shop");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.User", "CustomerUser")
@@ -3604,6 +3993,18 @@ namespace SpazaSure.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_shop_documents_spaza_shops_shop_id");
+
+                    b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopLessonProgress", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_lesson_progress_spaza_shop_shop_id");
 
                     b.Navigation("Shop");
                 });
@@ -3651,6 +4052,30 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Reviewer");
 
                     b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopStockItem", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.SpazaShop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_stock_items_spaza_shops_shop_id");
+
+                    b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopStockMovement", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.ShopStockItem", "StockItem")
+                        .WithMany("Movements")
+                        .HasForeignKey("StockItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_shop_stock_movements_shop_stock_items_stock_item_id");
+
+                    b.Navigation("StockItem");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopWalletLedgerEntry", b =>
@@ -3833,6 +4258,11 @@ namespace SpazaSure.Infrastructure.Migrations
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopConversation", b =>
                 {
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopStockItem", b =>
+                {
+                    b.Navigation("Movements");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SpazaShop", b =>

@@ -35,7 +35,7 @@ void main() {
   });
 
   test('every key has an isiZulu and a Sesotho translation', () {
-    for (final key in ['nav.home', 'home.verifyProduct', 'profile.signOut', 'shop.documents', 'language.title']) {
+    for (final key in ['nav.home', 'home.verifyProduct', 'profile.signOut', 'shop.documents', 'language.title', 'academy.cashBook', 'academy.lessons', 'shop.academySub']) {
       AppLanguage.code.value = AppLanguage.english;
       final english = tr(key);
       for (final code in [AppLanguage.zulu, AppLanguage.sotho]) {

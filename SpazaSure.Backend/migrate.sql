@@ -1805,6 +1805,95 @@ CREATE TABLE IF NOT EXISTS driver_documents (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_driver_documents_driver_id_doc_type ON driver_documents(driver_id, doc_type);
 
+-- Shop Academy: each shop's business details, stock book, cash book and lesson progress.
+CREATE TABLE IF NOT EXISTS shop_business_profiles (
+    id uuid NOT NULL CONSTRAINT pk_shop_business_profiles PRIMARY KEY,
+    shop_id uuid NOT NULL CONSTRAINT fk_shop_business_profiles_spaza_shops_shop_id REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    legal_structure varchar(30) NOT NULL,
+    cipc_registration_number varchar(30),
+    sars_tax_number varchar(20),
+    vat_number varchar(20),
+    trading_licence_number varchar(50),
+    started_trading_on date,
+    premises_type varchar(20) NOT NULL,
+    monthly_rent numeric(12,2),
+    full_time_staff integer NOT NULL,
+    part_time_staff integer NOT NULL,
+    trading_hours varchar(100),
+    trading_days_per_week integer NOT NULL,
+    bank_name varchar(60),
+    has_business_bank_account boolean NOT NULL,
+    accepts_card_payments boolean NOT NULL,
+    main_suppliers varchar(500),
+    goals varchar(1000),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_shop_business_profiles_shop_id ON shop_business_profiles(shop_id);
+
+CREATE TABLE IF NOT EXISTS shop_stock_items (
+    id uuid NOT NULL CONSTRAINT pk_shop_stock_items PRIMARY KEY,
+    shop_id uuid NOT NULL CONSTRAINT fk_shop_stock_items_spaza_shops_shop_id REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    product_id uuid,
+    name varchar(200) NOT NULL,
+    category varchar(60),
+    unit varchar(30) NOT NULL,
+    barcode varchar(50),
+    cost_price numeric(12,2) NOT NULL,
+    selling_price numeric(12,2) NOT NULL,
+    quantity integer NOT NULL,
+    reorder_level integer NOT NULL,
+    expiry_date date,
+    is_active boolean NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_shop_stock_items_shop_id ON shop_stock_items(shop_id);
+CREATE INDEX IF NOT EXISTS ix_shop_stock_items_shop_id_product_id ON shop_stock_items(shop_id, product_id);
+
+CREATE TABLE IF NOT EXISTS shop_stock_movements (
+    id uuid NOT NULL CONSTRAINT pk_shop_stock_movements PRIMARY KEY,
+    shop_id uuid NOT NULL,
+    stock_item_id uuid NOT NULL CONSTRAINT fk_shop_stock_movements_shop_stock_items_stock_item_id REFERENCES shop_stock_items(id) ON DELETE CASCADE,
+    type varchar(20) NOT NULL,
+    quantity integer NOT NULL,
+    unit_cost numeric(12,2) NOT NULL,
+    unit_price numeric(12,2) NOT NULL,
+    note varchar(300),
+    occurred_on date NOT NULL,
+    source_order_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_shop_stock_movements_shop_id_occurred_on ON shop_stock_movements(shop_id, occurred_on);
+CREATE INDEX IF NOT EXISTS ix_shop_stock_movements_stock_item_id ON shop_stock_movements(stock_item_id);
+CREATE INDEX IF NOT EXISTS ix_shop_stock_movements_source_order_id ON shop_stock_movements(source_order_id);
+
+CREATE TABLE IF NOT EXISTS shop_cash_entries (
+    id uuid NOT NULL CONSTRAINT pk_shop_cash_entries PRIMARY KEY,
+    shop_id uuid NOT NULL CONSTRAINT fk_shop_cash_entries_spaza_shops_shop_id REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    direction varchar(10) NOT NULL,
+    category varchar(40) NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    note varchar(300),
+    occurred_on date NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_shop_cash_entries_shop_id_occurred_on ON shop_cash_entries(shop_id, occurred_on);
+
+CREATE TABLE IF NOT EXISTS shop_lesson_progress (
+    id uuid NOT NULL CONSTRAINT pk_shop_lesson_progress PRIMARY KEY,
+    shop_id uuid NOT NULL CONSTRAINT fk_shop_lesson_progress_spaza_shops_shop_id REFERENCES spaza_shops(id) ON DELETE CASCADE,
+    lesson_key varchar(60) NOT NULL,
+    quiz_score integer NOT NULL,
+    quiz_total integer NOT NULL,
+    completed_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_shop_lesson_progress_shop_id_lesson_key ON shop_lesson_progress(shop_id, lesson_key);
+
 -- Shop delivery ratings and issue reports. Not EF entities: ShopOrderRatingController reads and
 -- writes them with raw SQL, so they only exist if this script creates them.
 CREATE TABLE IF NOT EXISTS delivery_ratings (

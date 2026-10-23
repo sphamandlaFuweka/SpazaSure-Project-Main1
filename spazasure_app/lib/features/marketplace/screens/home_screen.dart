@@ -884,6 +884,13 @@ class _HomeScreenState extends State<HomeScreen>
             : '!',
       },
       {
+        'icon': Icons.school_rounded,
+        'label': 'Academy',
+        'color': AppColors.primary,
+        'route': '/academy',
+        'badge': null,
+      },
+      {
         'icon': Icons.local_shipping_outlined,
         'label': 'Track Order',
         'color': AppColors.secondary,

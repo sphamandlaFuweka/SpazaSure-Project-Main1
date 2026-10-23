@@ -10,6 +10,7 @@ using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Storage;
 using SpazaSure.UserService.Services;
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -43,6 +44,7 @@ builder.Services.AddHttpClient<GeocodingService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (support@spazasure.co.za)");
 });
 builder.Services.AddHttpClient<PaystackPaymentService>();
+builder.Services.AddScoped<ShopAcademyService>();
 // Gives every saved shop/supplier address map coordinates, in the background
 builder.Services.AddSingleton<AddressGeocodingSignal>();
 builder.Services.AddHostedService<AddressGeocodingWorker>();

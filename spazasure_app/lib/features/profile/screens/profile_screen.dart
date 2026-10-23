@@ -426,6 +426,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         () => Navigator.pushNamed(context, '/wallet'),
       ),
       _menuTile(
+        Icons.school_rounded,
+        tr('shop.academy'),
+        tr('shop.academySub'),
+        const Color(0xFFF8B217),
+        () => Navigator.pushNamed(context, '/academy'),
+      ),
+      _menuTile(
         Icons.shopping_bag_rounded,
         tr('shop.orders'),
         tr('shop.ordersSub'),

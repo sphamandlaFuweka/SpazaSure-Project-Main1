@@ -42,6 +42,11 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<ShopMessage> ShopMessages => Set<ShopMessage>();
     public DbSet<ShopWalletLedgerEntry> ShopWalletLedgerEntries => Set<ShopWalletLedgerEntry>();
     public DbSet<ShopReview> ShopReviews => Set<ShopReview>();
+    public DbSet<ShopBusinessProfile> ShopBusinessProfiles => Set<ShopBusinessProfile>();
+    public DbSet<ShopStockItem> ShopStockItems => Set<ShopStockItem>();
+    public DbSet<ShopStockMovement> ShopStockMovements => Set<ShopStockMovement>();
+    public DbSet<ShopCashEntry> ShopCashEntries => Set<ShopCashEntry>();
+    public DbSet<ShopLessonProgress> ShopLessonProgress => Set<ShopLessonProgress>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<CustomerSubscription> CustomerSubscriptions => Set<CustomerSubscription>();
     public DbSet<CustomerScanEvent> CustomerScanEvents => Set<CustomerScanEvent>();
@@ -510,6 +515,71 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(p => p.Status);
             e.HasOne(p => p.Shop).WithMany(s => s.OnboardingPayments)
                 .HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Shop Academy: the shop's own business records and lesson progress
+        model.Entity<ShopBusinessProfile>(e =>
+        {
+            e.ToTable("shop_business_profiles");
+            e.HasIndex(p => p.ShopId).IsUnique();
+            e.Property(p => p.LegalStructure).HasMaxLength(30);
+            e.Property(p => p.CipcRegistrationNumber).HasMaxLength(30);
+            e.Property(p => p.SarsTaxNumber).HasMaxLength(20);
+            e.Property(p => p.VatNumber).HasMaxLength(20);
+            e.Property(p => p.TradingLicenceNumber).HasMaxLength(50);
+            e.Property(p => p.PremisesType).HasMaxLength(20);
+            e.Property(p => p.MonthlyRent).HasPrecision(12, 2);
+            e.Property(p => p.TradingHours).HasMaxLength(100);
+            e.Property(p => p.BankName).HasMaxLength(60);
+            e.Property(p => p.MainSuppliers).HasMaxLength(500);
+            e.Property(p => p.Goals).HasMaxLength(1000);
+            e.HasOne(p => p.Shop).WithMany().HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopStockItem>(e =>
+        {
+            e.ToTable("shop_stock_items");
+            e.HasIndex(i => i.ShopId);
+            e.HasIndex(i => new { i.ShopId, i.ProductId });
+            e.Property(i => i.Name).HasMaxLength(200);
+            e.Property(i => i.Category).HasMaxLength(60);
+            e.Property(i => i.Unit).HasMaxLength(30);
+            e.Property(i => i.Barcode).HasMaxLength(50);
+            e.Property(i => i.CostPrice).HasPrecision(12, 2);
+            e.Property(i => i.SellingPrice).HasPrecision(12, 2);
+            e.HasOne(i => i.Shop).WithMany().HasForeignKey(i => i.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopStockMovement>(e =>
+        {
+            e.ToTable("shop_stock_movements");
+            e.HasIndex(m => new { m.ShopId, m.OccurredOn });
+            e.HasIndex(m => m.StockItemId);
+            e.HasIndex(m => m.SourceOrderId);
+            e.Property(m => m.Type).HasMaxLength(20);
+            e.Property(m => m.UnitCost).HasPrecision(12, 2);
+            e.Property(m => m.UnitPrice).HasPrecision(12, 2);
+            e.Property(m => m.Note).HasMaxLength(300);
+            e.HasOne(m => m.StockItem).WithMany(i => i.Movements).HasForeignKey(m => m.StockItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopCashEntry>(e =>
+        {
+            e.ToTable("shop_cash_entries");
+            e.HasIndex(c => new { c.ShopId, c.OccurredOn });
+            e.Property(c => c.Direction).HasMaxLength(10);
+            e.Property(c => c.Category).HasMaxLength(40);
+            e.Property(c => c.Amount).HasPrecision(12, 2);
+            e.Property(c => c.Note).HasMaxLength(300);
+            e.HasOne(c => c.Shop).WithMany().HasForeignKey(c => c.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<ShopLessonProgress>(e =>
+        {
+            e.ToTable("shop_lesson_progress");
+            e.HasIndex(p => new { p.ShopId, p.LessonKey }).IsUnique();
+            e.Property(p => p.LessonKey).HasMaxLength(60);
+            e.HasOne(p => p.Shop).WithMany().HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Cascade);
         });
 
         base.OnModelCreating(model);
