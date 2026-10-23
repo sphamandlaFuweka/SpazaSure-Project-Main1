@@ -1,15 +1,14 @@
 -- SpazaSure local/QA seed data: the minimum to log in and try every app.
--- One admin, the SpazaSure (Pty) Ltd supplier with its product catalogue, one spaza shop
--- and one customer, plus the supplier subscription plans. No orders, group buys or other
--- activity: those come from using the apps.
+-- One admin, the SpazaSure (Pty) Ltd supplier with its product catalogue and one spaza
+-- shop, plus the supplier subscription plans. No customers, orders, group buys or other
+-- activity: those come from using the apps (customers sign up in the customer app).
 -- Run AFTER migrate.sql (which creates the schema plus baseline roles/categories).
 -- Safe to re-run: every statement is idempotent (WHERE NOT EXISTS / ON CONFLICT).
 --
--- Login credentials (password is the same for all four, for convenience):
+-- Login credentials (password is the same for all three, for convenience):
 --   Admin:      admin@spazasure.co.za     / Password123!
 --   Supplier:   supplier@spazasure.co.za  / Password123!
 --   Shop owner: sipho@cornershop.co.za    / Password123!
---   Customer:   zanele@example.co.za      / Password123!
 --
 -- The password hash below is a bcrypt hash of "Password123!" (cost 10),
 -- compatible with BCrypt.Net-Next as used in AuthenticationService.cs.
@@ -58,18 +57,6 @@ SELECT '00000000-0000-0000-0004-000000000001', 'sipho@cornershop.co.za', '+27810
        '$2b$10$KJYHL0OnwL/dVv5PiNW36eUn3r6ilXPDcr1TEwoTTLqNTJQdSmILO',
        (SELECT id FROM roles WHERE name = 'spaza_owner'), 'active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'sipho@cornershop.co.za');
-
-INSERT INTO users (id, email, phone, password_hash, role_id, status)
-SELECT '00000000-0000-0000-0008-000000000001', 'zanele@example.co.za', '+27810000004',
-       '$2b$10$KJYHL0OnwL/dVv5PiNW36eUn3r6ilXPDcr1TEwoTTLqNTJQdSmILO',
-       (SELECT id FROM roles WHERE name = 'customer'), 'active'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'zanele@example.co.za');
-
-INSERT INTO customer_profiles (user_id, first_name, last_name, allergies)
-SELECT (SELECT id FROM users WHERE email = 'zanele@example.co.za'), 'Zanele', 'Mthembu', '["Peanuts","Dairy"]'
-WHERE NOT EXISTS (
-    SELECT 1 FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE email = 'zanele@example.co.za')
-);
 
 -- =========================================================================
 -- 2. Supplier record (kept at its original fixed ID so anything else in the
