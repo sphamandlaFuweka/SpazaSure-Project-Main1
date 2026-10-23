@@ -18,6 +18,7 @@ const SubscriptionPage = lazy(() => import('./pages/subscription/SubscriptionPag
 const GroupBuyPage = lazy(() => import('./pages/group-buy/GroupBuyPage'));
 const VerifyShopPage = lazy(() => import('./pages/public/VerifyShopPage'));
 const PrivacyNoticePage = lazy(() => import('./pages/public/PrivacyNoticePage'));
+const DeleteAccountPage = lazy(() => import('./pages/public/DeleteAccountPage'));
 const VerificationCompletePage = lazy(() => import('./pages/public/VerificationCompletePage'));
 
 function RequireSupplier({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,8 @@ export default function SupplierApp() {
         {/* Public: anyone can check a shop's SpazaSure sticker (QR code or shop number) */}
         <Route path="/verify" element={<VerifyShopPage />} />
         <Route path="/privacy" element={<PrivacyNoticePage />} />
+        {/* Public: delete an account without the app (Google Play requirement) */}
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
         <Route path="/verification-complete" element={<VerificationCompletePage />} />
         <Route path="/verify/:code" element={<VerifyShopPage />} />
 

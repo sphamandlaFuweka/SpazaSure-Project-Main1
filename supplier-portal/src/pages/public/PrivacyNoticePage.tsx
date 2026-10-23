@@ -72,7 +72,7 @@ const sections: { title: string; body: (string | string[])[] }[] = [
     body: [[
       'See the information we hold about you: use “Download my data” in your profile.',
       'Correct it: edit your profile, or contact us.',
-      'Delete it: use “Delete my account” in your profile. We delete it within 30 days, unless something still needs settling, like an unpaid order or money in your wallet.',
+      'Delete it: use “Delete my account” in your profile, or the form at portal.spazasure.co.za/delete-account. We delete it within 30 days, unless something still needs settling, like an unpaid order or money in your wallet.',
       'Object to processing or withdraw consent, including for marketing.',
       `Complain to the Information Regulator (inforegulator.org.za, complaints.IR@inforegulator.org.za) if you are not happy with how we handle your information. Please contact us first so we can try to help.`,
     ]],
