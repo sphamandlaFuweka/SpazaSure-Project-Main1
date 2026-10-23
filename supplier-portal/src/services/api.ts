@@ -832,6 +832,39 @@ export const adminSuppliersApi = {
     api.patch(`/admin/suppliers/${id}/suspend`, { reason }).then((r) => r.data),
 };
 
+/** A customer of the SpazaSure customer app, as admins see them. */
+export interface AdminCustomer {
+  id: string;
+  fullName: string;
+  preferredName?: string | null;
+  phone: string;
+  email: string;
+  age?: number | null;
+  province?: string | null;
+  city?: string | null;
+  suburb?: string | null;
+  preferredLanguage: string;
+  allergies: string[];
+  marketingOptIn: boolean;
+  /** "free" or the paid plan's key, e.g. "plus". */
+  plan: string;
+  scanCount: number;
+  reportCount: number;
+  rewardPoints: number;
+  isSuspended: boolean;
+  status: string;
+  profilePhotoUrl?: string | null;
+  joinedAt: string;
+  lastLoginAt?: string | null;
+}
+
+export const adminCustomersApi = {
+  list: (params?: { page?: number; pageSize?: number; search?: string; status?: 'active' | 'suspended' }) =>
+    api.get('/admin/customers', { params }).then((r) => unwrap<{ items: AdminCustomer[]; total: number; page: number; pageSize: number }>(r)),
+  suspend: (id: string) => api.patch(`/admin/customers/${id}/suspend`).then((r) => r.data),
+  reinstate: (id: string) => api.patch(`/admin/customers/${id}/reinstate`).then((r) => r.data),
+};
+
 export const adminSpazaOwnersApi = {
   list: (params?: { page?: number; pageSize?: number; search?: string; status?: string }) =>
     api.get('/admin/spaza-owners', { params }).then((r) => r.data),

@@ -43,7 +43,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
     {
       title: 'Trust & safety',
       items: [
-        { to: '/admin/suppliers', icon: Users,       label: 'Suppliers & Shops', badge: pendingSuppliers || undefined },
+        { to: '/admin/suppliers', icon: Users,       label: 'Suppliers, Shops & Customers', badge: pendingSuppliers || undefined },
         { to: '/admin/documents', icon: ShieldCheck, label: 'Documents',         badge: pendingDocuments || undefined },
         { to: '/admin/reports',   icon: Flag,        label: 'Reports',           badge: pendingReports || undefined },
         { to: '/admin/shops-map', icon: MapPin,      label: 'Shops Map' },

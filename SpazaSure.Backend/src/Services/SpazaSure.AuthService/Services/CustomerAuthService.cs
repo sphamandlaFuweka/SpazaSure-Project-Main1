@@ -108,6 +108,10 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
             return (false, "Invalid phone number or password.", null);
         }
 
+        // Checked after the password, so the message doesn't reveal which numbers have accounts
+        if (user.Status == "suspended")
+            return (false, AuthenticationService.SuspendedMessage, null);
+
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
 

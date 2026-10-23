@@ -29,7 +29,7 @@ public static class AdminAccess
     /// <summary>The areas a master admin can hand out, in sidebar order.</summary>
     public static readonly IReadOnlyList<(string Key, string Label, string Description)> Areas =
     [
-        (Trust, "Trust & safety", "Suppliers and shops, documents, customer reports, shops map"),
+        (Trust, "Trust & safety", "Suppliers, shops and customers, documents, customer reports, shops map"),
         (Marketplace, "Marketplace", "Products, categories, orders, group buys, drivers and deliveries, analytics"),
         (Finance, "Finance", "Supplier payouts, wallet deposits and withdrawals, ledger, tax invoices, finance reports"),
         (Projects, "Projects & impact", "Project management, MEL and reporting workspace"),
@@ -46,6 +46,7 @@ public static class AdminAccess
         ("/api/admin/deletion-requests", null), // erases accounts, so master admins only
         ("/api/admin/suppliers", Trust),
         ("/api/admin/spaza-owners", Trust),
+        ("/api/admin/customers", Trust),
         ("/api/admin/reports", Trust),
         ("/api/compliance/documents", Trust),
         ("/api/compliance/identity/admin", Trust),

@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, CheckCircle, Clock, Eye, ShieldCheck, Users, Store,
-  X, Phone, Mail, MapPin, FileText, Calendar, Ban, ExternalLink, Download,
-} from 'lucide-react';
+  X, Phone, Mail, MapPin, FileText, Calendar, Ban, ExternalLink, Download, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { adminSuppliersApi, adminSpazaOwnersApi, resolveUploadUrl, apiErrorMessage, adminBranchesApi } from '../../services/api';
 import BranchesTab from '../profile/BranchesTab';
+import CustomersPanel from './CustomersPanel';
 import { openAdminDiditCheck } from '../../services/adminDidit';
 import { TierBadge, Spinner, Modal } from '../../components/ui';
 import { Check as CheckIc, X as XIc } from 'lucide-react';
 
-type MainTab = 'suppliers' | 'spaza-owners';
+type MainTab = 'suppliers' | 'spaza-owners' | 'customers';
 type FilterStatus = 'all' | 'verified' | 'pending';
 
 interface SupplierDoc {
@@ -164,7 +164,8 @@ export default function AdminSuppliersPage() {
 
   useEffect(() => {
     if (mainTab === 'suppliers') fetchSuppliers();
-    else fetchSpazaOwners();
+    else if (mainTab === 'spaza-owners') fetchSpazaOwners();
+    // The Customers tab loads its own list
   }, [mainTab, fetchSuppliers, fetchSpazaOwners]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -273,8 +274,8 @@ export default function AdminSuppliersPage() {
             <Users size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Suppliers & Spaza Owners</h1>
-            <p className="text-sm text-gray-500">Manage suppliers and spaza shop owners on the platform</p>
+            <h1 className="text-xl font-bold text-gray-900">Suppliers, Spaza Owners & Customers</h1>
+            <p className="text-sm text-gray-500">Manage suppliers, spaza shop owners and customers on the platform</p>
           </div>
         </div>
 
@@ -305,8 +306,23 @@ export default function AdminSuppliersPage() {
               <Store size={16} />
               Spaza Owners
             </button>
+            <button
+              onClick={() => setMainTab('customers')}
+              className={clsx(
+                'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all',
+                mainTab === 'customers'
+                  ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/50'
+                  : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <UserRound size={16} />
+              Customers
+            </button>
           </div>
         </div>
+
+        {/* ─── CUSTOMERS TAB ─── */}
+        {mainTab === 'customers' && <CustomersPanel />}
 
         {/* ─── SUPPLIERS TAB ─── */}
         {mainTab === 'suppliers' && (
