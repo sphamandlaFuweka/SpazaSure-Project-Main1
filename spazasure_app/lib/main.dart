@@ -34,9 +34,11 @@ import 'features/marketplace/screens/qr_scanner_screen.dart';
 import 'features/orders/screens/rate_delivery_screen.dart';
 import 'features/orders/screens/receipt_screen.dart';
 import 'core/widgets/logo_page_route.dart';
+import 'services/analytics_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AnalyticsService.init();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -101,6 +103,7 @@ class SpazaSureApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       navigatorKey: appNavigatorKey,
+      navigatorObservers: AnalyticsService.observers,
       // New notifications pop up over every screen while someone is signed in
       builder: (context, child) => NotificationPopupHost(
         navigatorKey: appNavigatorKey,

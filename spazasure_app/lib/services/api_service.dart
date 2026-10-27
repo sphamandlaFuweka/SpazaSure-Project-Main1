@@ -253,6 +253,31 @@ class ApiService {
     timeout: const Duration(seconds: 45),
     offlineMessage: 'Upload failed. Check your connection and try again.',
   );
+
+  /// A multipart form where the file is optional (e.g. feedback with or without a screenshot).
+  static Future<Map<String, dynamic>> sendForm(
+    String path, {
+    required Map<String, String> fields,
+    String fileField = 'file',
+    List<int>? fileBytes,
+    String? fileName,
+  }) => _send(
+    path,
+    (headers) async {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'));
+      final auth = headers['Authorization'];
+      if (auth != null) request.headers['Authorization'] = auth;
+      request.fields.addAll(fields);
+      if (fileBytes != null && fileName != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(fileField, fileBytes, filename: fileName),
+        );
+      }
+      return http.Response.fromStream(await request.send());
+    },
+    timeout: const Duration(seconds: 45),
+    offlineMessage: 'Sending failed. Check your connection and try again.',
+  );
 }
 
 class ApiException implements Exception {

@@ -10,6 +10,7 @@ import 'package:spazasure_app/features/shop_verification/shop_verify_screen.dart
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
+import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/barcode_check.dart';
 import 'package:spazasure_app/services/device_context.dart';
@@ -119,6 +120,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     String? packagingText,
     String? pin,
     bool reward = true,
+    String method = 'manual',
   }) async {
     if (code.isEmpty) return;
     if (_loading) return;
@@ -172,6 +174,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       if (!mounted) return;
       final product = res['data'] as Map<String, dynamic>;
       setState(() => _product = product);
+      if (reward) {
+        AnalyticsService.productScan(
+          method: method,
+          source: product['source']?.toString(),
+          riskLevel: product['riskLevel']?.toString(),
+        );
+      }
 
       if (widget.customerMode &&
           reward &&
@@ -236,7 +245,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       });
       return;
     }
-    _lookupProduct(code);
+    _lookupProduct(code, method: 'camera');
   }
 
   @override
@@ -570,6 +579,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       expiry: scan.expiry,
                       batch: scan.batch,
                       packagingText: scan.rawText,
+                      method: 'packaging',
                     ),
               icon: const Icon(Icons.verified_user_rounded),
               label: const Text('Verify product'),

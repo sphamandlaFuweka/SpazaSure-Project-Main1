@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/features/cart/screens/order_success_screen.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
@@ -511,6 +512,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           deliveryAddress: deliveryAddress,
           paymentMethod: method,
         );
+        AnalyticsService.orderPlaced(value: total, items: cart.items.length);
         cart.clear();
         if (!mounted) return;
         _showSuccess(OrderSuccess(
@@ -540,6 +542,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Confirm with Paystack straight away, also when the page was closed before it redirected back.
       final confirmed = await OrderService.confirmPayment(checkout.orderNumber);
       if (paid != true && !confirmed) return;
+      AnalyticsService.orderPlaced(value: total, items: cart.items.length);
       cart.clear();
       _pendingCheckoutUrl = null;
       _pendingOrderNumber = null;

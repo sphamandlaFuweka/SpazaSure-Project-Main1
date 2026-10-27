@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/product_gallery.dart';
+import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/pack_match.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
 
@@ -101,6 +102,15 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
     } finally {
       if (mounted) setState(() => _reading = false);
     }
+  }
+
+  void _choose(_Answer answer) {
+    setState(() => _answer = answer);
+    AnalyticsService.packCompare(
+      matched: _match?.matched ?? 0,
+      total: _match?.total ?? 0,
+      answer: answer.name,
+    );
   }
 
   void _report() {
@@ -396,17 +406,17 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
                 ChoiceChip(
                   label: const Text('Yes, it matches'),
                   selected: _answer == _Answer.same,
-                  onSelected: (_) => setState(() => _answer = _Answer.same),
+                  onSelected: (_) => _choose(_Answer.same),
                 ),
                 ChoiceChip(
                   label: const Text('No, something is different'),
                   selected: _answer == _Answer.different,
-                  onSelected: (_) => setState(() => _answer = _Answer.different),
+                  onSelected: (_) => _choose(_Answer.different),
                 ),
                 ChoiceChip(
                   label: const Text('Not sure'),
                   selected: _answer == _Answer.unsure,
-                  onSelected: (_) => setState(() => _answer = _Answer.unsure),
+                  onSelected: (_) => _choose(_Answer.unsure),
                 ),
               ],
             ),

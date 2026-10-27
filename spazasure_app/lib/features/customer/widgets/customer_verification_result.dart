@@ -7,6 +7,8 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/screens/compare_pack_screen.dart';
 import 'package:spazasure_app/features/customer/widgets/product_gallery.dart';
 import 'package:spazasure_app/features/customer/widgets/product_insights_card.dart';
+import 'package:spazasure_app/features/feedback/send_feedback_screen.dart';
+import 'package:spazasure_app/services/feedback_service.dart';
 
 /// Asks for the hidden scratch-off PIN printed under the panel on the pack.
 class _PinCard extends StatefulWidget {
@@ -517,7 +519,20 @@ class CustomerVerificationResult extends StatelessWidget {
                 icon: const Icon(Icons.flag_outlined),
                 label: const Text('Report a problem with this product'),
               ),
-        const SizedBox(height: 10),
+        TextButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/send-feedback'),
+              builder: (_) => SendFeedbackScreen(
+                service: FeedbackService.customer,
+                fromScreen: 'Scan result: ${_text(p['code']) ?? fallbackCode}',
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.rate_review_outlined, size: 18),
+          label: const Text('Something wrong with this result? Tell us'),
+        ),
         Text(
           _text(p['disclaimer']) ??
               'This check is a guide only. It does not guarantee authenticity or product safety.',

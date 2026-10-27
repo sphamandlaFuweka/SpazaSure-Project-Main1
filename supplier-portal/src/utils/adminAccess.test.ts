@@ -15,6 +15,12 @@ describe('areaForAdminPath', () => {
     expect(areaForAdminPath('/admin/orders')).toBe('marketplace');
   });
 
+  it('puts the testing pages under platform settings, as the server does', () => {
+    expect(areaForAdminPath('/admin/feedback')).toBe('settings');
+    expect(areaForAdminPath('/admin/waitlist')).toBe('settings');
+    expect(areaForAdminPath('/admin/emails')).toBe('settings');
+  });
+
   it('treats the dashboard root as open to any staff member', () => {
     expect(areaForAdminPath('/admin')).toBe('any');
     expect(areaForAdminPath('/admin/dashboard')).toBe('any');

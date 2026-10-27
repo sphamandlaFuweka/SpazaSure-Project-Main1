@@ -138,6 +138,7 @@ public class AuthenticationService(
 
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
+        user.LastSeenAt = user.LastLoginAt;
         db.AuthAuditLogs.Add(new AuthAuditLog { UserId = user.Id, Event = "login", IpAddress = ipAddress });
         await db.SaveChangesAsync();
 
@@ -158,6 +159,8 @@ public class AuthenticationService(
             return (false, "Invalid or expired refresh token.", null);
 
         stored.RevokedAt = DateTime.UtcNow;
+        // The apps refresh every half hour while open, so this is the "still using it" signal
+        stored.User.LastSeenAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         // A suspended account can't keep its session alive by refreshing

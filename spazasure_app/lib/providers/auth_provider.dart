@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/i18n/app_language.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/analytics_service.dart';
 import '../services/api_service.dart';
 import '../services/push_service.dart';
 
@@ -37,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> init() async {
     _session = await AuthService.getSession();
     _applyLanguage();
+    _track();
     _initialized = true;
     notifyListeners();
   }
@@ -48,12 +50,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> loginShop(String phone, String password) async {
     _session = await AuthService.loginShop(phone, password);
+    _track(event: AnalyticsService.login);
     notifyListeners();
   }
 
   Future<void> loginCustomer(String phone, String password) async {
     _session = await AuthService.loginCustomer(phone, password);
     _applyLanguage();
+    _track(event: AnalyticsService.login);
     notifyListeners();
   }
 
@@ -100,6 +104,7 @@ class AuthProvider extends ChangeNotifier {
       acceptedPrivacyNotice: acceptedPrivacyNotice,
     );
     _applyLanguage();
+    _track(event: AnalyticsService.signUp);
     notifyListeners();
   }
 
@@ -136,6 +141,7 @@ class AuthProvider extends ChangeNotifier {
       registrationDetails: registrationDetails,
       acceptedPrivacyNotice: acceptedPrivacyNotice,
     );
+    _track(event: AnalyticsService.signUp);
     notifyListeners();
 
     // Upload documents in the background after registration
@@ -167,6 +173,13 @@ class AuthProvider extends ChangeNotifier {
     return failedDocuments;
   }
 
+  /// Tags analytics with the account (anonymous id and role only), and logs sign-in or sign-up.
+  void _track({Future<void> Function(String role)? event}) {
+    final s = _session;
+    AnalyticsService.setUser(userId: s?.userId, role: s?.role);
+    if (s != null && event != null) event(s.role);
+  }
+
   /// The server no longer accepts this session (it expired or was revoked). Clear it locally
   /// without calling the API, which would only be refused again.
   Future<void> sessionExpired() async {
@@ -174,6 +187,7 @@ class AuthProvider extends ChangeNotifier {
     await AuthService.logout();
     _session = null;
     ProfileService.photoUrl.value = null;
+    _track();
     notifyListeners();
   }
 
@@ -183,6 +197,7 @@ class AuthProvider extends ChangeNotifier {
     await AuthService.logout();
     _session = null;
     ProfileService.photoUrl.value = null;
+    _track();
     notifyListeners();
   }
 }

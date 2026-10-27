@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/services/address_service.dart';
+import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/auth_service.dart';
 import 'package:spazasure_app/services/device_context.dart';
@@ -242,6 +243,7 @@ class _ReportScreenState extends State<ReportScreen> {
       });
 
       final reportId = (res['data'] as Map?)?['id'] as String?;
+      AnalyticsService.reportSubmitted(_selectedType ?? 'Other');
       final shortId = reportId != null && reportId.length >= 8
           ? 'RPT-${reportId.substring(0, 8).toUpperCase()}'
           : 'RPT-SUBMITTED';

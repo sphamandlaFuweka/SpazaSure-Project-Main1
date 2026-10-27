@@ -14,6 +14,14 @@ public class User : BaseEntity
     public short FailedAttempts { get; set; } = 0;
     public DateTime? LockedUntil { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    /// <summary>
+    /// Last time the person used SpazaSure: set on sign-in and on every token refresh, which the
+    /// apps do every half hour while open. Unlike LastLoginAt it tracks real use, because the apps
+    /// stay signed in for weeks.
+    /// </summary>
+    public DateTime? LastSeenAt { get; set; }
+    /// <summary>Set when they unsubscribe from the onboarding and reminder emails.</summary>
+    public DateTime? EmailUnsubscribedAt { get; set; }
     public string? ProfilePhotoUrl { get; set; }
 
     // Dashboard staff (role "admin") only.

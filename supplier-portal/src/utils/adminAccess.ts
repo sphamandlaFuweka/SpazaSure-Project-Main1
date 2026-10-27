@@ -21,7 +21,7 @@ export const ADMIN_AREAS: { key: AdminArea; label: string; description: string }
   { key: 'marketplace', label: 'Marketplace', description: 'Products, orders, group buys and analytics' },
   { key: 'finance', label: 'Finance', description: 'Supplier payouts, wallet deposits and withdrawals, ledger, finance reports' },
   { key: 'projects', label: 'Projects & impact', description: 'Project management, MEL and reporting workspace' },
-  { key: 'settings', label: 'Platform settings', description: 'Platform rules, fees, maintenance mode and FAQs' },
+  { key: 'settings', label: 'Platform settings', description: 'Platform rules, fees, maintenance mode, FAQs, tester feedback, waitlist and emails' },
 ];
 
 /** Which area guards each admin page (the segment after /admin/). */
@@ -44,6 +44,9 @@ const PAGE_AREAS: Record<string, AdminArea | 'any' | 'master'> = {
   finance: 'finance',
   projects: 'projects',
   settings: 'settings',
+  feedback: 'settings',
+  waitlist: 'settings',
+  emails: 'settings',
   team: 'master',
   'deletion-requests': 'master',
 };

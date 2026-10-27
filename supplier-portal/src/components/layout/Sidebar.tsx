@@ -1,14 +1,15 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2, User,
-  LogOut, ChevronLeft, ChevronRight, Crown, Users, Bell, Sparkles, BadgeCheck, MessageSquareText,
+  LogOut, ChevronLeft, ChevronRight, Crown, Users, Bell, Sparkles, BadgeCheck, MessageSquareText, MessageSquareHeart,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { TierBadge } from '../ui';
 import { resolveUploadUrl } from '../../services/api';
+import FeedbackDialog from '../ui/FeedbackDialog';
 
 type NavItem = { to: string; icon: typeof LayoutDashboard; label: string };
 
@@ -55,6 +56,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
   }, [fetchPendingCount]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const onTopTier = user?.tier === 'gold';
 
   return (
@@ -168,6 +170,17 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
           </div>
         )}
         <button
+          onClick={() => setFeedbackOpen(true)}
+          title={collapsed ? 'Send feedback' : undefined}
+          className={clsx(
+            'flex items-center rounded-2xl text-sm font-bold text-ink-2 hover:bg-brand-blue-light hover:text-brand-blue transition-colors w-full h-10',
+            collapsed ? 'justify-center' : 'gap-3 px-3'
+          )}
+        >
+          <MessageSquareHeart size={17} className="flex-shrink-0" />
+          {!collapsed && <span>Send feedback</span>}
+        </button>
+        <button
           onClick={handleLogout}
           title={collapsed ? 'Sign out' : undefined}
           className={clsx(
@@ -179,6 +192,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
           {!collapsed && <span>Sign out</span>}
         </button>
       </div>
+      {feedbackOpen && <FeedbackDialog onClose={() => setFeedbackOpen(false)} />}
     </aside>
   );
 }

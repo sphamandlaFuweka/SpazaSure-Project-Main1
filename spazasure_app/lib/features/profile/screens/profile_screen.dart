@@ -1,3 +1,5 @@
+import 'package:spazasure_app/features/feedback/send_feedback_screen.dart';
+import 'package:spazasure_app/services/feedback_service.dart';
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
@@ -132,6 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(child: _buildAppSection()),
+                  const SliverToBoxAdapter(
+                    child: FeedbackCard(service: FeedbackService.shop),
+                  ),
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),

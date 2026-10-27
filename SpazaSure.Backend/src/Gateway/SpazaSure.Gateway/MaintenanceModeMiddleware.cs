@@ -40,6 +40,8 @@ public sealed class MaintenanceModeMiddleware(RequestDelegate next, IHttpClientF
         if (!path.StartsWithSegments("/api")) return true;
         if (path.StartsWithSegments("/api/settings")) return true;
         if (path.StartsWithSegments("/api/admin")) return true;
+        // Unsubscribe and waitlist links in emails must keep working
+        if (path.StartsWithSegments("/api/email")) return true;
         if (path.Value!.Contains("/auth/", StringComparison.OrdinalIgnoreCase)) return true;
         if (path.Value!.EndsWith("/webhook", StringComparison.OrdinalIgnoreCase)) return true;
         return HasAdminToken(context);

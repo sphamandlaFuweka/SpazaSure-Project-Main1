@@ -46,6 +46,11 @@ builder.Services.AddRateLimiter(o =>
             return RateLimitPartition.GetFixedWindowLimiter("reset:" + ip, _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });
 
+        // The public website's waitlist form: real people sign up once or twice, bots many times
+        if (path.StartsWithSegments("/api/public/waitlist"))
+            return RateLimitPartition.GetFixedWindowLimiter("waitlist:" + ip, _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });
+
         if (IsAuthPath(path, "/login", "/register"))
             return RateLimitPartition.GetFixedWindowLimiter("auth:" + ip, _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });

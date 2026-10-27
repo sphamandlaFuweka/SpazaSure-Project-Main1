@@ -234,6 +234,23 @@ services:
       # /opt/spazasure/secrets/firebase-service-account.json (never in git). Without it,
       # push is simply off and in-app notifications still work.
       Firebase__CredentialsPath:            /app/secrets/firebase-service-account.json
+      # Automated emails (welcome, feature tips, reminders, waitlist confirmations), sent
+      # through the same SMTP account as password resets, e.g. Brevo (smtp-relay.brevo.com).
+      Email__SmtpHost:                      ${PROD_SMTP_HOST:-}
+      Email__SmtpPort:                      ${PROD_SMTP_PORT:-587}
+      Email__Username:                      ${PROD_SMTP_USERNAME:-}
+      Email__Password:                      ${PROD_SMTP_PASSWORD:-}
+      Email__FromAddress:                   ${PROD_EMAIL_FROM:-}
+      Email__FromName:                      SpazaSure
+      Email__ReplyTo:                       ${PROD_EMAIL_REPLY_TO:-}
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
+      # Off until switched on. While testing, ONLY_TO limits sequences to e.g. "@spazasure.co.za,tester@gmail.com".
+      EmailSequences__Enabled:              ${PROD_EMAIL_SEQUENCES_ENABLED:-false}
+      EmailSequences__DryRun:               ${PROD_EMAIL_SEQUENCES_DRY_RUN:-false}
+      EmailSequences__OnlyTo:               ${PROD_EMAIL_SEQUENCES_ONLY_TO:-}
+      EmailSequences__DailyLimit:           ${PROD_EMAIL_DAILY_LIMIT:-250}
+      EmailSequences__AppUrl:               ${PROD_FRONTEND_URL:-https://app.spazasure.co.za}
+      EmailSequences__PortalUrl:            ${PROD_SUPPLIER_PORTAL_URL:-https://portal.spazasure.co.za}
     volumes:
       - ./secrets:/app/secrets:ro
     depends_on:
@@ -401,6 +418,9 @@ services:
       Cors__AllowedOrigins__0: ${PROD_FRONTEND_URL:-https://app.spazasure.co.za}
       Cors__AllowedOrigins__1: ${PROD_SUPPLIER_PORTAL_URL:-https://portal.spazasure.co.za}
       Cors__AllowedOrigins__2: ${PROD_ADMIN_CONSOLE_URL:-https://admin.spazasure.co.za}
+      # The public website, for its waitlist form
+      Cors__AllowedOrigins__3: ${PROD_WEBSITE_URL:-https://spazasure.co.za}
+      Cors__AllowedOrigins__4: ${PROD_WEBSITE_WWW_URL:-https://www.spazasure.co.za}
     depends_on:
       - auth-service
       - product-service

@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using SpazaSure.AuthService.DTOs;
 using SpazaSure.AuthService.Services;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Tests.Helpers;
 using Xunit;
 
@@ -14,7 +15,8 @@ public class PasswordResetEmailTests
         public List<(string To, string Subject, string Html, string Text)> Sent { get; } = [];
         public bool IsConfigured => configured;
 
-        public Task SendAsync(string to, string subject, string htmlBody, string textBody, CancellationToken ct = default)
+        public Task SendAsync(string to, string subject, string htmlBody, string textBody, CancellationToken ct = default,
+            IReadOnlyDictionary<string, string>? headers = null)
         {
             if (fail) throw new InvalidOperationException("SMTP down");
             Sent.Add((to, subject, htmlBody, textBody));

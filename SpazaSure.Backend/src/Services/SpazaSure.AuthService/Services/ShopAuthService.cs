@@ -138,6 +138,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
 
         user.FailedAttempts = 0;
         user.LastLoginAt = DateTime.UtcNow;
+        user.LastSeenAt = user.LastLoginAt;
 
         db.AuthAuditLogs.Add(new AuthAuditLog
         {

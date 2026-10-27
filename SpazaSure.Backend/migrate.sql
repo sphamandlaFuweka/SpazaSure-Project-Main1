@@ -1934,6 +1934,64 @@ ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS refund_reference text;
 ALTER TABLE delivery_disputes ADD COLUMN IF NOT EXISTS refund_status text;
 CREATE INDEX IF NOT EXISTS ix_delivery_disputes_supplier_id ON delivery_disputes(supplier_id, created_at);
 
+-- Testing-phase engagement: real "last seen" activity, email opt-out, in-app feedback,
+-- the website waitlist and the log of automated emails (one row per person per email).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at timestamp with time zone;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed_at timestamp with time zone;
+
+CREATE TABLE IF NOT EXISTS feedback_items (
+    id uuid NOT NULL CONSTRAINT pk_feedback_items PRIMARY KEY,
+    user_id uuid NOT NULL CONSTRAINT fk_feedback_items_users_user_id REFERENCES users(id) ON DELETE CASCADE,
+    role varchar(30) NOT NULL,
+    type varchar(20) NOT NULL,
+    message varchar(2000) NOT NULL,
+    rating smallint,
+    screen varchar(120),
+    screenshot_url varchar(500),
+    source varchar(30) NOT NULL,
+    app_version varchar(30),
+    platform varchar(60),
+    status varchar(20) NOT NULL,
+    admin_note varchar(1000),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE INDEX IF NOT EXISTS ix_feedback_items_status_created_at ON feedback_items(status, created_at);
+CREATE INDEX IF NOT EXISTS ix_feedback_items_user_id ON feedback_items(user_id);
+
+CREATE TABLE IF NOT EXISTS waitlist_signups (
+    id uuid NOT NULL CONSTRAINT pk_waitlist_signups PRIMARY KEY,
+    email varchar(254) NOT NULL,
+    name varchar(120),
+    phone varchar(20),
+    interest varchar(20) NOT NULL,
+    area varchar(120),
+    source varchar(80),
+    marketing_consent boolean NOT NULL,
+    ip_address varchar(64),
+    confirmation_sent_at timestamp with time zone,
+    confirmed_at timestamp with time zone,
+    unsubscribed_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_waitlist_signups_email ON waitlist_signups(email);
+CREATE INDEX IF NOT EXISTS ix_waitlist_signups_created_at ON waitlist_signups(created_at);
+
+CREATE TABLE IF NOT EXISTS email_sends (
+    id uuid NOT NULL CONSTRAINT pk_email_sends PRIMARY KEY,
+    user_id uuid NOT NULL,
+    key varchar(60) NOT NULL,
+    email varchar(254) NOT NULL,
+    subject varchar(200) NOT NULL,
+    status varchar(20) NOT NULL,
+    error varchar(500),
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_email_sends_user_id_key ON email_sends(user_id, key);
+CREATE INDEX IF NOT EXISTS ix_email_sends_created_at ON email_sends(created_at);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.NotificationService.Consumers;
 using SpazaSure.NotificationService.Data;
+using SpazaSure.NotificationService.Email;
 using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 builder.Services.AddDbContext<NotificationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// The main schema too: the email sequences read users and log what they send
+builder.Services.AddDbContext<SpazaSure.Infrastructure.Data.SpazaSureDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), o => o.MigrationsHistoryTable("__EFMigrationsHistory")).UseSnakeCaseNamingConvention());
 
 // JWT Authentication
 // Must match the auth service's signing secret, or every token is rejected with 401.
@@ -35,6 +39,14 @@ builder.Services.AddAuthorization();
 
 // Phone push notifications (Firebase Cloud Messaging)
 builder.Services.AddSingleton<SpazaSure.NotificationService.Services.PushSender>();
+
+// Automated emails: waitlist confirmations, welcome, feature tips and reminders
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.Configure<EmailSequenceOptions>(builder.Configuration.GetSection("EmailSequences"));
+builder.Services.AddSingleton(new EmailLinks(jwtSecret,
+    builder.Configuration["PublicApiUrl"] ?? "https://api.spazasure.co.za"));
+builder.Services.AddHostedService<EmailSequenceWorker>();
+builder.Services.AddScoped<IAdminAccessStore, SpazaSure.Infrastructure.Data.AdminAccessStore>();
 
 // RabbitMQ Consumer (Background Service)
 builder.Services.AddHostedService<RabbitMqConsumer>();
@@ -76,6 +88,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAdminAccess();
 
 app.MapControllers();
 SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "notifications", (services, ct) =>

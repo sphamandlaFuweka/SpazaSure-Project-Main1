@@ -36,6 +36,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<GroupBuyParticipantItem> GroupBuyParticipantItems => Set<GroupBuyParticipantItem>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
     public DbSet<Faq> Faqs => Set<Faq>();
+    public DbSet<FeedbackItem> FeedbackItems => Set<FeedbackItem>();
+    public DbSet<WaitlistSignup> WaitlistSignups => Set<WaitlistSignup>();
+    public DbSet<EmailSend> EmailSends => Set<EmailSend>();
     public DbSet<ShopOnboardingPayment> ShopOnboardingPayments => Set<ShopOnboardingPayment>();
     public DbSet<ShopWalletTransaction> ShopWalletTransactions => Set<ShopWalletTransaction>();
     public DbSet<ShopConversation> ShopConversations => Set<ShopConversation>();
@@ -580,6 +583,51 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(p => new { p.ShopId, p.LessonKey }).IsUnique();
             e.Property(p => p.LessonKey).HasMaxLength(60);
             e.HasOne(p => p.Shop).WithMany().HasForeignKey(p => p.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Testing-phase engagement: feedback, the website waitlist and the automated email log
+        model.Entity<FeedbackItem>(e =>
+        {
+            e.ToTable("feedback_items");
+            e.HasIndex(f => new { f.Status, f.CreatedAt });
+            e.HasIndex(f => f.UserId);
+            e.Property(f => f.Role).HasMaxLength(30);
+            e.Property(f => f.Type).HasMaxLength(20);
+            e.Property(f => f.Message).HasMaxLength(2000);
+            e.Property(f => f.Screen).HasMaxLength(120);
+            e.Property(f => f.ScreenshotUrl).HasMaxLength(500);
+            e.Property(f => f.Source).HasMaxLength(30);
+            e.Property(f => f.AppVersion).HasMaxLength(30);
+            e.Property(f => f.Platform).HasMaxLength(60);
+            e.Property(f => f.Status).HasMaxLength(20);
+            e.Property(f => f.AdminNote).HasMaxLength(1000);
+            e.HasOne(f => f.User).WithMany().HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<WaitlistSignup>(e =>
+        {
+            e.ToTable("waitlist_signups");
+            e.HasIndex(w => w.Email).IsUnique();
+            e.HasIndex(w => w.CreatedAt);
+            e.Property(w => w.Email).HasMaxLength(254);
+            e.Property(w => w.Name).HasMaxLength(120);
+            e.Property(w => w.Phone).HasMaxLength(20);
+            e.Property(w => w.Interest).HasMaxLength(20);
+            e.Property(w => w.Area).HasMaxLength(120);
+            e.Property(w => w.Source).HasMaxLength(80);
+            e.Property(w => w.IpAddress).HasMaxLength(64);
+        });
+
+        model.Entity<EmailSend>(e =>
+        {
+            e.ToTable("email_sends");
+            e.HasIndex(s => new { s.UserId, s.Key }).IsUnique();
+            e.HasIndex(s => s.CreatedAt);
+            e.Property(s => s.Key).HasMaxLength(60);
+            e.Property(s => s.Email).HasMaxLength(254);
+            e.Property(s => s.Subject).HasMaxLength(200);
+            e.Property(s => s.Status).HasMaxLength(20);
+            e.Property(s => s.Error).HasMaxLength(500);
         });
 
         base.OnModelCreating(model);

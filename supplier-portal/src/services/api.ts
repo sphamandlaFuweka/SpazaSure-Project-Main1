@@ -447,6 +447,130 @@ export const adminDeletionApi = {
   reject: (id: string, note: string) => api.post(`/admin/deletion-requests/${id}/reject`, { note }).then((r) => r.data),
 };
 
+// ── Testing phase: feedback, waitlist and automated emails ─────────────────────
+
+export type FeedbackType = 'bug' | 'idea' | 'question' | 'praise';
+export type FeedbackStatus = 'new' | 'planned' | 'in_progress' | 'done' | 'wont_fix';
+
+/** Suppliers sending feedback from the portal (bug, idea, question or praise). */
+export const feedbackApi = {
+  send: (f: { type: FeedbackType; message: string; rating?: number; screen?: string; screenshot?: File | null }) => {
+    const form = new FormData();
+    form.append('type', f.type);
+    form.append('message', f.message);
+    form.append('source', 'supplier_portal');
+    form.append('platform', 'web');
+    if (f.rating) form.append('rating', String(f.rating));
+    if (f.screen) form.append('screen', f.screen);
+    if (f.screenshot) form.append('screenshot', f.screenshot);
+    return api.post('/supplier/profile/feedback', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data);
+  },
+};
+
+export interface AdminFeedbackItem {
+  id: string;
+  type: FeedbackType;
+  message: string;
+  rating: number | null;
+  screen: string | null;
+  source: string;
+  appVersion: string | null;
+  platform: string | null;
+  status: FeedbackStatus;
+  adminNote: string | null;
+  role: string;
+  createdAt: string;
+  senderEmail: string | null;
+  senderPhone: string | null;
+  senderName: string | null;
+  /** Signed link, valid for 30 minutes. */
+  screenshotUrl: string | null;
+}
+
+export interface AdminFeedbackPage {
+  items: AdminFeedbackItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: { status: FeedbackStatus; count: number }[];
+  averageRating: number | null;
+  ratingCount: number;
+}
+
+export const adminFeedbackApi = {
+  list: (params: { status?: string; type?: string; role?: string; page?: number }) =>
+    api.get('/admin/feedback', { params }).then((r) => unwrap<AdminFeedbackPage>(r)),
+  update: (id: string, body: { status?: FeedbackStatus; adminNote?: string }) =>
+    api.patch(`/admin/feedback/${id}`, body).then((r) => r.data),
+};
+
+export interface WaitlistSignup {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  interest: 'customer' | 'spaza_owner' | 'supplier';
+  area: string | null;
+  source: string | null;
+  marketingConsent: boolean;
+  createdAt: string;
+  confirmedAt: string | null;
+  unsubscribedAt: string | null;
+}
+
+export interface WaitlistPage {
+  items: WaitlistSignup[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: {
+    total: number;
+    confirmed: number;
+    lastSevenDays: number;
+    byInterest: { interest: string; count: number }[];
+  };
+}
+
+export const adminWaitlistApi = {
+  list: (params: { interest?: string; confirmed?: boolean; page?: number }) =>
+    api.get('/admin/waitlist', { params }).then((r) => unwrap<WaitlistPage>(r)),
+  /** Downloads the list as a CSV spreadsheet. */
+  exportCsv: async (params: { interest?: string; confirmed?: boolean }) => {
+    const r = await api.get('/admin/waitlist/export', { params, responseType: 'blob' });
+    const url = URL.createObjectURL(r.data as Blob);
+    const link = Object.assign(document.createElement('a'), {
+      href: url,
+      download: `spazasure-waitlist-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+  remove: (id: string) => api.delete(`/admin/waitlist/${id}`).then((r) => r.data),
+};
+
+export interface EmailSequenceSummary {
+  emailConfigured: boolean;
+  enabled: boolean;
+  dryRun: boolean;
+  onlyTo: string | null;
+  dailyLimit: number;
+  sendingHours: string;
+  sentToday: number;
+  unsubscribed: number;
+  byEmail: { step: string; sent: number; failed: number }[];
+  latest: { key: string; subject: string; email: string; status: string; error: string | null; sentAt: string }[];
+}
+
+export const adminEmailApi = {
+  summary: () => api.get('/admin/email-sequences').then((r) => unwrap<EmailSequenceSummary>(r)),
+  preview: (step: string, role: string) =>
+    api.get('/admin/email-sequences/preview', { params: { step, role } })
+      .then((r) => unwrap<{ subject: string; html: string; text: string }>(r)),
+  sendTest: (step: string, role: string) =>
+    api.post('/admin/email-sequences/test', { step, role }).then((r) => r.data as { message?: string }),
+};
+
 /** Saves data as a .json file in the browser. */
 export const downloadJson = (data: unknown, fileName: string) => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));

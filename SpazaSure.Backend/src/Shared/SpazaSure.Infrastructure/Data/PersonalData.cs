@@ -29,6 +29,10 @@ public static class PersonalData
             .Select(a => new { a.Event, a.IpAddress, a.CreatedAt }).ToListAsync(ct);
         var messagesSent = await db.ShopMessages.AsNoTracking().Where(m => m.SenderUserId == userId)
             .OrderBy(m => m.CreatedAt).Select(m => new { m.Body, m.CreatedAt }).ToListAsync(ct);
+        var feedback = await db.FeedbackItems.AsNoTracking().Where(f => f.UserId == userId)
+            .OrderBy(f => f.CreatedAt).Select(f => new { f.Type, f.Message, f.Rating, f.Screen, f.CreatedAt }).ToListAsync(ct);
+        var emailsSent = await db.EmailSends.AsNoTracking().Where(e => e.UserId == userId)
+            .OrderBy(e => e.CreatedAt).Select(e => new { e.Subject, e.Email, e.Status, sentAt = e.CreatedAt }).ToListAsync(ct);
 
         return new
         {
@@ -37,7 +41,8 @@ public static class PersonalData
             account = new
             {
                 user.Id, role = user.Role.Name, user.Email, user.Phone, user.DisplayName, user.Status,
-                user.CreatedAt, user.LastLoginAt, profilePhoto = user.ProfilePhotoUrl,
+                user.CreatedAt, user.LastLoginAt, user.LastSeenAt, profilePhoto = user.ProfilePhotoUrl,
+                user.EmailUnsubscribedAt,
             },
             consents = activity.Where(a => a.Event.StartsWith("consent_")),
             signInActivity = activity.Where(a => !a.Event.StartsWith("consent_")),
@@ -45,6 +50,8 @@ public static class PersonalData
             supplier = supplier is null ? null : await SupplierExportAsync(db, supplier, ct),
             customer = customer is null ? null : await CustomerExportAsync(db, customer, ct),
             messagesSent,
+            feedback,
+            emailsSent,
         };
     }
 
@@ -158,6 +165,13 @@ public static class PersonalData
 
         db.RefreshTokens.RemoveRange(db.RefreshTokens.Where(t => t.UserId == userId));
         db.OtpCodes.RemoveRange(db.OtpCodes.Where(o => o.UserId == userId));
+        db.EmailSends.RemoveRange(db.EmailSends.Where(e => e.UserId == userId));
+        foreach (var item in await db.FeedbackItems.Where(f => f.UserId == userId).ToListAsync(ct))
+        {
+            // The feedback itself stays useful; anything identifying goes
+            files.Add(item.ScreenshotUrl);
+            item.ScreenshotUrl = null;
+        }
         foreach (var message in await db.ShopMessages.Where(m => m.SenderUserId == userId).ToListAsync(ct))
             message.Body = "(message removed)";
         foreach (var log in await db.AuthAuditLogs.Where(a => a.UserId == userId).ToListAsync(ct))

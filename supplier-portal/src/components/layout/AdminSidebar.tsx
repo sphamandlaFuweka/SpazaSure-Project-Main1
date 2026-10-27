@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShieldCheck, Package, ShoppingCart, Bell,
   BarChart2, Settings, LogOut, ChevronLeft, ChevronRight, Flag, MapPin, UsersRound, Wallet, Landmark, Banknote, ArrowUpFromLine, ClipboardList,
-  KeyRound, UserX, Truck,
+  KeyRound, UserX, Truck, MessageSquareHeart, ListPlus, MailCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useEffect } from 'react';
@@ -66,6 +66,14 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
       title: 'Management',
       items: [
         { to: '/admin/projects', icon: ClipboardList, label: 'Projects & Impact' },
+      ],
+    },
+    {
+      title: 'Testing & growth',
+      items: [
+        { to: '/admin/feedback', icon: MessageSquareHeart, label: 'Tester Feedback' },
+        { to: '/admin/waitlist', icon: ListPlus,           label: 'Waitlist' },
+        { to: '/admin/emails',   icon: MailCheck,          label: 'Automated Emails' },
       ],
     },
     {

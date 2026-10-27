@@ -19,7 +19,7 @@ public static class PrivateFiles
     private static readonly HashSet<string> FileRoots = new(StringComparer.OrdinalIgnoreCase) { "uploads", "compliance-uploads", "delivery-uploads" };
     private static readonly HashSet<string> PrivateFolders = new(StringComparer.OrdinalIgnoreCase)
     {
-        "shop-docs", "supplier-docs", "report-photos", "driver-docs",
+        "shop-docs", "supplier-docs", "report-photos", "driver-docs", "feedback-screenshots",
     };
 
     private static byte[]? _key;

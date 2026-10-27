@@ -33,7 +33,7 @@ public static class AdminAccess
         (Marketplace, "Marketplace", "Products, categories, orders, group buys, drivers and deliveries, analytics"),
         (Finance, "Finance", "Supplier payouts, wallet deposits and withdrawals, ledger, tax invoices, finance reports"),
         (Projects, "Projects & impact", "Project management, MEL and reporting workspace"),
-        (Settings, "Platform settings", "Platform rules, fees, maintenance mode and FAQs"),
+        (Settings, "Platform settings", "Platform rules, fees, maintenance mode, FAQs, tester feedback, waitlist and emails"),
     ];
 
     private static readonly HashSet<string> AreaKeys = Areas.Select(a => a.Key).ToHashSet();
@@ -65,6 +65,9 @@ public static class AdminAccess
         ("/api/admin/projects", Projects),
         ("/api/admin/settings", Settings),
         ("/api/admin/faqs", Settings),
+        ("/api/admin/feedback", Settings),
+        ("/api/admin/waitlist", Settings),
+        ("/api/admin/email-sequences", Settings),
     ];
 
     /// <summary>Whether a path is part of the admin console and so subject to staff access.</summary>
