@@ -17,6 +17,8 @@ class ReportScreen extends StatefulWidget {
   final String? expiryDate;
   final String? initialType;
   final String? initialDescription;
+  /// Evidence photo already taken, e.g. of a pack that didn't match the reference photos.
+  final PlatformFile? initialPhoto;
 
   const ReportScreen({
     super.key,
@@ -27,6 +29,7 @@ class ReportScreen extends StatefulWidget {
     this.expiryDate,
     this.initialType,
     this.initialDescription,
+    this.initialPhoto,
   });
 
   @override
@@ -111,6 +114,7 @@ class _ReportScreenState extends State<ReportScreen> {
     _selectedType = widget.initialType;
     _productController.text = widget.productName ?? '';
     _descriptionController.text = widget.initialDescription ?? '';
+    _photoFile = widget.initialPhoto;
     DeviceContext.location().then((fix) {
       if (mounted) setState(() => _fix = fix);
     });

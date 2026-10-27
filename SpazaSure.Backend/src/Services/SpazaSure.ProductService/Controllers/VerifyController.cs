@@ -14,13 +14,9 @@ namespace SpazaSure.ProductService.Controllers;
 /// The Customer app's core "Verify" scan flow. Checks SpazaSure's own
 /// registry first — a product's own barcode, or a specific SpazaSure QR
 /// code applied to a batch — and returns a verdict plus recall/allergen
-/// info when available.
-///
-/// NOT implemented here: the Open Food Facts fallback for barcodes
-/// SpazaSure doesn't recognize at all. That's a real external API
-/// integration (openfoodfacts.org) — this endpoint returns a clear
-/// "not_registered" result instead, which the client can use to decide
-/// whether to call Open Food Facts itself or just show "unknown product".
+/// info when available. Codes SpazaSure doesn't know are looked up in the
+/// open product databases and explained (nutrition, processing, additives),
+/// with an offline reading of the barcode itself either way.
 /// </summary>
 [ApiController]
 [Route("api/customer/verify")]
@@ -167,9 +163,11 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 risk: risk)));
         }
 
-        // 3. Not in SpazaSure's registry at all: use Open Food Facts for a
-        //    lightweight product lookup if the product exists globally.
-        var openFoodFactsProduct = await openFoodFactsService.LookupAsync(code);
+        // 3. Not in SpazaSure's registry at all: look it up in the open product
+        //    databases (food, toiletries, household, pet food) and explain it.
+        var barcodeInfo = BarcodeInsights.Analyze(code);
+        var lookup = await openFoodFactsService.LookupAsync(code);
+        var openFoodFactsProduct = lookup.Product;
 
         if (openFoodFactsProduct is not null)
         {
@@ -177,6 +175,8 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             var matchedAllergies = myAllergies is { Length: > 0 }
                 ? fallbackAllergens.Where(a => myAllergies.Contains(a, StringComparer.OrdinalIgnoreCase)).ToList()
                 : [];
+            var insights = ProductInsights.Build(openFoodFactsProduct);
+            var isFood = insights.ProductType == "food";
 
             var offRisk = VerificationRiskEngine.Evaluate(new VerificationInput
             {
@@ -187,7 +187,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 PackagingScanned = scannedPackaging,
                 PackagingBarcodeMatches = !scannedPackaging || PackagingMatches(openFoodFactsProduct.Name, packagingText),
                 HasIngredients = !string.IsNullOrWhiteSpace(openFoodFactsProduct.Ingredients),
-                IsFood = true, CloneSuspected = cloned,
+                IsFood = isFood, CloneSuspected = cloned,
             }, today);
 
             return Ok(ApiResponse<object>.Ok(new
@@ -198,10 +198,17 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
                 name = openFoodFactsProduct.Name ?? openFoodFactsProduct.GenericName ?? "Unknown product",
                 description = openFoodFactsProduct.Description ?? openFoodFactsProduct.Ingredients,
                 images = new[] { openFoodFactsProduct.ImageUrl }.Where(i => !string.IsNullOrWhiteSpace(i)).ToArray(),
+                // Reference photos the customer can compare with the pack in their hand
+                gallery = openFoodFactsProduct.Photos.Select(ph => new { url = ph.Url, label = ph.Label, source = openFoodFactsProduct.DataSource }),
                 allergens = fallbackAllergens,
-                isFoodItem = true,
+                isFoodItem = isFood,
                 allergyWarning = matchedAllergies.Count > 0 ? new { matchedAllergens = matchedAllergies } : null,
-                message = "This product is not in SpazaSure's registry, but basic product details were found in Open Food Facts.",
+                message = $"This product is not in SpazaSure's registry, but product details were found in {openFoodFactsProduct.DataSource}.",
+                insights,
+                barcodeInfo,
+                dataSource = openFoodFactsProduct.DataSource,
+                servingSize = openFoodFactsProduct.ServingSize,
+                packaging = openFoodFactsProduct.Packaging,
                 batchNumber = batch,
                 expiryDate = expiry,
                 brand = openFoodFactsProduct.Brands,
@@ -224,6 +231,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
         var unknownRisk = VerificationRiskEngine.Evaluate(new VerificationInput
         {
             Code = code,
+            GlobalDatabaseUnavailable = lookup.Unavailable,
             ExpiryDate = expiry,
             BatchNumber = batch,
             PackagingScanned = scannedPackaging,
@@ -235,7 +243,11 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             source = "not_registered",
             verdict = "unknown",
             code,
-            message = "This product isn't in SpazaSure's registry yet.",
+            message = lookup.Unavailable
+                ? "This product isn't in SpazaSure's registry, and the global product databases can't be reached right now. Try again later."
+                : "This product isn't in SpazaSure's registry or the global product databases yet.",
+            lookupUnavailable = lookup.Unavailable,
+            barcodeInfo,
             batchNumber = batch,
             expiryDate = expiry,
             riskScore = unknownRisk.Score,

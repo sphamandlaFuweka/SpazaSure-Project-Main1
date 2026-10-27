@@ -1,4 +1,6 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:spazasure_app/core/widgets/product_info_sections.dart';
 import 'package:spazasure_app/models/product_info.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +11,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/barcode_check.dart';
 import 'package:spazasure_app/services/device_context.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
 import 'package:spazasure_app/services/packaging_text_parser.dart';
@@ -30,6 +33,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String? _pin;
   final _packagingBarcodeController = TextEditingController();
   MobileScannerController? _cameraController;
+  // Reads barcodes from packaging photos; separate from the live camera.
+  MobileScannerController? _photoScanner;
   bool _loading = false;
   bool _scanning = true;
   bool _reading = false;
@@ -45,33 +50,55 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String? _rewardMessage;
   bool _rewardDuplicate = false;
 
+  bool get _hasResult => _product != null || _error != null;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    // Customers have no live camera scan; only retailers do.
-    if (!widget.customerMode) {
-      _tabController.addListener(() {
-        if (_tabController.index == 0) {
-          _startCamera();
-        } else {
-          _stopCamera();
-        }
-      });
-      _startCamera();
-    }
-  }
-
-  void _startCamera() {
-    _cameraController ??= MobileScannerController(
+    // Live scan first for everyone; customers also get a packaging photo tab.
+    // Manual entry stays at index 1 in both, which the camera error screen relies on.
+    _tabController = TabController(
+      length: widget.customerMode ? 3 : 2,
+      vsync: this,
+    );
+    _tabController.addListener(_onTabChanged);
+    _cameraController = MobileScannerController(
       detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
+      formats: const [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+        BarcodeFormat.itf14,
+        BarcodeFormat.code128,
+        BarcodeFormat.qrCode,
+        BarcodeFormat.dataMatrix,
+      ],
+      autoZoom: true,
     );
-    setState(() => _scanning = true);
   }
 
-  void _stopCamera() {
-    setState(() => _scanning = false);
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    setState(() {
+      _scanning = _tabController.index == 0;
+      _lastScanned = null;
+      // Customers see the result in place of the tabs, so choosing a tab starts over
+      if (widget.customerMode) {
+        _product = null;
+        _error = null;
+      }
+    });
+  }
+
+  void _resetScan() {
+    setState(() {
+      _scanning = _tabController.index == 0;
+      _product = null;
+      _error = null;
+      _lastScanned = null;
+    });
   }
 
   @override
@@ -81,6 +108,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     _pinController.dispose();
     _packagingBarcodeController.dispose();
     _cameraController?.dispose();
+    _photoScanner?.dispose();
     super.dispose();
   }
 
@@ -179,15 +207,20 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   void _onBarcodeDetected(BarcodeCapture capture) {
-    if (!_scanning) return;
-    final barcodes = capture.barcodes;
-    if (barcodes.isEmpty) return;
-
-    final code = barcodes.first.rawValue;
-    if (code == null || code.isEmpty) return;
+    if (!_scanning || _loading) return;
+    String? code;
+    for (final b in capture.barcodes) {
+      final value = b.rawValue?.trim();
+      if (value != null && isPlausibleScan(value)) {
+        code = value;
+        break;
+      }
+    }
+    if (code == null) return;
     if (code == _lastScanned) return; // prevent duplicate scans
 
     _lastScanned = code;
+    HapticFeedback.mediumImpact();
     setState(() => _scanning = false);
     // A SpazaSure shop sticker, not a product: show whether the shop is verified
     if (isShopStickerCode(code)) {
@@ -221,11 +254,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           unselectedLabelColor: AppColors.textHint,
           indicatorColor: AppColors.primary,
           tabs: [
-            if (!widget.customerMode)
-              const Tab(
-                icon: Icon(Icons.camera_alt_rounded, size: 18),
-                text: 'Camera Scan',
-              ),
+            Tab(
+              icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+              text: widget.customerMode ? 'Scan Barcode' : 'Camera Scan',
+            ),
             const Tab(
               icon: Icon(Icons.keyboard_rounded, size: 18),
               text: 'Manual Entry',
@@ -233,27 +265,28 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             if (widget.customerMode)
               const Tab(
                 icon: Icon(Icons.document_scanner_rounded, size: 18),
-                text: 'Scan Packaging',
+                text: 'Packaging Photo',
               ),
           ],
         ),
       ),
       body: Column(
         children: [
-          // Scanner / Manual input area
-          Expanded(
-            flex: _product != null || _error != null
-                ? (widget.customerMode ? 1 : 2)
-                : 3,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                if (!widget.customerMode) _buildCameraTab(),
-                _buildManualTab(),
-                if (widget.customerMode) _buildPackagingTab(),
-              ],
+          // Customers get the full screen for the result; the camera switches off meanwhile
+          if (widget.customerMode && _hasResult)
+            _scanAnotherBar()
+          else
+            Expanded(
+              flex: _hasResult ? 2 : 3,
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildCameraTab(),
+                  _buildManualTab(),
+                  if (widget.customerMode) _buildPackagingTab(),
+                ],
+              ),
             ),
-          ),
           // Results area
           if (_loading)
             const Padding(
@@ -271,6 +304,48 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ),
         ],
       ),
+    );
+  }
+
+  Widget _scanAnotherBar() {
+    final live = _tabController.index == 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _loading ? null : _resetScan,
+          icon: Icon(live ? Icons.qr_code_scanner_rounded : Icons.refresh),
+          label: Text(live ? 'Scan another product' : 'Check another product'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _torchButton() {
+    return ValueListenableBuilder<MobileScannerState>(
+      valueListenable: _cameraController!,
+      builder: (context, state, _) {
+        if (!state.isRunning || state.torchState == TorchState.unavailable) {
+          return const SizedBox.shrink();
+        }
+        final on = state.torchState == TorchState.on;
+        return IconButton.filled(
+          onPressed: () => _cameraController!.toggleTorch(),
+          tooltip: on ? 'Turn the light off' : 'Turn the light on',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.black54,
+            foregroundColor: on ? Colors.amber : Colors.white,
+          ),
+          icon: Icon(on ? Icons.flash_on_rounded : Icons.flash_off_rounded),
+        );
+      },
     );
   }
 
@@ -330,12 +405,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               },
             ),
           ),
-        // Scan overlay
+        // Scan overlay: wide, because most product barcodes are wider than tall
         if (_scanning)
           Center(
             child: Container(
-              width: 250,
-              height: 250,
+              width: 290,
+              height: 190,
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.primary, width: 3),
                 borderRadius: BorderRadius.circular(20),
@@ -344,7 +419,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    margin: const EdgeInsets.only(bottom: 16),
+                    margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 6,
@@ -353,15 +428,19 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
-                      'Point at barcode',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    child: Text(
+                      _loading
+                          ? 'Checking...'
+                          : 'Point at the barcode or QR code',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+        if (_cameraController != null)
+          Positioned(top: 12, right: 12, child: _torchButton()),
         // Scan again button
         if ((!_scanning && _product != null) || _error != null)
           Positioned(
@@ -369,14 +448,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             left: 16,
             right: 16,
             child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _scanning = true;
-                  _product = null;
-                  _error = null;
-                  _lastScanned = null;
-                });
-              },
+              onPressed: _resetScan,
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Scan Again'),
               style: ElevatedButton.styleFrom(
@@ -524,8 +596,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       if (barcode == null) {
         // The digits may be unreadable even when the bars decode fine.
         try {
-          _cameraController ??= MobileScannerController(autoStart: false);
-          final capture = await _cameraController!.analyzeImage(photo.path);
+          _photoScanner ??= MobileScannerController(autoStart: false);
+          final capture = await _photoScanner!.analyzeImage(photo.path);
           barcode = capture?.barcodes.firstOrNull?.rawValue;
         } catch (_) {
           // Fall back to the typed barcode field.
@@ -726,7 +798,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     }
   }
 
-  void _openReport() {
+  void _openReport({PlatformFile? photo, String? details}) {
     final p = _product!;
     final expiry =
         p['expiryDate']?.toString() ??
@@ -738,6 +810,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         _expiry != null &&
         _expiry!.isBefore(DateTime.now().subtract(const Duration(days: 1)));
     final recalled = p['isRecalled'] == true;
+    final flagged = indicators.isEmpty
+        ? null
+        : 'Flagged by SpazaSure verification:\n$indicators';
+    final description = [?details, ?flagged].join('\n\n');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -752,12 +828,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           expiryDate: expiry,
           initialType: expired
               ? 'Expired Goods'
-              : (level == 'suspicious' || level == 'high' || recalled)
+              : (level == 'suspicious' ||
+                    level == 'high' ||
+                    recalled ||
+                    details != null)
               ? 'Fake / Counterfeit Product'
               : 'Other',
-          initialDescription: indicators.isEmpty
-              ? null
-              : 'Flagged by SpazaSure verification:\n$indicators',
+          initialDescription: description.isEmpty ? null : description,
+          initialPhoto: photo,
         ),
       ),
     );
@@ -784,6 +862,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   pin: pin,
                 ),
           onReport: _openReport,
+          onReportWithPhoto: (photo, details) =>
+              _openReport(photo: photo, details: details),
         ),
       );
     }
@@ -872,7 +952,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isVerified ? 'âœ“ Verified Product' : 'âš  Unverified',
+                      isVerified ? '✓ Verified Product' : '⚠ Unverified',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w800,
                         color: isVerified
@@ -883,7 +963,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                     Text(
                       isVerified
                           ? 'Approved by admin, verified supplier'
-                          : 'Not fully verified â€” exercise caution',
+                          : 'Not fully verified — exercise caution',
                       style: AppTextStyles.caption.copyWith(
                         color: isVerified
                             ? AppColors.success
@@ -921,12 +1001,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               children: [
                 Text(
                   isRecalled
-                      ? 'âš  Recalled Product Code'
+                      ? '⚠ Recalled Product Code'
                       : isExpired
-                      ? 'âš  Expired Product Code'
+                      ? '⚠ Expired Product Code'
                       : repeatScan
-                      ? 'âš  Previously Scanned QR'
-                      : 'âœ“ First Registered QR Scan',
+                      ? '⚠ Previously Scanned QR'
+                      : '✓ First Registered QR Scan',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w800,
                     color: isRecalled || isExpired
@@ -1181,13 +1261,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String _tierLabel(String tier) {
     switch (tier) {
       case 'gold':
-        return 'ðŸ¥‡ Gold';
+        return '🥇 Gold';
       case 'silver':
-        return 'ðŸ¥ˆ Silver';
+        return '🥈 Silver';
       case 'bronze':
-        return 'ðŸ¥‰ Bronze';
+        return '🥉 Bronze';
       default:
-        return 'âœ“ Basic';
+        return '✓ Basic';
     }
   }
 }

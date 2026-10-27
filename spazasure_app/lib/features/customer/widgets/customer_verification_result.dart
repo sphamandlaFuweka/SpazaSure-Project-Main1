@@ -1,8 +1,12 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/widgets/product_info_sections.dart';
 import 'package:spazasure_app/models/product_info.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/features/customer/screens/compare_pack_screen.dart';
+import 'package:spazasure_app/features/customer/widgets/product_gallery.dart';
+import 'package:spazasure_app/features/customer/widgets/product_insights_card.dart';
 
 /// Asks for the hidden scratch-off PIN printed under the panel on the pack.
 class _PinCard extends StatefulWidget {
@@ -81,6 +85,9 @@ class CustomerVerificationResult extends StatelessWidget {
   final VoidCallback? onCheckExpiry;
   final ValueChanged<String>? onSubmitPin;
 
+  /// Opens a report with a photo of the customer's pack and what didn't match.
+  final void Function(PlatformFile photo, String details)? onReportWithPhoto;
+
   const CustomerVerificationResult({
     super.key,
     required this.product,
@@ -91,6 +98,7 @@ class CustomerVerificationResult extends StatelessWidget {
     this.rewardDuplicate = false,
     this.onCheckExpiry,
     this.onSubmitPin,
+    this.onReportWithPhoto,
   });
 
   static String? _text(dynamic v) {
@@ -133,7 +141,7 @@ class CustomerVerificationResult extends StatelessWidget {
         <Map<String, dynamic>>[];
     final allergens = _list(p['allergens']);
     final matched = _list((p['allergyWarning'] as Map?)?['matchedAllergens']);
-    final images = _list(p['images']);
+    final photos = GalleryPhoto.fromProduct(p);
     final name = _text(p['name']) ?? 'Unknown product';
     final description = _text(p['description']);
     final ingredients = _text(p['ingredients']);
@@ -143,12 +151,32 @@ class CustomerVerificationResult extends StatelessWidget {
     );
     final suspicious = level == 'suspicious' || level == 'high' || recalled;
     final needsExpiry = onCheckExpiry != null && expiryText == null;
+    final insights = p['insights'] is Map
+        ? Map<String, dynamic>.from(p['insights'] as Map)
+        : null;
+    final barcodeInfo = p['barcodeInfo'] is Map
+        ? Map<String, dynamic>.from(p['barcodeInfo'] as Map)
+        : null;
+    final outsideRegistry =
+        source == 'open_food_facts' || source == 'not_registered';
+    final message = outsideRegistry ? _text(p['message']) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (rewardMessage != null) _rewardBanner(),
         _riskBanner(level, color, headline, score),
+        if (message != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: AppTextStyles.caption.copyWith(
+              color: p['lookupUnavailable'] == true
+                  ? AppColors.warning
+                  : AppColors.textSecondary,
+            ),
+          ),
+        ],
         if (onSubmitPin != null &&
             (p['requiresPin'] == true || p['pinStatus'] == 'invalid')) ...[
           const SizedBox(height: 12),
@@ -186,17 +214,15 @@ class CustomerVerificationResult extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (images.isNotEmpty)
+                  if (photos.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          images.first,
+                        child: SizedBox(
                           width: 72,
                           height: 72,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          child: ProductImage(photos.first.url),
                         ),
                       ),
                     ),
@@ -262,11 +288,30 @@ class CustomerVerificationResult extends StatelessWidget {
               _row(
                 Icons.storefront_outlined,
                 'Registry',
-                _registryLabel(source),
+                source == 'open_food_facts' && _text(p['dataSource']) != null
+                    ? '${_text(p['dataSource'])} only (not on SpazaSure)'
+                    : _registryLabel(source),
               ),
             ],
           ),
         ),
+        if (photos.isNotEmpty || (onReportWithPhoto != null && _text(p['name']) != null)) ...[
+          const SizedBox(height: 12),
+          ProductGalleryCard(
+            photos: photos,
+            onCompare: onReportWithPhoto == null
+                ? null
+                : () => _openCompare(context, photos),
+          ),
+        ],
+        if (insights != null) ...[
+          const SizedBox(height: 12),
+          ProductInsightsCard(insights: insights),
+        ],
+        if (barcodeInfo != null) ...[
+          const SizedBox(height: 12),
+          BarcodeInfoCard(info: barcodeInfo),
+        ],
         if (_text(p['supplierName']) != null) ...[
           const SizedBox(height: 12),
           _card(
@@ -480,6 +525,26 @@ class CustomerVerificationResult extends StatelessWidget {
           style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
         ),
       ],
+    );
+  }
+
+  void _openCompare(BuildContext context, List<GalleryPhoto> photos) {
+    final p = product;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (compareContext) => ComparePackScreen(
+          photos: photos,
+          name: _text(p['name']),
+          brand: _text(p['brand']),
+          quantity: _text(p['quantity']),
+          barcode: _text(p['code']) ?? fallbackCode,
+          onReport: (photo, details) {
+            Navigator.pop(compareContext);
+            onReportWithPhoto!(photo, details);
+          },
+        ),
+      ),
     );
   }
 

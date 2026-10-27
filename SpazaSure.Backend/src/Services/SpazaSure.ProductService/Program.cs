@@ -22,10 +22,12 @@ builder.Services.AddSingleton(sp =>
 // Admins get a notification when a request crashes
 builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, SpazaSure.Infrastructure.Data.AdminErrorAlerts>();
 
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<SpazaSure.ProductService.Services.OpenFoodFactsService>(client =>
 {
-    client.BaseAddress = new Uri("https://world.openfoodfacts.org/api/v2/");
     client.Timeout = TimeSpan.FromSeconds(12);
+    // The Open Food Facts databases ask every app to identify itself
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (+https://spazasure.co.za)");
 });
 builder.Services.AddSwaggerGen(c =>
 {

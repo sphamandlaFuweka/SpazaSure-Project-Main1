@@ -11,6 +11,8 @@ public sealed class VerificationInput
     public required string Code { get; init; }
     public bool InSpazaSureRegistry { get; init; }
     public bool InGlobalDatabase { get; init; }
+    /// <summary>The global databases couldn't be reached, so "not found" proves nothing.</summary>
+    public bool GlobalDatabaseUnavailable { get; init; }
     public bool Recalled { get; init; }
     public bool SupplierVerified { get; init; }
     public DateOnly? ExpiryDate { get; init; }
@@ -68,6 +70,11 @@ public static class VerificationRiskEngine
         {
             score += 10;
             checks.Add(new("SpazaSure registry", "warn", "Not registered with SpazaSure, but found in a global product database."));
+        }
+        else if (i.GlobalDatabaseUnavailable)
+        {
+            score += 10;
+            checks.Add(new("Product databases", "unknown", "Not registered with SpazaSure, and the global product databases could not be reached. Try again later."));
         }
         else
         {
