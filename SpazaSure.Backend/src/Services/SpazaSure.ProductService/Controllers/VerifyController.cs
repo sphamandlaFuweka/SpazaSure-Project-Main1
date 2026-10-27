@@ -245,7 +245,7 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
             code,
             message = lookup.Unavailable
                 ? "This product isn't in SpazaSure's registry, and the global product databases can't be reached right now. Try again later."
-                : "This product isn't in SpazaSure's registry or the global product databases yet.",
+                : $"This product isn't in SpazaSure's registry, and none of the global product databases we searched ({string.Join(", ", OpenFoodFactsService.DatabaseNames)}) has it yet.",
             lookupUnavailable = lookup.Unavailable,
             barcodeInfo,
             batchNumber = batch,

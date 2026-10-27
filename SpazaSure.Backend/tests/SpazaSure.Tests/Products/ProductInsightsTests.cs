@@ -188,6 +188,12 @@ public class OpenProductLookupTests
     private static HttpResponseMessage Json(string body) =>
         new(HttpStatusCode.OK) { Content = new StringContent(body) };
 
+    // What the databases really send for an unknown barcode
+    private static HttpResponseMessage NotFound() => new(HttpStatusCode.NotFound)
+    {
+        Content = new StringContent("{\"code\":\"x\",\"status\":0,\"status_verbose\":\"product not found\"}"),
+    };
+
     private static (OpenFoodFactsService Service, FakeDatabases Handler) Create(Func<Uri, HttpResponseMessage> respond)
     {
         var handler = new FakeDatabases(respond);
@@ -233,7 +239,7 @@ public class OpenProductLookupTests
     {
         var (service, _) = Create(uri => uri.Host.Contains("openbeautyfacts")
             ? Json(Shampoo)
-            : new HttpResponseMessage(HttpStatusCode.NotFound));
+            : NotFound());
 
         var result = await service.LookupAsync("6001067089827");
 
@@ -248,7 +254,7 @@ public class OpenProductLookupTests
     {
         var (service, _) = Create(uri => uri.Host.Contains("openfoodfacts") || uri.Host.Contains("openbeautyfacts")
             ? Json(uri.Host.Contains("openfoodfacts") ? Cola : Shampoo)
-            : new HttpResponseMessage(HttpStatusCode.NotFound));
+            : NotFound());
 
         (await service.LookupAsync("5449000000996")).Product!.Name.Should().Be("Coca-Cola");
     }
@@ -259,7 +265,7 @@ public class OpenProductLookupTests
         var down = true;
         var (service, handler) = Create(uri => uri.Host.Contains("openfoodfacts")
             ? (down ? new HttpResponseMessage(HttpStatusCode.BadGateway) : Json(Cola))
-            : new HttpResponseMessage(HttpStatusCode.NotFound));
+            : NotFound());
 
         var during = await service.LookupAsync("5449000000996");
         down = false;
@@ -271,10 +277,27 @@ public class OpenProductLookupTests
         handler.Calls.Should().Be(8);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.OK, "<html><title>Unscheduled downtime</title></html>")]
+    [InlineData(HttpStatusCode.OK, "")]
+    [InlineData(HttpStatusCode.NotFound, "<html>Not Found</html>")]
+    [InlineData(HttpStatusCode.Forbidden, "Access denied")]
+    public async Task Lookup_TreatsAPageThatIsNotTheApi_AsCouldNotCheck_AndRetriesNextTime(HttpStatusCode status, string body)
+    {
+        var (service, handler) = Create(_ => new HttpResponseMessage(status) { Content = new StringContent(body) });
+
+        var first = await service.LookupAsync("5449000000996");
+        await service.LookupAsync("5449000000996");
+
+        first.Product.Should().BeNull();
+        first.Unavailable.Should().BeTrue();
+        handler.Calls.Should().Be(8); // not cached
+    }
+
     [Fact]
     public async Task Lookup_CachesResults_SoRepeatScansDontHitTheDatabases()
     {
-        var (service, handler) = Create(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        var (service, handler) = Create(_ => NotFound());
 
         await service.LookupAsync("6009999999999");
         var again = await service.LookupAsync("6009999999999");

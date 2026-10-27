@@ -73,8 +73,11 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
         "image_url,image_front_url,image_front_small_url,image_ingredients_url,image_nutrition_url,image_packaging_url";
 
     private static readonly TimeSpan FoundFor = TimeSpan.FromHours(12);
-    private static readonly TimeSpan MissingFor = TimeSpan.FromHours(2);
+    // Short, so a wrong "not found" (e.g. while a database recovers from an outage) clears quickly
+    private static readonly TimeSpan MissingFor = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan PerDatabaseTimeout = TimeSpan.FromSeconds(8);
+
+    public static IReadOnlyList<string> DatabaseNames { get; } = Databases.Select(d => d.Name).ToArray();
 
     public async Task<OpenProductLookup> LookupAsync(string code, CancellationToken cancellationToken = default)
     {
@@ -95,13 +98,17 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
         var found = results.FirstOrDefault(r => r.Product is not null).Product;
         var result = new OpenProductLookup(found, found is null && results.Any(r => r.Failed));
 
+        if (found is null)
+            logger.LogInformation("No open database has {Code}: {Replies}", code,
+                string.Join(", ", Databases.Zip(results, (db, r) => $"{db.Name}={r.Reply}")));
+
         // Never cache an outage, or the product stays "unknown" after the service is back
         if (!result.Unavailable)
             cache.Set(cacheKey, result, found is null ? MissingFor : FoundFor);
         return result;
     }
 
-    private async Task<(OpenFoodFactsProductSnapshot? Product, bool Failed)> FetchAsync(
+    private async Task<(OpenFoodFactsProductSnapshot? Product, bool Failed, string Reply)> FetchAsync(
         string host, string name, string code, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -110,23 +117,52 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
         {
             using var response = await httpClient.GetAsync(
                 $"{host}/api/v2/product/{Uri.EscapeDataString(code)}.json?fields={Fields}", timeout.Token);
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return (null, false);
+            var status = (int)response.StatusCode;
+            var body = await response.Content.ReadAsStringAsync(timeout.Token);
+
+            // Only the databases' own JSON answer counts. A block page, "busy" page or
+            // maintenance page means we couldn't check, not that the product doesn't exist.
+            if (!TryReadStatus(body, out var found))
+            {
+                logger.LogWarning("{Database} sent an unexpected reply ({Status}) for {Code}: {Start}",
+                    name, status, code, body.Length > 120 ? body[..120] : body);
+                return (null, true, $"unexpected reply {status}");
+            }
+            if (!found)
+                return (null, status is not (200 or 404), status is 200 or 404 ? "not found" : $"error {status}");
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("{Database} returned {Status} for {Code}", name, (int)response.StatusCode, code);
-                return (null, true);
+                logger.LogWarning("{Database} returned {Status} for {Code}", name, status, code);
+                return (null, true, $"error {status}");
             }
 
-            var json = await response.Content.ReadAsStringAsync(timeout.Token);
-            var product = ParseProductResponse(json, code);
+            var product = ParseProductResponse(body, code);
             if (product is not null) product.DataSource = name;
-            return (product, false);
+            return (product, product is null, product is null ? "unreadable product" : "found");
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "{Database} lookup failed for {Code}", name, code);
-            return (null, true);
+            return (null, true, ex is TaskCanceledException ? "timed out" : "unreachable");
+        }
+    }
+
+    /// <summary>Reads the API's "status" (1 found, 0 not found). False when the body isn't the API's JSON.</summary>
+    internal static bool TryReadStatus(string body, out bool found)
+    {
+        found = false;
+        if (string.IsNullOrWhiteSpace(body) || body.TrimStart()[0] != '{') return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("status", out var s) || s.ValueKind != JsonValueKind.Number)
+                return false;
+            found = s.GetInt32() == 1;
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 
