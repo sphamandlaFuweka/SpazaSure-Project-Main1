@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -75,6 +75,8 @@ builder.Services.AddSingleton(sp =>
         username: config["RabbitMQ:Username"] ?? "spazasure",
         password: config["RabbitMQ:Password"] ?? "guest");
 });
+// Admins get a notification when a request crashes
+builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, SpazaSure.Infrastructure.Data.AdminErrorAlerts>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<ShopAuthService>();

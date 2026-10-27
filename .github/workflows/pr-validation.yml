@@ -8,7 +8,6 @@ jobs:
   # Supplier Portal validation
   supplier-portal:
     name: Validate Supplier Portal
-    if: contains(github.event.pull_request.changed_files_url, 'supplier-portal') || github.event.pull_request.changed_files > 0
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,13 +21,30 @@ jobs:
           cache-dependency-path: supplier-portal/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npm test
       - run: npm run build:qa
       - run: npm run build:admin:qa
+
+  # Mobile app validation
+  mobile-app:
+    name: Validate Mobile App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spazasure_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.3' # keep in step with build-mobile.yml
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
 
   # Backend validation
   backend:
     name: Validate Backend
-    if: contains(github.event.pull_request.changed_files_url, 'SpazaSure.Backend') || github.event.pull_request.changed_files > 0
     runs-on: ubuntu-latest
     defaults:
       run:

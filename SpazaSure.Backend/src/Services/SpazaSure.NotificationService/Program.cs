@@ -5,7 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SpazaSure.NotificationService.Consumers;
 using SpazaSure.NotificationService.Data;
-using SpazaSure.NotificationService.Hubs;
 using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,27 +29,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromMinutes(5),
             NameClaimType = "sub",
         };
-
-        // Allow SignalR to read token from query string
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                var accessToken = context.Request.Query["access_token"];
-                var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
-                {
-                    context.Token = accessToken;
-                }
-                return Task.CompletedTask;
-            }
-        };
     });
 
 builder.Services.AddAuthorization();
-
-// SignalR
-builder.Services.AddSignalR();
 
 // Phone push notifications (Firebase Cloud Messaging)
 builder.Services.AddSingleton<SpazaSure.NotificationService.Services.PushSender>();
@@ -67,7 +48,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "SpazaSure Notification Service",
         Version = "v1",
-        Description = "Real-time notifications via RabbitMQ + SignalR"
+        Description = "Notifications from RabbitMQ events: stored for the inbox and pushed to phones"
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -100,6 +81,5 @@ app.MapControllers();
 SpazaSure.Shared.Helpers.HealthEndpoint.MapHealth(app, "notifications", (services, ct) =>
     Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
         .GetRequiredService<NotificationDbContext>(services).Database.CanConnectAsync(ct));
-app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

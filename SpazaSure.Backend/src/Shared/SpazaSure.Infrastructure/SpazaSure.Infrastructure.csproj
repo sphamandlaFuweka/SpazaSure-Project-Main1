@@ -22,4 +22,8 @@
     <ProjectReference Include="..\SpazaSure.Shared\SpazaSure.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpazaSure.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -46,7 +46,7 @@ builder.Services.AddRateLimiter(o =>
             return RateLimitPartition.GetFixedWindowLimiter("reset:" + ip, _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });
 
-        if (IsAuthPath(path, "/login", "/register", "/verify-otp", "/send-otp"))
+        if (IsAuthPath(path, "/login", "/register"))
             return RateLimitPartition.GetFixedWindowLimiter("auth:" + ip, _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
 

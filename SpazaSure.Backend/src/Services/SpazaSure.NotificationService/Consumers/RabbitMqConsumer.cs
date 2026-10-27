@@ -1,24 +1,21 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SpazaSure.NotificationService.Data;
-using SpazaSure.NotificationService.Hubs;
 using SpazaSure.NotificationService.Models;
 using SpazaSure.NotificationService.Services;
 
 namespace SpazaSure.NotificationService.Consumers;
 
 /// <summary>
-/// Stores every notification event published to the spazasure.events exchange and pushes it
-/// to the recipient over SignalR. Keeps reconnecting for as long as the service runs, so
-/// notifications resume on their own after RabbitMQ restarts.
+/// Stores every notification event published to the spazasure.events exchange (the portal and
+/// app inboxes poll for these) and sends a phone push to the recipient. Keeps reconnecting for
+/// as long as the service runs, so notifications resume on their own after RabbitMQ restarts.
 /// </summary>
 public class RabbitMqConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly IConfiguration _config;
     private readonly PushSender _push;
@@ -31,14 +28,12 @@ public class RabbitMqConsumer : BackgroundService
 
     public RabbitMqConsumer(
         IServiceScopeFactory scopeFactory,
-        IHubContext<NotificationHub> hubContext,
         ILogger<RabbitMqConsumer> logger,
         IConfiguration config,
         PushSender push)
     {
         _push = push;
         _scopeFactory = scopeFactory;
-        _hubContext = hubContext;
         _logger = logger;
         _config = config;
     }
@@ -144,26 +139,6 @@ public class RabbitMqConsumer : BackgroundService
                 await db.SaveChangesAsync();
             }
             channel.BasicAck(args.DeliveryTag, false);
-
-            // Real-time push is best effort; clients also poll, so a failure here is harmless
-            try
-            {
-                await _hubContext.Clients.Group(evt.SupplierId).SendAsync("ReceiveNotification", new
-                {
-                    notification.Id,
-                    notification.Type,
-                    notification.Title,
-                    notification.Message,
-                    notification.Priority,
-                    notification.ReferenceId,
-                    notification.IsRead,
-                    notification.CreatedAt,
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "SignalR push failed for {UserId}", evt.SupplierId);
-            }
 
             // Phone notification (works while the app is closed). Already acked, so a failure
             // here never stores the notification twice.

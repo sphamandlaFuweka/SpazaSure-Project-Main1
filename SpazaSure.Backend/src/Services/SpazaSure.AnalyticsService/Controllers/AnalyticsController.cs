@@ -93,6 +93,7 @@ public class AnalyticsController(SpazaSureDbContext db) : ControllerBase
             .Include(i => i.Product)
             .Where(i => i.Order.SupplierId == supplier.Id
                      && i.Order.Status != "cancelled"
+                     && i.Order.Status != "draft"
                      && i.Order.CreatedAt >= startOfMonth)
             .GroupBy(i => new { i.ProductId, i.Product.Name })
             .Select(g => new {

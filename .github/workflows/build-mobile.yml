@@ -9,8 +9,25 @@ on:
       - '.github/workflows/build-mobile.yml'
 
 jobs:
+  test:
+    name: Analyze and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spazasure_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.3' # must satisfy pubspec.lock's flutter constraint
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
   build-android:
     name: Build Android APK
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +108,7 @@ jobs:
 
   build-ios:
     name: Build iOS IPA
+    needs: test
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

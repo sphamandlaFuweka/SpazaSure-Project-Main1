@@ -74,6 +74,8 @@ public sealed class PushSender
                     Priority = highPriority ? NotificationPriority.MAX : NotificationPriority.HIGH,
                 },
             },
+            // Without a sound iOS delivers the push silently
+            Apns = new ApnsConfig { Aps = new Aps { Sound = "default" } },
         };
 
         try

@@ -2,6 +2,16 @@
 # Run: docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 # Requires: .env.prod file at repo root (never commit this file)
 
+# Docker-level health for each API service: calls its own GET /health (200 when it
+# is up and can reach the database). The aspnet image has no curl/wget, so this uses
+# bash's /dev/tcp and reads the port from ASPNETCORE_URLS.
+x-app-healthcheck: &app-healthcheck
+  test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/$${ASPNETCORE_URLS##*:} && printf 'GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 40s
+
 services:
 
   postgres:
@@ -85,6 +95,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-auth:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-auth
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5001
@@ -116,6 +127,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-product:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-product
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5002
@@ -136,6 +148,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-order:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-order
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5003
@@ -160,6 +173,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-user:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-user
     restart: always
+    healthcheck: *app-healthcheck
     volumes:
       - prod_uploads:/app/uploads
     environment:
@@ -207,6 +221,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-notification:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-notification
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5184
@@ -233,6 +248,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-analytics:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-analytics
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5004
@@ -253,6 +269,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-compliance:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-compliance
     restart: always
+    healthcheck: *app-healthcheck
     volumes:
       - prod_compliance_uploads:/app/uploads
     environment:
@@ -295,6 +312,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-delivery:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-delivery
     restart: always
+    healthcheck: *app-healthcheck
     # Drivers' licence, PrDP and ID documents when Storage__Provider is local
     volumes:
       - prod_delivery_uploads:/app/uploads
@@ -330,6 +348,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-payment:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-payment
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5038
@@ -352,6 +371,7 @@ services:
     image: ${REGISTRY:?REGISTRY must be set}/spazasure-verification:${IMAGE_TAG:?IMAGE_TAG must be set}
     container_name: spazasure-prod-verification
     restart: always
+    healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
       ASPNETCORE_URLS:                      http://+:5000

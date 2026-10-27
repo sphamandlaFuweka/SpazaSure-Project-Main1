@@ -43,6 +43,8 @@
     <ProjectReference Include="..\..\src\Services\SpazaSure.DeliveryService\SpazaSure.DeliveryService.csproj" />
     <ProjectReference Include="..\..\src\Services\SpazaSure.PaymentService\SpazaSure.PaymentService.csproj" />
     <ProjectReference Include="..\..\src\Services\SpazaSure.VerificationService\SpazaSure.VerificationService.csproj" />
+    <ProjectReference Include="..\..\src\Services\SpazaSure.AnalyticsService\SpazaSure.AnalyticsService.csproj" />
+    <ProjectReference Include="..\..\src\Services\SpazaSure.NotificationService\SpazaSure.NotificationService.csproj" />
     <ProjectReference Include="..\..\src\Shared\SpazaSure.Shared\SpazaSure.Shared.csproj" />
     <ProjectReference Include="..\..\src\Shared\SpazaSure.Infrastructure\SpazaSure.Infrastructure.csproj" />
   </ItemGroup>

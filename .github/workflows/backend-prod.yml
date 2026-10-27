@@ -170,6 +170,38 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
+      # Services start without these and only fail when someone pays, resets a password
+      # or verifies their identity, so stop here before the server is touched.
+      - name: Check production secrets
+        env:
+          PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          PROD_RABBITMQ_PASSWORD: ${{ secrets.PROD_RABBITMQ_PASSWORD }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          PROD_PAYSTACK_SECRET_KEY: ${{ secrets.PROD_PAYSTACK_SECRET_KEY }}
+          PROD_SMTP_HOST: ${{ secrets.PROD_SMTP_HOST }}
+          PROD_EMAIL_FROM: ${{ secrets.PROD_EMAIL_FROM }}
+          PROD_DIDIT_API_KEY: ${{ secrets.PROD_DIDIT_API_KEY }}
+          PROD_DIDIT_WEBHOOK_SECRET: ${{ secrets.PROD_DIDIT_WEBHOOK_SECRET }}
+          PROD_BACKUP_OFFSITE_TARGET: ${{ secrets.PROD_BACKUP_OFFSITE_TARGET }}
+        run: |
+          missing=""
+          for name in PROD_DB_PASSWORD PROD_RABBITMQ_PASSWORD PROD_JWT_SECRET PROD_PAYSTACK_SECRET_KEY; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required production secrets:$missing"
+            exit 1
+          fi
+          if [ ${#PROD_JWT_SECRET} -lt 32 ]; then
+            echo "::error::PROD_JWT_SECRET must be at least 32 characters."
+            exit 1
+          fi
+          [ -n "$PROD_SMTP_HOST" ] && [ -n "$PROD_EMAIL_FROM" ] ||
+            echo "::warning::PROD_SMTP_HOST / PROD_EMAIL_FROM are not set: password-reset emails will not be sent."
+          [ -n "$PROD_DIDIT_API_KEY" ] && [ -n "$PROD_DIDIT_WEBHOOK_SECRET" ] ||
+            echo "::warning::PROD_DIDIT_API_KEY / PROD_DIDIT_WEBHOOK_SECRET are not set: identity checks will be unavailable."
+          [ -n "$PROD_BACKUP_OFFSITE_TARGET" ] ||
+            echo "::warning::PROD_BACKUP_OFFSITE_TARGET is not set: database backups stay on the production server only."
       - name: Copy production deployment files
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -274,3 +306,21 @@ jobs:
             docker rm -f spazasure-prod-db-init 2>/dev/null || true
             $compose up --no-deps --abort-on-container-exit --exit-code-from db-init db-init
             $compose up -d --remove-orphans auth-service product-service order-service user-service notification-service analytics-service compliance-service delivery-service payment-service verification-service gateway postgres-backup
+            # The gateway's /health checks every service behind it; fail the deploy if they don't all come up.
+            healthy=false
+            for attempt in $(seq 1 24); do
+              if curl -fsS --max-time 10 http://127.0.0.1:5181/health >/dev/null 2>&1; then
+                healthy=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$healthy" != true ]; then
+              echo 'Services did not become healthy within 2 minutes:'
+              curl -sS --max-time 10 http://127.0.0.1:5181/health || true
+              echo
+              $compose ps
+              $compose logs --tail=80 auth-service order-service user-service payment-service gateway || true
+              exit 1
+            fi
+            echo 'All services are healthy.'

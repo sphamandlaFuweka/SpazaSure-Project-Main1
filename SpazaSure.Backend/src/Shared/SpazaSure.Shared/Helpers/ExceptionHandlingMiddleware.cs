@@ -26,6 +26,15 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);
+            try
+            {
+                (context.RequestServices?.GetService(typeof(IUnhandledErrorAlerts)) as IUnhandledErrorAlerts)
+                    ?.Report(context.Request.Method, context.Request.Path, ex);
+            }
+            catch (Exception alertError)
+            {
+                logger.LogWarning(alertError, "Could not raise an alert for the unhandled exception");
+            }
 
             if (context.Response.HasStarted)
                 throw;
@@ -41,6 +50,16 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             }));
         }
     }
+}
+
+/// <summary>
+/// Told about every request that crashes, so someone hears about it without reading the logs.
+/// Optional: services that don't register one only log the error.
+/// </summary>
+public interface IUnhandledErrorAlerts
+{
+    /// <summary>Must return quickly and never throw; the error response is still being written.</summary>
+    void Report(string method, string path, Exception exception);
 }
 
 public static class ExceptionHandlingMiddlewareExtensions

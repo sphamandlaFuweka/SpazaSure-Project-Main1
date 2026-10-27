@@ -23,9 +23,9 @@ only the Gateway publicly.
 
 - PostgreSQL on Hetzner or a managed PostgreSQL provider. Run
   `SpazaSure.Backend/migrate.sql` once, then run `seed_data.sql` only when demo
-  data is wanted. Before deploying the app OTP changes, rerun the idempotent
-  migration so `otp_codes.failed_attempts` exists; the production `db-init`
-  service runs this migration before the application services start.
+  data is wanted. The production `db-init` service reruns this idempotent
+  migration before the application services start. (Sign-in is by password
+  only; the `otp_codes` table now just holds password-reset tokens.)
 - A hosted RabbitMQ instance, such as CloudAMQP. Set `RabbitMQ:Host`,
   `RabbitMQ:Username`, and `RabbitMQ:Password` on the services that publish or
   consume events.
