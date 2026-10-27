@@ -1,8 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:spazasure_app/core/widgets/product_info_sections.dart';
-import 'package:spazasure_app/models/product_info.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -15,6 +13,7 @@ import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/barcode_check.dart';
 import 'package:spazasure_app/services/device_context.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
+import 'package:spazasure_app/services/product_service.dart';
 import 'package:spazasure_app/services/packaging_text_parser.dart';
 
 class QrScannerScreen extends StatefulWidget {
@@ -56,10 +55,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   void initState() {
     super.initState();
-    // Live scan first for everyone; customers also get a packaging photo tab.
-    // Manual entry stays at index 1 in both, which the camera error screen relies on.
+    // Shops and customers scan the same way: live camera, manual entry (index 1, which the
+    // camera error screen relies on) and a packaging photo.
     _tabController = TabController(
-      length: widget.customerMode ? 3 : 2,
+      length: 3,
       vsync: this,
     );
     _tabController.addListener(_onTabChanged);
@@ -85,11 +84,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     setState(() {
       _scanning = _tabController.index == 0;
       _lastScanned = null;
-      // Customers see the result in place of the tabs, so choosing a tab starts over
-      if (widget.customerMode) {
-        _product = null;
-        _error = null;
-      }
+      // The result is shown in place of the tabs, so choosing a tab starts over
+      _product = null;
+      _error = null;
     });
   }
 
@@ -142,37 +139,45 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     try {
       final encodedCode = Uri.encodeComponent(code.trim());
-      final fix = widget.customerMode ? await DeviceContext.location() : null;
+      // Location helps spot copied codes scanned far apart (shops and customers alike)
+      final fix = await DeviceContext.location();
       final deviceId = widget.customerMode
           ? await DeviceContext.deviceId()
           : null;
-      final base = widget.customerMode
-          ? '/customer/verify/$encodedCode'
-          : '/shop/marketplace/scan/$encodedCode';
       final query = <String, String>{
         if (fix != null) ...{
           'lat': '${fix.latitude}',
           'lng': '${fix.longitude}',
         },
-        if (widget.customerMode && expiry != null)
-          'expiry': expiry.toIso8601String().substring(0, 10),
-        if (widget.customerMode && batch != null && batch.isNotEmpty)
-          'batch': batch,
-        if (widget.customerMode && pin != null && pin.trim().isNotEmpty)
-          'pin': pin.trim(),
-        if (widget.customerMode &&
-            packagingText != null &&
-            packagingText.trim().isNotEmpty)
+        if (expiry != null) 'expiry': expiry.toIso8601String().substring(0, 10),
+        if (batch != null && batch.isNotEmpty) 'batch': batch,
+        if (pin != null && pin.trim().isNotEmpty) 'pin': pin.trim(),
+        if (packagingText != null && packagingText.trim().isNotEmpty)
           'packagingText': packagingText.length > 1500
               ? packagingText.substring(0, 1500)
               : packagingText,
       };
-      final route = query.isEmpty
-          ? base
-          : '$base?${Uri(queryParameters: query).query}';
-      final res = await ApiService.get(route);
+      final verifyRoute = query.isEmpty
+          ? '/customer/verify/$encodedCode'
+          : '/customer/verify/$encodedCode?${Uri(queryParameters: query).query}';
+
+      // Everyone gets the same product check. Shops also see whether it is sold on the
+      // marketplace (price, supplier, stock), looked up at the same time.
+      final marketplaceLookup = widget.customerMode
+          ? Future<Map<String, dynamic>?>.value(null)
+          : _marketplaceListing(encodedCode);
+      final product = Map<String, dynamic>.from(
+        (await ApiService.get(verifyRoute))['data'] as Map,
+      );
+      if (!widget.customerMode) {
+        final listing = await marketplaceLookup;
+        if (listing != null) {
+          product['marketplace'] = listing;
+        } else {
+          product['notInMarketplace'] = true;
+        }
+      }
       if (!mounted) return;
-      final product = res['data'] as Map<String, dynamic>;
       setState(() => _product = product);
       if (reward) {
         AnalyticsService.productScan(
@@ -212,6 +217,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// The shop's marketplace listing for this code, or null when no supplier sells it here.
+  Future<Map<String, dynamic>?> _marketplaceListing(String encodedCode) async {
+    try {
+      final res = await ApiService.get('/shop/marketplace/scan/$encodedCode');
+      return Map<String, dynamic>.from(res['data'] as Map);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
     }
   }
 
@@ -265,14 +281,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           tabs: [
             Tab(
               icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-              text: widget.customerMode ? 'Scan Barcode' : 'Camera Scan',
+              text: 'Scan Barcode',
             ),
             const Tab(
               icon: Icon(Icons.keyboard_rounded, size: 18),
               text: 'Manual Entry',
             ),
-            if (widget.customerMode)
-              const Tab(
+            const Tab(
                 icon: Icon(Icons.document_scanner_rounded, size: 18),
                 text: 'Packaging Photo',
               ),
@@ -282,17 +297,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       body: Column(
         children: [
           // Customers get the full screen for the result; the camera switches off meanwhile
-          if (widget.customerMode && _hasResult)
+          // The result gets the full screen; the camera switches off meanwhile
+          if (_hasResult)
             _scanAnotherBar()
           else
             Expanded(
-              flex: _hasResult ? 2 : 3,
+              flex: 3,
               child: TabBarView(
                 controller: _tabController,
                 children: [
                   _buildCameraTab(),
                   _buildManualTab(),
-                  if (widget.customerMode) _buildPackagingTab(),
+                  _buildPackagingTab(),
                 ],
               ),
             ),
@@ -450,26 +466,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           ),
         if (_cameraController != null)
           Positioned(top: 12, right: 12, child: _torchButton()),
-        // Scan again button
-        if ((!_scanning && _product != null) || _error != null)
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: ElevatedButton.icon(
-              onPressed: _resetScan,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Scan Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -762,9 +758,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.customerMode
-                      ? 'Verification failed'
-                      : 'Product Not Found',
+                  'Could not check this product',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppColors.error,
@@ -772,9 +766,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.customerMode
-                      ? (_error ?? 'Could not verify this product.')
-                      : 'This QR code, barcode, or SKU is not registered. The product may be unverified.',
+                  _error ?? 'Please try again.',
                   style: AppTextStyles.caption.copyWith(color: AppColors.error),
                 ),
               ],
@@ -852,372 +844,43 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   Widget _buildProductResult() {
-    if (widget.customerMode) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: CustomerVerificationResult(
-          product: _product!,
-          fallbackCode: _verifiedCode ?? '',
-          enteredExpiry: _expiry,
-          rewardMessage: _rewardMessage,
-          rewardDuplicate: _rewardDuplicate,
-          onCheckExpiry: _loading ? null : _pickExpiry,
-          onSubmitPin: _loading
-              ? null
-              : (pin) => _lookupProduct(
-                  _verifiedCode ?? '',
-                  expiry: _expiry,
-                  batch: _batch,
-                  packagingText: _packagingText,
-                  pin: pin,
-                ),
-          onReport: _openReport,
-          onReportWithPhoto: (photo, details) =>
-              _openReport(photo: photo, details: details),
-        ),
-      );
-    }
-    final p = _product!;
-    final isVerified = p['isVerified'] == true;
-    final supplierVerified = p['supplierVerified'] == true;
-    final productApproved = p['productApproved'] == true;
-    final supplierName = p['supplierName'] ?? 'Unknown';
-    final supplierTier = p['supplierTier'] ?? 'basic';
-    final supplierCity = p['supplierCity'] ?? '';
-    final supplierProvince = p['supplierProvince'] ?? '';
-    final scanType = p['scanType'] ?? 'barcode';
-    final isQrScan = scanType == 'qr';
-    final isRecalled = p['isRecalled'] == true;
-    final isExpired = p['isExpired'] == true;
-    final repeatScan = p['repeatScan'] == true;
-    final info = ProductInfo.fromJson(
-      p['info'] is Map ? Map<String, dynamic>.from(p['info'] as Map) : null,
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: CustomerVerificationResult(
+        product: _product!,
+        fallbackCode: _verifiedCode ?? '',
+        enteredExpiry: _expiry,
+        rewardMessage: _rewardMessage,
+        rewardDuplicate: _rewardDuplicate,
+        onCheckExpiry: _loading ? null : _pickExpiry,
+        // The scratch-off PIN belongs to the customer who buys the item: a shop entering it
+        // would use it up, and the buyer would then be told it was already used.
+        onSubmitPin: !widget.customerMode || _loading
+            ? null
+            : (pin) => _lookupProduct(
+                _verifiedCode ?? '',
+                expiry: _expiry,
+                batch: _batch,
+                packagingText: _packagingText,
+                pin: pin,
+              ),
+        onReport: _openReport,
+        onReportWithPhoto: (photo, details) =>
+            _openReport(photo: photo, details: details),
+        onOrder: widget.customerMode ? null : _openMarketplaceProduct,
+      ),
     );
-    final batchNumber = p['batchNumber']?.toString();
-    final expiryDate = p['expiryDate']?.toString();
-    final description = p['description']?.toString() ?? '';
+  }
 
-    return Column(
-      children: [
-        if (widget.customerMode && _rewardMessage != null)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: (_rewardDuplicate ? AppColors.warning : AppColors.success)
-                  .withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color:
-                    (_rewardDuplicate ? AppColors.warning : AppColors.success)
-                        .withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _rewardDuplicate ? Icons.info_outline : Icons.stars_rounded,
-                  color: _rewardDuplicate
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _rewardMessage!,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        // Verification banner
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isVerified
-                ? AppColors.success.withValues(alpha: 0.1)
-                : AppColors.warning.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isVerified
-                  ? AppColors.success.withValues(alpha: 0.3)
-                  : AppColors.warning.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                isVerified ? Icons.verified_rounded : Icons.warning_rounded,
-                color: isVerified ? AppColors.success : AppColors.warning,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isVerified ? '✓ Verified Product' : '⚠ Unverified',
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: isVerified
-                            ? AppColors.success
-                            : AppColors.warning,
-                      ),
-                    ),
-                    Text(
-                      isVerified
-                          ? 'Approved by admin, verified supplier'
-                          : 'Not fully verified — exercise caution',
-                      style: AppTextStyles.caption.copyWith(
-                        color: isVerified
-                            ? AppColors.success
-                            : AppColors.warning,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (isQrScan) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isRecalled || isExpired
-                  ? AppColors.error.withValues(alpha: 0.08)
-                  : repeatScan
-                  ? AppColors.warning.withValues(alpha: 0.1)
-                  : AppColors.success.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isRecalled || isExpired
-                    ? AppColors.error.withValues(alpha: 0.25)
-                    : repeatScan
-                    ? AppColors.warning.withValues(alpha: 0.3)
-                    : AppColors.success.withValues(alpha: 0.25),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isRecalled
-                      ? '⚠ Recalled Product Code'
-                      : isExpired
-                      ? '⚠ Expired Product Code'
-                      : repeatScan
-                      ? '⚠ Previously Scanned QR'
-                      : '✓ First Registered QR Scan',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: isRecalled || isExpired
-                        ? AppColors.error
-                        : repeatScan
-                        ? AppColors.warning
-                        : AppColors.success,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _infoRow(
-                  Icons.qr_code_2,
-                  'Scan type',
-                  'SpazaSure traceable QR',
-                ),
-                if (batchNumber != null && batchNumber.isNotEmpty)
-                  _infoRow(Icons.inventory, 'Batch', batchNumber),
-                if (expiryDate != null && expiryDate.isNotEmpty)
-                  _infoRow(Icons.event, 'Expiry', expiryDate),
-                if (p['scannedAt'] != null)
-                  _infoRow(
-                    Icons.schedule,
-                    repeatScan ? 'First scanned' : 'Scanned at',
-                    p['scannedAt'].toString(),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        // Product info
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                p['name'] ?? '',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              _infoRow(Icons.qr_code, 'SKU', p['sku'] ?? 'N/A'),
-              if (p['barcode'] != null)
-                _infoRow(Icons.barcode_reader, 'Barcode', p['barcode']),
-              _infoRow(
-                Icons.attach_money,
-                'Price',
-                'R ${(p['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
-              ),
-              _infoRow(
-                Icons.inventory_2,
-                'Stock',
-                '${p['stockQty'] ?? 0} ${p['unit'] ?? 'units'}',
-              ),
-              if (p['categoryName'] != null)
-                _infoRow(Icons.category, 'Category', p['categoryName']),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Supplier info
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Supplier',
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: supplierVerified
-                          ? AppColors.success.withValues(alpha: 0.1)
-                          : AppColors.warning.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          supplierVerified ? Icons.verified : Icons.pending,
-                          size: 12,
-                          color: supplierVerified
-                              ? AppColors.success
-                              : AppColors.warning,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          supplierVerified ? 'Verified' : 'Pending',
-                          style: AppTextStyles.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: supplierVerified
-                                ? AppColors.success
-                                : AppColors.warning,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _infoRow(Icons.business, 'Company', supplierName),
-              _infoRow(
-                Icons.workspace_premium,
-                'Tier',
-                _tierLabel(supplierTier),
-              ),
-              if (supplierCity.isNotEmpty)
-                _infoRow(
-                  Icons.location_on,
-                  'Location',
-                  [
-                    supplierCity,
-                    supplierProvince,
-                  ].where((s) => s.isNotEmpty).join(', '),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Verification checks
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Verification Checks',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-              _checkItem('Product approved by admin', productApproved),
-              _checkItem('Supplier verified', supplierVerified),
-              if (isQrScan) _checkItem('QR code not recalled', !isRecalled),
-              if (isQrScan && expiryDate != null)
-                _checkItem('QR code not expired', !isExpired),
-              _checkItem('Safe to purchase', isVerified),
-            ],
-          ),
-        ),
-        // The supplier's own description of the genuine product, to check deliveries against.
-        if (!info.isEmpty) ...[
-          const SizedBox(height: 12),
-          ProductInfoSections(info: info, expandAuthenticity: !isVerified),
-        ],
-      ],
-    );
+  Future<void> _openMarketplaceProduct(String productId) async {
+    try {
+      final product = await ProductService.getProduct(productId);
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/product', arguments: product);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
@@ -1244,40 +907,5 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         ],
       ),
     );
-  }
-
-  Widget _checkItem(String label, bool passed) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(
-            passed ? Icons.check_circle : Icons.cancel,
-            size: 18,
-            color: passed ? AppColors.success : AppColors.warning,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: passed ? AppColors.success : AppColors.warning,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _tierLabel(String tier) {
-    switch (tier) {
-      case 'gold':
-        return '🥇 Gold';
-      case 'silver':
-        return '🥈 Silver';
-      case 'bronze':
-        return '🥉 Bronze';
-      default:
-        return '✓ Basic';
-    }
   }
 }

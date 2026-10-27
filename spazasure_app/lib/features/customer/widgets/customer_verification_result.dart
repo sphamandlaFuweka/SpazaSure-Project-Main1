@@ -76,7 +76,8 @@ class _PinCardState extends State<_PinCard> {
   }
 }
 
-/// Full product verification report shown to customers after a lookup.
+/// The full product report after a scan, for customers and shops alike. Shops also see the
+/// marketplace listing (when a supplier sells it) and never redeem the customer's PIN.
 class CustomerVerificationResult extends StatelessWidget {
   final Map<String, dynamic> product;
   final String fallbackCode;
@@ -90,6 +91,9 @@ class CustomerVerificationResult extends StatelessWidget {
   /// Opens a report with a photo of the customer's pack and what didn't match.
   final void Function(PlatformFile photo, String details)? onReportWithPhoto;
 
+  /// Shops only: opens the marketplace product (by id) to order it.
+  final ValueChanged<String>? onOrder;
+
   const CustomerVerificationResult({
     super.key,
     required this.product,
@@ -101,6 +105,7 @@ class CustomerVerificationResult extends StatelessWidget {
     this.onCheckExpiry,
     this.onSubmitPin,
     this.onReportWithPhoto,
+    this.onOrder,
   });
 
   static String? _text(dynamic v) {
@@ -167,6 +172,30 @@ class CustomerVerificationResult extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (rewardMessage != null) _rewardBanner(),
+        if (p['marketplace'] is Map) ...[
+          _marketplaceCard(Map<String, dynamic>.from(p['marketplace'] as Map)),
+          const SizedBox(height: 12),
+        ],
+        // A shop scanned something no SpazaSure supplier sells
+        if (p['notInMarketplace'] == true) ...[
+          _card(
+            tint: AppColors.primary,
+            child: Row(
+              children: [
+                const Icon(Icons.storefront_outlined, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Not sold on the SpazaSure marketplace, so you can't order it here. "
+                    "Here's what we found about it.",
+                    style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _riskBanner(level, color, headline, score),
         if (message != null) ...[
           const SizedBox(height: 8),
@@ -185,6 +214,17 @@ class CustomerVerificationResult extends StatelessWidget {
           _PinCard(
             invalid: p['pinStatus'] == 'invalid',
             onSubmit: onSubmitPin!,
+          ),
+        ],
+        if (onSubmitPin == null && p['requiresPin'] == true) ...[
+          const SizedBox(height: 12),
+          _card(
+            tint: AppColors.secondary,
+            child: Text(
+              "This item has a scratch-off PIN for the customer who buys it. Don't scratch it: "
+              'the customer uses it to confirm the item is genuine.',
+              style: AppTextStyles.bodySmall,
+            ),
           ),
         ],
         if (matched.isNotEmpty) ...[
@@ -559,6 +599,69 @@ class CustomerVerificationResult extends StatelessWidget {
             onReportWithPhoto!(photo, details);
           },
         ),
+      ),
+    );
+  }
+
+  Widget _marketplaceCard(Map<String, dynamic> m) {
+    final verified = m['supplierVerified'] == true;
+    final price = (m['price'] as num?)?.toDouble();
+    final unit = _text(m['unit']);
+    final firstScan = m['firstScan'] == true;
+    final repeatScan = m['repeatScan'] == true;
+    final id = _text(m['id']);
+    return _card(
+      tint: AppColors.success,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.storefront_rounded, color: AppColors.success),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sold on the SpazaSure marketplace',
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (price != null)
+            _row(Icons.sell_outlined, 'Price', 'R ${price.toStringAsFixed(2)}${unit == null ? '' : ' per $unit'}'),
+          _row(Icons.inventory_2_outlined, 'In stock', '${m['stockQty'] ?? 0}${unit == null ? '' : ' $unit'}'),
+          if ((m['minOrderQty'] as num?) != null && (m['minOrderQty'] as num) > 1)
+            _row(Icons.shopping_basket_outlined, 'Minimum order', '${m['minOrderQty']}'),
+          _row(
+            Icons.business,
+            'Supplier',
+            [
+              _text(m['supplierName']),
+              verified ? '(verified)' : '(not verified yet)',
+            ].whereType<String>().join(' '),
+          ),
+          if (firstScan)
+            _row(Icons.qr_code_2, 'SpazaSure QR', 'First scan of this code'),
+          if (repeatScan)
+            _row(
+              Icons.history,
+              'SpazaSure QR',
+              'Scanned before${_text(m['scannedAt']) == null ? '' : ' on ${_text(m['scannedAt'])!.substring(0, 10)}'}. '
+                  'If this is a new delivery, the code may have been copied.',
+            ),
+          if (onOrder != null && id != null && m['isAvailable'] != false) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => onOrder!(id),
+                icon: const Icon(Icons.add_shopping_cart_rounded),
+                label: Text('Order from ${_text(m['supplierName']) ?? 'this supplier'}'),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

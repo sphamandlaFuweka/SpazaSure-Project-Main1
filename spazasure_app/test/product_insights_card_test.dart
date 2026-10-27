@@ -96,6 +96,64 @@ void main() {
     expect(find.text('Sulphite ammonia caramel · colour'), findsOneWidget);
   });
 
+  testWidgets('tells a shop when the product is not sold on the marketplace', (tester) async {
+    await _show(tester, {..._cola, 'notInMarketplace': true});
+
+    expect(find.textContaining('Not sold on the SpazaSure marketplace'), findsOneWidget);
+    expect(find.text('About this product'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows a shop the marketplace listing with an order button', (tester) async {
+    String? ordered;
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: CustomerVerificationResult(
+              product: {
+                ..._cola,
+                'source': 'spazasure_barcode',
+                'requiresPin': true,
+                'marketplace': {
+                  'id': 'p-1',
+                  'price': 32.5,
+                  'unit': 'case',
+                  'stockQty': 40,
+                  'minOrderQty': 2,
+                  'supplierName': 'Soweto Wholesale',
+                  'supplierVerified': true,
+                  'isAvailable': true,
+                  'repeatScan': true,
+                  'scannedAt': '2026-10-20T09:00:00Z',
+                },
+              },
+              fallbackCode: '5449000000996',
+              onReport: () {},
+              onOrder: (id) => ordered = id,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Sold on the SpazaSure marketplace'), findsOneWidget);
+    expect(find.textContaining('R 32.50 per case'), findsOneWidget);
+    expect(find.textContaining('Soweto Wholesale (verified)'), findsOneWidget);
+    expect(find.textContaining('the code may have been copied'), findsOneWidget);
+    // Shops can't redeem the customer's PIN, and are told not to scratch it
+    expect(find.text('Check PIN'), findsNothing);
+    expect(find.textContaining("Don't scratch it"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(find.text('Order from Soweto Wholesale'));
+    await tester.tap(find.text('Order from Soweto Wholesale'));
+    expect(ordered, 'p-1');
+  });
+
   testWidgets('still explains the barcode when no database has the product', (tester) async {
     await _show(tester, {
       'source': 'not_registered',
