@@ -226,15 +226,10 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                                 point: LatLng(shop.latitude!, shop.longitude!),
                                 width: 48,
                                 height: 48,
+                                alignment: Alignment.topCenter,
                                 child: GestureDetector(
                                   onTap: () => _showShop(shop),
-                                  child: Icon(
-                                    Icons.location_on_rounded,
-                                    color: _pinColor(shop),
-                                    size: 42,
-                                    semanticLabel:
-                                        '${shop.name}, ${shop.isVerified ? 'verified' : 'unverified'}',
-                                  ),
+                                  child: _shopPin(shop),
                                 ),
                               ),
                           if (_userPosition != null)
@@ -315,6 +310,26 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
 
   Color _pinColor(CustomerShop shop) =>
       shop.isVerified ? _verifiedColor : _unverifiedColor;
+
+  // Map pin with a storefront glyph inside the head, coloured by verification.
+  Widget _shopPin(CustomerShop shop) => Semantics(
+    label: '${shop.name}, ${shop.isVerified ? 'verified' : 'unverified'}',
+    child: Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        Icon(
+          Icons.location_on_rounded,
+          color: _pinColor(shop),
+          size: 48,
+          shadows: const [Shadow(color: Colors.black38, blurRadius: 4)],
+        ),
+        const Positioned(
+          top: 9,
+          child: Icon(Icons.storefront_rounded, color: Colors.white, size: 17),
+        ),
+      ],
+    ),
+  );
 
   Widget _legendDot(Color color, String label) => Row(
     mainAxisSize: MainAxisSize.min,

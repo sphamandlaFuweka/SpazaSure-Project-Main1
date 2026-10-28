@@ -57,7 +57,7 @@ function pinIcon(color: string, selected: boolean) {
   const size = selected ? 44 : 34;
   return L.divIcon({
     className: 'shop-pin',
-    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6" fill="white" stroke="none"/></svg>`,
+    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><g stroke="none"><path d="M8.3 6.8h7.4l.9 2.3H7.4z" fill="white"/><path d="M8.2 9.6h7.6v3.9H8.2z" fill="white"/><path d="M11.1 11.1h1.8v2.4h-1.8z" fill="${color}"/></g></svg>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
   });
