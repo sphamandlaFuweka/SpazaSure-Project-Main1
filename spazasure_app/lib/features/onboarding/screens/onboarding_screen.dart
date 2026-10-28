@@ -165,74 +165,38 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _topBar() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-    child: Row(
-      children: [
-        // Brand badge, like a shop sign
-        Flexible(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+    child: SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          const Spacer(),
+          if (!_isLast)
+            Pressable(
+              onTap: _start,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/images/spazasure_logo.png',
-                    width: 34,
-                    height: 34,
-                    fit: BoxFit.cover,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'SpazaSure',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
+                child: Text(
+                  'Skip',
+                  style: GoogleFonts.nunito(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.4, end: 0),
-        ),
-        const Spacer(),
-        if (!_isLast)
-          Pressable(
-            onTap: _start,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
-              child: Text(
-                'Skip',
-                style: GoogleFonts.nunito(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ).animate().fadeIn(delay: 300.ms),
-      ],
+            ).animate().fadeIn(delay: 300.ms),
+        ],
+      ),
     ),
   );
 

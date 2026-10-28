@@ -979,6 +979,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: actions
             .map(
               (a) => Expanded(
@@ -1038,13 +1039,17 @@ class _HomeScreenState extends State<HomeScreen>
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          a['label'] as String,
-                          style: AppTextStyles.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                        // One line, shrunk to fit, so every icon sits level
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            a['label'] as String,
+                            maxLines: 1,
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -1084,17 +1089,18 @@ class _HomeScreenState extends State<HomeScreen>
       'local_fire_department': Icons.local_fire_department,
     };
     return SizedBox(
-      height: 100,
+      height: 104,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final cat = categories[index];
           final color = colors[index % colors.length];
-          return Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: GestureDetector(
+          return SizedBox(
+            width: 76,
+            child: Pressable(
+              scale: 0.9,
               onTap: () => Navigator.pushNamed(
                 context,
                 '/marketplace',
@@ -1125,9 +1131,13 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 6),
                   Text(
                     cat.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary,
+                      fontSize: 10.5,
+                      height: 1.2,
                     ),
                     textAlign: TextAlign.center,
                   ),

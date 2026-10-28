@@ -5,10 +5,10 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 
-/// Sized for a three-column catalogue grid; give it about [gridHeight] of height.
+/// Sized for a three-column catalogue grid of [gridHeight]. The photo takes
+/// whatever height the text leaves, so cards are filled to the bottom.
 class ProductCard extends StatelessWidget {
-  static const double imageHeight = 88;
-  static const double gridHeight = 214;
+  static const double gridHeight = 196;
 
   final Product product;
   final VoidCallback? onTap;
@@ -41,7 +41,7 @@ class ProductCard extends StatelessWidget {
         final bytes = base64Decode(base64Str);
         return SizedBox(
           width: double.infinity,
-          height: imageHeight,
+          height: double.infinity,
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
@@ -56,7 +56,7 @@ class ProductCard extends StatelessWidget {
     if (url.startsWith('http')) {
       return SizedBox(
         width: double.infinity,
-        height: imageHeight,
+        height: double.infinity,
         child: Image.network(
           url,
           fit: BoxFit.cover,
@@ -97,103 +97,105 @@ class ProductCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Product Image
-            Container(
-              height: imageHeight,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  // Show actual image or fallback to icon
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    child: _buildProductImage(),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
                   ),
-                  if (product.discountPrice != null)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '-${(((product.price - product.discountPrice!) / product.price) * 100).round()}%',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 9,
-                          ),
-                        ),
+                ),
+                child: Stack(
+                  children: [
+                    // Show actual image or fallback to icon
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
                       ),
+                      child: _buildProductImage(),
                     ),
-                  // Supplier tier badge (top-right) — only for paid tiers we actually know
-                  if (const {
-                    'gold',
-                    'silver',
-                    'bronze',
-                  }.contains(product.supplierTier))
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: _SupplierTierBadge(tier: product.supplierTier!),
-                    ),
-                  // Nearby badge
-                  if (product.isNearby)
-                    Positioned(
-                      bottom: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.4),
-                              blurRadius: 4,
+                    if (product.discountPrice != null)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '-${(((product.price - product.discountPrice!) / product.price) * 100).round()}%',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 9,
                             ),
-                          ],
-                        ),
-                        child: const Tooltip(
-                          message: 'Nearby',
-                          child: Icon(
-                            Icons.near_me,
-                            size: 10,
-                            color: Colors.white,
                           ),
                         ),
                       ),
-                    ),
-                  if (!product.isAvailable)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
+                    // Supplier tier badge (top-right) — only for paid tiers we actually know
+                    if (const {
+                      'gold',
+                      'silver',
+                      'bronze',
+                    }.contains(product.supplierTier))
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: _SupplierTierBadge(tier: product.supplierTier!),
                       ),
-                      child: Center(
-                        child: Text(
-                          'Out of stock',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                    // Nearby badge
+                    if (product.isNearby)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.4),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: const Tooltip(
+                            message: 'Nearby',
+                            child: Icon(
+                              Icons.near_me,
+                              size: 10,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                    if (!product.isAvailable)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Out of stock',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(
