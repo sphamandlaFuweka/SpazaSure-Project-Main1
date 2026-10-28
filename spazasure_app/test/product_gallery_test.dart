@@ -8,6 +8,13 @@ import 'package:spazasure_app/features/customer/widgets/product_gallery.dart';
 const _dataImage =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+/// Opens one of the folded "More details" sections of the result.
+Future<void> _open(WidgetTester tester, String section) async {
+  await tester.ensureVisible(find.text(section));
+  await tester.tap(find.text(section));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _show(WidgetTester tester, Map<String, dynamic> product) async {
   tester.view.physicalSize = const Size(390 * 3, 844 * 3);
   tester.view.devicePixelRatio = 3;
@@ -55,6 +62,7 @@ void main() {
       'riskLevel': 'low',
       'images': ['/uploads/products/sunlight.jpg', _dataImage],
     });
+    await _open(tester, 'Compare with photos');
 
     expect(find.text('Photos of the real product'), findsOneWidget);
     expect(find.text('Supplier photo 1'), findsOneWidget);
@@ -78,6 +86,7 @@ void main() {
       'name': 'Iwisa Super Maize Meal',
       'riskLevel': 'low',
     });
+    await _open(tester, 'Compare with photos');
 
     expect(find.text('Check your pack'), findsOneWidget);
     expect(find.text('Check the text on my pack'), findsOneWidget);

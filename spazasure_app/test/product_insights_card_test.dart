@@ -79,6 +79,9 @@ Future<void> _show(WidgetTester tester, Map<String, dynamic> product) async {
 void main() {
   testWidgets('explains a product that is only in a global database', (tester) async {
     await _show(tester, _cola);
+    await tester.ensureVisible(find.text('Product information'));
+    await tester.tap(find.text('Product information'));
+    await tester.pumpAndSettle();
 
     expect(find.text('About this product'), findsOneWidget);
     expect(find.textContaining('about 2½ teaspoons of sugar'), findsOneWidget);
@@ -86,11 +89,20 @@ void main() {
     expect(find.text('Nutri-Score E'), findsOneWidget);
     expect(find.text('NOVA 4'), findsOneWidget);
     expect(find.text('Additives (2)'), findsOneWidget);
+    expect(find.text('No (found in Open Food Facts)'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('About the barcode'));
+    await tester.tap(find.text('About the barcode'));
+    await tester.pumpAndSettle();
     expect(find.text('Registered in Belgium and Luxembourg'), findsOneWidget);
-    expect(find.text('Open Food Facts only (not on SpazaSure)'), findsOneWidget);
-    expect(find.textContaining('found in Open Food Facts'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('What we checked'));
+    await tester.tap(find.text('What we checked'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('product details were found in Open Food Facts'), findsOneWidget);
     expect(tester.takeException(), isNull); // no layout overflow
 
+    await tester.ensureVisible(find.text('Additives (2)'));
     await tester.tap(find.text('Additives (2)'));
     await tester.pumpAndSettle();
     expect(find.text('Sulphite ammonia caramel · colour'), findsOneWidget);
@@ -99,7 +111,12 @@ void main() {
   testWidgets('tells a shop when the product is not sold on the marketplace', (tester) async {
     await _show(tester, {..._cola, 'notInMarketplace': true});
 
-    expect(find.textContaining('Not sold on the SpazaSure marketplace'), findsOneWidget);
+    expect(find.textContaining('Not sold on SpazaSure'), findsOneWidget);
+    // Product details are folded under "More details" until opened
+    expect(find.text('About this product'), findsNothing);
+    await tester.ensureVisible(find.text('Product information'));
+    await tester.tap(find.text('Product information'));
+    await tester.pumpAndSettle();
     expect(find.text('About this product'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -171,6 +188,9 @@ void main() {
     });
 
     expect(find.textContaining("can't be reached right now"), findsOneWidget);
+    await tester.ensureVisible(find.text('About the barcode'));
+    await tester.tap(find.text('About the barcode'));
+    await tester.pumpAndSettle();
     expect(find.text('Registered in South Africa'), findsOneWidget);
     expect(find.text('Check digit wrong'), findsOneWidget);
     expect(find.text('About this product'), findsNothing);
