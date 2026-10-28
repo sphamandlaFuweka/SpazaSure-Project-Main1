@@ -1224,6 +1224,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime?>("CollectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("collected_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1231,6 +1235,19 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("delivered_at");
+
+                    b.Property<string>("DeliveredBy")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("delivered_by");
+
+                    b.Property<double?>("DeliveredLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("delivered_latitude");
+
+                    b.Property<double?>("DeliveredLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("delivered_longitude");
 
                     b.Property<string>("DeliveryAddress")
                         .HasColumnType("text")
