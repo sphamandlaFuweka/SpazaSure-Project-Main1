@@ -1,6 +1,7 @@
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/app_bottom_nav.dart';
 import 'package:spazasure_app/features/customer/screens/customer_shops_screen.dart';
@@ -56,7 +57,10 @@ class _CustomerShellState extends State<CustomerShell> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    body: IndexedStack(index: _index, children: _screens),
+    body: TabFade(
+      index: _index,
+      child: IndexedStack(index: _index, children: _screens),
+    ),
     bottomNavigationBar: AppBottomNav(
       items: _items,
       currentIndex: _index,

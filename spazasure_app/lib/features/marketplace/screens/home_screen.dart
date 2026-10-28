@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -222,15 +223,18 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final product = products[index];
-                          return ProductCard(
-                            product: product,
-                            onTap: () => Navigator.pushNamed(
-                              context,
-                              '/product',
-                              arguments: product,
+                          return Entrance(
+                            index: index,
+                            child: ProductCard(
+                              product: product,
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                '/product',
+                                arguments: product,
+                              ),
+                              onAddToCart: () =>
+                                  CartToast.add(context, product, 1),
                             ),
-                            onAddToCart: () =>
-                                CartToast.add(context, product, 1),
                           );
                         }, childCount: products.length),
                       ),

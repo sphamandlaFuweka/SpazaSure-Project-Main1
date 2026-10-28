@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -89,7 +90,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const icons = notificationIcons;
                   const colors = notificationColors;
 
-                  return GestureDetector(
+                  return Entrance(
+                    index: index,
+                    child: GestureDetector(
                     onTap: () => _open(notif),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -163,7 +166,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ],
                       ),
                     ),
-                  );
+                  ));
                 },
               ),
             ),

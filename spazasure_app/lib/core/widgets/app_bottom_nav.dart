@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 
@@ -92,13 +93,18 @@ class AppBottomNav extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _withBadge(
-                Icon(
-                  isActive ? item.activeIcon : item.icon,
-                  color: color,
-                  size: 24,
+              AnimatedScale(
+                scale: isActive ? 1.15 : 1,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutBack,
+                child: _withBadge(
+                  Icon(
+                    isActive ? item.activeIcon : item.icon,
+                    color: color,
+                    size: 24,
+                  ),
+                  item,
                 ),
-                item,
               ),
               const SizedBox(height: 3),
               Text(
@@ -194,24 +200,36 @@ class AppBottomNav extends StatelessWidget {
         Positioned(
           right: -8,
           top: -6,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 18),
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: item.badgeColor ?? AppColors.error,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white, width: 1.5),
-            ),
-            child: Text(
-              item.badge > 99 ? '99+' : '${item.badge}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+          child:
+              Container(
+                    constraints: const BoxConstraints(minWidth: 18),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: item.badgeColor ?? AppColors.error,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Text(
+                      item.badge > 99 ? '99+' : '${item.badge}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  )
+                  // A new key per count replays the bounce each time it changes
+                  .animate(key: ValueKey(item.badge))
+                  .scaleXY(
+                    begin: 0.4,
+                    end: 1,
+                    duration: 450.ms,
+                    curve: Curves.elasticOut,
+                  ),
         ),
       ],
     );

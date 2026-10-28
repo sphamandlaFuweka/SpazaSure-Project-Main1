@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -287,14 +288,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       itemCount: _filteredProducts.length,
                       itemBuilder: (context, index) {
                         final product = _filteredProducts[index];
-                        return ProductCard(
-                          product: product,
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            '/product',
-                            arguments: product,
+                        return Entrance(
+                          index: index,
+                          child: ProductCard(
+                            product: product,
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              '/product',
+                              arguments: product,
+                            ),
+                            onAddToCart: () => CartToast.add(context, product, 1),
                           ),
-                          onAddToCart: () => CartToast.add(context, product, 1),
                         );
                       },
                     ),

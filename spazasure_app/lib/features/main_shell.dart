@@ -1,6 +1,7 @@
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/app_bottom_nav.dart';
@@ -44,7 +45,10 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: TabFade(
+        index: _currentIndex,
+        child: IndexedStack(index: _currentIndex, children: _screens),
+      ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),

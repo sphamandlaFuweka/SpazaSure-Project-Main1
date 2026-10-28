@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -90,8 +91,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _orders.length,
-                itemBuilder: (context, index) =>
-                    _buildOrderCard(_orders[index]),
+                itemBuilder: (context, index) => Entrance(
+                  index: index,
+                  child: _buildOrderCard(_orders[index]),
+                ),
               ),
             ),
     );

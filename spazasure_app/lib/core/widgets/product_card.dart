@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 
 /// Sized for a three-column catalogue grid; give it about [gridHeight] of height.
 class ProductCard extends StatelessWidget {
@@ -78,7 +79,7 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -290,8 +291,9 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       if (product.isAvailable)
-                        GestureDetector(
+                        Pressable(
                           onTap: onAddToCart,
+                          scale: 0.82,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(

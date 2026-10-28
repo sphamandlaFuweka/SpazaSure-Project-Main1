@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
@@ -63,7 +64,9 @@ class _CartScreenState extends State<CartScreen> {
               padding: const EdgeInsets.only(top: 8, bottom: 24),
               children: [
                 _buildBasketHeading(cart),
-                ...cart.items.map((item) => _buildCartItem(cart, item)),
+                ...cart.items.indexed.map(
+                  (e) => Entrance(index: e.$1, child: _buildCartItem(cart, e.$2)),
+                ),
               ],
             ),
       bottomNavigationBar: cart.isEmpty
