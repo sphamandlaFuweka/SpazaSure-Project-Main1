@@ -293,6 +293,12 @@ export default function OrderDetailModal({
               <span>R{order.subtotal.toFixed(2)}</span>
             </div>
           </div>
+          {order.paymentMethod === 'cash_on_delivery' && (
+            <p className="text-xs font-medium text-primary bg-primary-50 border border-primary-100 rounded-xl p-2.5 mt-2">
+              Cash on delivery: SpazaSure's driver collects the cash from the shop. Don't take cash yourself.
+              SpazaSure pays you your product share of R{order.subtotal.toFixed(2)} with your normal payout.
+            </p>
+          )}
           <p className="text-xs text-gray-400 mt-2 text-center">
             {order.directPaystackSplit
               ? 'When Paystack confirms the shop payment, your product share is allocated to your Paystack subaccount. Bank settlement timing follows Paystack’s schedule.'

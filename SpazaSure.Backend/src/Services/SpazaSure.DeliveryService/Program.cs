@@ -35,6 +35,9 @@ builder.Services.AddSingleton(sp =>
 });
 // Admins get a notification when a request crashes
 builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, SpazaSure.Infrastructure.Data.AdminErrorAlerts>();
+// Uploaded compliance documents are read and checked against the profile (off without an Anthropic key)
+builder.Services.AddSingleton<SpazaSure.Infrastructure.Data.DocumentReader>();
+builder.Services.AddScoped<SpazaSure.Infrastructure.Data.DocumentChecks>();
 // Phone alerts for drivers: new deliveries, ready to collect, cancelled
 builder.Services.AddScoped<SpazaSure.Infrastructure.Data.DriverAlerts>();
 builder.Services.AddSwaggerGen(c =>

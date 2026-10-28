@@ -113,8 +113,16 @@ public class DriversController(SpazaSureDbContext db, IConfiguration config, IFi
             expiry = parsed;
         }
 
+        // Kept in memory for the automatic check against the driver's name and the typed expiry date
+        byte[] bytes;
+        await using (var read = file.OpenReadStream())
+        using (var buffer = new MemoryStream())
+        {
+            await read.CopyToAsync(buffer, HttpContext.RequestAborted);
+            bytes = buffer.ToArray();
+        }
         string url;
-        await using (var stream = file.OpenReadStream())
+        await using (var stream = new MemoryStream(bytes))
             url = await storage.SaveAsync(stream, $"driver-docs/{driver.Id}/{docType}_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N")[..6]}{ext}",
                 file.ContentType, HttpContext.RequestAborted);
 
@@ -129,7 +137,13 @@ public class DriversController(SpazaSureDbContext db, IConfiguration config, IFi
         document.DocUrl = url;
         document.ExpiryDate = expiry;
         document.UpdatedAt = DateTime.UtcNow;
+        document.CheckStatus = "checking";
+        document.CheckSummary = null;
+        document.CheckDetails = null;
+        document.CheckedAt = null;
         await db.SaveChangesAsync();
+        var (documentId, uploadedName) = (document.Id, file.FileName);
+        DocumentChecks.Queue(HttpContext?.RequestServices, c => c.CheckDriverDocumentAsync(documentId, bytes, uploadedName));
         // Don't keep the old copy of someone's documents (POPIA s14: no longer than needed)
         if (!string.IsNullOrEmpty(replaced) && replaced != url)
             await storage.DeleteAsync(replaced, HttpContext.RequestAborted);
@@ -168,8 +182,11 @@ public class DriversController(SpazaSureDbContext db, IConfiguration config, IFi
         OpenJobs = openJobs,
         DriverLink = DeliveryLinks.DriverPage(config, Request, d.AccessToken),
         Documents = DriverDocument.Types.Select(type => d.Documents.FirstOrDefault(x => x.DocType == type) is { } doc
-            ? new { DocType = type, Label = DriverPaperwork.Label(type), Uploaded = true, DocUrl = PrivateFiles.Link(doc.DocUrl), doc.ExpiryDate, UploadedAt = (DateTime?)(doc.UpdatedAt ?? doc.CreatedAt) }
-            : new { DocType = type, Label = DriverPaperwork.Label(type), Uploaded = false, DocUrl = (string?)null, ExpiryDate = (DateOnly?)null, UploadedAt = (DateTime?)null }).ToList(),
+            ? new { DocType = type, Label = DriverPaperwork.Label(type), Uploaded = true, DocUrl = PrivateFiles.Link(doc.DocUrl), doc.ExpiryDate, UploadedAt = (DateTime?)(doc.UpdatedAt ?? doc.CreatedAt),
+                    // The automatic check against the driver's name and the typed expiry date
+                    CheckStatus = (string?)doc.CheckStatus, doc.CheckSummary }
+            : new { DocType = type, Label = DriverPaperwork.Label(type), Uploaded = false, DocUrl = (string?)null, ExpiryDate = (DateOnly?)null, UploadedAt = (DateTime?)null,
+                    CheckStatus = (string?)null, CheckSummary = (string?)null }).ToList(),
         // Why the driver can't be allocated deliveries yet; empty when their papers are in order
         PaperworkProblems = DriverPaperwork.Problems(d),
     };

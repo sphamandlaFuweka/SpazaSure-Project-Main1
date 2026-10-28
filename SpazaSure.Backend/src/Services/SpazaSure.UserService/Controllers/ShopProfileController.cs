@@ -73,7 +73,9 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
                 DocUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(d.DocUrl),
                 d.Status,
                 d.ExpiryDate,
-                d.RejectionNote
+                d.RejectionNote,
+                d.CheckStatus,
+                d.CheckSummary
             })
         }));
     }
@@ -180,8 +182,16 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
         var fileName = $"{docType}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}";
         var key = $"shop-docs/{shop.Id}/{fileName}";
 
+        // Kept in memory for the automatic check against the profile, which runs after this request
+        byte[] bytes;
+        await using (var read = file.OpenReadStream())
+        using (var buffer = new MemoryStream())
+        {
+            await read.CopyToAsync(buffer, HttpContext.RequestAborted);
+            bytes = buffer.ToArray();
+        }
         string docUrl;
-        await using (var stream = file.OpenReadStream())
+        await using (var stream = new MemoryStream(bytes))
         {
             docUrl = await storage.SaveAsync(stream, key, file.ContentType, HttpContext.RequestAborted);
         }
@@ -192,31 +202,29 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
 
         var resubmitted = existing?.Status == "rejected";
         var replacedUrl = existing?.DocUrl;
-        if (existing is not null)
+        var document = existing ?? db.ShopDocuments.Add(new SpazaSure.Infrastructure.Entities.ShopDocument
         {
-            existing.DocUrl = docUrl;
-            existing.Status = "pending";
-            existing.RejectionNote = null;
-        }
-        else
-        {
-            db.ShopDocuments.Add(new SpazaSure.Infrastructure.Entities.ShopDocument
-            {
-                ShopId = shop.Id,
-                DocType = docType,
-                DocUrl = docUrl,
-                Status = "pending"
-            });
-        }
+            ShopId = shop.Id,
+            DocType = docType,
+        }).Entity;
+        document.DocUrl = docUrl;
+        document.Status = "pending";
+        document.RejectionNote = null;
+        document.CheckStatus = "checking";
+        document.CheckSummary = null;
+        document.CheckDetails = null;
+        document.CheckedAt = null;
 
         await db.SaveChangesAsync();
+        var (documentId, uploadedName) = (document.Id, file.FileName);
+        DocumentChecks.Queue(HttpContext?.RequestServices, c => c.CheckShopDocumentAsync(documentId, bytes, uploadedName));
         // Don't keep the replaced copy of someone's documents (POPIA s14: no longer than needed).
         if (!string.IsNullOrEmpty(replacedUrl) && replacedUrl != docUrl)
             await storage.DeleteAsync(replacedUrl, HttpContext.RequestAborted);
         await AdminAlerts.NotifyAdminsAsync(db, events, "compliance",
             resubmitted ? "Rejected document resubmitted" : "Document waiting for review",
             $"{shop.ShopName} {(resubmitted ? "re-uploaded" : "uploaded")} a {docType.Replace('_', ' ')} document.", shop.Id.ToString());
-        return Ok(ApiResponse<object>.Ok(new { docType, docUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(docUrl), status = "pending" }));
+        return Ok(ApiResponse<object>.Ok(new { docType, docUrl = SpazaSure.Shared.Helpers.PrivateFiles.Link(docUrl), status = "pending", checkStatus = "checking" }));
     }
 
     /// <summary>
@@ -239,6 +247,9 @@ public class ShopProfileController(SpazaSureDbContext db, IFileStorageService st
                 d.Status,
                 d.ExpiryDate,
                 d.RejectionNote,
+                // The automatic check against the profile, so the owner sees what to fix
+                d.CheckStatus,
+                d.CheckSummary,
                 d.CreatedAt
             })
             .ToListAsync();

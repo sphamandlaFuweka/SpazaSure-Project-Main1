@@ -699,6 +699,9 @@ export interface DriverDocument {
   /** yyyy-MM-dd; set for the licence and PrDP. */
   expiryDate: string | null;
   uploadedAt: string | null;
+  /** The automatic check against the driver's name and typed expiry: passed, warning, failed, checking, unavailable. */
+  checkStatus?: string | null;
+  checkSummary?: string | null;
 }
 
 export type DriverInput = Pick<Driver, 'fullName' | 'phone' | 'vehicleType' | 'vehicleRegistration' | 'area' | 'isActive'>;
@@ -785,6 +788,8 @@ function mapProfile(raw: any): SupplierProfile {
       expiryDate:      d.expiryDate,
       // Backend calls this rejectionNote, frontend calls it rejectionReason
       rejectionReason: d.rejectionReason ?? d.rejectionNote ?? undefined,
+      checkStatus:     d.checkStatus ?? undefined,
+      checkSummary:    d.checkSummary ?? undefined,
     })),
   };
 }

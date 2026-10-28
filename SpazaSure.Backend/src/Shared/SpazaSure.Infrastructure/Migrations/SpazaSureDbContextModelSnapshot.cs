@@ -607,6 +607,25 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CheckDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("check_details");
+
+                    b.Property<string>("CheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("check_status");
+
+                    b.Property<string>("CheckSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("check_summary");
+
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -623,6 +642,11 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("doc_url");
 
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("document_number");
+
                     b.Property<Guid>("DriverId")
                         .HasColumnType("uuid")
                         .HasColumnName("driver_id");
@@ -637,6 +661,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_driver_documents");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("ix_driver_documents_document_number");
 
                     b.HasIndex("DriverId", "DocType")
                         .IsUnique()
@@ -2447,6 +2474,25 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CheckDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("check_details");
+
+                    b.Property<string>("CheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("check_status");
+
+                    b.Property<string>("CheckSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("check_summary");
+
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2459,6 +2505,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<string>("DocUrl")
                         .HasColumnType("text")
                         .HasColumnName("doc_url");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("document_number");
 
                     b.Property<DateOnly?>("ExpiryDate")
                         .HasColumnType("date")
@@ -2495,6 +2546,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_shop_documents");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("ix_shop_documents_document_number");
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_shop_documents_shop_id");
@@ -3442,6 +3496,25 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CheckDetails")
+                        .HasColumnType("text")
+                        .HasColumnName("check_details");
+
+                    b.Property<string>("CheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("check_status");
+
+                    b.Property<string>("CheckSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("check_summary");
+
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -3455,6 +3528,11 @@ namespace SpazaSure.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("doc_url");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("document_number");
 
                     b.Property<DateOnly?>("ExpiryDate")
                         .HasColumnType("date")
@@ -3487,6 +3565,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_supplier_documents");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("ix_supplier_documents_document_number");
 
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("ix_supplier_documents_supplier_id");

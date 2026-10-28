@@ -111,7 +111,7 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
 
         <div class="divider"></div>
 
-        <div class="row"><span style="color:#666">Payment</span><span class="bold">${order.paymentMethod.toUpperCase()}</span></div>
+        <div class="row"><span style="color:#666">Payment</span><span class="bold">${order.paymentMethod === 'cash_on_delivery' ? 'Cash on delivery (SpazaSure collects, pays you)' : order.paymentMethod.toUpperCase()}</span></div>
         <div class="row"><span style="color:#666">Status</span><span class="bold" style="text-transform:capitalize">${order.status}</span></div>
 
         <div class="divider"></div>
@@ -265,7 +265,9 @@ export default function OrderReceiptModal({ order, onClose }: Props) {
             <div className="border-b border-dashed border-gray-300 pb-4 space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Payment Method</span>
-                <span className="font-semibold text-gray-900 uppercase">{order.paymentMethod}</span>
+                <span className="font-semibold text-gray-900">
+                  {order.paymentMethod === 'cash_on_delivery' ? 'Cash on delivery (SpazaSure collects, pays you)' : order.paymentMethod.toUpperCase()}
+                </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Payment Status</span>

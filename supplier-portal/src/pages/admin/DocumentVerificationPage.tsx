@@ -31,6 +31,61 @@ interface SupplierDoc {
   /** Didit check of the shop owner / supplier business: Approved, Declined, In Review, ... */
   identityCheckStatus?: string | null;
   identityCheckNotes?: string | null;
+  /** The automatic check against the profile: passed, warning, failed, checking, unavailable or not_checked. */
+  checkStatus?: string | null;
+  checkSummary?: string | null;
+  checkDetails?: { findings?: { label: string; status: 'pass' | 'warn' | 'fail'; detail: string }[] } | null;
+}
+
+/** A failed (or unfinished) profile check needs a reason to approve the document anyway. */
+const needsOverride = (doc: SupplierDoc) => doc.checkStatus === 'failed' || doc.checkStatus === 'checking';
+
+const checkBadge: Record<string, { label: string; className: string }> = {
+  passed:      { label: 'Matches profile',  className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  warning:     { label: 'Check needed',     className: 'text-amber-700 bg-amber-50 border-amber-200' },
+  failed:      { label: "Doesn't match",    className: 'text-red-600 bg-red-50 border-red-200' },
+  checking:    { label: 'Checking...',      className: 'text-gray-500 bg-gray-50 border-gray-200' },
+  unavailable: { label: 'Check by hand',    className: 'text-gray-500 bg-gray-50 border-gray-200' },
+};
+
+function CheckBadge({ doc }: { doc: SupplierDoc }) {
+  const badge = doc.checkStatus ? checkBadge[doc.checkStatus] : undefined;
+  if (!badge) return null;
+  return (
+    <span className={clsx('inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border', badge.className)}
+      title={doc.checkSummary ?? undefined}>
+      {badge.label}
+    </span>
+  );
+}
+
+/** Each finding of the profile check: document type, name, ID or registration number, dates, reuse. */
+function CheckFindings({ doc }: { doc: SupplierDoc }) {
+  const findings = doc.checkDetails?.findings ?? [];
+  if (!doc.checkStatus || doc.checkStatus === 'not_checked') return null;
+  return (
+    <div className={clsx('px-6 py-3 border-b text-xs flex-shrink-0',
+      doc.checkStatus === 'failed' ? 'bg-red-50/60 border-red-100' : doc.checkStatus === 'warning' ? 'bg-amber-50/60 border-amber-100' : 'bg-white border-gray-100')}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="font-bold text-gray-700">Checked against the profile</span>
+        <CheckBadge doc={doc} />
+      </div>
+      {findings.length === 0 ? (
+        <p className="text-gray-500">{doc.checkSummary ?? 'Being checked. Refresh in a minute.'}</p>
+      ) : (
+        <ul className="space-y-1">
+          {findings.map((f, i) => (
+            <li key={i} className="flex gap-2">
+              {f.status === 'pass' ? <CheckCircle size={13} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                : f.status === 'fail' ? <XCircle size={13} className="text-red-500 mt-0.5 flex-shrink-0" />
+                : <AlertTriangle size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />}
+              <span><strong className="text-gray-700">{f.label}:</strong> <span className="text-gray-600">{f.detail}</span></span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /** Didit is the first step: documents can only be approved once it has passed. */
@@ -88,6 +143,9 @@ export default function DocumentVerificationPage() {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [rejectReason, setRejectReason] = useState('');
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  // Approving a document that failed the profile check needs a reason
+  const [overrideTarget, setOverrideTarget] = useState<SupplierDoc | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
   const [previewDoc, setPreviewDoc] = useState<SupplierDoc | null>(null);
   const [expandedSupplier, setExpandedSupplier] = useState<Set<string>>(new Set());
 
@@ -136,7 +194,9 @@ export default function DocumentVerificationPage() {
   const updateDocStatus = async (id: string, status: DocStatus, reason?: string) => {
     try {
       if (status === 'approved') {
-        await api.patch(`/compliance/documents/${id}/approve`);
+        await api.patch(`/compliance/documents/${id}/approve`, reason ? { overrideReason: reason } : {});
+        setOverrideTarget(null);
+        setOverrideReason('');
       } else {
         await api.patch(`/compliance/documents/${id}/reject`, { reason });
       }
@@ -170,6 +230,7 @@ export default function DocumentVerificationPage() {
       if (await openAdminDiditCheck(type, doc.supplierId, doc.supplierName)) refreshDocs();
       return;
     }
+    if (needsOverride(doc)) { setOverrideTarget(doc); return; }
     await updateDocStatus(doc.id, 'approved');
   };
 
@@ -523,6 +584,14 @@ export default function DocumentVerificationPage() {
                                 <span className="text-amber-500"> · Expires {format(new Date(doc.expiryDate), 'dd MMM yyyy')}</span>
                               )}
                             </p>
+                            {doc.checkStatus && doc.checkStatus !== 'not_checked' && (
+                              <p className="flex items-center gap-1.5 mt-1 max-w-md">
+                                <CheckBadge doc={doc} />
+                                {doc.checkStatus !== 'passed' && doc.checkSummary && (
+                                  <span className="text-[11px] text-gray-500 truncate" title={doc.checkSummary}>{doc.checkSummary}</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -637,6 +706,7 @@ export default function DocumentVerificationPage() {
               {previewDoc.expiryDate && <span className="inline-flex items-center gap-1.5"><Clock size={13} /> Expires: <strong className="text-gray-700">{format(new Date(previewDoc.expiryDate), 'dd MMM yyyy')}</strong></span>}
               <span className="inline-flex items-center gap-1.5"><Mail size={13} /> {previewDoc.supplierEmail}</span>
             </div>
+            <CheckFindings doc={previewDoc} />
 
             {/* Preview */}
             <div className="flex-1 overflow-auto p-6 min-h-0 bg-gray-50/30">
@@ -696,6 +766,57 @@ export default function DocumentVerificationPage() {
       )}
 
       {/* ═══ REJECT MODAL ═══ */}
+      {overrideTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setOverrideTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-card-lg w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <AlertTriangle size={18} className="text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900">Approve anyway?</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {overrideTarget.checkStatus === 'checking'
+                      ? 'This document is still being checked against the profile.'
+                      : "This document didn't match the profile."}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              {overrideTarget.checkSummary && (
+                <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl p-3">{overrideTarget.checkSummary}</p>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Why is it still valid?</label>
+                <textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-300 transition-all placeholder:text-gray-300"
+                  rows={3}
+                  placeholder="e.g. Owner married and changed surname; marriage certificate seen"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">Kept with the document as a record of who approved it and why.</p>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button onClick={() => setOverrideTarget(null)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => updateDocStatus(overrideTarget.id, 'approved', overrideReason.trim())}
+                  disabled={overrideReason.trim().length < 5}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle size={14} /> Approve with reason
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {rejectTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setRejectTarget(null)} />

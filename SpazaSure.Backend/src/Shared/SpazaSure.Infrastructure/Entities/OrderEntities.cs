@@ -42,6 +42,13 @@ public class Order : BaseEntity
     /// <summary>The driver an admin allocated to deliver this order.</summary>
     public Guid? DriverId { get; set; }
     public DateTime? DriverAssignedAt { get; set; }
+    /// <summary>When the driver confirmed, on their link, that they collected the order from the supplier.</summary>
+    public DateTime? CollectedAt { get; set; }
+    /// <summary>Where the phone was when delivery was confirmed, as proof the driver was at the shop.</summary>
+    public double? DeliveredLatitude { get; set; }
+    public double? DeliveredLongitude { get; set; }
+    /// <summary>Who confirmed delivery: driver (after confirming the shop number), shop or admin.</summary>
+    public string? DeliveredBy { get; set; }
     /// <summary>What SpazaSure paid the driver for this delivery (the shop's delivery fee is SpazaSure's income).</summary>
     public decimal? DriverPay { get; set; }
     public DateTime? DriverPaidAt { get; set; }

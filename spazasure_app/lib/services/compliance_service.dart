@@ -9,6 +9,10 @@ class ComplianceDoc {
   final String? rejectionNote;
   final String? createdAt;
 
+  /// The automatic check against the shop profile: passed, warning, failed, checking, unavailable.
+  final String? checkStatus;
+  final String? checkSummary;
+
   ComplianceDoc({
     required this.id,
     required this.docType,
@@ -17,6 +21,8 @@ class ComplianceDoc {
     this.expiryDate,
     this.rejectionNote,
     this.createdAt,
+    this.checkStatus,
+    this.checkSummary,
   });
 
   factory ComplianceDoc.fromJson(Map<String, dynamic> json) {
@@ -28,6 +34,8 @@ class ComplianceDoc {
       expiryDate: json['expiryDate']?.toString(),
       rejectionNote: json['rejectionNote'],
       createdAt: json['createdAt']?.toString(),
+      checkStatus: json['checkStatus']?.toString(),
+      checkSummary: json['checkSummary']?.toString(),
     );
   }
 }

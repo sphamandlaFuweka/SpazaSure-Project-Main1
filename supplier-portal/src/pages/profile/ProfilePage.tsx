@@ -591,6 +591,18 @@ export default function ProfilePage() {
                           <p className="text-xs text-red-600 font-medium">Reason: {doc.rejectionReason}</p>
                         </div>
                       )}
+                      {/* The automatic check against the company profile: say what to fix straight away */}
+                      {doc?.status === 'pending' && doc.checkStatus === 'checking' && (
+                        <p className="text-xs text-gray-500 mt-1">Checking the document against your company details...</p>
+                      )}
+                      {doc?.status === 'pending' && doc.checkStatus === 'failed' && doc.checkSummary && (
+                        <div className="mt-1.5 flex items-start gap-1.5 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5">
+                          <XCircle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-red-600 font-medium">
+                            {doc.checkSummary} Replace it with the right document, or SpazaSure will review it.
+                          </p>
+                        </div>
+                      )}
                       {!doc && <p className="text-xs text-gray-400 mt-0.5">Not uploaded yet</p>}
                     </div>
                   </div>

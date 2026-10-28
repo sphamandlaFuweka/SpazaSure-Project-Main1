@@ -46,7 +46,7 @@ public class DriverPushSubscription : BaseEntity
 /// A driver's document, uploaded by an admin: driving licence, professional driving permit
 /// (PrDP, needed to carry goods for reward) or ID. Private, like shop and supplier documents.
 /// </summary>
-public class DriverDocument : BaseEntity
+public class DriverDocument : BaseEntity, ICheckedDocument
 {
     public const string Licence = "licence";
     public const string Prdp = "prdp";
@@ -59,6 +59,17 @@ public class DriverDocument : BaseEntity
     public string DocUrl { get; set; } = string.Empty;
     /// <summary>When the licence or PrDP stops being valid; IDs don't expire.</summary>
     public DateOnly? ExpiryDate { get; set; }
+
+    // ── Automatic check against the profile (see DocumentChecks) ──
+    /// <summary>not_checked, passed, warning, failed or unavailable.</summary>
+    public string CheckStatus { get; set; } = "not_checked";
+    /// <summary>One line for the uploader and admin, e.g. "The name on the ID is not the owner's".</summary>
+    public string? CheckSummary { get; set; }
+    /// <summary>JSON: each finding, and what was read off the document.</summary>
+    public string? CheckDetails { get; set; }
+    public DateTime? CheckedAt { get; set; }
+    /// <summary>ID or registration number read off the document, to spot one used by two accounts.</summary>
+    public string? DocumentNumber { get; set; }
 
     public Driver Driver { get; set; } = null!;
 }

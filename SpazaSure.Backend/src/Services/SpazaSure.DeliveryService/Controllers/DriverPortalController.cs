@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.DeliveryService.Controllers;
@@ -16,8 +17,10 @@ namespace SpazaSure.DeliveryService.Controllers;
 /// </summary>
 [ApiController]
 [AllowAnonymous]
-public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts = null) : ControllerBase
+public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts = null, EventPublisher? events = null) : ControllerBase
 {
+    /// <summary>Further than this from the shop's pin when delivery is confirmed, and admins are told to look.</summary>
+    private const double FarFromShopMetres = 1000;
     /// <summary>How far back the driver's delivery history goes.</summary>
     private const int HistoryDays = 90;
 
@@ -110,6 +113,130 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
         driver.LastSeenAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Location shared."));
+    }
+
+    /// <summary>
+    /// The driver confirms, at the supplier, that they have the goods: the order is on its way.
+    /// The shop is told, with its shop number, which the driver checks on arrival.
+    /// </summary>
+    [HttpPost("api/delivery/driver/{token}/orders/{orderNumber}/collected")]
+    public async Task<IActionResult> Collected(string token, string orderNumber, [FromBody] DriverStepRequest? req = null)
+    {
+        var driver = await FindAsync(token);
+        if (driver is null) return NotFound(ApiResponse.Fail("This link no longer works."));
+        var order = await DriversOrderAsync(driver, orderNumber);
+        if (order is null) return NotFound(ApiResponse.Fail("This delivery isn't yours, or it was given to another driver."));
+        if (order.Status == "dispatched") return Ok(ApiResponse.Ok("Already marked as collected."));
+        if (order.Status is not ("processing" or "ready"))
+            return BadRequest(ApiResponse.Fail(order.Status is "pending" or "confirmed"
+                ? "The supplier hasn't accepted this order yet. Don't collect it until it's ready."
+                : $"This order is {DriverPortalController.StatusLabel(order.Status).ToLowerInvariant()}, so it can't be collected."));
+        // Taking an unpaid card order would hand over the goods for free
+        if (order.PaymentMethod == "paystack" && order.PaymentStatus != "paid")
+            return BadRequest(ApiResponse.Fail("This order hasn't been paid yet. Don't collect it; SpazaSure will let you know."));
+
+        order.Status = "dispatched";
+        order.CollectedAt = DateTime.UtcNow;
+        if (order.PaymentMethod == "cash_on_delivery") order.DeliveryCode ??= ShopDeliveryCode();
+        var shopCode = await ShopVerification.EnsureCodeAsync(db, order.Shop);
+        SaveLocation(driver, req);
+        await db.SaveChangesAsync();
+
+        events?.PublishNotification(
+            supplierId: order.Shop.UserId.ToString(), type: "delivery", title: "Your order is on its way",
+            message: $"{driver.FullName} ({driver.VehicleRegistration}) collected order {order.OrderNumber} and is on the way. " +
+                     $"When they arrive, show them your shop number {shopCode} (on your SpazaSure sticker) so they know it's the right shop." +
+                     (order.DeliveryCode is null ? "" : $" Pay R{order.TotalAmount:F2} in cash."),
+            priority: "high", referenceId: order.Id.ToString(), routingKey: "order.dispatched");
+        events?.PublishNotification(
+            supplierId: order.Supplier.UserId.ToString(), type: "order", title: "Order collected",
+            message: $"SpazaSure driver {driver.FullName} collected order {order.OrderNumber}.",
+            referenceId: order.Id.ToString(), routingKey: "order.dispatched");
+        return Ok(ApiResponse.Ok("Collected. Drive safely, and check the shop number when you arrive."));
+    }
+
+    /// <summary>
+    /// The driver confirms delivery, at the shop. They must first confirm it's the right shop, by
+    /// typing the shop number on its SpazaSure sticker or scanning the sticker's QR code. Cash
+    /// orders also need the driver to confirm they collected the cash.
+    /// </summary>
+    [HttpPost("api/delivery/driver/{token}/orders/{orderNumber}/delivered")]
+    public async Task<IActionResult> Delivered(string token, string orderNumber, [FromBody] DriverDeliveredRequest req)
+    {
+        var driver = await FindAsync(token);
+        if (driver is null) return NotFound(ApiResponse.Fail("This link no longer works."));
+        var order = await DriversOrderAsync(driver, orderNumber);
+        if (order is null) return NotFound(ApiResponse.Fail("This delivery isn't yours, or it was given to another driver."));
+        if (order.Status == "delivered") return Ok(ApiResponse.Ok("Already delivered."));
+        if (order.Status != "dispatched")
+            return BadRequest(ApiResponse.Fail("Confirm that you collected the order first."));
+
+        var entered = ShopVerification.Normalize(req.ShopCode);
+        if (entered is null)
+            return BadRequest(ApiResponse.Fail("Type the shop number on the shop's SpazaSure sticker (like SS123456), or scan the sticker."));
+        if (string.IsNullOrEmpty(order.Shop.ShopCode) || entered != order.Shop.ShopCode)
+            return BadRequest(ApiResponse.Fail(
+                $"That's not the shop number for {order.Shop.ShopName}. Check you're at the right shop: {order.DeliveryAddress ?? order.Shop.Address}."));
+        if (order.PaymentMethod == "cash_on_delivery" && !req.CashCollected)
+            return BadRequest(ApiResponse.Fail($"Collect the R{order.TotalAmount:F2} cash from the shop first, then confirm."));
+
+        order.Status = "delivered";
+        order.DeliveredAt ??= DateTime.UtcNow;
+        order.DeliveredBy = "driver";
+        if (order.PaymentMethod == "cash_on_delivery") order.PaymentStatus = "paid";
+        var located = SaveLocation(driver, req.Latitude, req.Longitude);
+        order.DeliveredLatitude = located?.Latitude;
+        order.DeliveredLongitude = located?.Longitude;
+        await db.SaveChangesAsync();
+
+        events?.PublishNotification(
+            supplierId: order.Shop.UserId.ToString(), type: "delivery", title: "Order delivered",
+            message: $"{driver.FullName} delivered order {order.OrderNumber}. Something missing or damaged? Report it from the order.",
+            referenceId: order.Id.ToString(), routingKey: "order.delivered");
+        events?.PublishNotification(
+            supplierId: order.Supplier.UserId.ToString(), type: "order", title: "Delivery confirmed",
+            message: $"Order {order.OrderNumber} was delivered to {order.Shop.ShopName}. Your payout for it is now scheduled.",
+            referenceId: order.Id.ToString(), routingKey: "order.delivered");
+
+        // The right shop number far from the shop's pin: possible (a wrong pin), but worth a look
+        var shopLat = order.DeliveryLatitude ?? order.Shop.Latitude;
+        var shopLng = order.DeliveryLongitude ?? order.Shop.Longitude;
+        if (events is not null && located is { } at && shopLat is { } sLat && shopLng is { } sLng
+            && DistanceMetres(at.Latitude, at.Longitude, sLat, sLng) is var metres && metres > FarFromShopMetres)
+            await AdminAlerts.NotifyAdminsAsync(db, events, "delivery", "Delivery confirmed away from the shop",
+                $"{driver.FullName} confirmed order {order.OrderNumber} about {metres / 1000:F1} km from {order.Shop.ShopName}'s location.",
+                order.Id.ToString());
+
+        return Ok(ApiResponse.Ok("Delivered. Thank you!"));
+    }
+
+    private Task<Order?> DriversOrderAsync(Driver driver, string orderNumber) =>
+        db.Orders.Include(o => o.Shop).Include(o => o.Supplier)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber && o.DriverId == driver.Id);
+
+    private static string ShopDeliveryCode() =>
+        System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+
+    private static (double Latitude, double Longitude)? SaveLocation(Driver driver, DriverStepRequest? req) =>
+        SaveLocation(driver, req?.Latitude, req?.Longitude);
+
+    /// <summary>Keeps the phone's position when it was sent with a step; it also updates the shop's map.</summary>
+    private static (double Latitude, double Longitude)? SaveLocation(Driver driver, double? lat, double? lng)
+    {
+        if (lat is not { } la || lng is not { } lo || !double.IsFinite(la) || !double.IsFinite(lo)
+            || la is < -90 or > 90 || lo is < -180 or > 180) return null;
+        driver.LastLatitude = la;
+        driver.LastLongitude = lo;
+        driver.LastSeenAt = DateTime.UtcNow;
+        return (la, lo);
+    }
+
+    private static double DistanceMetres(double lat1, double lon1, double lat2, double lon2)
+    {
+        static double Rad(double d) => d * Math.PI / 180;
+        var a = Math.Pow(Math.Sin(Rad(lat2 - lat1) / 2), 2) +
+                Math.Cos(Rad(lat1)) * Math.Cos(Rad(lat2)) * Math.Pow(Math.Sin(Rad(lon2 - lon1) / 2), 2);
+        return 6_371_000 * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     /// <summary>The key the page needs to turn delivery alerts on.</summary>
@@ -219,6 +346,11 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
             <div id="jobs"><p>Loading...</p></div>
             <h2>History <span id="month"></span></h2>
             <div id="history"><p>Loading...</p></div>
+            <div id="scanner" hidden>
+              <video id="scanVideo" playsinline muted></video>
+              <p>Point the camera at the QR code on the shop's SpazaSure sticker.</p>
+              <button id="scanClose" class="off">Cancel</button>
+            </div>
             <script>
             const token = {{System.Text.Json.JsonSerializer.Serialize(token)}};
             const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -255,6 +387,13 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                 ring();
                 document.title = `(${fresh.length}) New delivery - SpazaSure`;
               }
+              // Keep what the driver typed or ticked while the list refreshes
+              const typed = [...box.querySelectorAll('input')].map(i => [i.id, i.type === 'checkbox' ? i.checked : i.value]);
+              const focused = document.activeElement && document.activeElement.id;
+              setTimeout(() => {
+                for (const [id, v] of typed) { const el = document.getElementById(id); if (el) el.type === 'checkbox' ? (el.checked = v) : (el.value = v); }
+                if (focused && document.getElementById(focused)) document.getElementById(focused).focus();
+              });
               box.innerHTML = data.jobs.length === 0 ? '<p class="empty">No deliveries for you right now. You\'ll get an alert when there is one.</p>' : data.jobs.map(j => `
                 <article class="${fresh.includes(j.orderNumber) ? 'new' : ''}">
                   <h3>${esc(j.orderNumber)} <span class="st ${esc(j.status)}">${esc(j.statusLabel)}</span></h3>
@@ -263,7 +402,22 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                     <br><a href="${maps(j.pickup.latitude, j.pickup.longitude, j.pickup.address)}" target="_blank" rel="noopener">Directions</a></p>
                   <p><b>Deliver to</b><br>${esc(j.dropoff.shopName)} &middot; <a href="tel:${esc(j.dropoff.phone)}">${esc(j.dropoff.phone)}</a><br>${esc(j.dropoff.address)}
                     <br><a href="${maps(j.dropoff.latitude, j.dropoff.longitude, j.dropoff.address)}" target="_blank" rel="noopener">Directions</a></p>
-                  ${j.cashOnDelivery ? `<p class="cash">Cash on delivery: collect ${money(j.totalAmount)} and ask the shop for its delivery code.</p>` : ''}
+                  ${j.cashOnDelivery ? `<p class="cash">Cash on delivery: collect ${money(j.totalAmount)} from the shop.</p>` : ''}
+                  ${j.status === 'processing' || j.status === 'ready' ? `
+                    <button class="step" data-collect="${esc(j.orderNumber)}">I've collected this order</button>
+                    <p class="hint">Tap once the supplier has handed you the goods.</p>` : ''}
+                  ${j.status === 'dispatched' ? `
+                    <div class="atshop">
+                      <b>At the shop</b>
+                      <p class="hint">Check it's the right shop: type the number on its SpazaSure sticker, or scan the sticker.</p>
+                      <div class="row2">
+                        <input id="code-${esc(j.orderNumber)}" placeholder="Shop number, e.g. SS123456" autocapitalize="characters" autocomplete="off">
+                        <button class="scan" data-scan="${esc(j.orderNumber)}">Scan</button>
+                      </div>
+                      ${j.cashOnDelivery ? `<label class="check"><input type="checkbox" id="cash-${esc(j.orderNumber)}"> I collected ${money(j.totalAmount)} in cash</label>` : ''}
+                      <button class="step done" data-deliver="${esc(j.orderNumber)}">Confirm delivered</button>
+                    </div>` : ''}
+                  <p class="msg" id="msg-${esc(j.orderNumber)}"></p>
                 </article>`).join('');
 
               document.getElementById('month').textContent =
@@ -277,6 +431,79 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                     <div class="pay">${h.status !== 'delivered' ? '' : h.paid ? money(h.driverPay) + '<br><small>paid</small>' : '<small>payment<br>pending</small>'}</div>
                   </div>`).join('') + '</div>';
             }
+            // ── Collecting and delivering: the driver confirms each step here ──
+            const here = () => new Promise(resolve => {
+              if (!navigator.geolocation) return resolve({});
+              navigator.geolocation.getCurrentPosition(
+                p => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+                () => resolve({}), { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+            });
+            async function step(orderNumber, action, body, button) {
+              const msg = document.getElementById('msg-' + orderNumber);
+              button.disabled = true;
+              msg.className = 'msg';
+              msg.textContent = 'Saving...';
+              try {
+                const res = await fetch(`/api/delivery/driver/${token}/orders/${encodeURIComponent(orderNumber)}/${action}`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(await here()) }) });
+                const data = await res.json().catch(() => ({}));
+                msg.className = res.ok ? 'msg ok' : 'msg err';
+                msg.textContent = data.message || (res.ok ? 'Done.' : 'That did not work. Try again.');
+                if (res.ok) setTimeout(loadJobs, 1500);
+              } catch { msg.className = 'msg err'; msg.textContent = 'No signal. Try again in a moment.'; }
+              finally { button.disabled = false; }
+            }
+            document.getElementById('jobs').addEventListener('click', e => {
+              const b = e.target.closest('button');
+              if (!b) return;
+              if (b.dataset.collect) {
+                if (confirm('Do you have all the goods for ' + b.dataset.collect + '?')) step(b.dataset.collect, 'collected', {}, b);
+              } else if (b.dataset.deliver) {
+                const n = b.dataset.deliver, cash = document.getElementById('cash-' + n);
+                step(n, 'delivered', { shopCode: document.getElementById('code-' + n).value, cashCollected: !!(cash && cash.checked) }, b);
+              } else if (b.dataset.scan) {
+                scanSticker(b.dataset.scan);
+              }
+            });
+
+            // Scans the QR code on the shop's SpazaSure sticker with the phone camera, where the browser can
+            let scanStream = null;
+            async function scanSticker(orderNumber) {
+              const msg = document.getElementById('msg-' + orderNumber);
+              if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
+                msg.className = 'msg err';
+                msg.textContent = 'This phone cannot scan from the browser. Type the shop number from the sticker instead.';
+                return;
+              }
+              const box = document.getElementById('scanner'), video = document.getElementById('scanVideo');
+              try {
+                scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              } catch { msg.className = 'msg err'; msg.textContent = 'Allow the camera to scan, or type the shop number.'; return; }
+              video.srcObject = scanStream; await video.play(); box.hidden = false;
+              const detector = new BarcodeDetector({ formats: ['qr_code'] });
+              const tick = async () => {
+                if (!scanStream) return;
+                try {
+                  const found = (await detector.detect(video))[0];
+                  if (found) {
+                    document.getElementById('code-' + orderNumber).value = found.rawValue;
+                    stopScan();
+                    msg.className = 'msg ok'; msg.textContent = 'Sticker scanned. Now confirm delivered.';
+                    if (navigator.vibrate) navigator.vibrate(150);
+                    return;
+                  }
+                } catch {}
+                requestAnimationFrame(tick);
+              };
+              tick();
+            }
+            function stopScan() {
+              if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+              scanStream = null;
+              document.getElementById('scanner').hidden = true;
+            }
+            document.getElementById('scanClose').onclick = stopScan;
+
             document.addEventListener('visibilitychange', () => { if (!document.hidden) { document.title = 'SpazaSure driver'; loadJobs(); } });
 
             // Delivery alerts: standard web push, shown by /driver/sw.js even when this page is closed
@@ -388,9 +615,22 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
         ".st.cancelled{background:#FDE7E7;color:#B71C1C}.badge{display:inline-block;background:#078C50;color:#fff;font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;margin:0 0 6px}" +
         "a{color:#25449A;font-weight:700}.cash{background:#FEF5E0;border-radius:10px;padding:8px}h2{font-size:16px}h2 span{font-size:12px;font-weight:600;color:#5A5A7A}" +
         ".empty{color:#5A5A7A;font-size:14px}.list{padding:4px 16px}.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #EEF0F7}" +
-        ".row:last-child{border-bottom:0}.row small{color:#5A5A7A}.pay{text-align:right;font-weight:800;white-space:nowrap}";
+        ".row:last-child{border-bottom:0}.row small{color:#5A5A7A}.pay{text-align:right;font-weight:800;white-space:nowrap}" +
+        ".step{margin-top:6px;background:#25449A;color:#fff}.step.done{background:#078C50}.hint{font-size:12px;color:#5A5A7A;margin:4px 0}" +
+        ".atshop{border-top:1px solid #EEF0F7;margin-top:10px;padding-top:10px}.row2{display:flex;gap:8px}" +
+        ".row2 input{flex:1;min-width:0;padding:12px;border:1px solid #CBD2E6;border-radius:12px;font-size:16px;text-transform:uppercase}" +
+        ".scan{width:auto;padding:12px 16px;background:#E8ECF8;color:#25449A}.check{display:flex;gap:8px;align-items:center;margin:10px 0 4px;font-weight:700}" +
+        ".check input{width:22px;height:22px}.msg{font-size:13px;margin:8px 0 0;font-weight:600}.msg.ok{color:#078C50}.msg.err{color:#B71C1C}" +
+        "#scanner{position:fixed;inset:0;background:#000d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;z-index:9}" +
+        "#scanner[hidden]{display:none}#scanner video{width:100%;max-width:480px;border-radius:16px}#scanner p{color:#fff;text-align:center}" +
+        "#scanner button{max-width:480px}";
 }
 
 public record DriverLocationRequest(double Latitude, double Longitude);
 
 public record DriverAlertSubscriptionRequest(string Endpoint, string P256dh, string Auth);
+
+public record DriverStepRequest(double? Latitude, double? Longitude);
+
+/// <summary>ShopCode: typed off the shop's sticker, or the sticker's scanned QR (a verify link).</summary>
+public record DriverDeliveredRequest(string? ShopCode, bool CashCollected, double? Latitude, double? Longitude);

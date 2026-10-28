@@ -2025,6 +2025,33 @@ CREATE TABLE IF NOT EXISTS driver_push_subscriptions (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_driver_push_subscriptions_endpoint ON driver_push_subscriptions(endpoint);
 CREATE INDEX IF NOT EXISTS ix_driver_push_subscriptions_driver_id ON driver_push_subscriptions(driver_id);
 
+-- The driver confirms collection and delivery on their link; delivery only after confirming the shop
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS collected_at timestamp with time zone;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_latitude double precision;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_longitude double precision;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_by varchar(20);
+
+-- Uploaded documents are checked against the profile of the account that uploaded them: right
+-- document, same name and ID/registration number, in date, and not already on another account.
+ALTER TABLE shop_documents ADD COLUMN IF NOT EXISTS check_status varchar(20) NOT NULL DEFAULT 'not_checked';
+ALTER TABLE shop_documents ADD COLUMN IF NOT EXISTS check_summary varchar(500);
+ALTER TABLE shop_documents ADD COLUMN IF NOT EXISTS check_details text;
+ALTER TABLE shop_documents ADD COLUMN IF NOT EXISTS checked_at timestamp with time zone;
+ALTER TABLE shop_documents ADD COLUMN IF NOT EXISTS document_number varchar(40);
+CREATE INDEX IF NOT EXISTS ix_shop_documents_document_number ON shop_documents(document_number);
+ALTER TABLE supplier_documents ADD COLUMN IF NOT EXISTS check_status varchar(20) NOT NULL DEFAULT 'not_checked';
+ALTER TABLE supplier_documents ADD COLUMN IF NOT EXISTS check_summary varchar(500);
+ALTER TABLE supplier_documents ADD COLUMN IF NOT EXISTS check_details text;
+ALTER TABLE supplier_documents ADD COLUMN IF NOT EXISTS checked_at timestamp with time zone;
+ALTER TABLE supplier_documents ADD COLUMN IF NOT EXISTS document_number varchar(40);
+CREATE INDEX IF NOT EXISTS ix_supplier_documents_document_number ON supplier_documents(document_number);
+ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS check_status varchar(20) NOT NULL DEFAULT 'not_checked';
+ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS check_summary varchar(500);
+ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS check_details text;
+ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS checked_at timestamp with time zone;
+ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS document_number varchar(40);
+CREATE INDEX IF NOT EXISTS ix_driver_documents_document_number ON driver_documents(document_number);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

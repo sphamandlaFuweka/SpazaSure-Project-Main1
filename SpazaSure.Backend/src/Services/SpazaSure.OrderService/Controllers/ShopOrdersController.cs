@@ -536,6 +536,7 @@ public class ShopOrdersController(
 
         order.Status = "delivered";
         order.DeliveredAt ??= DateTime.UtcNow;
+        order.DeliveredBy ??= "shop";
         if (order.PaymentMethod == CashOnDelivery) order.PaymentStatus = "paid";
         await db.SaveChangesAsync();
 

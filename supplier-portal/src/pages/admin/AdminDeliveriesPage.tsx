@@ -8,6 +8,7 @@ import {
 } from '../../services/api';
 import { Modal, Spinner } from '../../components/ui';
 import { shortOrderNumber } from '../../utils';
+import clsx from 'clsx';
 
 /**
  * SpazaSure's delivery run. Admins register drivers and allocate them to orders; suppliers pack
@@ -333,6 +334,15 @@ function DocumentRow({ driver, doc, onChanged }: { driver: Driver; doc: DriverDo
           </span>
         )}
       </div>
+      {doc.uploaded && doc.checkStatus && doc.checkStatus !== 'not_checked' && doc.checkStatus !== 'passed' && (
+        <p className={clsx('text-[11px] rounded-lg px-2 py-1',
+          doc.checkStatus === 'failed' ? 'text-red-700 bg-red-50' : doc.checkStatus === 'warning' ? 'text-amber-700 bg-amber-50' : 'text-gray-500 bg-gray-50')}>
+          {doc.checkStatus === 'checking' ? 'Checking the document against the driver\'s details...' : doc.checkSummary}
+        </p>
+      )}
+      {doc.uploaded && doc.checkStatus === 'passed' && (
+        <p className="text-[11px] text-emerald-700">Matches {driver.fullName}'s details.</p>
+      )}
       {doc.uploaded && doc.docUrl && (
         <a href={resolveUploadUrl(doc.docUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
           <ExternalLink size={12} /> View current file

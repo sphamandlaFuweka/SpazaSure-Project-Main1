@@ -185,6 +185,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(d => d.DocType).HasMaxLength(20);
             e.Property(d => d.DocUrl).HasMaxLength(500);
             e.HasIndex(d => new { d.DriverId, d.DocType }).IsUnique();
+            e.Property(d => d.CheckStatus).HasMaxLength(20);
+            e.Property(d => d.CheckSummary).HasMaxLength(500);
+            e.Property(d => d.DocumentNumber).HasMaxLength(40);
+            e.HasIndex(d => d.DocumentNumber);
             e.HasOne(d => d.Driver).WithMany(d => d.Documents).HasForeignKey(d => d.DriverId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -217,6 +221,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         model.Entity<SupplierDocument>(e =>
         {
             e.ToTable("supplier_documents");
+            e.Property(d => d.CheckStatus).HasMaxLength(20);
+            e.Property(d => d.CheckSummary).HasMaxLength(500);
+            e.Property(d => d.DocumentNumber).HasMaxLength(40);
+            e.HasIndex(d => d.DocumentNumber);
         });
 
         // CustomerProfile  one-to-one with User
@@ -348,6 +356,10 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         model.Entity<ShopDocument>(e =>
         {
             e.ToTable("shop_documents");
+            e.Property(d => d.CheckStatus).HasMaxLength(20);
+            e.Property(d => d.CheckSummary).HasMaxLength(500);
+            e.Property(d => d.DocumentNumber).HasMaxLength(40);
+            e.HasIndex(d => d.DocumentNumber);
         });
 
         // Category
@@ -405,6 +417,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(o => o.DeliveryFee).HasPrecision(10, 2);
             e.Property(o => o.DriverPay).HasPrecision(10, 2);
             e.Property(o => o.DriverPayReference).HasMaxLength(100);
+            e.Property(o => o.DeliveredBy).HasMaxLength(20);
             e.HasIndex(o => o.PayoutReference);
             e.Property(o => o.DeliveryMarkup).HasPrecision(10, 2);
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);

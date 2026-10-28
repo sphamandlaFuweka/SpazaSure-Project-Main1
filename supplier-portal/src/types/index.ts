@@ -350,6 +350,9 @@ export interface ComplianceDoc {
   status: 'pending' | 'approved' | 'rejected';
   expiryDate?: string;
   rejectionReason?: string;
+  /** The automatic check against the company profile: passed, warning, failed, checking, unavailable. */
+  checkStatus?: string;
+  checkSummary?: string;
 }
 
 // Pagination

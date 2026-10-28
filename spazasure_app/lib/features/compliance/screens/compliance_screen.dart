@@ -609,15 +609,32 @@ class _ComplianceScreenState extends State<ComplianceScreen>
                             ),
                           ),
                         ),
+                      // The automatic check against the profile: say what to fix straight away
+                      if (isPending && doc?.checkStatus == 'checking')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Checking the document against your profile...',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      if (isPending && doc?.checkStatus == 'failed' && doc?.checkSummary != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '${doc!.checkSummary!} Upload the right document, or SpazaSure will review it.',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // A pending document has already been submitted; only missing or
-          // rejected documents need an upload action.
-          if (!isApproved && !isPending)
+          // A pending document has already been submitted; only missing or rejected
+          // documents, or ones that didn't match the profile, need an upload action.
+          if (!isApproved && (!isPending || doc?.checkStatus == 'failed'))
             Container(
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.05),

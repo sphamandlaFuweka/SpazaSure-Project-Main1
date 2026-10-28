@@ -104,7 +104,7 @@ public class ProductUnitCode : BaseEntity
     public Product Product { get; set; } = null!;
 }
 
-public class SupplierDocument : BaseEntity
+public class SupplierDocument : BaseEntity, ICheckedDocument
 {
     public Guid SupplierId { get; set; }
     public string DocType { get; set; } = string.Empty;
@@ -115,10 +115,21 @@ public class SupplierDocument : BaseEntity
     public DateOnly? ExpiryDate { get; set; }
     public string? RejectionNote { get; set; }
 
+    // ── Automatic check against the profile (see DocumentChecks) ──
+    /// <summary>not_checked, passed, warning, failed or unavailable.</summary>
+    public string CheckStatus { get; set; } = "not_checked";
+    /// <summary>One line for the uploader and admin, e.g. "The name on the ID is not the owner's".</summary>
+    public string? CheckSummary { get; set; }
+    /// <summary>JSON: each finding, and what was read off the document.</summary>
+    public string? CheckDetails { get; set; }
+    public DateTime? CheckedAt { get; set; }
+    /// <summary>ID or registration number read off the document, to spot one used by two accounts.</summary>
+    public string? DocumentNumber { get; set; }
+
     public Supplier Supplier { get; set; } = null!;
 }
 
-public class ShopDocument : BaseEntity
+public class ShopDocument : BaseEntity, ICheckedDocument
 {
     public Guid ShopId { get; set; }
     public string DocType { get; set; } = string.Empty;
@@ -129,6 +140,17 @@ public class ShopDocument : BaseEntity
     public DateOnly? ExpiryDate { get; set; }
     public string? RejectionNote { get; set; }
     public string? GuidanceUrl { get; set; }
+
+    // ── Automatic check against the profile (see DocumentChecks) ──
+    /// <summary>not_checked, passed, warning, failed or unavailable.</summary>
+    public string CheckStatus { get; set; } = "not_checked";
+    /// <summary>One line for the uploader and admin, e.g. "The name on the ID is not the owner's".</summary>
+    public string? CheckSummary { get; set; }
+    /// <summary>JSON: each finding, and what was read off the document.</summary>
+    public string? CheckDetails { get; set; }
+    public DateTime? CheckedAt { get; set; }
+    /// <summary>ID or registration number read off the document, to spot one used by two accounts.</summary>
+    public string? DocumentNumber { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
 }
