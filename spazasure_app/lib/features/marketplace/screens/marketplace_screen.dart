@@ -10,6 +10,7 @@ import 'package:spazasure_app/core/widgets/product_card.dart';
 import 'package:spazasure_app/providers/product_provider.dart';
 import 'package:spazasure_app/services/product_service.dart';
 import 'package:spazasure_app/models/models.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -83,7 +84,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         // A transient empty server response must not wipe an already visible
         // catalogue. Empty is still shown normally on a first load or after
         // an explicit search/filter produces no matches.
-        final hasFilter = _searchController.text.isNotEmpty ||
+        final hasFilter =
+            _searchController.text.isNotEmpty ||
             _selectedCategory != null ||
             _selectedSupplier != null;
         if (products.isNotEmpty || _filteredProducts.isEmpty || hasFilter) {
@@ -109,9 +111,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Marketplace'),
-        backgroundColor: AppColors.surface,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -297,7 +298,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               '/product',
                               arguments: product,
                             ),
-                            onAddToCart: () => CartToast.add(context, product, 1),
+                            onAddToCart: () =>
+                                CartToast.add(context, product, 1),
                           ),
                         );
                       },
@@ -400,11 +402,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           for (final cat in categories)
                             FilterChip(
                               label: Text(
-                                cat.productCount > 0 ? '${cat.name} (${cat.productCount})' : cat.name,
+                                cat.productCount > 0
+                                    ? '${cat.name} (${cat.productCount})'
+                                    : cat.name,
                               ),
                               selected: category == cat.id,
                               onSelected: (_) => setSheet(
-                                () => category = category == cat.id ? null : cat.id,
+                                () => category = category == cat.id
+                                    ? null
+                                    : cat.id,
                               ),
                             ),
                         ],
@@ -413,7 +419,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       Text('Suppliers', style: AppTextStyles.subtitle),
                       const SizedBox(height: 12),
                       if (suppliers.isEmpty)
-                        Text('No suppliers near your shop yet.', style: AppTextStyles.caption)
+                        Text(
+                          'No suppliers near your shop yet.',
+                          style: AppTextStyles.caption,
+                        )
                       else
                         Wrap(
                           spacing: 8,
@@ -424,7 +433,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 label: Text(s.companyName),
                                 selected: supplier == s.id,
                                 onSelected: (_) => setSheet(
-                                  () => supplier = supplier == s.id ? null : s.id,
+                                  () =>
+                                      supplier = supplier == s.id ? null : s.id,
                                 ),
                               ),
                           ],

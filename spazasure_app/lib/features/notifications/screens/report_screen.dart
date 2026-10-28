@@ -9,6 +9,7 @@ import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/auth_service.dart';
 import 'package:spazasure_app/services/device_context.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class ReportScreen extends StatefulWidget {
   final String? barcode;
@@ -18,6 +19,7 @@ class ReportScreen extends StatefulWidget {
   final String? expiryDate;
   final String? initialType;
   final String? initialDescription;
+
   /// Evidence photo already taken, e.g. of a pack that didn't match the reference photos.
   final PlatformFile? initialPhoto;
 
@@ -292,8 +294,7 @@ class _ReportScreenState extends State<ReportScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.surface,
+        appBar: BrandAppBar(
           surfaceTintColor: AppColors.surface,
           elevation: 0,
           leading: _step == 3

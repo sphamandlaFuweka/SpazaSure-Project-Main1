@@ -99,7 +99,9 @@ class ProfileService {
 
   /// Posts (or changes) the owner's public answer to a review; an empty reply removes it.
   static Future<void> replyToReview(String reviewId, String reply) async {
-    await ApiService.put('/shop/profile/reviews/$reviewId/reply', {'reply': reply});
+    await ApiService.put('/shop/profile/reviews/$reviewId/reply', {
+      'reply': reply,
+    });
   }
 
   static Future<ShopReviews> getReviews() async {
@@ -154,9 +156,11 @@ class ShopReviews {
     average: (json['average'] as num?)?.toDouble() ?? 0,
     count: (json['count'] as num?)?.toInt() ?? 0,
     breakdown: {
-      for (final row in (json['breakdown'] as List<dynamic>? ?? const [])
-          .whereType<Map<String, dynamic>>())
-        (row['stars'] as num?)?.toInt() ?? 0: (row['count'] as num?)?.toInt() ?? 0,
+      for (final row
+          in (json['breakdown'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>())
+        (row['stars'] as num?)?.toInt() ?? 0:
+            (row['count'] as num?)?.toInt() ?? 0,
     },
     reviews: (json['reviews'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()

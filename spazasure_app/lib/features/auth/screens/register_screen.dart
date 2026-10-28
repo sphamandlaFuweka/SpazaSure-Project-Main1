@@ -178,9 +178,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (value('firstName').isEmpty || value('surname').isEmpty) {
           error = 'Enter the representative’s first name and surname.';
         } else if (!SaValidation.isValidIdNumber(value('idNumber'))) {
-          error = 'Enter a valid 13-digit South African ID number. Check it against your ID document.';
+          error =
+              'Enter a valid 13-digit South African ID number. Check it against your ID document.';
         } else if (!SaValidation.isValidPhone(value('phone'))) {
-          error = 'Enter a valid South African mobile number, e.g. 082 123 4567.';
+          error =
+              'Enter a valid South African mobile number, e.g. 082 123 4567.';
         } else if (_controller('password').text.length < 8) {
           error = 'Create a password with at least 8 characters.';
         } else if (_controller('password').text !=

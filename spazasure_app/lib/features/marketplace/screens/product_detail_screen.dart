@@ -320,13 +320,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.warehouse_outlined, size: 14, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.warehouse_outlined,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             product.branchStockNote!,
                             style: AppTextStyles.bodySmall.copyWith(
-                              color: product.outOfStockNearYou ? AppColors.error : AppColors.accentDark,
+                              color: product.outOfStockNearYou
+                                  ? AppColors.error
+                                  : AppColors.accentDark,
                             ),
                           ),
                         ),

@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/shop_verification/shop_verify_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// The shop owner's own shop number and QR code. Customers scan the QR (with any phone
 /// camera or the SpazaSure app) or type the number to see if the shop is verified.
@@ -47,7 +48,7 @@ class _MyStickerScreenState extends State<MyStickerScreen> {
     final data = _data;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('My SpazaSure sticker')),
+      appBar: BrandAppBar(title: const Text('My SpazaSure sticker')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : data == null

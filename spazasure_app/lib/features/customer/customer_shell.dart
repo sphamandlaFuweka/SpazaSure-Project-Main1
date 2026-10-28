@@ -33,9 +33,7 @@ class _CustomerShellState extends State<CustomerShell> {
   List<Widget> get _screens => [
     const CustomerHomeScreen(),
     const CustomerShopsScreen(),
-    _index == 2
-        ? QrScannerScreen(customerMode: true)
-        : SizedBox.shrink(),
+    _index == 2 ? QrScannerScreen(customerMode: true) : SizedBox.shrink(),
     CustomerReportsScreen(),
     CustomerProfileScreen(),
   ];
@@ -43,7 +41,11 @@ class _CustomerShellState extends State<CustomerShell> {
   // A getter, so the labels follow the app language
   static List<AppNavItem> get _items => [
     AppNavItem(Icons.home_outlined, Icons.home_rounded, tr('nav.home')),
-    AppNavItem(Icons.storefront_outlined, Icons.storefront_rounded, tr('nav.shops')),
+    AppNavItem(
+      Icons.storefront_outlined,
+      Icons.storefront_rounded,
+      tr('nav.shops'),
+    ),
     // Centre action: scan a product to verify it
     AppNavItem(
       Icons.qr_code_scanner_rounded,
@@ -51,7 +53,11 @@ class _CustomerShellState extends State<CustomerShell> {
       tr('nav.verify'),
     ),
     AppNavItem(Icons.flag_outlined, Icons.flag_rounded, tr('nav.reports')),
-    AppNavItem(Icons.person_outline_rounded, Icons.person_rounded, tr('nav.profile')),
+    AppNavItem(
+      Icons.person_outline_rounded,
+      Icons.person_rounded,
+      tr('nav.profile'),
+    ),
   ];
 
   @override

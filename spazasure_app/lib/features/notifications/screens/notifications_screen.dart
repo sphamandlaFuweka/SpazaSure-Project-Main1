@@ -7,6 +7,7 @@ import 'package:spazasure_app/core/widgets/notification_detail_sheet.dart';
 import 'package:spazasure_app/core/widgets/notification_popup_host.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/notification_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -42,9 +43,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Notifications'),
-        backgroundColor: AppColors.surface,
         actions: [
           TextButton(
             onPressed: () async {
@@ -53,7 +53,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             },
             child: Text(
               'Mark all read',
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -93,80 +96,84 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   return Entrance(
                     index: index,
                     child: GestureDetector(
-                    onTap: () => _open(notif),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: notif.isRead
-                            ? AppColors.surface
-                            : AppColors.primary.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(12),
-                        border: notif.isRead
-                            ? null
-                            : Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                              ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color:
-                                  (colors[notif.type] ??
-                                          AppColors.textSecondary)
-                                      .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              icons[notif.type] ?? Icons.notifications,
-                              color:
-                                  colors[notif.type] ?? AppColors.textSecondary,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  notif.title,
-                                  style: AppTextStyles.subtitle.copyWith(
-                                    fontSize: 14,
+                      onTap: () => _open(notif),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: notif.isRead
+                              ? AppColors.surface
+                              : AppColors.primary.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: notif.isRead
+                              ? null
+                              : Border.all(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  notif.body,
-                                  style: AppTextStyles.bodySmall,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _timeAgo(notif.createdAt),
-                                  style: AppTextStyles.caption,
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (!notif.isRead)
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color:
+                                    (colors[notif.type] ??
+                                            AppColors.textSecondary)
+                                        .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                icons[notif.type] ?? Icons.notifications,
+                                color:
+                                    colors[notif.type] ??
+                                    AppColors.textSecondary,
+                                size: 22,
                               ),
                             ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    notif.title,
+                                    style: AppTextStyles.subtitle.copyWith(
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    notif.body,
+                                    style: AppTextStyles.bodySmall,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _timeAgo(notif.createdAt),
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!notif.isRead)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ));
+                  );
                 },
               ),
             ),

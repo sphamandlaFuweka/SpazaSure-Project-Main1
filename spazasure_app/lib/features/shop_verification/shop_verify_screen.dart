@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Turns a typed or scanned value into a shop number (e.g. "ss-482 913", "482913" or a
 /// verify link become "SS482913"). Returns null if it can't be a shop number.
@@ -93,7 +94,7 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
     final result = _result;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Verify a shop')),
+      appBar: BrandAppBar(title: const Text('Verify a shop')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

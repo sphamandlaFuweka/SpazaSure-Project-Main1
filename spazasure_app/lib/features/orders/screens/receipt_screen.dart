@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/models/models.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class ReceiptScreen extends StatelessWidget {
   const ReceiptScreen({super.key});
@@ -16,9 +17,8 @@ class ReceiptScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Order Receipt'),
-        backgroundColor: AppColors.surface,
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),

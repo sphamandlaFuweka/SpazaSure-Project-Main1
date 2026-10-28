@@ -4,6 +4,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/customer_report_service.dart';
 import 'package:spazasure_app/services/customer_scan_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Shows every product the customer has scanned AND every product they've
 /// reported, in one timeline — Reports and Scans are separate backend
@@ -63,7 +64,7 @@ class _CustomerScanHistoryScreenState extends State<CustomerScanHistoryScreen>
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    appBar: AppBar(
+    appBar: BrandAppBar(
       title: const Text('Scan history'),
       actions: [
         IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),

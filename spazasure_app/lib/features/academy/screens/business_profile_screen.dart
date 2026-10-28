@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/academy/widgets/academy_widgets.dart';
 import 'package:spazasure_app/services/shop_academy_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// How the shop is set up as a business: registration, premises, staff, banking and goals.
 /// These details go on the Business Record PDF for funders. Pops with true when saved.
@@ -22,7 +23,11 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     'pty_ltd': '(Pty) Ltd company',
     'cooperative': 'Co-operative',
   };
-  static const premisesTypes = {'rented': 'Rented', 'owned': 'Owned', 'home': 'At home'};
+  static const premisesTypes = {
+    'rented': 'Rented',
+    'owned': 'Owned',
+    'home': 'At home',
+  };
 
   bool _loading = true;
   bool _failed = false;
@@ -94,7 +99,9 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         'sarsTaxNumber': _sars.text,
         'vatNumber': _vat.text,
         'tradingLicenceNumber': _permit.text,
-        'startedTradingOn': _started == null ? null : ShopAcademyService.day(_started!),
+        'startedTradingOn': _started == null
+            ? null
+            : ShopAcademyService.day(_started!),
         'premisesType': _premises,
         'monthlyRent': _premises == 'rented' ? parseAmount(_rent.text) : null,
         'fullTimeStaff': int.tryParse(_fullTime.text) ?? 0,
@@ -119,7 +126,13 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
 
   Widget _heading(String text) => Padding(
     padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
-    child: Text(text, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary)),
+    child: Text(
+      text,
+      style: AppTextStyles.subtitle.copyWith(
+        fontWeight: FontWeight.w700,
+        color: AppColors.primary,
+      ),
+    ),
   );
 
   Widget _numberField(TextEditingController c, String label) => TextField(
@@ -133,7 +146,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Business details')),
+      appBar: BrandAppBar(title: const Text('Business details')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _failed
@@ -149,23 +162,49 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: _legal,
                   decoration: academyInput('Business type'),
-                  items: [for (final e in legalStructures.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+                  items: [
+                    for (final e in legalStructures.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  ],
                   onChanged: (v) => setState(() => _legal = v ?? _legal),
                 ),
                 const SizedBox(height: 10),
-                TextField(controller: _cipc, decoration: academyInput('CIPC registration number', hint: 'e.g. 2024/123456/07')),
+                TextField(
+                  controller: _cipc,
+                  decoration: academyInput(
+                    'CIPC registration number',
+                    hint: 'e.g. 2024/123456/07',
+                  ),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: _sars, keyboardType: TextInputType.number, decoration: academyInput('SARS tax number')),
+                TextField(
+                  controller: _sars,
+                  keyboardType: TextInputType.number,
+                  decoration: academyInput('SARS tax number'),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: _vat, keyboardType: TextInputType.number, decoration: academyInput('VAT number (if registered)')),
+                TextField(
+                  controller: _vat,
+                  keyboardType: TextInputType.number,
+                  decoration: academyInput('VAT number (if registered)'),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: _permit, decoration: academyInput('Trading permit number')),
+                TextField(
+                  controller: _permit,
+                  decoration: academyInput('Trading permit number'),
+                ),
                 _heading('Your shop'),
                 ListTile(
                   tileColor: AppColors.surface,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   leading: const Icon(Icons.event_outlined),
-                  title: Text(_started == null ? 'When did you start trading?' : 'Trading since ${DateFormat('MMMM yyyy').format(_started!)}'),
+                  title: Text(
+                    _started == null
+                        ? 'When did you start trading?'
+                        : 'Trading since ${DateFormat('MMMM yyyy').format(_started!)}',
+                  ),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
@@ -178,25 +217,40 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                 ),
                 const SizedBox(height: 10),
                 SegmentedButton<String>(
-                  segments: [for (final e in premisesTypes.entries) ButtonSegment(value: e.key, label: Text(e.value))],
+                  segments: [
+                    for (final e in premisesTypes.entries)
+                      ButtonSegment(value: e.key, label: Text(e.value)),
+                  ],
                   selected: {_premises},
-                  onSelectionChanged: (s) => setState(() => _premises = s.first),
+                  onSelectionChanged: (s) =>
+                      setState(() => _premises = s.first),
                 ),
                 if (_premises == 'rented') ...[
                   const SizedBox(height: 10),
                   TextField(
                     controller: _rent,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: academyInput('Monthly rent', prefix: 'R '),
                   ),
                 ],
                 const SizedBox(height: 10),
-                TextField(controller: _hours, decoration: academyInput('Trading hours', hint: 'e.g. 06:00 - 21:00')),
+                TextField(
+                  controller: _hours,
+                  decoration: academyInput(
+                    'Trading hours',
+                    hint: 'e.g. 06:00 - 21:00',
+                  ),
+                ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<int>(
                   initialValue: _days,
                   decoration: academyInput('Days open per week'),
-                  items: [for (var d = 1; d <= 7; d++) DropdownMenuItem(value: d, child: Text('$d days'))],
+                  items: [
+                    for (var d = 1; d <= 7; d++)
+                      DropdownMenuItem(value: d, child: Text('$d days')),
+                  ],
                   onChanged: (v) => setState(() => _days = v ?? _days),
                 ),
                 const SizedBox(height: 10),
@@ -210,19 +264,26 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                 _heading('Money'),
                 SwitchListTile(
                   tileColor: AppColors.surface,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   value: _bankAccount,
                   onChanged: (v) => setState(() => _bankAccount = v),
                   title: const Text('Separate bank account for the shop'),
                 ),
                 if (_bankAccount) ...[
                   const SizedBox(height: 10),
-                  TextField(controller: _bank, decoration: academyInput('Bank', hint: 'e.g. Capitec')),
+                  TextField(
+                    controller: _bank,
+                    decoration: academyInput('Bank', hint: 'e.g. Capitec'),
+                  ),
                 ],
                 const SizedBox(height: 10),
                 SwitchListTile(
                   tileColor: AppColors.surface,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   value: _cards,
                   onChanged: (v) => setState(() => _cards = v),
                   title: const Text('I accept card payments'),
@@ -231,13 +292,20 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                 TextField(
                   controller: _suppliers,
                   maxLines: 2,
-                  decoration: academyInput('Where do you buy stock?', hint: 'e.g. SpazaSure, a local wholesaler'),
+                  decoration: academyInput(
+                    'Where do you buy stock?',
+                    hint: 'e.g. SpazaSure, a local wholesaler',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _goals,
                   maxLines: 3,
-                  decoration: academyInput('Plans for your shop', hint: 'e.g. Buy a second fridge to sell cold drinks and meat'),
+                  decoration: academyInput(
+                    'Plans for your shop',
+                    hint:
+                        'e.g. Buy a second fridge to sell cold drinks and meat',
+                  ),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(

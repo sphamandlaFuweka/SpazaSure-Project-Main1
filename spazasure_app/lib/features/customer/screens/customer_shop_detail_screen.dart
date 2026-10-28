@@ -5,6 +5,7 @@ import 'package:spazasure_app/services/chat_service.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerShopDetailScreen extends StatefulWidget {
   final CustomerShop shop;
@@ -182,7 +183,7 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
         shop.registeredAt?.toIso8601String().substring(0, 10) ?? '';
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Shop profile')),
+      appBar: BrandAppBar(title: const Text('Shop profile')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -327,10 +328,16 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${review['rating'] ?? 0} stars', style: AppTextStyles.subtitle.copyWith(fontSize: 14)),
+                    Text(
+                      '${review['rating'] ?? 0} stars',
+                      style: AppTextStyles.subtitle.copyWith(fontSize: 14),
+                    ),
                     if ((review['comment']?.toString() ?? '').isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text(review['comment'].toString(), style: AppTextStyles.bodySmall),
+                      Text(
+                        review['comment'].toString(),
+                        style: AppTextStyles.bodySmall,
+                      ),
                     ],
                     // The shop owner's answer
                     if (reply.isNotEmpty) ...[
@@ -345,8 +352,13 @@ class _CustomerShopDetailScreenState extends State<CustomerShopDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Reply from the shop',
-                                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                            Text(
+                              'Reply from the shop',
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             Text(reply, style: AppTextStyles.bodySmall),
                           ],

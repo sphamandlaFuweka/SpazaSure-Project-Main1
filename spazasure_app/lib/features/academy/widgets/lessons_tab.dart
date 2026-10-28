@@ -15,7 +15,8 @@ class LessonsTab extends StatefulWidget {
   State<LessonsTab> createState() => _LessonsTabState();
 }
 
-class _LessonsTabState extends State<LessonsTab> with AutomaticKeepAliveClientMixin {
+class _LessonsTabState extends State<LessonsTab>
+    with AutomaticKeepAliveClientMixin {
   bool _loading = true;
   bool _failed = false;
   List<Map<String, dynamic>> _lessons = [];
@@ -70,14 +71,22 @@ class _LessonsTabState extends State<LessonsTab> with AutomaticKeepAliveClientMi
           AcademyCard(
             child: Row(
               children: [
-                const Icon(Icons.school_rounded, size: 40, color: AppColors.primary),
+                const Icon(
+                  Icons.school_rounded,
+                  size: 40,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('$done of ${_lessons.length} lessons passed',
-                          style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        '$done of ${_lessons.length} lessons passed',
+                        style: AppTextStyles.subtitle.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
@@ -89,8 +98,12 @@ class _LessonsTabState extends State<LessonsTab> with AutomaticKeepAliveClientMi
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text('Short practical lessons. Pass the quiz at the end of each one.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+                      Text(
+                        'Short practical lessons. Pass the quiz at the end of each one.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textHint,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -106,10 +119,16 @@ class _LessonsTabState extends State<LessonsTab> with AutomaticKeepAliveClientMi
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: lesson['completed'] == true ? AppColors.secondaryTint : AppColors.primaryTint,
+                      backgroundColor: lesson['completed'] == true
+                          ? AppColors.secondaryTint
+                          : AppColors.primaryTint,
                       child: Icon(
-                        lesson['completed'] == true ? Icons.check_rounded : Icons.menu_book_rounded,
-                        color: lesson['completed'] == true ? AppColors.success : AppColors.primary,
+                        lesson['completed'] == true
+                            ? Icons.check_rounded
+                            : Icons.menu_book_rounded,
+                        color: lesson['completed'] == true
+                            ? AppColors.success
+                            : AppColors.primary,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -117,17 +136,27 @@ class _LessonsTabState extends State<LessonsTab> with AutomaticKeepAliveClientMi
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(lesson['title'] ?? '', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            lesson['title'] ?? '',
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             '${lesson['category']} · ${lesson['minutes']} min'
                             '${lesson['completed'] == true ? ' · passed ${lesson['score']}/${lesson['total']}' : ''}',
-                            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textHint,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textHint,
+                    ),
                   ],
                 ),
               ),

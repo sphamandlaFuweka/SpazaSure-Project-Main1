@@ -181,8 +181,13 @@ class Order {
   });
 
   /// Invoices are issued once the supplier confirms the order.
-  bool get canHaveInvoice =>
-      const ['confirmed', 'processing', 'ready', 'dispatched', 'delivered'].contains(status);
+  bool get canHaveInvoice => const [
+    'confirmed',
+    'processing',
+    'ready',
+    'dispatched',
+    'delivered',
+  ].contains(status);
 }
 
 // Order Item

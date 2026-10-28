@@ -111,7 +111,9 @@ class GroupBuy {
     if (area is! Map<String, dynamic>) return null;
     final radius = (area['radiusKm'] as num?)?.toDouble();
     final city = area['city']?.toString().trim() ?? '';
-    final place = city.isNotEmpty ? city : area['province']?.toString().trim() ?? '';
+    final place = city.isNotEmpty
+        ? city
+        : area['province']?.toString().trim() ?? '';
     if (radius == null || place.isEmpty) return null;
     final km = radius == radius.roundToDouble()
         ? radius.toStringAsFixed(0)

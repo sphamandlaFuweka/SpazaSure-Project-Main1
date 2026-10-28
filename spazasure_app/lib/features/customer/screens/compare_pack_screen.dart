@@ -9,6 +9,7 @@ import 'package:spazasure_app/features/customer/widgets/product_gallery.dart';
 import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/pack_match.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Puts the customer's own photo of the pack next to photos of the real product, reads
 /// the text on their pack to check brand, name, size and barcode, and lets them report
@@ -133,10 +134,8 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Compare with your pack'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
         elevation: 0,
       ),
       body: ListView(
@@ -146,7 +145,9 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
             widget.photos.isEmpty
                 ? 'Take a clear photo of the front of your pack. We will read the text on it and check it against this product.'
                 : 'Take a clear photo of the front of your pack. It will appear next to the real product so you can compare them.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 14),
           _sideBySide(),
@@ -155,7 +156,9 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _reading ? null : () => _takePhoto(ImageSource.camera),
+                  onPressed: _reading
+                      ? null
+                      : () => _takePhoto(ImageSource.camera),
                   icon: const Icon(Icons.photo_camera),
                   label: Text(_photo == null ? 'Take photo' : 'Retake'),
                 ),
@@ -163,7 +166,9 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _reading ? null : () => _takePhoto(ImageSource.gallery),
+                  onPressed: _reading
+                      ? null
+                      : () => _takePhoto(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
                   label: const Text('Choose photo'),
                 ),
@@ -194,7 +199,10 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
                 style: AppTextStyles.caption.copyWith(color: AppColors.error),
               ),
             ),
-          if (_match != null) ...[const SizedBox(height: 14), _textCheck(_match!)],
+          if (_match != null) ...[
+            const SizedBox(height: 14),
+            _textCheck(_match!),
+          ],
           if (_photo != null && !_reading) ...[
             const SizedBox(height: 14),
             _decision(),
@@ -258,14 +266,20 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
     final yours = _bytes == null
         ? InkWell(
             onTap: () => _takePhoto(ImageSource.camera),
-            child: _emptyPanel(Icons.add_a_photo_outlined, 'Tap to photograph your pack'),
+            child: _emptyPanel(
+              Icons.add_a_photo_outlined,
+              'Tap to photograph your pack',
+            ),
           )
         : GestureDetector(
             onTap: () => showDialog<void>(
               context: context,
               builder: (_) => Dialog(
                 insetPadding: const EdgeInsets.all(12),
-                child: InteractiveViewer(maxScale: 5, child: Image.memory(_bytes!)),
+                child: InteractiveViewer(
+                  maxScale: 5,
+                  child: Image.memory(_bytes!),
+                ),
               ),
             ),
             child: Image.memory(_bytes!, fit: BoxFit.contain),
@@ -283,7 +297,11 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
                     '${widget.photos.length > 1 ? '  ·  swipe for more' : ''}',
         ),
         const SizedBox(width: 12),
-        panel('Your pack', yours, caption: _bytes == null ? null : 'Tap to zoom'),
+        panel(
+          'Your pack',
+          yours,
+          caption: _bytes == null ? null : 'Tap to zoom',
+        ),
       ],
     );
   }
@@ -371,12 +389,16 @@ class _ComparePackScreenState extends State<ComparePackScreen> {
           if (m.readAnyText && !allGood && m.total > 0)
             Text(
               'Not found can also mean that part of the pack was not in the photo.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           const SizedBox(height: 6),
           Text(
             'Matching text shows it is the same product, not that it is genuine. Fakes copy the words too, so also compare the logo, colours and print quality.',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),

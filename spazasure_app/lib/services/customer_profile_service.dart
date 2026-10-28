@@ -60,8 +60,7 @@ class CustomerProfile {
             (json['allergies'] as List?)?.map((a) => a.toString()).toList() ??
             const [],
         preferredName: json['preferredName']?.toString(),
-        preferredLanguage:
-            json['preferredLanguage']?.toString() ?? 'English',
+        preferredLanguage: json['preferredLanguage']?.toString() ?? 'English',
         province: json['province']?.toString(),
         city: json['city']?.toString(),
         suburb: json['suburb']?.toString(),

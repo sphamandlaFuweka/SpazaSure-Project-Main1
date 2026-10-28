@@ -4,6 +4,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class GroupBuyScreen extends StatefulWidget {
   const GroupBuyScreen({super.key});
@@ -57,13 +58,13 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Group Buy'),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textHint,
-          indicatorColor: AppColors.primary,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppColors.accent,
           tabs: const [
             Tab(text: 'Available Deals'),
             Tab(text: 'My Group Buys'),

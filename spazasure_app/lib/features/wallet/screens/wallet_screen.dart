@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -21,10 +22,13 @@ class _WalletScreenState extends State<WalletScreen> {
   int _totalOrders = 0;
   List<Map<String, dynamic>> _transactions = [];
   String? _error;
+
   /// Direct deposits waiting for SpazaSure to confirm the money arrived
   double _pendingDeposits = 0;
+
   /// SpazaSure's bank account for direct deposits (bankName, accountHolder, accountNumber, branchCode)
   Map<String, dynamic>? _depositAccount;
+
   /// Withdrawals already deducted from the balance but not yet paid out
   double _pendingWithdrawals = 0;
   double _minimumWithdrawal = 50;
@@ -49,8 +53,10 @@ class _WalletScreenState extends State<WalletScreen> {
         _totalOrders = data['totalOrders'] ?? 0;
         _pendingDeposits = (data['pendingDeposits'] as num?)?.toDouble() ?? 0;
         _depositAccount = data['depositAccount'] as Map<String, dynamic>?;
-        _pendingWithdrawals = (data['pendingWithdrawals'] as num?)?.toDouble() ?? 0;
-        _minimumWithdrawal = (data['minimumWithdrawal'] as num?)?.toDouble() ?? 50;
+        _pendingWithdrawals =
+            (data['pendingWithdrawals'] as num?)?.toDouble() ?? 0;
+        _minimumWithdrawal =
+            (data['minimumWithdrawal'] as num?)?.toDouble() ?? 50;
         _transactions =
             (data['transactions'] as List?)
                 ?.map((t) => t as Map<String, dynamic>)
@@ -70,7 +76,7 @@ class _WalletScreenState extends State<WalletScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: !_loading && _error != null
-          ? AppBar(title: const Text('SpazaSure Wallet'))
+          ? BrandAppBar(title: const Text('SpazaSure Wallet'))
           : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -218,8 +224,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           _pendingWithdrawals > 0
                               ? 'R${_pendingWithdrawals.toStringAsFixed(2)} withdrawal awaiting payout'
                               : _pendingDeposits > 0
-                                  ? 'R${_pendingDeposits.toStringAsFixed(2)} deposit awaiting confirmation'
-                                  : 'Top up by card or direct deposit',
+                              ? 'R${_pendingDeposits.toStringAsFixed(2)} deposit awaiting confirmation'
+                              : 'Top up by card or direct deposit',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -247,9 +253,14 @@ class _WalletScreenState extends State<WalletScreen> {
             _showTopUpSheet();
           }),
           const SizedBox(width: 12),
-          _actionButton(Icons.north_east_rounded, 'Withdraw', AppColors.info, () {
-            _showWithdrawSheet();
-          }),
+          _actionButton(
+            Icons.north_east_rounded,
+            'Withdraw',
+            AppColors.info,
+            () {
+              _showWithdrawSheet();
+            },
+          ),
           const SizedBox(width: 12),
           _actionButton(
             Icons.receipt_long_rounded,
@@ -406,21 +417,22 @@ class _WalletScreenState extends State<WalletScreen> {
     final status = tx['status'] ?? '';
     final date = tx['date'] != null ? DateTime.tryParse(tx['date']) : null;
     final isDebit = tx['type'] == 'debit';
-    final isPendingDeposit = !isDebit && tx['method'] == 'eft' && status == 'pending';
+    final isPendingDeposit =
+        !isDebit && tx['method'] == 'eft' && status == 'pending';
     final isWithdrawal = tx['method'] == 'withdrawal';
     final isPendingWithdrawal = isDebit && isWithdrawal && status == 'pending';
     final balanceAfter = (tx['balanceAfter'] as num?)?.toDouble();
     final String? statusLabel0 = isPendingDeposit
         ? 'Awaiting deposit'
         : isWithdrawal
-            ? switch (status) {
-                'pending' => 'Awaiting payout',
-                'paid' => 'Paid out',
-                'rejected' => 'Declined',
-                'cancelled' => 'Cancelled',
-                _ => null,
-              }
-            : null;
+        ? switch (status) {
+            'pending' => 'Awaiting payout',
+            'paid' => 'Paid out',
+            'rejected' => 'Declined',
+            'cancelled' => 'Cancelled',
+            _ => null,
+          }
+        : null;
 
     Color statusColor;
     String statusLabel;
@@ -565,7 +577,11 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           if (isPendingDeposit || isPendingWithdrawal) ...[
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 18, color: AppColors.textHint),
+            const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: AppColors.textHint,
+            ),
           ],
         ],
       ),
@@ -728,7 +744,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     child: Text(
                       'Next you get SpazaSure\'s bank details and your own payment reference. '
                       'Deposit at any bank, ATM or by EFT. Your wallet is credited once we confirm the money has arrived.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 if (method == 'cash')
@@ -820,23 +838,35 @@ class _WalletScreenState extends State<WalletScreen> {
                                 return;
                               }
 
-                              final response = await ApiService.post('/shop/wallet/top-ups', {
-                                'amount': amount,
-                                'method': method,
-                                'reference': method == 'eft' || referenceCtrl.text.trim().isEmpty
-                                    ? null
-                                    : referenceCtrl.text.trim(),
-                              });
+                              final response = await ApiService.post(
+                                '/shop/wallet/top-ups',
+                                {
+                                  'amount': amount,
+                                  'method': method,
+                                  'reference':
+                                      method == 'eft' ||
+                                          referenceCtrl.text.trim().isEmpty
+                                      ? null
+                                      : referenceCtrl.text.trim(),
+                                },
+                              );
                               if (!ctx.mounted) return;
                               navigator.pop();
                               if (method == 'eft') {
-                                final data = response['data'] as Map<String, dynamic>;
+                                final data =
+                                    response['data'] as Map<String, dynamic>;
                                 _loadWallet();
                                 _showDepositDetails(
                                   id: data['id']?.toString(),
-                                  amount: (data['amount'] as num?)?.toDouble() ?? amount,
-                                  reference: data['reference']?.toString() ?? '',
-                                  account: data['depositAccount'] as Map<String, dynamic>? ?? _depositAccount,
+                                  amount:
+                                      (data['amount'] as num?)?.toDouble() ??
+                                      amount,
+                                  reference:
+                                      data['reference']?.toString() ?? '',
+                                  account:
+                                      data['depositAccount']
+                                          as Map<String, dynamic>? ??
+                                      _depositAccount,
                                 );
                                 return;
                               }
@@ -933,16 +963,26 @@ class _WalletScreenState extends State<WalletScreen> {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.account_balance, color: AppColors.primary),
+                      child: const Icon(
+                        Icons.account_balance,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Text('Deposit R${amount.toStringAsFixed(2)}', style: AppTextStyles.h3)),
+                    Expanded(
+                      child: Text(
+                        'Deposit R${amount.toStringAsFixed(2)}',
+                        style: AppTextStyles.h3,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Pay into SpazaSure\'s account at any bank, ATM or by EFT.',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -954,12 +994,39 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Column(
                     children: [
                       _depositRow(ctx, 'Bank', '${account['bankName']}'),
-                      _depositRow(ctx, 'Account holder', '${account['accountHolder']}'),
-                      _depositRow(ctx, 'Account number', '${account['accountNumber']}', copy: true),
-                      _depositRow(ctx, 'Branch code', '${account['branchCode']}', copy: true),
-                      _depositRow(ctx, 'Amount', amount.toStringAsFixed(2), copy: true, last: reference.isEmpty),
+                      _depositRow(
+                        ctx,
+                        'Account holder',
+                        '${account['accountHolder']}',
+                      ),
+                      _depositRow(
+                        ctx,
+                        'Account number',
+                        '${account['accountNumber']}',
+                        copy: true,
+                      ),
+                      _depositRow(
+                        ctx,
+                        'Branch code',
+                        '${account['branchCode']}',
+                        copy: true,
+                      ),
+                      _depositRow(
+                        ctx,
+                        'Amount',
+                        amount.toStringAsFixed(2),
+                        copy: true,
+                        last: reference.isEmpty,
+                      ),
                       if (reference.isNotEmpty)
-                        _depositRow(ctx, 'Your reference', reference, copy: true, highlight: true, last: true),
+                        _depositRow(
+                          ctx,
+                          'Your reference',
+                          reference,
+                          copy: true,
+                          highlight: true,
+                          last: true,
+                        ),
                     ],
                   ),
                 ),
@@ -973,13 +1040,19 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 18, color: AppColors.warning),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: AppColors.warning,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Use the reference exactly as shown so we can match your deposit. '
                           'Your wallet is credited once SpazaSure confirms the money has arrived, and we\'ll notify you.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -994,9 +1067,14 @@ class _WalletScreenState extends State<WalletScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
                 if (id != null) ...[
@@ -1009,15 +1087,21 @@ class _WalletScreenState extends State<WalletScreen> {
                         try {
                           await ApiService.delete('/shop/wallet/top-ups/$id');
                           navigator.pop();
-                          messenger.showSnackBar(const SnackBar(content: Text('Top-up cancelled.')));
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Top-up cancelled.')),
+                          );
                           _loadWallet();
                         } catch (error) {
-                          messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(error.toString())),
+                          );
                         }
                       },
                       child: Text(
                         'I won\'t make this deposit, cancel it',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.error,
+                        ),
                       ),
                     ),
                   ),
@@ -1042,8 +1126,16 @@ class _WalletScreenState extends State<WalletScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: highlight ? AppColors.primary.withValues(alpha: 0.06) : null,
-        border: last ? null : Border(bottom: BorderSide(color: AppColors.divider.withValues(alpha: 0.6))),
-        borderRadius: last ? const BorderRadius.vertical(bottom: Radius.circular(14)) : null,
+        border: last
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: AppColors.divider.withValues(alpha: 0.6),
+                ),
+              ),
+        borderRadius: last
+            ? const BorderRadius.vertical(bottom: Radius.circular(14))
+            : null,
       ),
       child: Row(
         children: [
@@ -1051,13 +1143,20 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: highlight ? AppColors.primary : AppColors.textPrimary,
+                    color: highlight
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
                     letterSpacing: copy ? 0.5 : null,
                   ),
                 ),
@@ -1067,11 +1166,18 @@ class _WalletScreenState extends State<WalletScreen> {
           if (copy)
             IconButton(
               tooltip: 'Copy ${label.toLowerCase()}',
-              icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primary),
+              icon: const Icon(
+                Icons.copy_rounded,
+                size: 18,
+                color: AppColors.primary,
+              ),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: value));
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('$label copied'), duration: const Duration(seconds: 1)),
+                  SnackBar(
+                    content: Text('$label copied'),
+                    duration: const Duration(seconds: 1),
+                  ),
                 );
               },
             ),
@@ -1164,10 +1270,16 @@ class _WalletScreenState extends State<WalletScreen> {
           'You can only cancel before it has been paid out.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep it'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancel withdrawal', style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Cancel withdrawal',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -1176,7 +1288,13 @@ class _WalletScreenState extends State<WalletScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ApiService.delete('/shop/wallet/withdrawals/$id');
-      messenger.showSnackBar(const SnackBar(content: Text('Withdrawal cancelled. Your money is back in the wallet.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Withdrawal cancelled. Your money is back in the wallet.',
+          ),
+        ),
+      );
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(error.toString())));
     }
@@ -1196,7 +1314,12 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: ctrl,
@@ -1267,7 +1390,10 @@ class _WalletScreenState extends State<WalletScreen> {
                         color: AppColors.info.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.north_east_rounded, color: AppColors.info),
+                      child: const Icon(
+                        Icons.north_east_rounded,
+                        color: AppColors.info,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Text('Withdraw to Bank', style: AppTextStyles.h3),
@@ -1285,10 +1411,16 @@ class _WalletScreenState extends State<WalletScreen> {
                   amountCtrl,
                   hint: 'Minimum R ${_minimumWithdrawal.toStringAsFixed(0)}',
                   prefixText: 'R ',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 _withdrawField('Bank name', bankCtrl, hint: 'e.g. FNB'),
-                _withdrawField('Account holder', holderCtrl, hint: 'Name on the account'),
+                _withdrawField(
+                  'Account holder',
+                  holderCtrl,
+                  hint: 'Name on the account',
+                ),
                 _withdrawField(
                   'Account number',
                   accountCtrl,
@@ -1310,13 +1442,17 @@ class _WalletScreenState extends State<WalletScreen> {
                     onPressed: submitting
                         ? null
                         : () async {
-                            final amount = double.tryParse(amountCtrl.text.trim().replaceAll(',', '.'));
+                            final amount = double.tryParse(
+                              amountCtrl.text.trim().replaceAll(',', '.'),
+                            );
                             final messenger = ScaffoldMessenger.of(ctx);
                             String? problem;
                             if (amount == null || amount < _minimumWithdrawal) {
-                              problem = 'The minimum withdrawal is R ${_minimumWithdrawal.toStringAsFixed(0)}.';
+                              problem =
+                                  'The minimum withdrawal is R ${_minimumWithdrawal.toStringAsFixed(0)}.';
                             } else if (amount > _balance) {
-                              problem = 'You only have R ${_balance.toStringAsFixed(2)} available.';
+                              problem =
+                                  'You only have R ${_balance.toStringAsFixed(2)} available.';
                             } else if (bankCtrl.text.trim().isEmpty ||
                                 holderCtrl.text.trim().isEmpty ||
                                 accountCtrl.text.trim().length < 5 ||
@@ -1324,40 +1460,53 @@ class _WalletScreenState extends State<WalletScreen> {
                               problem = 'Please fill in all your bank details.';
                             }
                             if (problem != null) {
-                              messenger.showSnackBar(SnackBar(content: Text(problem)));
+                              messenger.showSnackBar(
+                                SnackBar(content: Text(problem)),
+                              );
                               return;
                             }
                             setSheetState(() => submitting = true);
                             final navigator = Navigator.of(ctx);
                             try {
-                              await ApiService.post('/shop/wallet/withdrawals', {
-                                'amount': amount,
-                                'bankName': bankCtrl.text.trim(),
-                                'accountHolder': holderCtrl.text.trim(),
-                                'accountNumber': accountCtrl.text.trim(),
-                                'branchCode': branchCtrl.text.trim(),
-                              });
+                              await ApiService.post(
+                                '/shop/wallet/withdrawals',
+                                {
+                                  'amount': amount,
+                                  'bankName': bankCtrl.text.trim(),
+                                  'accountHolder': holderCtrl.text.trim(),
+                                  'accountNumber': accountCtrl.text.trim(),
+                                  'branchCode': branchCtrl.text.trim(),
+                                },
+                              );
                               navigator.pop();
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Withdrawal requested. We will pay it into your bank account.'),
+                                  content: Text(
+                                    'Withdrawal requested. We will pay it into your bank account.',
+                                  ),
                                   backgroundColor: AppColors.success,
                                 ),
                               );
                               _loadWallet();
                             } catch (error) {
                               if (ctx.mounted) {
-                                messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(error.toString())),
+                                );
                               }
                             } finally {
-                              if (ctx.mounted) setSheetState(() => submitting = false);
+                              if (ctx.mounted) {
+                                setSheetState(() => submitting = false);
+                              }
                             }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.info,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Text(
                       submitting ? 'Submitting...' : 'Request Withdrawal',

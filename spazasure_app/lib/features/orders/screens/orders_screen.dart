@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/status_badge.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/order_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -44,9 +45,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('My Orders'),
-        backgroundColor: AppColors.surface,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],

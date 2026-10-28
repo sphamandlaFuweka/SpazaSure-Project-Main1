@@ -9,6 +9,7 @@ import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/core/validation/sa_validation.dart';
 import 'package:spazasure_app/services/compliance_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class ComplianceScreen extends StatefulWidget {
   const ComplianceScreen({super.key});
@@ -105,16 +106,21 @@ class _ComplianceScreenState extends State<ComplianceScreen>
               onPressed: () async {
                 final idNumber = controller.text.replaceAll(' ', '');
                 if (!SaValidation.isValidIdNumber(idNumber)) {
-                  setDialogState(() => error =
-                      'That is not a valid ID number. Check it against your ID document.');
+                  setDialogState(
+                    () => error =
+                        'That is not a valid ID number. Check it against your ID document.',
+                  );
                   return;
                 }
                 try {
                   await ProfileService.updateProfile({'idNumber': idNumber});
                   if (ctx.mounted) Navigator.pop(ctx, true);
                 } catch (e) {
-                  setDialogState(() => error =
-                      e is ApiException ? e.message : 'Could not save. Try again.');
+                  setDialogState(
+                    () => error = e is ApiException
+                        ? e.message
+                        : 'Could not save. Try again.',
+                  );
                 }
               },
               child: const Text('Save'),
@@ -137,14 +143,19 @@ class _ComplianceScreenState extends State<ComplianceScreen>
         context,
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (_) => IdentityCheckScreen(checkUrl: check.url, doneUrl: check.doneUrl),
+          builder: (_) =>
+              IdentityCheckScreen(checkUrl: check.url, doneUrl: check.doneUrl),
         ),
       );
       if (!mounted) return;
       await _loadIdentity();
       if (completed == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks! Your identity check is being processed. The result shows here shortly.')),
+          const SnackBar(
+            content: Text(
+              'Thanks! Your identity check is being processed. The result shows here shortly.',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -152,7 +163,9 @@ class _ComplianceScreenState extends State<ComplianceScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              e is ApiException ? e.message : 'Could not start the identity check.',
+              e is ApiException
+                  ? e.message
+                  : 'Could not start the identity check.',
             ),
             backgroundColor: AppColors.error,
           ),
@@ -191,17 +204,15 @@ class _ComplianceScreenState extends State<ComplianceScreen>
   @override
   Widget build(BuildContext context) {
     // Each document plus the owner identity check is one step.
-    final approvedCount = _requiredDocs.keys
-            .where((k) => _getDocStatus(k) == 'approved')
-            .length +
+    final approvedCount =
+        _requiredDocs.keys.where((k) => _getDocStatus(k) == 'approved').length +
         (_identity?.verified == true ? 1 : 0);
     final progress = approvedCount / (_requiredDocs.length + 1);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Compliance'),
-        backgroundColor: AppColors.surface,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadDocs),
         ],
@@ -260,7 +271,9 @@ class _ComplianceScreenState extends State<ComplianceScreen>
                         ),
                         child: Text(
                           'You can upload your documents now. SpazaSure reviews them once your identity check has passed.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.info),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.info,
+                          ),
                         ),
                       ),
 
@@ -354,24 +367,54 @@ class _ComplianceScreenState extends State<ComplianceScreen>
 
   Widget _buildIdentityCard() {
     final status = _identity?.status ?? 'Not Started';
-    final (Color color, String label, IconData icon, String help) = switch (status) {
-      'Approved' => (AppColors.success, 'Verified', Icons.verified_user,
-          'Your identity has been confirmed.'),
-      'In Review' => (AppColors.warning, 'Being reviewed', Icons.hourglass_top,
-          'We will let you know when the review is done.'),
-      'In Progress' => (AppColors.info, 'Started', Icons.timelapse,
-          'Finish the check in your browser, then come back here.'),
-      'Declined' => (AppColors.error, 'Not passed', Icons.cancel,
-          'Try again with a clear photo of your ID and face, or contact support.'),
-      'Abandoned' || 'Expired' => (AppColors.warning, 'Not finished', Icons.refresh,
-          'The check was not completed. Start it again.'),
-      _ => (const Color(0xFF9E9E9E), 'Not started', Icons.badge_outlined,
-          'Take a photo of your ID and a selfie. It takes about 2 minutes.'),
+    final (
+      Color color,
+      String label,
+      IconData icon,
+      String help,
+    ) = switch (status) {
+      'Approved' => (
+        AppColors.success,
+        'Verified',
+        Icons.verified_user,
+        'Your identity has been confirmed.',
+      ),
+      'In Review' => (
+        AppColors.warning,
+        'Being reviewed',
+        Icons.hourglass_top,
+        'We will let you know when the review is done.',
+      ),
+      'In Progress' => (
+        AppColors.info,
+        'Started',
+        Icons.timelapse,
+        'Finish the check in your browser, then come back here.',
+      ),
+      'Declined' => (
+        AppColors.error,
+        'Not passed',
+        Icons.cancel,
+        'Try again with a clear photo of your ID and face, or contact support.',
+      ),
+      'Abandoned' || 'Expired' => (
+        AppColors.warning,
+        'Not finished',
+        Icons.refresh,
+        'The check was not completed. Start it again.',
+      ),
+      _ => (
+        const Color(0xFF9E9E9E),
+        'Not started',
+        Icons.badge_outlined,
+        'Take a photo of your ID and a selfie. It takes about 2 minutes.',
+      ),
     };
     final missing = _identity?.missing ?? const <String>[];
     final needsIdNumber = missing.contains('id_number');
     final needsAddress = missing.contains('address');
-    final canStart = (_identity?.canStart ?? true) &&
+    final canStart =
+        (_identity?.canStart ?? true) &&
         status != 'In Review' &&
         missing.isEmpty;
 
@@ -428,7 +471,9 @@ class _ComplianceScreenState extends State<ComplianceScreen>
           const SizedBox(height: 10),
           Text(
             help,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           if (status == 'Declined' && _identity?.reason != null) ...[
             const SizedBox(height: 8),
@@ -475,7 +520,9 @@ class _ComplianceScreenState extends State<ComplianceScreen>
                       )
                     : const Icon(Icons.camera_alt_outlined, size: 18),
                 label: Text(
-                  status == 'In Progress' ? 'Continue check' : 'Verify my identity',
+                  status == 'In Progress'
+                      ? 'Continue check'
+                      : 'Verify my identity',
                 ),
               ),
             ),
@@ -615,15 +662,21 @@ class _ComplianceScreenState extends State<ComplianceScreen>
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             'Checking the document against your profile...',
-                            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
-                      if (isPending && doc?.checkStatus == 'failed' && doc?.checkSummary != null)
+                      if (isPending &&
+                          doc?.checkStatus == 'failed' &&
+                          doc?.checkSummary != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             '${doc!.checkSummary!} Upload the right document, or SpazaSure will review it.',
-                            style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.error,
+                            ),
                           ),
                         ),
                     ],

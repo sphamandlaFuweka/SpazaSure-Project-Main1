@@ -9,6 +9,7 @@ import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Checkout: where the order goes, how the shop pays, what it costs, and one button to pay.
 class CheckoutScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _placing = false;
   String? _pendingCheckoutUrl;
   String? _pendingOrderNumber;
+
   /// Shop wallet balance; null until loaded (or if it couldn't be loaded)
   double? _walletBalance;
   ShopProfile? _profile;
@@ -36,15 +38,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     _loadWalletBalance();
-    ProfileService.getProfile().then((p) {
-      if (mounted) setState(() => _profile = p);
-    }).catchError((_) {});
+    ProfileService.getProfile()
+        .then((p) {
+          if (mounted) setState(() => _profile = p);
+        })
+        .catchError((_) {});
   }
 
   Future<void> _loadWalletBalance() async {
     try {
       final res = await ApiService.get('/shop/wallet');
-      final balance = ((res['data'] as Map<String, dynamic>)['balance'] as num?)?.toDouble();
+      final balance = ((res['data'] as Map<String, dynamic>)['balance'] as num?)
+          ?.toDouble();
       if (mounted) setState(() => _walletBalance = balance);
     } catch (_) {
       // Paying from the wallet just isn't offered if the balance can't be loaded
@@ -54,23 +59,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Fetches fresh quotes whenever the cart changes. Until they arrive (or if they fail) the
   /// flat fees from the platform settings are shown.
   void _refreshQuotes(CartProvider cart) {
-    final signature = [for (final i in cart.items) '${i.product.id}x${i.quantity}'].join(',');
+    final signature = [
+      for (final i in cart.items) '${i.product.id}x${i.quantity}',
+    ].join(',');
     if (signature == _quotedCart || cart.isEmpty) return;
     _quotedCart = signature;
     for (final option in const ['standard', 'express']) {
-      OrderService.quote(items: cart.items, deliveryOption: option).then((q) {
-        if (mounted && _quotedCart == signature) setState(() => _quotes[option] = q);
-      }).catchError((_) {});
+      OrderService.quote(items: cart.items, deliveryOption: option)
+          .then((q) {
+            if (mounted && _quotedCart == signature) {
+              setState(() => _quotes[option] = q);
+            }
+          })
+          .catchError((_) {});
     }
   }
 
-  double _deliveryFee(CartProvider cart, String option) =>
-      option == 'pickup' ? 0 : _quotes[option]?.deliveryFeeTotal ?? cart.deliveryFee(option);
+  double _deliveryFee(CartProvider cart, String option) => option == 'pickup'
+      ? 0
+      : _quotes[option]?.deliveryFeeTotal ?? cart.deliveryFee(option);
 
-  double _total(CartProvider cart) => cart.subtotal + _deliveryFee(cart, _deliveryOption);
+  double _total(CartProvider cart) =>
+      cart.subtotal + _deliveryFee(cart, _deliveryOption);
 
   /// Stock problems at the branch that delivers to the shop; pickup has none to report here.
-  List<String> get _problems => _deliveryOption == 'pickup' ? const [] : _quotes[_deliveryOption]?.problems ?? const [];
+  List<String> get _problems => _deliveryOption == 'pickup'
+      ? const []
+      : _quotes[_deliveryOption]?.problems ?? const [];
 
   /// The wallet can pay only when its balance covers the whole order
   bool _walletAllowed(CartProvider cart) =>
@@ -82,18 +97,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String _effectiveMethod(CartProvider cart) =>
       (_paymentMethod == OrderService.cashOnDelivery && !_codAllowed(cart)) ||
-              (_paymentMethod == OrderService.wallet && !_walletAllowed(cart))
-          ? OrderService.paystack
-          : _paymentMethod;
+          (_paymentMethod == OrderService.wallet && !_walletAllowed(cart))
+      ? OrderService.paystack
+      : _paymentMethod;
 
   void _choosePayment(String method) => setState(() {
-        _paymentMethod = method;
-        if (method != OrderService.paystack) {
-          // A Paystack checkout started earlier is abandoned when paying another way
-          _pendingCheckoutUrl = null;
-          _pendingOrderNumber = null;
-        }
-      });
+    _paymentMethod = method;
+    if (method != OrderService.paystack) {
+      // A Paystack checkout started earlier is abandoned when paying another way
+      _pendingCheckoutUrl = null;
+      _pendingOrderNumber = null;
+    }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,10 +120,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Checkout'),
         centerTitle: true,
-        backgroundColor: AppColors.background,
         elevation: 0,
       ),
       body: ListView(
@@ -118,19 +132,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _addressCard(),
           const SizedBox(height: 12),
           _deliveryChoices(cart),
-          if (quote != null && quote.suppliers.any((s) => s.shipsFrom != null)) ...[
+          if (quote != null &&
+              quote.suppliers.any((s) => s.shipsFrom != null)) ...[
             const SizedBox(height: 10),
             _card(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final s in quote.suppliers.where((s) => s.shipsFrom != null))
+                  for (final s in quote.suppliers.where(
+                    (s) => s.shipsFrom != null,
+                  ))
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 3),
                       child: Row(
                         children: [
-                          const Icon(Icons.warehouse_outlined, size: 16, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.warehouse_outlined,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -141,7 +162,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                           if (s.deliveryFee != null)
-                            Text('R${s.deliveryFee!.toStringAsFixed(2)}', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                            Text(
+                              'R${s.deliveryFee!.toStringAsFixed(2)}',
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -156,16 +182,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               decoration: BoxDecoration(
                 color: AppColors.redTint,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.inventory_2_outlined, size: 18, color: AppColors.error),
+                      const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Not in stock near you', style: AppTextStyles.subtitle.copyWith(color: AppColors.error, fontSize: 14)),
+                      Text(
+                        'Not in stock near you',
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: AppColors.error,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -175,7 +213,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       child: Text(p, style: AppTextStyles.bodySmall),
                     ),
                   const SizedBox(height: 6),
-                  Text('Remove those items or lower the quantity in your cart.', style: AppTextStyles.caption),
+                  Text(
+                    'Remove those items or lower the quantity in your cart.',
+                    style: AppTextStyles.caption,
+                  ),
                 ],
               ),
             ),
@@ -191,7 +232,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   icon: Icons.credit_card_rounded,
                   iconColor: const Color(0xFF0BA4DB),
                   title: 'Card or EFT',
-                  subtitle: 'Visa, Mastercard, instant EFT · secured by Paystack',
+                  subtitle:
+                      'Visa, Mastercard, instant EFT · secured by Paystack',
                 ),
                 if (_walletBalance != null) ...[
                   _divider(),
@@ -217,8 +259,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   subtitle: _codAllowed(cart)
                       ? 'Pay in cash when your order arrives'
                       : !cart.settings.cashOnDeliveryEnabled
-                          ? 'Not available right now'
-                          : 'For orders up to R${cart.settings.cashOnDeliveryMaxOrderTotal.toStringAsFixed(0)}',
+                      ? 'Not available right now'
+                      : 'For orders up to R${cart.settings.cashOnDeliveryMaxOrderTotal.toStringAsFixed(0)}',
                   enabled: _codAllowed(cart),
                 ),
               ],
@@ -233,15 +275,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _amountRow('Delivery', _deliveryFee(cart, _deliveryOption)),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Divider(color: AppColors.divider.withValues(alpha: 0.9), height: 1),
+                  child: Divider(
+                    color: AppColors.divider.withValues(alpha: 0.9),
+                    height: 1,
+                  ),
                 ),
                 Row(
                   children: [
-                    Text('Total', style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w800)),
+                    Text(
+                      'Total',
+                      style: AppTextStyles.subtitle.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const Spacer(),
                     Text(
                       'R${total.toStringAsFixed(2)}',
-                      style: AppTextStyles.h3.copyWith(color: AppColors.primary, fontWeight: FontWeight.w800),
+                      style: AppTextStyles.h3.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -262,14 +315,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  onPressed: _placing || cart.isEmpty || _problems.isNotEmpty ? null : () => _placeOrder(cart),
+                  onPressed: _placing || cart.isEmpty || _problems.isNotEmpty
+                      ? null
+                      : () => _placeOrder(cart),
                   child: _placing
-                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
                       : Text(
                           _payLabel(method, total),
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                 ),
               ),
@@ -278,10 +345,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.lock_outline, size: 13, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.lock_outline,
+                      size: 13,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
-                    Text('Payments are secured by Paystack',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      'Payments are secured by Paystack',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -294,7 +369,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String _payLabel(String method, double total) {
     final amount = 'R${total.toStringAsFixed(2)}';
-    if (method == OrderService.cashOnDelivery) return 'Place order · pay $amount on delivery';
+    if (method == OrderService.cashOnDelivery) {
+      return 'Place order · pay $amount on delivery';
+    }
     if (method == OrderService.wallet) return 'Pay $amount from wallet';
     return _pendingCheckoutUrl != null ? 'Continue to payment' : 'Pay $amount';
   }
@@ -302,21 +379,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ── Building blocks ──────────────────────────────────────────────────────
 
   Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 10),
-        child: Text(text, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w800)),
-      );
+    padding: const EdgeInsets.only(left: 4, bottom: 10),
+    child: Text(
+      text,
+      style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w800),
+    ),
+  );
 
-  Widget _card({required Widget child, EdgeInsets padding = const EdgeInsets.all(16)}) => Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.06), blurRadius: 18, offset: const Offset(0, 6))],
+  Widget _card({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(16),
+  }) => Container(
+    padding: padding,
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.primary.withValues(alpha: 0.06),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
         ),
-        child: child,
-      );
+      ],
+    ),
+    child: child,
+  );
 
-  Widget _divider() => Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.8));
+  Widget _divider() =>
+      Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.8));
 
   Widget _addressCard() {
     final pickup = _deliveryOption == 'pickup';
@@ -332,22 +422,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  pickup ? 'Collect from suppliers' : (profile?.shopName.isNotEmpty == true ? profile!.shopName : 'Shop address'),
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  pickup
+                      ? 'Collect from suppliers'
+                      : (profile?.shopName.isNotEmpty == true
+                            ? profile!.shopName
+                            : 'Shop address'),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 if (pickup)
-                  Text('You collect each supplier\'s order yourself. No delivery fee.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary))
+                  Text(
+                    'You collect each supplier\'s order yourself. No delivery fee.',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  )
                 else if (profile == null)
-                  Text('Loading your address…', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary))
+                  Text(
+                    'Loading your address…',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  )
                 else ...[
                   if (profile.phone.isNotEmpty)
-                    Text(profile.phone, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      profile.phone,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   Text(
-                    profile.address.isEmpty ? 'No address yet: add it in your Profile' : profile.address,
+                    profile.address.isEmpty
+                        ? 'No address yet: add it in your Profile'
+                        : profile.address,
                     style: AppTextStyles.caption.copyWith(
-                      color: profile.address.isEmpty ? AppColors.error : AppColors.textSecondary,
+                      color: profile.address.isEmpty
+                          ? AppColors.error
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -357,9 +471,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           if (!pickup)
             IconButton(
               tooltip: 'Change address',
-              icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.textSecondary),
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Change your delivery address in Profile → Shop details.')),
+                const SnackBar(
+                  content: Text(
+                    'Change your delivery address in Profile → Shop details.',
+                  ),
+                ),
               ),
             ),
         ],
@@ -381,26 +503,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onTap: () => setState(() => _deliveryOption = id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _deliveryOption == id ? AppColors.primary : AppColors.surface,
+                  color: _deliveryOption == id
+                      ? AppColors.primary
+                      : AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _deliveryOption == id ? AppColors.primary : AppColors.divider),
+                  border: Border.all(
+                    color: _deliveryOption == id
+                        ? AppColors.primary
+                        : AppColors.divider,
+                  ),
                 ),
                 child: Column(
                   children: [
-                    Icon(icon, size: 20, color: _deliveryOption == id ? Colors.white : AppColors.primary),
+                    Icon(
+                      icon,
+                      size: 20,
+                      color: _deliveryOption == id
+                          ? Colors.white
+                          : AppColors.primary,
+                    ),
                     const SizedBox(height: 4),
-                    Text(title,
-                        style: AppTextStyles.caption.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: _deliveryOption == id ? Colors.white : AppColors.textPrimary,
-                        )),
                     Text(
-                      _deliveryFee(cart, id) == 0 ? detail : 'R${_deliveryFee(cart, id).toStringAsFixed(0)}',
+                      title,
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: _deliveryOption == id
+                            ? Colors.white
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      _deliveryFee(cart, id) == 0
+                          ? detail
+                          : 'R${_deliveryFee(cart, id).toStringAsFixed(0)}',
                       style: AppTextStyles.caption.copyWith(
                         fontSize: 11,
-                        color: _deliveryOption == id ? Colors.white70 : AppColors.textSecondary,
+                        color: _deliveryOption == id
+                            ? Colors.white70
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -446,9 +591,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      title,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -462,28 +617,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _radioDot(bool selected) => AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 22,
-        height: 22,
-        margin: const EdgeInsets.only(top: 2),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: selected ? AppColors.primary : AppColors.divider, width: selected ? 6.5 : 2),
-        ),
-      );
+    duration: const Duration(milliseconds: 180),
+    width: 22,
+    height: 22,
+    margin: const EdgeInsets.only(top: 2),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: selected ? AppColors.primary : AppColors.divider,
+        width: selected ? 6.5 : 2,
+      ),
+    ),
+  );
 
   Widget _amountRow(String label, double amount) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            Expanded(child: Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textSecondary))),
-            Text(
-              amount == 0 ? 'Free' : 'R${amount.toStringAsFixed(2)}',
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          ),
         ),
-      );
+        Text(
+          amount == 0 ? 'Free' : 'R${amount.toStringAsFixed(2)}',
+          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
 
   // ── Paying ───────────────────────────────────────────────────────────────
 
@@ -494,12 +657,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final profile = _profile ?? await ProfileService.getProfile();
       final deliveryAddress = profile.address.trim();
       if (_deliveryOption != 'pickup' && deliveryAddress.isEmpty) {
-        throw StateError('Add a delivery address to your shop profile before ordering.');
+        throw StateError(
+          'Add a delivery address to your shop profile before ordering.',
+        );
       }
 
       final method = _effectiveMethod(cart);
       final total = _total(cart);
-      if (method == OrderService.wallet || method == OrderService.cashOnDelivery) {
+      if (method == OrderService.wallet ||
+          method == OrderService.cashOnDelivery) {
         final placed = await OrderService.placeOrder(
           items: cart.items.toList(),
           deliveryOption: _deliveryOption,
@@ -509,11 +675,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         AnalyticsService.orderPlaced(value: total, items: cart.items.length);
         cart.clear();
         if (!mounted) return;
-        _showSuccess(OrderSuccess(
-          orderNumber: placed.orderNumber,
-          paymentMethod: method,
-          total: placed.totalAmount > 0 ? placed.totalAmount : total,
-        ));
+        _showSuccess(
+          OrderSuccess(
+            orderNumber: placed.orderNumber,
+            paymentMethod: method,
+            total: placed.totalAmount > 0 ? placed.totalAmount : total,
+          ),
+        );
         return;
       }
 
@@ -523,14 +691,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               deliveryOption: _deliveryOption,
               deliveryAddress: deliveryAddress,
             )
-          : OrderCheckout(orderNumber: _pendingOrderNumber ?? '', checkoutUrl: _pendingCheckoutUrl!);
+          : OrderCheckout(
+              orderNumber: _pendingOrderNumber ?? '',
+              checkoutUrl: _pendingCheckoutUrl!,
+            );
       _pendingCheckoutUrl = checkout.checkoutUrl;
       _pendingOrderNumber = checkout.orderNumber;
       if (!mounted) return;
       final paid = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (_) => OnboardingFeeCheckoutScreen(checkoutUrl: checkout.checkoutUrl!, title: 'Pay for your order'),
+          builder: (_) => OnboardingFeeCheckoutScreen(
+            checkoutUrl: checkout.checkoutUrl!,
+            title: 'Pay for your order',
+          ),
         ),
       );
       // Confirm with Paystack straight away, also when the page was closed before it redirected back.
@@ -541,19 +715,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _pendingCheckoutUrl = null;
       _pendingOrderNumber = null;
       if (!mounted) return;
-      _showSuccess(OrderSuccess(
-        orderNumber: checkout.orderNumber,
-        paymentMethod: OrderService.paystack,
-        total: total,
-        confirmed: confirmed,
-      ));
+      _showSuccess(
+        OrderSuccess(
+          orderNumber: checkout.orderNumber,
+          paymentMethod: OrderService.paystack,
+          total: total,
+          confirmed: confirmed,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e is ApiException
-              ? e.message
-              : e.toString().replaceFirst(RegExp(r'^(Exception|Bad state): '), '')),
+          content: Text(
+            e is ApiException
+                ? e.message
+                : e.toString().replaceFirst(
+                    RegExp(r'^(Exception|Bad state): '),
+                    '',
+                  ),
+          ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),

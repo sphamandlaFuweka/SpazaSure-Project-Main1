@@ -7,7 +7,10 @@ import '../models/models.dart';
 class NotificationService {
   /// Opens the order an order or delivery notification is about. Falls back to the
   /// orders list when there is no order id or the order can't be loaded.
-  static Future<void> openOrder(NavigatorState navigator, String? orderId) async {
+  static Future<void> openOrder(
+    NavigatorState navigator,
+    String? orderId,
+  ) async {
     if (orderId != null && orderId.isNotEmpty) {
       try {
         final order = await OrderService.getOrder(orderId);

@@ -3,6 +3,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/customer_subscription_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerSubscriptionScreen extends StatefulWidget {
   const CustomerSubscriptionScreen({super.key});
@@ -128,7 +129,7 @@ class _CustomerSubscriptionScreenState
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    appBar: AppBar(title: const Text('Membership')),
+    appBar: BrandAppBar(title: const Text('Membership')),
     body: _loading && _overview == null
         ? const Center(child: CircularProgressIndicator())
         : _loadError != null && _overview == null

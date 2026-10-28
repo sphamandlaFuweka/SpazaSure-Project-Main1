@@ -298,7 +298,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _statCard(
             '⭐',
             ratingAvg > 0 ? ratingAvg.toStringAsFixed(1) : 'New',
-            ratingCount == 1 ? '1 ${tr('shop.review')}' : '$ratingCount ${tr('shop.reviews')}',
+            ratingCount == 1
+                ? '1 ${tr('shop.review')}'
+                : '$ratingCount ${tr('shop.reviews')}',
             const Color(0xFFFFA726),
             () => _showReviews(context),
           ),
@@ -1201,7 +1203,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: () => _replyToReview(review),
-              icon: Icon(reply.isEmpty ? Icons.reply_rounded : Icons.edit_outlined, size: 16),
+              icon: Icon(
+                reply.isEmpty ? Icons.reply_rounded : Icons.edit_outlined,
+                size: 16,
+              ),
               label: Text(reply.isEmpty ? 'Reply' : 'Edit reply'),
             ),
           ),
@@ -1228,9 +1233,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           if ((review.ownerReply ?? '').isNotEmpty)
-            TextButton(onPressed: () => Navigator.pop(ctx, ''), child: const Text('Remove reply')),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Post')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ''),
+              child: const Text('Remove reply'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Post'),
+          ),
         ],
       ),
     );
@@ -1243,12 +1257,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Reopen the list so it shows the new reply
       Navigator.of(context).pop();
       _showReviews(context);
-      messenger.showSnackBar(SnackBar(
-        content: Text(reply.isEmpty ? 'Reply removed' : 'Reply posted'),
-        backgroundColor: AppColors.success,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(reply.isEmpty ? 'Reply removed' : 'Reply posted'),
+          backgroundColor: AppColors.success,
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
     }
   }
 

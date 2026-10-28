@@ -45,8 +45,10 @@ class IdentityCheck {
   final String status;
   final bool verified;
   final bool canStart;
+
   /// Why the check didn't pass, e.g. the ID number doesn't match the profile.
   final String? reason;
+
   /// Profile details to fix before the check can start: 'id_number', 'address'.
   final List<String> missing;
 
@@ -59,12 +61,14 @@ class IdentityCheck {
   });
 
   factory IdentityCheck.fromJson(Map<String, dynamic> json) => IdentityCheck(
-        status: json['status']?.toString() ?? 'Not Started',
-        verified: json['verified'] == true,
-        canStart: json['canStart'] != false,
-        reason: json['reason']?.toString(),
-        missing: (json['missing'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      );
+    status: json['status']?.toString() ?? 'Not Started',
+    verified: json['verified'] == true,
+    canStart: json['canStart'] != false,
+    reason: json['reason']?.toString(),
+    missing:
+        (json['missing'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+  );
 }
 
 class ComplianceService {
@@ -73,7 +77,9 @@ class ComplianceService {
     final res = await ApiService.get('/shop/profile/documents');
     final data = res['data'];
     if (data is List) {
-      return data.map((d) => ComplianceDoc.fromJson(d as Map<String, dynamic>)).toList();
+      return data
+          .map((d) => ComplianceDoc.fromJson(d as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
@@ -107,14 +113,19 @@ class ComplianceService {
     final res = await ApiService.post('/compliance/identity/shop/session', {});
     final data = res['data'] as Map<String, dynamic>?;
     final url = data?['url']?.toString();
-    if (url == null || url.isEmpty) throw ApiException('Could not start the identity check.', 0);
+    if (url == null || url.isEmpty) {
+      throw ApiException('Could not start the identity check.', 0);
+    }
     final doneUrl = data?['doneUrl']?.toString();
     return (
       url: url,
-      doneUrl: doneUrl == null || doneUrl.isEmpty ? defaultIdentityDoneUrl : doneUrl,
+      doneUrl: doneUrl == null || doneUrl.isEmpty
+          ? defaultIdentityDoneUrl
+          : doneUrl,
     );
   }
 
   /// Where Didit sends the owner when they finish (see Didit:ShopCallbackUrl on the server).
-  static const defaultIdentityDoneUrl = 'https://portal.spazasure.co.za/verification-complete';
+  static const defaultIdentityDoneUrl =
+      'https://portal.spazasure.co.za/verification-complete';
 }

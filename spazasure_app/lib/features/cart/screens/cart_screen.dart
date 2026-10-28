@@ -9,6 +9,7 @@ import 'package:spazasure_app/features/cart/screens/checkout_screen.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/platform_settings_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// The shop's basket. Delivery, payment and the final total are chosen on [CheckoutScreen].
 class CartScreen extends StatefulWidget {
@@ -36,25 +37,23 @@ class _CartScreenState extends State<CartScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Your cart'),
             Text(
               '${cart.count} ${cart.count == 1 ? 'item' : 'items'}',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(color: Colors.white70),
             ),
           ],
         ),
-        backgroundColor: AppColors.surface,
         actions: [
           if (!cart.isEmpty)
             IconButton(
               tooltip: 'Clear cart',
               onPressed: () => cart.clear(),
               icon: const Icon(Icons.delete_outline),
-              color: AppColors.textSecondary,
             ),
         ],
       ),
@@ -65,7 +64,8 @@ class _CartScreenState extends State<CartScreen> {
               children: [
                 _buildBasketHeading(cart),
                 ...cart.items.indexed.map(
-                  (e) => Entrance(index: e.$1, child: _buildCartItem(cart, e.$2)),
+                  (e) =>
+                      Entrance(index: e.$1, child: _buildCartItem(cart, e.$2)),
                 ),
               ],
             ),
@@ -79,7 +79,11 @@ class _CartScreenState extends State<CartScreen> {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(color: AppColors.primary.withValues(alpha: 0.10), blurRadius: 20, offset: const Offset(0, 6)),
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.10),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
                 child: Row(
@@ -89,14 +93,27 @@ class _CartScreenState extends State<CartScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Items total', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                          Text(
+                            'Items total',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             'R${cart.subtotal.toStringAsFixed(2)}',
-                            style: AppTextStyles.h3.copyWith(color: AppColors.primary, fontWeight: FontWeight.w800),
+                            style: AppTextStyles.h3.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                          Text('Delivery and fees at checkout',
-                              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+                          Text(
+                            'Delivery and fees at checkout',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -106,14 +123,24 @@ class _CartScreenState extends State<CartScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 22),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         onPressed: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const CheckoutScreen(),
+                          ),
                         ),
                         icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                        label: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        label: const Text(
+                          'Checkout',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -348,7 +375,11 @@ class _CartScreenState extends State<CartScreen> {
     final quantity = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(item.product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          item.product.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         content: Form(
           key: formKey,
           child: TextFormField(
@@ -391,11 +422,7 @@ class _CartScreenState extends State<CartScreen> {
     if (quantity != null) cart.updateQuantity(item.product.id, quantity);
   }
 
-  Widget _miniButton(
-    IconData icon,
-    VoidCallback onTap, {
-    bool enabled = true,
-  }) {
+  Widget _miniButton(IconData icon, VoidCallback onTap, {bool enabled = true}) {
     return IconButton(
       onPressed: enabled ? onTap : null,
       visualDensity: VisualDensity.compact,

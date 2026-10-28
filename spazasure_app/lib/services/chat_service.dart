@@ -3,6 +3,7 @@ import 'api_service.dart';
 /// A chat between a customer and a spaza shop, as shown in the inbox list.
 class ChatSummary {
   final String id;
+
   /// The other party: the shop's name for customers, the customer's name for shops
   final String title;
   final String? subtitle;
@@ -39,13 +40,16 @@ class ChatMessage {
     id: j['id'].toString(),
     senderRole: j['senderRole']?.toString() ?? 'customer',
     body: j['body']?.toString() ?? '',
-    sentAt: DateTime.tryParse(j['sentAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
+    sentAt:
+        DateTime.tryParse(j['sentAt']?.toString() ?? '')?.toLocal() ??
+        DateTime.now(),
   );
 }
 
 /// In-app chat between customers and spaza shops. [asShop] picks the shop owner's side.
 class ChatService {
-  static String _base(bool asShop) => asShop ? '/shop/chats' : '/customer/chats';
+  static String _base(bool asShop) =>
+      asShop ? '/shop/chats' : '/customer/chats';
 
   static Future<List<ChatSummary>> list({required bool asShop}) async {
     final res = await ApiService.get(_base(asShop));
@@ -60,7 +64,10 @@ class ChatService {
         verified: c['shopVerified'] == true,
         preview: c['lastMessagePreview']?.toString() ?? 'No messages yet',
         lastMessageAt:
-            DateTime.tryParse(c['lastMessageAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
+            DateTime.tryParse(
+              c['lastMessageAt']?.toString() ?? '',
+            )?.toLocal() ??
+            DateTime.now(),
         unread: (c['unread'] as num?)?.toInt() ?? 0,
       );
     }).toList();
@@ -92,11 +99,20 @@ class ChatService {
         : '?after=${Uri.encodeQueryComponent(after.toUtc().toIso8601String())}';
     final res = await ApiService.get('${_base(asShop)}/$chatId/messages$query');
     final items = ((res['data'] as Map?)?['messages'] as List?) ?? const [];
-    return items.whereType<Map<String, dynamic>>().map(ChatMessage.fromJson).toList();
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(ChatMessage.fromJson)
+        .toList();
   }
 
-  static Future<ChatMessage> send(String chatId, String body, {required bool asShop}) async {
-    final res = await ApiService.post('${_base(asShop)}/$chatId/messages', {'body': body});
+  static Future<ChatMessage> send(
+    String chatId,
+    String body, {
+    required bool asShop,
+  }) async {
+    final res = await ApiService.post('${_base(asShop)}/$chatId/messages', {
+      'body': body,
+    });
     return ChatMessage.fromJson(res['data'] as Map<String, dynamic>);
   }
 }

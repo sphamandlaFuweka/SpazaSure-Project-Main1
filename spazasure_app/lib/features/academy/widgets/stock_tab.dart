@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/academy/widgets/academy_widgets.dart';
 import 'package:spazasure_app/services/shop_academy_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// The stock book: every product on the shop's shelves, with low-stock and expiry warnings.
 class StockTab extends StatefulWidget {
@@ -14,7 +15,8 @@ class StockTab extends StatefulWidget {
   State<StockTab> createState() => _StockTabState();
 }
 
-class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin {
+class _StockTabState extends State<StockTab>
+    with AutomaticKeepAliveClientMixin {
   bool _loading = true;
   bool _failed = false;
   Map<String, dynamic> _summary = {};
@@ -55,7 +57,9 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
     if (_filter == 'expiring' && i['expiresSoon'] != true) return false;
     if (_search.isEmpty) return true;
     final q = _search.toLowerCase();
-    return '${i['name']} ${i['category'] ?? ''} ${i['barcode'] ?? ''}'.toLowerCase().contains(q);
+    return '${i['name']} ${i['category'] ?? ''} ${i['barcode'] ?? ''}'
+        .toLowerCase()
+        .contains(q);
   }).toList();
 
   Future<void> _importOrders() async {
@@ -86,16 +90,44 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
               children: [
                 Row(
                   children: [
-                    Expanded(child: AcademyStat(ShopAcademyService.rand(_summary['valueAtCost']), 'Stock value (cost)')),
-                    Expanded(child: AcademyStat(ShopAcademyService.rand(_summary['valueAtSelling']), 'At selling price', color: AppColors.success)),
+                    Expanded(
+                      child: AcademyStat(
+                        ShopAcademyService.rand(_summary['valueAtCost']),
+                        'Stock value (cost)',
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        ShopAcademyService.rand(_summary['valueAtSelling']),
+                        'At selling price',
+                        color: AppColors.success,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: AcademyStat('${_summary['items'] ?? 0}', 'Products')),
-                    Expanded(child: AcademyStat('${_summary['lowStock'] ?? 0}', 'Running low', color: AppColors.red)),
-                    Expanded(child: AcademyStat('${_summary['expiringSoon'] ?? 0}', 'Expiring soon', color: AppColors.accentDark)),
+                    Expanded(
+                      child: AcademyStat(
+                        '${_summary['items'] ?? 0}',
+                        'Products',
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        '${_summary['lowStock'] ?? 0}',
+                        'Running low',
+                        color: AppColors.red,
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        '${_summary['expiringSoon'] ?? 0}',
+                        'Expiring soon',
+                        color: AppColors.accentDark,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -117,7 +149,10 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
                   child: OutlinedButton.icon(
                     onPressed: _importOrders,
                     icon: const Icon(Icons.local_shipping_outlined, size: 18),
-                    label: const Text('Book in deliveries', overflow: TextOverflow.ellipsis),
+                    label: const Text(
+                      'Book in deliveries',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
@@ -126,7 +161,9 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: TextField(
-              decoration: academyInput('Search products').copyWith(prefixIcon: const Icon(Icons.search_rounded)),
+              decoration: academyInput(
+                'Search products',
+              ).copyWith(prefixIcon: const Icon(Icons.search_rounded)),
               onChanged: (v) => setState(() => _search = v.trim()),
             ),
           ),
@@ -135,7 +172,11 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               children: [
-                for (final f in const [('all', 'All'), ('low', 'Running low'), ('expiring', 'Expiring soon')])
+                for (final f in const [
+                  ('all', 'All'),
+                  ('low', 'Running low'),
+                  ('expiring', 'Expiring soon'),
+                ])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
@@ -152,7 +193,11 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
           else if (visible.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32),
-              child: Text('No products match.', style: AppTextStyles.body, textAlign: TextAlign.center),
+              child: Text(
+                'No products match.',
+                style: AppTextStyles.body,
+                textAlign: TextAlign.center,
+              ),
             )
           else
             ...visible.map(_itemTile),
@@ -164,9 +209,16 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
   Widget _emptyState() => AcademyCard(
     child: Column(
       children: [
-        const Icon(Icons.inventory_2_outlined, size: 44, color: AppColors.primary),
+        const Icon(
+          Icons.inventory_2_outlined,
+          size: 44,
+          color: AppColors.primary,
+        ),
         const SizedBox(height: 10),
-        Text('Start your stock book', style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          'Start your stock book',
+          style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
         Text(
           'Tap "Book in deliveries" to add everything you bought on SpazaSure, then add the products you buy elsewhere.',
@@ -208,12 +260,19 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item['name'] ?? '', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    item['name'] ?? '',
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     'Cost ${ShopAcademyService.rand(item['costPrice'])} · Sell ${ShopAcademyService.rand(item['sellingPrice'])}'
                     '${markup != null ? ' · ${markup.toStringAsFixed(0)}% markup' : ''}',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                   if (low || expiring)
                     Padding(
@@ -221,8 +280,16 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
                       child: Wrap(
                         spacing: 6,
                         children: [
-                          if (low) _tag('Reorder (min ${item['reorderLevel']})', AppColors.red),
-                          if (expiring) _tag('Expires ${_date(item['expiryDate'])}', AppColors.accentDark),
+                          if (low)
+                            _tag(
+                              'Reorder (min ${item['reorderLevel']})',
+                              AppColors.red,
+                            ),
+                          if (expiring)
+                            _tag(
+                              'Expires ${_date(item['expiryDate'])}',
+                              AppColors.accentDark,
+                            ),
                         ],
                       ),
                     ),
@@ -238,8 +305,18 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
 
   Widget _tag(String text, Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-    child: Text(text, style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: AppTextStyles.caption.copyWith(
+        color: color,
+        fontWeight: FontWeight.w700,
+        fontSize: 11,
+      ),
+    ),
   );
 
   static String _date(dynamic iso) {
@@ -271,10 +348,25 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _actionChip(ctx, 'received', Icons.add_box_outlined, 'Stock received'),
+                  _actionChip(
+                    ctx,
+                    'received',
+                    Icons.add_box_outlined,
+                    'Stock received',
+                  ),
                   _actionChip(ctx, 'sold', Icons.point_of_sale_rounded, 'Sold'),
-                  _actionChip(ctx, 'count', Icons.fact_check_outlined, 'Stock count'),
-                  _actionChip(ctx, 'loss', Icons.remove_circle_outline, 'Loss / own use'),
+                  _actionChip(
+                    ctx,
+                    'count',
+                    Icons.fact_check_outlined,
+                    'Stock count',
+                  ),
+                  _actionChip(
+                    ctx,
+                    'loss',
+                    Icons.remove_circle_outline,
+                    'Loss / own use',
+                  ),
                   _actionChip(ctx, 'history', Icons.history_rounded, 'History'),
                   _actionChip(ctx, 'edit', Icons.edit_outlined, 'Edit'),
                   _actionChip(ctx, 'remove', Icons.delete_outline, 'Remove'),
@@ -298,8 +390,17 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
     }
   }
 
-  Widget _actionChip(BuildContext ctx, String value, IconData icon, String label) => ActionChip(
-    avatar: Icon(icon, size: 18, color: value == 'remove' ? AppColors.red : AppColors.primary),
+  Widget _actionChip(
+    BuildContext ctx,
+    String value,
+    IconData icon,
+    String label,
+  ) => ActionChip(
+    avatar: Icon(
+      icon,
+      size: 18,
+      color: value == 'remove' ? AppColors.red : AppColors.primary,
+    ),
     label: Text(label),
     onPressed: () => Navigator.pop(ctx, value),
   );
@@ -308,7 +409,11 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
     var type = action == 'loss' ? 'spoiled' : action;
     final qty = TextEditingController();
     final price = TextEditingController(
-      text: action == 'received' ? '${item['costPrice'] ?? ''}' : action == 'sold' ? '${item['sellingPrice'] ?? ''}' : '',
+      text: action == 'received'
+          ? '${item['costPrice'] ?? ''}'
+          : action == 'sold'
+          ? '${item['sellingPrice'] ?? ''}'
+          : '',
     );
     final note = TextEditingController();
     var addToCashBook = action == 'received';
@@ -319,7 +424,12 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
       showDragHandle: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -352,26 +462,43 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: academyInput(type == 'count' ? 'Quantity counted' : 'Quantity'),
+                decoration: academyInput(
+                  type == 'count' ? 'Quantity counted' : 'Quantity',
+                ),
               ),
               if (type == 'received' || type == 'sold') ...[
                 const SizedBox(height: 10),
                 TextField(
                   controller: price,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: academyInput(type == 'received' ? 'Cost per unit' : 'Price per unit', prefix: 'R '),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: academyInput(
+                    type == 'received' ? 'Cost per unit' : 'Price per unit',
+                    prefix: 'R ',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: addToCashBook,
                   onChanged: (v) => setSheet(() => addToCashBook = v),
-                  title: Text(type == 'received' ? 'Add the cost to my cash book' : 'Add the takings to my cash book'),
+                  title: Text(
+                    type == 'received'
+                        ? 'Add the cost to my cash book'
+                        : 'Add the takings to my cash book',
+                  ),
                 ),
               ],
               const SizedBox(height: 10),
-              TextField(controller: note, decoration: academyInput('Note (optional)')),
+              TextField(
+                controller: note,
+                decoration: academyInput('Note (optional)'),
+              ),
               const SizedBox(height: 16),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save'),
+              ),
             ],
           ),
         ),
@@ -423,17 +550,25 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
           children: [
             Text('History: ${item['name']}', style: AppTextStyles.h3),
             const SizedBox(height: 8),
-            if (moves.isEmpty) Text('Nothing recorded yet.', style: AppTextStyles.bodySmall),
+            if (moves.isEmpty)
+              Text('Nothing recorded yet.', style: AppTextStyles.bodySmall),
             for (final m in moves)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(ShopAcademyService.movementLabels[m['type']] ?? '${m['type']}'),
-                subtitle: Text('${_date(m['occurredOn'])}${m['note'] != null ? ' · ${m['note']}' : ''}'),
+                title: Text(
+                  ShopAcademyService.movementLabels[m['type']] ??
+                      '${m['type']}',
+                ),
+                subtitle: Text(
+                  '${_date(m['occurredOn'])}${m['note'] != null ? ' · ${m['note']}' : ''}',
+                ),
                 trailing: Text(
                   '${(m['quantity'] as num) > 0 ? '+' : ''}${m['quantity']}',
                   style: AppTextStyles.subtitle.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: (m['quantity'] as num) > 0 ? AppColors.success : AppColors.red,
+                    color: (m['quantity'] as num) > 0
+                        ? AppColors.success
+                        : AppColors.red,
                   ),
                 ),
               ),
@@ -448,10 +583,18 @@ class _StockTabState extends State<StockTab> with AutomaticKeepAliveClientMixin 
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Remove product?'),
-        content: Text('${item['name']} will be removed from your stock book. Past records stay in your reports.'),
+        content: Text(
+          '${item['name']} will be removed from your stock book. Past records stay in your reports.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
@@ -485,19 +628,36 @@ class StockItemForm extends StatefulWidget {
 
 class _StockItemFormState extends State<StockItemForm> {
   late final _name = TextEditingController(text: widget.item?['name'] ?? '');
-  late final _category = TextEditingController(text: widget.item?['category'] ?? '');
-  late final _unit = TextEditingController(text: widget.item?['unit'] ?? 'unit');
-  late final _barcode = TextEditingController(text: widget.item?['barcode'] ?? '');
-  late final _cost = TextEditingController(text: _num(widget.item?['costPrice']));
-  late final _price = TextEditingController(text: _num(widget.item?['sellingPrice']));
-  late final _qty = TextEditingController(text: '${widget.item?['quantity'] ?? ''}');
-  late final _reorder = TextEditingController(text: '${widget.item?['reorderLevel'] ?? 5}');
-  late DateTime? _expiry = DateTime.tryParse('${widget.item?['expiryDate'] ?? ''}');
+  late final _category = TextEditingController(
+    text: widget.item?['category'] ?? '',
+  );
+  late final _unit = TextEditingController(
+    text: widget.item?['unit'] ?? 'unit',
+  );
+  late final _barcode = TextEditingController(
+    text: widget.item?['barcode'] ?? '',
+  );
+  late final _cost = TextEditingController(
+    text: _num(widget.item?['costPrice']),
+  );
+  late final _price = TextEditingController(
+    text: _num(widget.item?['sellingPrice']),
+  );
+  late final _qty = TextEditingController(
+    text: '${widget.item?['quantity'] ?? ''}',
+  );
+  late final _reorder = TextEditingController(
+    text: '${widget.item?['reorderLevel'] ?? 5}',
+  );
+  late DateTime? _expiry = DateTime.tryParse(
+    '${widget.item?['expiryDate'] ?? ''}',
+  );
   bool _saving = false;
 
   bool get _editing => widget.item != null;
 
-  static String _num(dynamic v) => v == null ? '' : (v as num).toStringAsFixed(2);
+  static String _num(dynamic v) =>
+      v == null ? '' : (v as num).toStringAsFixed(2);
 
   String get _markup {
     final cost = parseAmount(_cost.text);
@@ -543,17 +703,35 @@ class _StockItemFormState extends State<StockItemForm> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(_editing ? 'Edit product' : 'Add product')),
+      appBar: BrandAppBar(
+        title: Text(_editing ? 'Edit product' : 'Add product'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(controller: _name, decoration: academyInput('Product name', hint: 'e.g. White bread 700g')),
+          TextField(
+            controller: _name,
+            decoration: academyInput(
+              'Product name',
+              hint: 'e.g. White bread 700g',
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: TextField(controller: _category, decoration: academyInput('Category', hint: 'e.g. Bread'))),
+              Expanded(
+                child: TextField(
+                  controller: _category,
+                  decoration: academyInput('Category', hint: 'e.g. Bread'),
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _unit, decoration: academyInput('Unit', hint: 'loaf, can, pack'))),
+              Expanded(
+                child: TextField(
+                  controller: _unit,
+                  decoration: academyInput('Unit', hint: 'loaf, can, pack'),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -562,7 +740,9 @@ class _StockItemFormState extends State<StockItemForm> {
               Expanded(
                 child: TextField(
                   controller: _cost,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: academyInput('Cost price', prefix: 'R '),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -571,7 +751,9 @@ class _StockItemFormState extends State<StockItemForm> {
               Expanded(
                 child: TextField(
                   controller: _price,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: academyInput('Selling price', prefix: 'R '),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -581,7 +763,10 @@ class _StockItemFormState extends State<StockItemForm> {
           if (_markup.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6, left: 4),
-              child: Text(_markup, style: AppTextStyles.caption.copyWith(color: AppColors.success)),
+              child: Text(
+                _markup,
+                style: AppTextStyles.caption.copyWith(color: AppColors.success),
+              ),
             ),
           const SizedBox(height: 10),
           Row(
@@ -592,7 +777,9 @@ class _StockItemFormState extends State<StockItemForm> {
                   enabled: !_editing,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: academyInput(_editing ? 'On hand (use Stock count)' : 'Quantity on hand'),
+                  decoration: academyInput(
+                    _editing ? 'On hand (use Stock count)' : 'Quantity on hand',
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -607,20 +794,33 @@ class _StockItemFormState extends State<StockItemForm> {
             ],
           ),
           const SizedBox(height: 10),
-          TextField(controller: _barcode, decoration: academyInput('Barcode (optional)')),
+          TextField(
+            controller: _barcode,
+            decoration: academyInput('Barcode (optional)'),
+          ),
           const SizedBox(height: 10),
           ListTile(
             tileColor: AppColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             leading: const Icon(Icons.event_outlined),
-            title: Text(_expiry == null ? 'Expiry date (optional)' : 'Expires ${DateFormat('d MMM yyyy').format(_expiry!)}'),
+            title: Text(
+              _expiry == null
+                  ? 'Expiry date (optional)'
+                  : 'Expires ${DateFormat('d MMM yyyy').format(_expiry!)}',
+            ),
             trailing: _expiry == null
                 ? null
-                : IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _expiry = null)),
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => _expiry = null),
+                  ),
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _expiry ?? DateTime.now().add(const Duration(days: 30)),
+                initialDate:
+                    _expiry ?? DateTime.now().add(const Duration(days: 30)),
                 firstDate: DateTime.now().subtract(const Duration(days: 365)),
                 lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
               );

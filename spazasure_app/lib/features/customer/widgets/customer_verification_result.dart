@@ -178,7 +178,8 @@ class CustomerVerificationResult extends StatelessWidget {
           ? indicators
           : [
               for (final c in checks)
-                if (c['status'] == 'pass') _text(c['detail']) ?? _text(c['label']) ?? '',
+                if (c['status'] == 'pass')
+                  _text(c['detail']) ?? _text(c['label']) ?? '',
             ].where((r) => r.isNotEmpty)),
     ];
 
@@ -198,7 +199,12 @@ class CustomerVerificationResult extends StatelessWidget {
         if (rewardMessage != null) _rewardBanner(),
 
         // 1. The answer: one card, coloured like a traffic light.
-        _verdictCard(style, recalled ? 'This product has an active recall' : headline, score, reasons),
+        _verdictCard(
+          style,
+          recalled ? 'This product has an active recall' : headline,
+          score,
+          reasons,
+        ),
 
         // Things the person must act on right now.
         if (onSubmitPin != null &&
@@ -281,12 +287,16 @@ class CustomerVerificationResult extends StatelessWidget {
                       children: [
                         Text(
                           name,
-                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         if (_text(p['brand']) != null)
                           Text(
                             _text(p['brand'])!,
-                            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                       ],
                     ),
@@ -294,9 +304,17 @@ class CustomerVerificationResult extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              _row(Icons.qr_code_2_rounded, 'Barcode', _text(p['code']) ?? fallbackCode),
+              _row(
+                Icons.qr_code_2_rounded,
+                'Barcode',
+                _text(p['code']) ?? fallbackCode,
+              ),
               _row(Icons.event, 'Expiry', expiryText),
-              _row(Icons.inventory_2_outlined, 'Batch', _text(p['batchNumber'])),
+              _row(
+                Icons.inventory_2_outlined,
+                'Batch',
+                _text(p['batchNumber']),
+              ),
               _row(
                 Icons.storefront_outlined,
                 'On SpazaSure',
@@ -306,7 +324,11 @@ class CustomerVerificationResult extends StatelessWidget {
               ),
               // A shop scanned something no SpazaSure supplier sells
               if (p['notInMarketplace'] == true)
-                _row(Icons.shopping_cart_outlined, 'Marketplace', 'Not sold on SpazaSure'),
+                _row(
+                  Icons.shopping_cart_outlined,
+                  'Marketplace',
+                  'Not sold on SpazaSure',
+                ),
             ],
           ),
         ),
@@ -334,7 +356,9 @@ class CustomerVerificationResult extends StatelessWidget {
                   Text(
                     message,
                     style: AppTextStyles.caption.copyWith(
-                      color: p['lookupUnavailable'] == true ? RiskStyle.amber : AppColors.textSecondary,
+                      color: p['lookupUnavailable'] == true
+                          ? RiskStyle.amber
+                          : AppColors.textSecondary,
                     ),
                   ),
               ],
@@ -361,17 +385,24 @@ class CustomerVerificationResult extends StatelessWidget {
               ],
             ),
           ),
-        if (photos.isNotEmpty || (onReportWithPhoto != null && _text(p['name']) != null))
+        if (photos.isNotEmpty ||
+            (onReportWithPhoto != null && _text(p['name']) != null))
           _details(
             Icons.photo_library_outlined,
             'Compare with photos',
             ProductGalleryCard(
               photos: photos,
-              onCompare: onReportWithPhoto == null ? null : () => _openCompare(context, photos),
+              onCompare: onReportWithPhoto == null
+                  ? null
+                  : () => _openCompare(context, photos),
             ),
           ),
         if (barcodeInfo != null)
-          _details(Icons.qr_code_rounded, 'About the barcode', BarcodeInfoCard(info: barcodeInfo)),
+          _details(
+            Icons.qr_code_rounded,
+            'About the barcode',
+            BarcodeInfoCard(info: barcodeInfo),
+          ),
         if (allergens.isNotEmpty || ingredients != null)
           _details(
             Icons.restaurant_menu_outlined,
@@ -385,7 +416,12 @@ class CustomerVerificationResult extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       for (final a in allergens)
-                        _pill(a, matched.contains(a) ? AppColors.error : RiskStyle.amber),
+                        _pill(
+                          a,
+                          matched.contains(a)
+                              ? AppColors.error
+                              : RiskStyle.amber,
+                        ),
                     ],
                   ),
                 if (ingredients != null) ...[
@@ -402,16 +438,29 @@ class CustomerVerificationResult extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_text(p['description']) != null && _text(p['description']) != name) ...[
+                if (_text(p['description']) != null &&
+                    _text(p['description']) != name) ...[
                   Text(_text(p['description'])!, style: AppTextStyles.caption),
                   const SizedBox(height: 8),
                 ],
                 _row(Icons.category_outlined, 'Category', _text(p['category'])),
-                _row(Icons.scale_outlined, 'Size', _text(p['quantity']) ?? _text(p['unit'])),
+                _row(
+                  Icons.scale_outlined,
+                  'Size',
+                  _text(p['quantity']) ?? _text(p['unit']),
+                ),
                 _row(Icons.public, 'Made in', _text(p['origin'])),
-                _row(Icons.travel_explore, 'Sold in', _text(p['countriesSold'])),
+                _row(
+                  Icons.travel_explore,
+                  'Sold in',
+                  _text(p['countriesSold']),
+                ),
                 _row(Icons.eco_outlined, 'Labels', _text(p['labels'])),
-                _row(Icons.favorite_border, 'Nutri-Score', _text(p['nutriScore'])?.toUpperCase()),
+                _row(
+                  Icons.favorite_border,
+                  'Nutri-Score',
+                  _text(p['nutriScore'])?.toUpperCase(),
+                ),
                 if (insights != null) ...[
                   const SizedBox(height: 8),
                   ProductInsightsCard(insights: insights),
@@ -437,15 +486,22 @@ class CustomerVerificationResult extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _pill(
-                  p['supplierVerified'] == true ? 'Verified supplier' : 'Not verified yet',
-                  p['supplierVerified'] == true ? AppColors.success : RiskStyle.amber,
+                  p['supplierVerified'] == true
+                      ? 'Verified supplier'
+                      : 'Not verified yet',
+                  p['supplierVerified'] == true
+                      ? AppColors.success
+                      : RiskStyle.amber,
                 ),
                 const SizedBox(height: 8),
                 _row(Icons.business, 'Company', _text(p['supplierName'])),
                 _row(
                   Icons.place_outlined,
                   'Location',
-                  [_text(p['supplierCity']), _text(p['supplierProvince'])].whereType<String>().join(', '),
+                  [
+                    _text(p['supplierCity']),
+                    _text(p['supplierProvince']),
+                  ].whereType<String>().join(', '),
                 ),
               ],
             ),
@@ -483,11 +539,22 @@ class CustomerVerificationResult extends StatelessWidget {
   }
 
   static bool _hasExtraFacts(Map<String, dynamic> p) => [
-    'description', 'category', 'quantity', 'origin', 'countriesSold', 'labels', 'nutriScore',
+    'description',
+    'category',
+    'quantity',
+    'origin',
+    'countriesSold',
+    'labels',
+    'nutriScore',
   ].any((k) => _text(p[k]) != null);
 
   /// The verdict: what the risk is, what to do, and the main reasons why.
-  Widget _verdictCard(RiskStyle style, String headline, int? score, List<String> reasons) {
+  Widget _verdictCard(
+    RiskStyle style,
+    String headline,
+    int? score,
+    List<String> reasons,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -502,7 +569,10 @@ class CustomerVerificationResult extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: style.color, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: style.color,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(style.icon, color: Colors.white, size: 26),
               ),
               const SizedBox(width: 12),
@@ -520,7 +590,9 @@ class CustomerVerificationResult extends StatelessWidget {
                     ),
                     Text(
                       headline,
-                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -532,7 +604,10 @@ class CustomerVerificationResult extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             style.action,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, color: style.color),
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.w700,
+              color: style.color,
+            ),
           ),
           if (reasons.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -543,7 +618,9 @@ class CustomerVerificationResult extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      style.isDanger || style.step == 2 ? Icons.error_outline : Icons.check_circle_outline,
+                      style.isDanger || style.step == 2
+                          ? Icons.error_outline
+                          : Icons.check_circle_outline,
                       size: 16,
                       color: style.color,
                     ),
@@ -556,7 +633,10 @@ class CustomerVerificationResult extends StatelessWidget {
           if (score != null)
             Text(
               'Risk score $score out of 100',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textHint, fontSize: 11),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textHint,
+                fontSize: 11,
+              ),
             ),
         ],
       ),
@@ -576,7 +656,10 @@ class CustomerVerificationResult extends StatelessWidget {
         shape: const Border(),
         collapsedShape: const Border(),
         leading: Icon(icon, color: AppColors.primary, size: 22),
-        title: Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
+        title: Text(
+          title,
+          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+        ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
         children: [child],
@@ -624,17 +707,32 @@ class CustomerVerificationResult extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Sold on the SpazaSure marketplace',
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           if (price != null)
-            _row(Icons.sell_outlined, 'Price', 'R ${price.toStringAsFixed(2)}${unit == null ? '' : ' per $unit'}'),
-          _row(Icons.inventory_2_outlined, 'In stock', '${m['stockQty'] ?? 0}${unit == null ? '' : ' $unit'}'),
-          if ((m['minOrderQty'] as num?) != null && (m['minOrderQty'] as num) > 1)
-            _row(Icons.shopping_basket_outlined, 'Minimum order', '${m['minOrderQty']}'),
+            _row(
+              Icons.sell_outlined,
+              'Price',
+              'R ${price.toStringAsFixed(2)}${unit == null ? '' : ' per $unit'}',
+            ),
+          _row(
+            Icons.inventory_2_outlined,
+            'In stock',
+            '${m['stockQty'] ?? 0}${unit == null ? '' : ' $unit'}',
+          ),
+          if ((m['minOrderQty'] as num?) != null &&
+              (m['minOrderQty'] as num) > 1)
+            _row(
+              Icons.shopping_basket_outlined,
+              'Minimum order',
+              '${m['minOrderQty']}',
+            ),
           _row(
             Icons.business,
             'Supplier',
@@ -659,7 +757,10 @@ class CustomerVerificationResult extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   'Check the pack in your hand matches this listing before you order.',
-                  style: AppTextStyles.caption.copyWith(color: RiskStyle.orange, fontWeight: FontWeight.w600),
+                  style: AppTextStyles.caption.copyWith(
+                    color: RiskStyle.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             SizedBox(
@@ -668,12 +769,16 @@ class CustomerVerificationResult extends StatelessWidget {
                   ? OutlinedButton.icon(
                       onPressed: () => onOrder!(id),
                       icon: const Icon(Icons.add_shopping_cart_rounded),
-                      label: Text('Order from ${_text(m['supplierName']) ?? 'this supplier'}'),
+                      label: Text(
+                        'Order from ${_text(m['supplierName']) ?? 'this supplier'}',
+                      ),
                     )
                   : FilledButton.icon(
                       onPressed: () => onOrder!(id),
                       icon: const Icon(Icons.add_shopping_cart_rounded),
-                      label: Text('Order from ${_text(m['supplierName']) ?? 'this supplier'}'),
+                      label: Text(
+                        'Order from ${_text(m['supplierName']) ?? 'this supplier'}',
+                      ),
                     ),
             ),
           ],

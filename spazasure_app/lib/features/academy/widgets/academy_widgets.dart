@@ -40,7 +40,14 @@ class AcademyCard extends StatelessWidget {
                   Icon(icon, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                 ],
-                Expanded(child: Text(title!, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700))),
+                Expanded(
+                  child: Text(
+                    title!,
+                    style: AppTextStyles.subtitle.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
                 ?trailing,
               ],
             ),
@@ -59,7 +66,12 @@ class AcademyStat extends StatelessWidget {
   final String label;
   final Color color;
 
-  const AcademyStat(this.value, this.label, {super.key, this.color = AppColors.textPrimary});
+  const AcademyStat(
+    this.value,
+    this.label, {
+    super.key,
+    this.color = AppColors.textPrimary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -68,28 +80,42 @@ class AcademyStat extends StatelessWidget {
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(value, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w800, color: color)),
+          child: Text(
+            value,
+            style: AppTextStyles.subtitle.copyWith(
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+        ),
       ],
     );
   }
 }
 
 /// Shows an error from the API (or a fallback) as a red snack bar.
-void showAcademyError(BuildContext context, Object error, [String fallback = 'Something went wrong. Try again.']) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(error is ApiException ? error.message : fallback),
-    backgroundColor: AppColors.error,
-  ));
+void showAcademyError(
+  BuildContext context,
+  Object error, [
+  String fallback = 'Something went wrong. Try again.',
+]) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(error is ApiException ? error.message : fallback),
+      backgroundColor: AppColors.error,
+    ),
+  );
 }
 
 void showAcademyMessage(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(message),
-    backgroundColor: AppColors.success,
-  ));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message), backgroundColor: AppColors.success),
+  );
 }
 
 /// Shown when a tab fails to load, with a retry button.
@@ -106,9 +132,17 @@ class AcademyLoadError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textHint),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: AppColors.textHint,
+            ),
             const SizedBox(height: 12),
-            Text('Could not load this. Check your connection.', style: AppTextStyles.body, textAlign: TextAlign.center),
+            Text(
+              'Could not load this. Check your connection.',
+              style: AppTextStyles.body,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
             OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
           ],
@@ -119,15 +153,20 @@ class AcademyLoadError extends StatelessWidget {
 }
 
 /// Decimal number field input decoration shared by the Shop Academy forms.
-InputDecoration academyInput(String label, {String? hint, String? prefix}) => InputDecoration(
-  labelText: label,
-  hintText: hint,
-  prefixText: prefix,
-  filled: true,
-  fillColor: AppColors.background,
-  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-);
+InputDecoration academyInput(String label, {String? hint, String? prefix}) =>
+    InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixText: prefix,
+      filled: true,
+      fillColor: AppColors.background,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
 
 /// Parses a typed amount like "1 200,50" or "1200.50".
-double? parseAmount(String text) => double.tryParse(text.replaceAll(' ', '').replaceAll(',', '.'));
+double? parseAmount(String text) =>
+    double.tryParse(text.replaceAll(' ', '').replaceAll(',', '.'));

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// A reference photo of the real product.
 class GalleryPhoto {
@@ -28,7 +29,8 @@ class GalleryPhoto {
             ),
       ];
     }
-    final images = (p['images'] as List?)
+    final images =
+        (p['images'] as List?)
             ?.map((e) => '$e'.trim())
             .where((e) => e.isNotEmpty && e != 'null')
             .toList() ??
@@ -116,12 +118,19 @@ class ProductGalleryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+                const Icon(
+                  Icons.photo_library_outlined,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    photos.isEmpty ? 'Check your pack' : 'Photos of the real product',
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                    photos.isEmpty
+                        ? 'Check your pack'
+                        : 'Photos of the real product',
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -131,7 +140,9 @@ class ProductGalleryCard extends StatelessWidget {
               photos.isEmpty
                   ? 'No photos of this product are on record yet. You can still check the text printed on your pack.'
                   : 'Is the pack in your hand the same? Compare the logo, colours, spelling, size and where the barcode sits.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             if (photos.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -161,7 +172,9 @@ class ProductGalleryCard extends StatelessWidget {
                   onPressed: onCompare,
                   icon: const Icon(Icons.compare_rounded),
                   label: Text(
-                    photos.isEmpty ? 'Check the text on my pack' : 'Compare with my pack',
+                    photos.isEmpty
+                        ? 'Check the text on my pack'
+                        : 'Compare with my pack',
                   ),
                 ),
               ),
@@ -237,7 +250,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
     final photo = widget.photos[_index];
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(photo.label),
@@ -252,7 +265,10 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
               itemBuilder: (_, i) => InteractiveViewer(
                 maxScale: 5,
                 child: Center(
-                  child: ProductImage(widget.photos[i].url, fit: BoxFit.contain),
+                  child: ProductImage(
+                    widget.photos[i].url,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),

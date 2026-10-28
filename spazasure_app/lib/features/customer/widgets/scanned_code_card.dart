@@ -49,11 +49,16 @@ class ScannedCodeCard extends StatelessWidget {
                   children: [
                     Text(
                       'What this code is',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     Text(
                       code.title,
-                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w800, color: tint),
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: tint,
+                      ),
                     ),
                   ],
                 ),
@@ -72,9 +77,20 @@ class ScannedCodeCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.warning),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: AppColors.warning,
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(w, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600))),
+                  Expanded(
+                    child: Text(
+                      w,
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -87,12 +103,18 @@ class ScannedCodeCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => _open(context),
                   icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(code.kind == ScannedCodeKind.location ? 'Open map' : 'Open link'),
+                  label: Text(
+                    code.kind == ScannedCodeKind.location
+                        ? 'Open map'
+                        : 'Open link',
+                  ),
                 ),
               OutlinedButton.icon(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: code.raw));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Copied')));
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
                 label: const Text('Copy'),
@@ -113,8 +135,14 @@ class ScannedCodeCard extends StatelessWidget {
           title: const Text('Open this link?'),
           content: Text('${link.host}\n\n${code.warnings.join('\n\n')}'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Open anyway')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Open anyway'),
+            ),
           ],
         ),
       );
@@ -130,9 +158,19 @@ class ScannedCodeCard extends StatelessWidget {
       children: [
         SizedBox(
           width: 120,
-          child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+          child: Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
         ),
-        Expanded(child: Text(value, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600))),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
       ],
     ),
   );

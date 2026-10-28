@@ -10,12 +10,17 @@ class AppLanguage {
   static const sotho = 'st';
 
   /// Codes the app has translations for, with the name each language calls itself.
-  static const supported = {english: 'English', zulu: 'isiZulu', sotho: 'Sesotho'};
+  static const supported = {
+    english: 'English',
+    zulu: 'isiZulu',
+    sotho: 'Sesotho',
+  };
 
   /// The current language; the whole app rebuilds when it changes.
   static final code = ValueNotifier<String>(english);
 
   static const _key = 'app_language';
+
   /// Set once the person picks a language in the app, so their registration choice no longer overrides it.
   static const _chosenKey = 'app_language_chosen';
 
@@ -55,15 +60,23 @@ class AppLanguage {
 
   /// "isiZulu" or "Zulu" becomes "zu", "Sesotho" becomes "st"; anything else is English.
   static String codeFor(String? preferredLanguage) {
-    final name = (preferredLanguage ?? '').toLowerCase().replaceAll(RegExp('[^a-z]'), '');
+    final name = (preferredLanguage ?? '').toLowerCase().replaceAll(
+      RegExp('[^a-z]'),
+      '',
+    );
     if (name == 'isizulu' || name == 'zulu') return zulu;
-    if (name == 'sesotho' || name == 'sotho' || name == 'southernsotho') return sotho;
+    if (name == 'sesotho' || name == 'sotho' || name == 'southernsotho') {
+      return sotho;
+    }
     return english;
   }
 }
 
 /// The text for [key] in the current language, falling back to English.
-String tr(String key) => _strings[AppLanguage.code.value]?[key] ?? _strings[AppLanguage.english]![key] ?? key;
+String tr(String key) =>
+    _strings[AppLanguage.code.value]?[key] ??
+    _strings[AppLanguage.english]![key] ??
+    key;
 
 // Translations should be checked by first-language isiZulu and Sesotho speakers before release.
 const _strings = <String, Map<String, String>>{
@@ -91,7 +104,8 @@ const _strings = <String, Map<String, String>>{
     'home.reportSub': 'Flag fake, expired, or unsafe goods',
     'home.learn': 'Learn before you buy',
     'home.safety': 'Safety basics',
-    'home.safetySub': 'Learn how to spot suspicious packaging and unsafe products.',
+    'home.safetySub':
+        'Learn how to spot suspicious packaging and unsafe products.',
     'home.kwazi': 'Kwazi authenticity guide',
     'home.kwaziSub': 'Chat with Kwazi when a product does not look right.',
     'home.recent': 'Recent activity',
@@ -117,7 +131,8 @@ const _strings = <String, Map<String, String>>{
     // Language picker
     'language.title': 'App language',
     'language.changed': 'Language changed',
-    'language.partial': 'Some screens are still in English while we translate them.',
+    'language.partial':
+        'Some screens are still in English while we translate them.',
     // Shop profile
     'shop.account': 'Account',
     'shop.details': 'Shop Details',
@@ -167,18 +182,23 @@ const _strings = <String, Map<String, String>>{
     'nav.docs': 'Imibhalo',
     'home.taglineShop': 'Thenga ngobuhlakani. ',
     'home.taglineSafe': 'Hlala uphephile.',
-    'home.intro': 'Qinisekisa imikhiqizo futhi uthole izitolo ezethembekile emphakathini wakho.',
+    'home.intro':
+        'Qinisekisa imikhiqizo futhi uthole izitolo ezethembekile emphakathini wakho.',
     'home.verifyProduct': 'Qinisekisa umkhiqizo',
     'home.verifyProductSub': 'Skena ibhakhodi noma ikhodi ye-QR',
     'home.verifyShop': 'Qinisekisa isitolo',
-    'home.verifyShopSub': 'Skena isitikha sesitolo noma ufake inombolo yesitolo',
+    'home.verifyShopSub':
+        'Skena isitikha sesitolo noma ufake inombolo yesitolo',
     'home.rewards': 'Imiklomelo yami',
-    'home.rewardsSub': 'Thola amaphuzu ama-5 ngokuskena ngakunye, ushintshe ngamavawusha e-R20',
+    'home.rewardsSub':
+        'Thola amaphuzu ama-5 ngokuskena ngakunye, ushintshe ngamavawusha e-R20',
     'home.report': 'Bika okukukhathazayo',
-    'home.reportSub': 'Bika izimpahla mbumbulu, eziphelelwe yisikhathi, noma ezingaphephile',
+    'home.reportSub':
+        'Bika izimpahla mbumbulu, eziphelelwe yisikhathi, noma ezingaphephile',
     'home.learn': 'Funda ngaphambi kokuthenga',
     'home.safety': 'Izisekelo zokuphepha',
-    'home.safetySub': 'Funda ukubona ukupakisha okusolisayo nemikhiqizo engaphephile.',
+    'home.safetySub':
+        'Funda ukubona ukupakisha okusolisayo nemikhiqizo engaphephile.',
     'home.kwazi': 'Umhlahlandlela kaKwazi wobuqiniso',
     'home.kwaziSub': 'Xoxa noKwazi uma umkhiqizo ungabukeki kahle.',
     'home.recent': 'Okwenzeke muva nje',
@@ -202,7 +222,8 @@ const _strings = <String, Map<String, String>>{
     'profile.signOut': 'Phuma',
     'language.title': 'Ulimi lwe-app',
     'language.changed': 'Ulimi lushintshiwe',
-    'language.partial': 'Ezinye izikrini zisesesiNgisini ngesikhathi sisazihumusha.',
+    'language.partial':
+        'Ezinye izikrini zisesesiNgisini ngesikhathi sisazihumusha.',
     'shop.account': 'I-akhawunti',
     'shop.details': 'Imininingwane yesitolo',
     'shop.detailsSub': 'Hlela imininingwane yesitolo sakho',
@@ -251,18 +272,23 @@ const _strings = <String, Map<String, String>>{
     'nav.docs': 'Ditokomane',
     'home.taglineShop': 'Reka ka bohlale. ',
     'home.taglineSafe': 'Dula o sireletsehile.',
-    'home.intro': 'Netefatsa dihlahiswa mme o fumane mabenkele a tshepahalang setjhabeng sa hao.',
+    'home.intro':
+        'Netefatsa dihlahiswa mme o fumane mabenkele a tshepahalang setjhabeng sa hao.',
     'home.verifyProduct': 'Netefatsa sehlahiswa',
     'home.verifyProductSub': 'Skena barcode kapa khoutu ya QR',
     'home.verifyShop': 'Netefatsa lebenkele',
-    'home.verifyShopSub': 'Skena setikara sa lebenkele kapa o kenye nomoro ya lona',
+    'home.verifyShopSub':
+        'Skena setikara sa lebenkele kapa o kenye nomoro ya lona',
     'home.rewards': 'Meputso ya ka',
-    'home.rewardsSub': 'Fumana dintlha tse 5 skeneng ka nngwe, o di fapanyetsane ka divoutjhara tsa R20',
+    'home.rewardsSub':
+        'Fumana dintlha tse 5 skeneng ka nngwe, o di fapanyetsane ka divoutjhara tsa R20',
     'home.report': 'Tlaleha ho tshwenyeha',
-    'home.reportSub': 'Tlaleha thepa ya maiketsetso, e fetileng nako kapa e kotsi',
+    'home.reportSub':
+        'Tlaleha thepa ya maiketsetso, e fetileng nako kapa e kotsi',
     'home.learn': 'Ithute pele o reka',
     'home.safety': 'Metheo ya polokeho',
-    'home.safetySub': 'Ithute ho lemoha diphuthelwana tse belaetsang le dihlahiswa tse kotsi.',
+    'home.safetySub':
+        'Ithute ho lemoha diphuthelwana tse belaetsang le dihlahiswa tse kotsi.',
     'home.kwazi': 'Tataiso ya Kwazi ya bonnete',
     'home.kwaziSub': 'Buisana le Kwazi ha sehlahiswa se sa shebahale hantle.',
     'home.recent': 'Diketso tsa morao tjena',
@@ -286,7 +312,8 @@ const _strings = <String, Map<String, String>>{
     'profile.signOut': 'Tswa',
     'language.title': 'Puo ya app',
     'language.changed': 'Puo e fetotswe',
-    'language.partial': 'Dikgaolo tse ding di sa ntse di le ka Senyesemane ha re ntse re di fetolela.',
+    'language.partial':
+        'Dikgaolo tse ding di sa ntse di le ka Senyesemane ha re ntse re di fetolela.',
     'shop.account': 'Akhaonte',
     'shop.details': 'Dintlha tsa lebenkele',
     'shop.detailsSub': 'Fetola dintlha tsa lebenkele la hao',
@@ -295,7 +322,8 @@ const _strings = <String, Map<String, String>>{
     'shop.wallet': 'Wallet ya SpazaSure',
     'shop.walletSub': 'Tekatekano le ditransekshene',
     'shop.academy': 'Shop Academy',
-    'shop.academySub': 'Setoko, buka ya chelete, dithuto le thuso ya ditjhelete',
+    'shop.academySub':
+        'Setoko, buka ya chelete, dithuto le thuso ya ditjhelete',
     'academy.title': 'Shop Academy',
     'academy.overview': 'Kakaretso',
     'academy.stock': 'Setoko',

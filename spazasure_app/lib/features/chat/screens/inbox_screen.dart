@@ -7,6 +7,7 @@ import 'package:spazasure_app/features/chat/screens/chat_thread_screen.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/chat_service.dart';
 import 'package:spazasure_app/services/notification_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Chats with shops (or, for a shop owner, with customers) plus news and alerts, in two tabs.
 class InboxScreen extends StatefulWidget {
@@ -99,12 +100,12 @@ class _InboxScreenState extends State<InboxScreen> {
       initialIndex: widget.initialTab,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
+        appBar: BrandAppBar(
           title: Text(widget.asShop ? 'Messages & alerts' : 'Inbox'),
           bottom: TabBar(
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.primary,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: AppColors.accent,
             labelStyle: AppTextStyles.body.copyWith(
               fontWeight: FontWeight.w800,
             ),

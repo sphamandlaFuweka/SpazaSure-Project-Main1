@@ -80,7 +80,9 @@ class ProductService {
     final res = await ApiService.get('/shop/marketplace/products/$id');
     final data = res['data'];
     final info = data is Map ? data['info'] : null;
-    return ProductInfo.fromJson(info is Map ? Map<String, dynamic>.from(info) : null);
+    return ProductInfo.fromJson(
+      info is Map ? Map<String, dynamic>.from(info) : null,
+    );
   }
 
   /// Fetch all categories.
@@ -174,7 +176,8 @@ class ProductService {
       supplierCommissionRate:
           (i['supplierCommissionRate'] as num?)?.toDouble() ?? 5,
       branchStockNote: _branchStockNote(i['availability']),
-      outOfStockNearYou: (i['availability'] as Map?)?['inStockNearYou'] == false,
+      outOfStockNearYou:
+          (i['availability'] as Map?)?['inStockNearYou'] == false,
     );
   }
 
@@ -185,9 +188,13 @@ class ProductService {
     final nearest = availability['nearestBranch']?.toString();
     final shipsFrom = availability['shipsFrom']?.toString();
     if (shipsFrom != null) {
-      return nearest == null ? 'Ships from $shipsFrom' : 'Not at $nearest · ships from $shipsFrom';
+      return nearest == null
+          ? 'Ships from $shipsFrom'
+          : 'Not at $nearest · ships from $shipsFrom';
     }
-    return nearest == null ? 'Out of stock near you' : 'Out of stock at $nearest, near you';
+    return nearest == null
+        ? 'Out of stock near you'
+        : 'Out of stock at $nearest, near you';
   }
 
   static String _slugToIcon(String slug) {

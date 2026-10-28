@@ -26,7 +26,8 @@ class CartProvider extends ChangeNotifier {
       'pickup' => 0.0,
       _ => _settings.standardDeliveryFee,
     };
-    return perSupplier * _items.map((item) => item.product.supplierId).toSet().length;
+    return perSupplier *
+        _items.map((item) => item.product.supplierId).toSet().length;
   }
 
   // Product prices from the server already include SpazaSure's fee, so the total is

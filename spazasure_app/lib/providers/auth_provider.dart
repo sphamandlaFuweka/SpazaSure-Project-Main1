@@ -45,7 +45,9 @@ class AuthProvider extends ChangeNotifier {
 
   /// Customers see the app in the language they chose at registration, unless they changed it.
   void _applyLanguage() {
-    if (_session?.role == 'customer') AppLanguage.applyPreference(_session!.preferredLanguage);
+    if (_session?.role == 'customer') {
+      AppLanguage.applyPreference(_session!.preferredLanguage);
+    }
   }
 
   Future<void> loginShop(String phone, String password) async {

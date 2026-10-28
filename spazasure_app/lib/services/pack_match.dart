@@ -27,8 +27,22 @@ final _amount = RegExp(
 
 // Words in product names that say nothing about which product it is
 const _genericWords = {
-  'with', 'from', 'pack', 'flavour', 'flavor', 'original', 'classic', 'new',
-  'the', 'and', 'for', 'free', 'extra', 'plus', 'value', 'size',
+  'with',
+  'from',
+  'pack',
+  'flavour',
+  'flavor',
+  'original',
+  'classic',
+  'new',
+  'the',
+  'and',
+  'for',
+  'free',
+  'extra',
+  'plus',
+  'value',
+  'size',
 };
 
 String _norm(String s) => s.toLowerCase().replaceAll(_nonAlnum, ' ').trim();
@@ -91,11 +105,15 @@ PackMatch comparePackText({
     if (words.isNotEmpty) {
       final hits = words.where((w) => text.contains(w)).length;
       // Packs rarely print the full listing name, so half its distinctive words is enough
-      checks.add(PackCheck('Product name', name.trim(), hits * 2 >= words.length));
+      checks.add(
+        PackCheck('Product name', name.trim(), hits * 2 >= words.length),
+      );
     }
   }
 
-  final expectedAmounts = quantity == null ? const <double>[] : amountsIn(quantity);
+  final expectedAmounts = quantity == null
+      ? const <double>[]
+      : amountsIn(quantity);
   if (expectedAmounts.isNotEmpty) {
     final want = expectedAmounts.first;
     final onPack = amountsIn(packText);

@@ -9,32 +9,41 @@ class ShopAcademyService {
   static String day(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
   static String month(DateTime d) => DateFormat('yyyy-MM').format(d);
 
-  static Future<Map<String, dynamic>> _data(Future<Map<String, dynamic>> call) async {
+  static Future<Map<String, dynamic>> _data(
+    Future<Map<String, dynamic>> call,
+  ) async {
     final res = await call;
     return (res['data'] as Map?)?.cast<String, dynamic>() ?? {};
   }
 
-  static Future<Map<String, dynamic>> overview() => _data(ApiService.get(_base));
+  static Future<Map<String, dynamic>> overview() =>
+      _data(ApiService.get(_base));
 
   // ── Business details ──
 
-  static Future<Map<String, dynamic>> profile() => _data(ApiService.get('$_base/profile'));
+  static Future<Map<String, dynamic>> profile() =>
+      _data(ApiService.get('$_base/profile'));
 
-  static Future<Map<String, dynamic>> saveProfile(Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>> saveProfile(
+    Map<String, dynamic> body,
+  ) async {
     final res = await ApiService.put('$_base/profile', body);
     return (res['data'] as Map?)?.cast<String, dynamic>() ?? {};
   }
 
   // ── Stock book ──
 
-  static Future<Map<String, dynamic>> stock() => _data(ApiService.get('$_base/stock'));
+  static Future<Map<String, dynamic>> stock() =>
+      _data(ApiService.get('$_base/stock'));
 
-  static Future<void> addItem(Map<String, dynamic> body) => ApiService.post('$_base/stock', body);
+  static Future<void> addItem(Map<String, dynamic> body) =>
+      ApiService.post('$_base/stock', body);
 
   static Future<void> updateItem(String id, Map<String, dynamic> body) =>
       ApiService.put('$_base/stock/$id', body);
 
-  static Future<void> removeItem(String id) => ApiService.delete('$_base/stock/$id');
+  static Future<void> removeItem(String id) =>
+      ApiService.delete('$_base/stock/$id');
 
   /// Records stock received, sold, lost or counted. Returns the server's message.
   static Future<String> addMovement(
@@ -88,7 +97,8 @@ class ShopAcademyService {
     'occurredOn': day(occurredOn),
   });
 
-  static Future<void> deleteCashEntry(String id) => ApiService.delete('$_base/cashbook/$id');
+  static Future<void> deleteCashEntry(String id) =>
+      ApiService.delete('$_base/cashbook/$id');
 
   // ── Reports and lessons ──
 
@@ -100,10 +110,13 @@ class ShopAcademyService {
     return ((res['data'] as List?) ?? []).cast<Map<String, dynamic>>();
   }
 
-  static Future<Map<String, dynamic>> lesson(String key) => _data(ApiService.get('$_base/lessons/$key'));
+  static Future<Map<String, dynamic>> lesson(String key) =>
+      _data(ApiService.get('$_base/lessons/$key'));
 
-  static Future<Map<String, dynamic>> submitQuiz(String key, List<int> answers) =>
-      _data(ApiService.post('$_base/lessons/$key/quiz', {'answers': answers}));
+  static Future<Map<String, dynamic>> submitQuiz(
+    String key,
+    List<int> answers,
+  ) => _data(ApiService.post('$_base/lessons/$key/quiz', {'answers': answers}));
 
   /// A link to the Business Record PDF, valid for 30 minutes.
   static Future<String> recordLink() async {
@@ -141,6 +154,9 @@ class ShopAcademyService {
 
   static String categoryLabel(String key) => categoryLabels[key] ?? key;
 
-  static String rand(num? value) =>
-      NumberFormat.currency(locale: 'en_ZA', symbol: 'R ', decimalDigits: 2).format(value ?? 0);
+  static String rand(num? value) => NumberFormat.currency(
+    locale: 'en_ZA',
+    symbol: 'R ',
+    decimalDigits: 2,
+  ).format(value ?? 0);
 }

@@ -28,20 +28,31 @@ class DeliveryTracking {
     final driver = json['driver'] as Map<String, dynamic>?;
     return DeliveryTracking(
       status: json['status']?.toString() ?? '',
-      pickup: TrackingPlace.fromJson(json['pickup'] as Map<String, dynamic>?, nameKey: 'name', addressKey: 'address'),
-      destination: TrackingPlace.fromJson(json['destination'] as Map<String, dynamic>?, nameKey: null, addressKey: 'deliveryAddress'),
+      pickup: TrackingPlace.fromJson(
+        json['pickup'] as Map<String, dynamic>?,
+        nameKey: 'name',
+        addressKey: 'address',
+      ),
+      destination: TrackingPlace.fromJson(
+        json['destination'] as Map<String, dynamic>?,
+        nameKey: null,
+        addressKey: 'deliveryAddress',
+      ),
       driver: driver == null
           ? null
           : TrackingDriver(
               fullName: driver['fullName']?.toString() ?? '',
               phone: driver['phone']?.toString() ?? '',
               vehicleType: driver['vehicleType']?.toString() ?? '',
-              vehicleRegistration: driver['vehicleRegistration']?.toString() ?? '',
+              vehicleRegistration:
+                  driver['vehicleRegistration']?.toString() ?? '',
               badgeCode: driver['badgeCode']?.toString() ?? '',
             ),
       driverLatitude: (live?['latitude'] as num?)?.toDouble(),
       driverLongitude: (live?['longitude'] as num?)?.toDouble(),
-      driverUpdatedAt: DateTime.tryParse(live?['updatedAt']?.toString() ?? '')?.toLocal(),
+      driverUpdatedAt: DateTime.tryParse(
+        live?['updatedAt']?.toString() ?? '',
+      )?.toLocal(),
     );
   }
 }
@@ -52,9 +63,18 @@ class TrackingPlace {
   final double? latitude;
   final double? longitude;
 
-  const TrackingPlace({required this.name, required this.address, this.latitude, this.longitude});
+  const TrackingPlace({
+    required this.name,
+    required this.address,
+    this.latitude,
+    this.longitude,
+  });
 
-  static TrackingPlace? fromJson(Map<String, dynamic>? json, {required String? nameKey, required String addressKey}) {
+  static TrackingPlace? fromJson(
+    Map<String, dynamic>? json, {
+    required String? nameKey,
+    required String addressKey,
+  }) {
     if (json == null) return null;
     return TrackingPlace(
       name: nameKey == null ? '' : json[nameKey]?.toString() ?? '',

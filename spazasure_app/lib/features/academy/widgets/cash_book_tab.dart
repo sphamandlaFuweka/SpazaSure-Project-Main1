@@ -13,11 +13,25 @@ class CashBookTab extends StatefulWidget {
   State<CashBookTab> createState() => _CashBookTabState();
 }
 
-class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClientMixin {
-  static const incomeCategories = ['cash_sales', 'card_sales', 'airtime_electricity', 'other_income'];
+class _CashBookTabState extends State<CashBookTab>
+    with AutomaticKeepAliveClientMixin {
+  static const incomeCategories = [
+    'cash_sales',
+    'card_sales',
+    'airtime_electricity',
+    'other_income',
+  ];
   static const expenseCategories = [
-    'stock_purchase', 'rent', 'electricity', 'transport', 'wages',
-    'airtime_data', 'repairs', 'licences_fees', 'owner_salary', 'other_expense',
+    'stock_purchase',
+    'rent',
+    'electricity',
+    'transport',
+    'wages',
+    'airtime_data',
+    'repairs',
+    'licences_fees',
+    'owner_salary',
+    'other_expense',
   ];
 
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
@@ -28,7 +42,9 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
   @override
   bool get wantKeepAlive => true;
 
-  bool get _isThisMonth => _month.year == DateTime.now().year && _month.month == DateTime.now().month;
+  bool get _isThisMonth =>
+      _month.year == DateTime.now().year &&
+      _month.month == DateTime.now().month;
 
   @override
   void initState() {
@@ -59,8 +75,10 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final entries = ((_book['entries'] as List?) ?? []).cast<Map<String, dynamic>>();
-    final byCategory = ((_book['expenseByCategory'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final entries = ((_book['entries'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
+    final byCategory = ((_book['expenseByCategory'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
     final expenses = (_book['expenses'] as num?)?.toDouble() ?? 0;
     final net = (_book['net'] as num?)?.toDouble() ?? 0;
 
@@ -72,8 +90,16 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(onPressed: () => _shiftMonth(-1), icon: const Icon(Icons.chevron_left_rounded)),
-              Text(DateFormat('MMMM yyyy').format(_month), style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w700)),
+              IconButton(
+                onPressed: () => _shiftMonth(-1),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Text(
+                DateFormat('MMMM yyyy').format(_month),
+                style: AppTextStyles.subtitle.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               IconButton(
                 onPressed: _isThisMonth ? null : () => _shiftMonth(1),
                 icon: const Icon(Icons.chevron_right_rounded),
@@ -81,7 +107,10 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
             ],
           ),
           if (_loading)
-            const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (_failed)
             AcademyLoadError(onRetry: _load)
           else ...[
@@ -91,11 +120,26 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                 children: [
                   Row(
                     children: [
-                      Expanded(child: AcademyStat(ShopAcademyService.rand(_book['income']), 'Money in', color: AppColors.success)),
-                      Expanded(child: AcademyStat(ShopAcademyService.rand(expenses), 'Money out', color: AppColors.red)),
                       Expanded(
-                        child: AcademyStat(ShopAcademyService.rand(net), net >= 0 ? 'Profit' : 'Loss',
-                            color: net >= 0 ? AppColors.primary : AppColors.red),
+                        child: AcademyStat(
+                          ShopAcademyService.rand(_book['income']),
+                          'Money in',
+                          color: AppColors.success,
+                        ),
+                      ),
+                      Expanded(
+                        child: AcademyStat(
+                          ShopAcademyService.rand(expenses),
+                          'Money out',
+                          color: AppColors.red,
+                        ),
+                      ),
+                      Expanded(
+                        child: AcademyStat(
+                          ShopAcademyService.rand(net),
+                          net >= 0 ? 'Profit' : 'Loss',
+                          color: net >= 0 ? AppColors.primary : AppColors.red,
+                        ),
                       ),
                     ],
                   ),
@@ -103,7 +147,9 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                   Text(
                     '${_book['daysRecorded'] ?? 0} days recorded this month. '
                     'Record at least 8 days a month to build a trading record.',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                 ],
               ),
@@ -114,7 +160,9 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                      ),
                       onPressed: () => _addEntry('income'),
                       icon: const Icon(Icons.south_west_rounded),
                       label: const Text('Money in'),
@@ -123,7 +171,9 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.red),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                      ),
                       onPressed: () => _addEntry('expense'),
                       icon: const Icon(Icons.north_east_rounded),
                       label: const Text('Money out'),
@@ -146,8 +196,20 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                           children: [
                             Row(
                               children: [
-                                Expanded(child: Text(ShopAcademyService.categoryLabel(c['category']), style: AppTextStyles.bodySmall)),
-                                Text(ShopAcademyService.rand(c['amount']), style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w700)),
+                                Expanded(
+                                  child: Text(
+                                    ShopAcademyService.categoryLabel(
+                                      c['category'],
+                                    ),
+                                    style: AppTextStyles.bodySmall,
+                                  ),
+                                ),
+                                Text(
+                                  ShopAcademyService.rand(c['amount']),
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -155,7 +217,9 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
                                 minHeight: 6,
-                                value: expenses > 0 ? (c['amount'] as num).toDouble() / expenses : 0,
+                                value: expenses > 0
+                                    ? (c['amount'] as num).toDouble() / expenses
+                                    : 0,
                                 backgroundColor: AppColors.divider,
                                 color: AppColors.red.withValues(alpha: 0.7),
                               ),
@@ -193,11 +257,18 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
       dense: true,
       leading: CircleAvatar(
         radius: 16,
-        backgroundColor: (income ? AppColors.success : AppColors.red).withValues(alpha: 0.12),
-        child: Icon(income ? Icons.south_west_rounded : Icons.north_east_rounded,
-            size: 16, color: income ? AppColors.success : AppColors.red),
+        backgroundColor: (income ? AppColors.success : AppColors.red)
+            .withValues(alpha: 0.12),
+        child: Icon(
+          income ? Icons.south_west_rounded : Icons.north_east_rounded,
+          size: 16,
+          color: income ? AppColors.success : AppColors.red,
+        ),
       ),
-      title: Text(ShopAcademyService.categoryLabel(e['category']), style: AppTextStyles.body),
+      title: Text(
+        ShopAcademyService.categoryLabel(e['category']),
+        style: AppTextStyles.body,
+      ),
       subtitle: Text(
         '${date == null ? '' : DateFormat('EEE d MMM').format(date)}${e['note'] != null ? ' · ${e['note']}' : ''}',
         maxLines: 1,
@@ -205,7 +276,10 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
       ),
       trailing: Text(
         '${income ? '+' : '-'}${ShopAcademyService.rand(e['amount'])}',
-        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700, color: income ? AppColors.success : AppColors.red),
+        style: AppTextStyles.body.copyWith(
+          fontWeight: FontWeight.w700,
+          color: income ? AppColors.success : AppColors.red,
+        ),
       ),
       onLongPress: () => _delete(e),
     );
@@ -216,10 +290,18 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete entry?'),
-        content: Text('${ShopAcademyService.categoryLabel(e['category'])}: ${ShopAcademyService.rand(e['amount'])}'),
+        content: Text(
+          '${ShopAcademyService.categoryLabel(e['category'])}: ${ShopAcademyService.rand(e['amount'])}',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -233,9 +315,13 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
   }
 
   Future<void> _addEntry(String direction) async {
-    final categories = direction == 'income' ? incomeCategories : expenseCategories;
+    final categories = direction == 'income'
+        ? incomeCategories
+        : expenseCategories;
     var category = categories.first;
-    var date = _isThisMonth ? DateTime.now() : DateTime(_month.year, _month.month + 1, 0);
+    var date = _isThisMonth
+        ? DateTime.now()
+        : DateTime(_month.year, _month.month + 1, 0);
     final amount = TextEditingController();
     final note = TextEditingController();
 
@@ -245,12 +331,20 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
       showDragHandle: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(direction == 'income' ? 'Money in' : 'Money out', style: AppTextStyles.h3),
+              Text(
+                direction == 'income' ? 'Money in' : 'Money out',
+                style: AppTextStyles.h3,
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -268,11 +362,16 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
               TextField(
                 controller: amount,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: academyInput('Amount', prefix: 'R '),
               ),
               const SizedBox(height: 10),
-              TextField(controller: note, decoration: academyInput('Note (optional)')),
+              TextField(
+                controller: note,
+                decoration: academyInput('Note (optional)'),
+              ),
               const SizedBox(height: 4),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -283,14 +382,19 @@ class _CashBookTabState extends State<CashBookTab> with AutomaticKeepAliveClient
                   final picked = await showDatePicker(
                     context: ctx,
                     initialDate: date,
-                    firstDate: DateTime.now().subtract(const Duration(days: 366)),
+                    firstDate: DateTime.now().subtract(
+                      const Duration(days: 366),
+                    ),
                     lastDate: DateTime.now(),
                   );
                   if (picked != null) setSheet(() => date = picked);
                 },
               ),
               const SizedBox(height: 8),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save'),
+              ),
             ],
           ),
         ),

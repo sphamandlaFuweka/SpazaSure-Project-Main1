@@ -32,10 +32,13 @@ class AnalyticsService {
       _ready ? [FirebaseAnalyticsObserver(analytics: _analytics!)] : const [];
 
   /// Ties events to the signed-in account (its id only) and role; null on sign-out.
-  static Future<void> setUser({String? userId, String? role}) => _safe(() async {
-    await _analytics!.setUserId(id: userId == null || userId.isEmpty ? null : userId);
-    await _analytics!.setUserProperty(name: 'role', value: role);
-  });
+  static Future<void> setUser({String? userId, String? role}) =>
+      _safe(() async {
+        await _analytics!.setUserId(
+          id: userId == null || userId.isEmpty ? null : userId,
+        );
+        await _analytics!.setUserProperty(name: 'role', value: role);
+      });
 
   static Future<void> login(String role) =>
       _safe(() => _analytics!.logLogin(loginMethod: 'phone_$role'));
@@ -71,12 +74,16 @@ class AnalyticsService {
   static Future<void> feedbackSent(String type) =>
       event('feedback_sent', {'type': type});
 
-  static Future<void> orderPlaced({required double value, required int items}) =>
-      _safe(() => _analytics!.logPurchase(
-        currency: 'ZAR',
-        value: value,
-        parameters: {'items': items},
-      ));
+  static Future<void> orderPlaced({
+    required double value,
+    required int items,
+  }) => _safe(
+    () => _analytics!.logPurchase(
+      currency: 'ZAR',
+      value: value,
+      parameters: {'items': items},
+    ),
+  );
 
   /// Any other event. Names: lower_snake_case, up to 40 characters.
   static Future<void> event(String name, [Map<String, Object>? parameters]) =>

@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/services/address_service.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerRegisterScreen extends StatefulWidget {
   const CustomerRegisterScreen({super.key});
@@ -218,7 +219,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_acceptedPrivacyNotice) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Read and accept the privacy notice to register.')),
+        const SnackBar(
+          content: Text('Read and accept the privacy notice to register.'),
+        ),
       );
       return;
     }
@@ -272,7 +275,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create customer account')),
+      appBar: BrandAppBar(title: const Text('Create customer account')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -606,7 +609,8 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
             const SizedBox(height: 14),
             PrivacyConsentTile(
               value: _acceptedPrivacyNotice,
-              onChanged: (value) => setState(() => _acceptedPrivacyNotice = value),
+              onChanged: (value) =>
+                  setState(() => _acceptedPrivacyNotice = value),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(

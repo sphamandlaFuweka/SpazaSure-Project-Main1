@@ -97,8 +97,22 @@ class RiskMeter extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Safe', style: TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600)),
-            Text('High risk', style: TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600)),
+            Text(
+              'Safe',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'High risk',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ],

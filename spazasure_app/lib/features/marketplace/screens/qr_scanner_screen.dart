@@ -19,6 +19,7 @@ import 'package:spazasure_app/services/packaging_ocr_service.dart';
 import 'package:spazasure_app/services/product_service.dart';
 import 'package:spazasure_app/services/packaging_text_parser.dart';
 import 'package:spazasure_app/services/scanned_code.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class QrScannerScreen extends StatefulWidget {
   final bool customerMode;
@@ -60,17 +61,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   bool get _showCodeOnly => _code != null && !_code!.isProduct;
   bool get _hasResult =>
-      _product != null || _error != null || _showCodeOnly || _packagingResult != null;
+      _product != null ||
+      _error != null ||
+      _showCodeOnly ||
+      _packagingResult != null;
 
   @override
   void initState() {
     super.initState();
     // Shops and customers scan the same way: live camera, manual entry (index 1, which the
     // camera error screen relies on) and a packaging photo.
-    _tabController = TabController(
-      length: 3,
-      vsync: this,
-    );
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _cameraController = MobileScannerController(
       detectionSpeed: DetectionSpeed.normal,
@@ -122,7 +123,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       _packagingResult = null;
     });
     if (!code.isProduct) {
-      AnalyticsService.productScan(method: method, source: 'code_${code.kind.name}', riskLevel: null);
+      AnalyticsService.productScan(
+        method: method,
+        source: 'code_${code.kind.name}',
+        riskLevel: null,
+      );
       return;
     }
     _lookupProduct(
@@ -302,16 +307,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: const Text('Scan Product'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textHint,
-          indicatorColor: AppColors.primary,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppColors.accent,
           tabs: [
             Tab(
               icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
@@ -322,9 +325,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               text: 'Manual Entry',
             ),
             const Tab(
-                icon: Icon(Icons.document_scanner_rounded, size: 18),
-                text: 'Packaging Photo',
-              ),
+              icon: Icon(Icons.document_scanner_rounded, size: 18),
+              text: 'Packaging Photo',
+            ),
           ],
         ),
       ),
@@ -588,7 +591,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                   const SizedBox(height: 12),
                   Text(
                     'Analysing the pack...',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -615,7 +620,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   /// The barcode read off the pack (by the AI, or on the phone), for checking on SpazaSure.
   String? get _packagingBarcode {
-    final code = _packagingResult?['barcode']?.toString() ?? _packaging?.barcode;
+    final code =
+        _packagingResult?['barcode']?.toString() ?? _packaging?.barcode;
     return code == null || code.isEmpty ? null : code;
   }
 
@@ -644,7 +650,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             final capture = await _photoScanner!.analyzeImage(photo.path);
             final bars = capture?.barcodes.firstOrNull?.rawValue;
             if (bars != null) {
-              scan = PackagingScan(rawText: scan.rawText, barcode: bars, expiry: scan.expiry, batch: scan.batch);
+              scan = PackagingScan(
+                rawText: scan.rawText,
+                barcode: bars,
+                expiry: scan.expiry,
+                batch: scan.batch,
+              );
             }
           } catch (_) {
             // No barcode in the photo is fine.
@@ -664,7 +675,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           fileName: name,
           fields: {
             if (scan.rawText.trim().isNotEmpty)
-              'ocrText': scan.rawText.length > 3000 ? scan.rawText.substring(0, 3000) : scan.rawText,
+              'ocrText': scan.rawText.length > 3000
+                  ? scan.rawText.substring(0, 3000)
+                  : scan.rawText,
             if (scan.barcode != null) 'barcode': scan.barcode!,
           },
         );
@@ -681,9 +694,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       if (result == null) {
         if (scan.rawText.trim().isEmpty && scan.barcode == null) {
           if (!mounted) return;
-          setState(() => _packagingError = unavailable == 'daily_limit'
-              ? 'You have used today\'s photo checks. The phone could not read any text in this one; try again in better light.'
-              : 'No text could be read from that photo. Try again closer, in good light.');
+          setState(
+            () => _packagingError = unavailable == 'daily_limit'
+                ? 'You have used today\'s photo checks. The phone could not read any text in this one; try again in better light.'
+                : 'No text could be read from that photo. Try again closer, in good light.',
+          );
           return;
         }
         result = PackagingInsights.analyze(scan);
@@ -714,7 +729,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   void _verifyPackagingBarcode(String barcode) {
     final scan = _packaging;
     final a = _packagingResult?['analysis'] as Map?;
-    final expiry = DateTime.tryParse(a?['expiryDate']?.toString() ?? '') ?? scan?.expiry;
+    final expiry =
+        DateTime.tryParse(a?['expiryDate']?.toString() ?? '') ?? scan?.expiry;
     final batch = a?['batchNumber']?.toString() ?? scan?.batch;
     setState(() => _packagingResult = null);
     _lookupProduct(
@@ -737,7 +753,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         if (c is Map && c['status'] == 'fail') c['detail'],
     ].map((e) => '- $e').join('\n');
     if (!mounted) return;
-    final name = [a['brand'], a['productName']].where((e) => e != null).join(' ');
+    final name = [
+      a['brand'],
+      a['productName'],
+    ].where((e) => e != null).join(' ');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -746,11 +765,19 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           productName: name.isEmpty ? null : name,
           batchNumber: a['batchNumber']?.toString(),
           expiryDate: a['expiryDate']?.toString(),
-          initialType: r['riskLevel'] == 'high' ? 'Fake / Counterfeit Product' : 'Other',
-          initialDescription: flags.isEmpty ? null : 'Flagged by SpazaSure packaging check:\n$flags',
+          initialType: r['riskLevel'] == 'high'
+              ? 'Fake / Counterfeit Product'
+              : 'Other',
+          initialDescription: flags.isEmpty
+              ? null
+              : 'Flagged by SpazaSure packaging check:\n$flags',
           initialPhoto: bytes == null
               ? null
-              : PlatformFile(name: photo!.name, size: bytes.length, bytes: bytes),
+              : PlatformFile(
+                  name: photo!.name,
+                  size: bytes.length,
+                  bytes: bytes,
+                ),
         ),
       ),
     );
@@ -813,7 +840,9 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: _loading ? null : () => _submitManual(_codeController.text),
+                onTap: _loading
+                    ? null
+                    : () => _submitManual(_codeController.text),
                 child: Container(
                   width: 52,
                   height: 52,

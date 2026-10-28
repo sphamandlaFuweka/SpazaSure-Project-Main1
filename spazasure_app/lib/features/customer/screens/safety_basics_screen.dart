@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class _SafetyPage {
   final IconData icon;
@@ -123,7 +124,7 @@ class _SafetyBasicsScreenState extends State<SafetyBasicsScreen> {
     final last = _index == _pages.length - 1;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Safety Basics')),
+      appBar: BrandAppBar(title: const Text('Safety Basics')),
       body: Column(
         children: [
           Expanded(

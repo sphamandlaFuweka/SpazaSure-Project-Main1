@@ -11,6 +11,7 @@ import 'package:spazasure_app/features/academy/widgets/lessons_tab.dart';
 import 'package:spazasure_app/features/academy/widgets/stock_tab.dart';
 import 'package:spazasure_app/services/shop_academy_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Shop Academy: run the spaza as an official business. Stock book, cash book, reports,
 /// funding readiness, practical lessons and a Business Record PDF for funders.
@@ -30,7 +31,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
       length: 4,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
+        appBar: BrandAppBar(
           title: Text(tr('academy.title')),
           bottom: TabBar(
             isScrollable: true,
@@ -63,7 +64,8 @@ class _OverviewTab extends StatefulWidget {
   State<_OverviewTab> createState() => _OverviewTabState();
 }
 
-class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClientMixin {
+class _OverviewTabState extends State<_OverviewTab>
+    with AutomaticKeepAliveClientMixin {
   bool _loading = true;
   bool _failed = false;
   bool _openingRecord = false;
@@ -98,10 +100,19 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
     setState(() => _openingRecord = true);
     try {
       final url = await ShopAcademyService.recordLink();
-      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
       if (!opened) throw StateError('Could not open the Business Record.');
     } catch (e) {
-      if (mounted) showAcademyError(context, e, 'Could not open the Business Record. Try again.');
+      if (mounted) {
+        showAcademyError(
+          context,
+          e,
+          'Could not open the Business Record. Try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _openingRecord = false);
     }
@@ -118,14 +129,19 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_failed) return AcademyLoadError(onRetry: _load);
 
-    final readiness = (_data['readiness'] as Map?)?.cast<String, dynamic>() ?? {};
+    final readiness =
+        (_data['readiness'] as Map?)?.cast<String, dynamic>() ?? {};
     final score = (readiness['score'] as num?)?.toInt() ?? 0;
-    final items = ((readiness['items'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final items = ((readiness['items'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
     final month = (_data['thisMonth'] as Map?)?.cast<String, dynamic>() ?? {};
     final stock = (_data['stock'] as Map?)?.cast<String, dynamic>() ?? {};
-    final alerts = ((_data['stockAlerts'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final alerts = ((_data['stockAlerts'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
     final lessons = (_data['lessons'] as Map?)?.cast<String, dynamic>() ?? {};
-    final moneyOut = ((month['stockPurchases'] as num?) ?? 0) + ((month['operatingExpenses'] as num?) ?? 0);
+    final moneyOut =
+        ((month['stockPurchases'] as num?) ?? 0) +
+        ((month['operatingExpenses'] as num?) ?? 0);
     final net = (month['netProfit'] as num?) ?? 0;
 
     return RefreshIndicator(
@@ -137,22 +153,45 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
           AcademyCard(
             title: 'This month (${DateFormat('MMMM').format(DateTime.now())})',
             icon: Icons.calendar_month_rounded,
-            trailing: TextButton(onPressed: () => _push(const AcademyReportScreen()), child: const Text('6-month report')),
+            trailing: TextButton(
+              onPressed: () => _push(const AcademyReportScreen()),
+              child: const Text('6-month report'),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(child: AcademyStat(ShopAcademyService.rand(month['income']), 'Money in', color: AppColors.success)),
-                    Expanded(child: AcademyStat(ShopAcademyService.rand(moneyOut), 'Money out', color: AppColors.red)),
                     Expanded(
-                      child: AcademyStat(ShopAcademyService.rand(net), net >= 0 ? 'Profit' : 'Loss',
-                          color: net >= 0 ? AppColors.primary : AppColors.red),
+                      child: AcademyStat(
+                        ShopAcademyService.rand(month['income']),
+                        'Money in',
+                        color: AppColors.success,
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        ShopAcademyService.rand(moneyOut),
+                        'Money out',
+                        color: AppColors.red,
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        ShopAcademyService.rand(net),
+                        net >= 0 ? 'Profit' : 'Loss',
+                        color: net >= 0 ? AppColors.primary : AppColors.red,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('${month['daysRecorded'] ?? 0} days recorded', style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+                Text(
+                  '${month['daysRecorded'] ?? 0} days recorded',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textHint,
+                  ),
+                ),
               ],
             ),
           ),
@@ -164,9 +203,22 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
               children: [
                 Row(
                   children: [
-                    Expanded(child: AcademyStat(ShopAcademyService.rand(stock['valueAtCost']), 'Value at cost')),
-                    Expanded(child: AcademyStat('${stock['items'] ?? 0}', 'Products')),
-                    Expanded(child: AcademyStat('${stock['lowStock'] ?? 0}', 'Running low', color: AppColors.red)),
+                    Expanded(
+                      child: AcademyStat(
+                        ShopAcademyService.rand(stock['valueAtCost']),
+                        'Value at cost',
+                      ),
+                    ),
+                    Expanded(
+                      child: AcademyStat('${stock['items'] ?? 0}', 'Products'),
+                    ),
+                    Expanded(
+                      child: AcademyStat(
+                        '${stock['lowStock'] ?? 0}',
+                        'Running low',
+                        color: AppColors.red,
+                      ),
+                    ),
                   ],
                 ),
                 if (alerts.isNotEmpty) ...[
@@ -177,15 +229,27 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
                       child: Row(
                         children: [
                           Icon(
-                            a['expiryDate'] != null && (a['quantity'] as num) > (a['reorderLevel'] as num)
+                            a['expiryDate'] != null &&
+                                    (a['quantity'] as num) >
+                                        (a['reorderLevel'] as num)
                                 ? Icons.event_busy_rounded
                                 : Icons.warning_amber_rounded,
                             size: 16,
                             color: AppColors.accentDark,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(a['name'] ?? '', style: AppTextStyles.bodySmall)),
-                          Text(_alertText(a), style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+                          Expanded(
+                            child: Text(
+                              a['name'] ?? '',
+                              style: AppTextStyles.bodySmall,
+                            ),
+                          ),
+                          Text(
+                            _alertText(a),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textHint,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -201,12 +265,24 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
           AcademyCard(
             child: Column(
               children: [
-                _action(Icons.business_center_outlined, 'Business details',
-                    '${_data['profileCompleteness'] ?? 0}% complete', () => _push(const BusinessProfileScreen())),
-                _action(Icons.school_outlined, 'Lessons', '${lessons['done'] ?? 0} of ${lessons['total'] ?? 0} passed',
-                    () => DefaultTabController.of(context).animateTo(3)),
-                _action(Icons.bar_chart_rounded, '6-month report', 'Money in, money out and profit',
-                    () => _push(const AcademyReportScreen())),
+                _action(
+                  Icons.business_center_outlined,
+                  'Business details',
+                  '${_data['profileCompleteness'] ?? 0}% complete',
+                  () => _push(const BusinessProfileScreen()),
+                ),
+                _action(
+                  Icons.school_outlined,
+                  'Lessons',
+                  '${lessons['done'] ?? 0} of ${lessons['total'] ?? 0} passed',
+                  () => DefaultTabController.of(context).animateTo(3),
+                ),
+                _action(
+                  Icons.bar_chart_rounded,
+                  '6-month report',
+                  'Money in, money out and profit',
+                  () => _push(const AcademyReportScreen()),
+                ),
               ],
             ),
           ),
@@ -223,12 +299,18 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
   }
 
   Widget _readinessHeader(int score) {
-    final color = score >= 70 ? AppColors.success : score >= 40 ? AppColors.accentDark : AppColors.red;
+    final color = score >= 70
+        ? AppColors.success
+        : score >= 40
+        ? AppColors.accentDark
+        : AppColors.red;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryLight]),
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+        ),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -247,10 +329,15 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
                         value: score / 100,
                         strokeWidth: 8,
                         backgroundColor: Colors.white24,
-                        color: color == AppColors.red ? Colors.white : AppColors.secondaryLight,
+                        color: color == AppColors.red
+                            ? Colors.white
+                            : AppColors.secondaryLight,
                       ),
                     ),
-                    Text('$score', style: AppTextStyles.h2.copyWith(color: Colors.white)),
+                    Text(
+                      '$score',
+                      style: AppTextStyles.h2.copyWith(color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -259,13 +346,21 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Funding readiness', style: AppTextStyles.subtitle.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                    Text(
+                      'Funding readiness',
+                      style: AppTextStyles.subtitle.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       score >= 70
                           ? 'Your records look strong. Keep them up to date.'
                           : 'Complete the checklist below to show funders a well-run business.',
-                      style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
                     ),
                   ],
                 ),
@@ -276,10 +371,15 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.primary),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+              ),
               onPressed: _openingRecord ? null : _openRecord,
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(_openingRecord ? 'Opening…' : 'Business Record (PDF)'),
+              label: Text(
+                _openingRecord ? 'Opening…' : 'Business Record (PDF)',
+              ),
             ),
           ),
         ],
@@ -294,21 +394,42 @@ class _OverviewTabState extends State<_OverviewTab> with AutomaticKeepAliveClien
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(left: 40, bottom: 8),
-        leading: Icon(done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: done ? AppColors.success : AppColors.textHint),
+        leading: Icon(
+          done
+              ? Icons.check_circle_rounded
+              : Icons.radio_button_unchecked_rounded,
+          color: done ? AppColors.success : AppColors.textHint,
+        ),
         title: Text(item['label'] ?? '', style: AppTextStyles.body),
-        trailing: Text('${item['earned']}/${item['points']}', style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+        trailing: Text(
+          '${item['earned']}/${item['points']}',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+        ),
         children: [
-          Align(alignment: Alignment.centerLeft, child: Text(item['tip'] ?? '', style: AppTextStyles.bodySmall)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(item['tip'] ?? '', style: AppTextStyles.bodySmall),
+          ),
         ],
       ),
     );
   }
 
-  Widget _action(IconData icon, String title, String subtitle, VoidCallback onTap) => ListTile(
+  Widget _action(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) => ListTile(
     contentPadding: EdgeInsets.zero,
-    leading: CircleAvatar(backgroundColor: AppColors.primaryTint, child: Icon(icon, color: AppColors.primary)),
-    title: Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+    leading: CircleAvatar(
+      backgroundColor: AppColors.primaryTint,
+      child: Icon(icon, color: AppColors.primary),
+    ),
+    title: Text(
+      title,
+      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+    ),
     subtitle: Text(subtitle),
     trailing: const Icon(Icons.chevron_right_rounded),
     onTap: onTap,

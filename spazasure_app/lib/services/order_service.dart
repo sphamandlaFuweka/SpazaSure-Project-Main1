@@ -28,7 +28,11 @@ class CheckoutQuote {
   final bool canCheckout;
   final List<SupplierQuote> suppliers;
 
-  const CheckoutQuote({required this.deliveryFeeTotal, required this.canCheckout, required this.suppliers});
+  const CheckoutQuote({
+    required this.deliveryFeeTotal,
+    required this.canCheckout,
+    required this.suppliers,
+  });
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) => CheckoutQuote(
     deliveryFeeTotal: (json['deliveryFeeTotal'] as num?)?.toDouble() ?? 0,
@@ -39,7 +43,10 @@ class CheckoutQuote {
         .toList(),
   );
 
-  List<String> get problems => [for (final s in suppliers) if (s.problem != null) s.problem!];
+  List<String> get problems => [
+    for (final s in suppliers)
+      if (s.problem != null) s.problem!,
+  ];
 }
 
 class SupplierQuote {
@@ -82,7 +89,9 @@ class OrderService {
   static Future<bool> confirmPayment(String orderNumber) async {
     if (orderNumber.isEmpty) return false;
     try {
-      final res = await ApiService.post('/shop/orders/confirm-payment', {'orderNumber': orderNumber});
+      final res = await ApiService.post('/shop/orders/confirm-payment', {
+        'orderNumber': orderNumber,
+      });
       return (res['data'] as Map<String, dynamic>?)?['paid'] == true;
     } catch (_) {
       return false; // the webhook still confirms it later
@@ -90,11 +99,19 @@ class OrderService {
   }
 
   /// The delivery fees and shipping branches for the cart, before the shop pays.
-  static Future<CheckoutQuote> quote({required List<CartItem> items, required String deliveryOption}) async {
+  static Future<CheckoutQuote> quote({
+    required List<CartItem> items,
+    required String deliveryOption,
+  }) async {
     final res = await ApiService.post('/shop/orders/quote', {
       'deliveryType': deliveryOption,
       'items': [
-        for (final i in items) {'productId': i.product.id, 'quantity': i.quantity, 'unitPrice': i.product.price},
+        for (final i in items)
+          {
+            'productId': i.product.id,
+            'quantity': i.quantity,
+            'unitPrice': i.product.price,
+          },
       ],
     });
     return CheckoutQuote.fromJson(res['data'] as Map<String, dynamic>);
@@ -138,8 +155,11 @@ class OrderService {
   /// supplier's name the first time it's asked for; a tax invoice when the supplier is VAT registered.
   static Future<String> invoiceLink(String orderId) async {
     final res = await ApiService.get('/invoices/orders/$orderId');
-    final url = (res['data'] as Map<String, dynamic>)['downloadUrl']?.toString();
-    if (url == null || url.isEmpty) throw StateError('The invoice is not available yet.');
+    final url = (res['data'] as Map<String, dynamic>)['downloadUrl']
+        ?.toString();
+    if (url == null || url.isEmpty) {
+      throw StateError('The invoice is not available yet.');
+    }
     return url;
   }
 

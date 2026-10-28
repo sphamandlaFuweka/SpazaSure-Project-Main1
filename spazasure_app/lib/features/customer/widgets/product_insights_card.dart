@@ -194,10 +194,7 @@ class ProductInsightsCard extends StatelessWidget {
           Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _text(h['text']) ?? '',
-              style: AppTextStyles.bodySmall,
-            ),
+            child: Text(_text(h['text']) ?? '', style: AppTextStyles.bodySmall),
           ),
         ],
       ),
@@ -327,7 +324,8 @@ class BarcodeInfoCard extends StatelessWidget {
             children: [
               if (_text(info['format']) != null)
                 _pill(_text(info['format'])!, AppColors.primary),
-              if (country != null) _pill('Registered in $country', AppColors.primary),
+              if (country != null)
+                _pill('Registered in $country', AppColors.primary),
               if (checkOk != null)
                 _pill(
                   checkOk ? 'Check digit correct' : 'Check digit wrong',

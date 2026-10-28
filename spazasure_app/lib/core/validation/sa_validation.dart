@@ -17,7 +17,9 @@ class SaValidation {
     final year = 2000 + int.parse(id.substring(0, 2));
     final date = DateTime(year, month, day);
     final leapYearFor29Feb = month == 2 && day == 29;
-    if (month < 1 || month > 12 || day < 1 ||
+    if (month < 1 ||
+        month > 12 ||
+        day < 1 ||
         (date.month != month && !leapYearFor29Feb) ||
         (leapYearFor29Feb && year % 4 != 0)) {
       return false;
@@ -44,11 +46,11 @@ class SaValidation {
     final national = digits.startsWith('27') && digits.length == 11
         ? digits.substring(2)
         : digits.startsWith('0') && digits.length == 10
-            ? digits.substring(1)
-            // The registration form shows "+27" as a prefix, so people often type just the 9 digits.
-            : digits.length == 9
-                ? digits
-                : null;
+        ? digits.substring(1)
+        // The registration form shows "+27" as a prefix, so people often type just the 9 digits.
+        : digits.length == 9
+        ? digits
+        : null;
     return national != null && '12345678'.contains(national[0]);
   }
 }

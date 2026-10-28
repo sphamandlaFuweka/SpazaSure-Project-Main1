@@ -110,7 +110,10 @@ class ApiService {
         if (res.statusCode == 401) {
           final expired = onSessionExpired;
           if (expired != null) await expired();
-          throw ApiException('Your session has ended. Please sign in again.', 401);
+          throw ApiException(
+            'Your session has ended. Please sign in again.',
+            401,
+          );
         }
       }
       return _handle(res);
@@ -130,7 +133,11 @@ class ApiService {
     bool auth = true,
   }) => _send(
     path,
-    (h) => http.post(Uri.parse('$baseUrl$path'), headers: h, body: jsonEncode(body)),
+    (h) => http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: h,
+      body: jsonEncode(body),
+    ),
     auth: auth,
     timeout: const Duration(seconds: 30),
   );
@@ -143,7 +150,11 @@ class ApiService {
     Map<String, dynamic> body,
   ) => _send(
     path,
-    (h) => http.patch(Uri.parse('$baseUrl$path'), headers: h, body: jsonEncode(body)),
+    (h) => http.patch(
+      Uri.parse('$baseUrl$path'),
+      headers: h,
+      body: jsonEncode(body),
+    ),
   );
 
   static Future<Map<String, dynamic>> put(
@@ -270,7 +281,11 @@ class ApiService {
       request.fields.addAll(fields);
       if (fileBytes != null && fileName != null) {
         request.files.add(
-          http.MultipartFile.fromBytes(fileField, fileBytes, filename: fileName),
+          http.MultipartFile.fromBytes(
+            fileField,
+            fileBytes,
+            filename: fileName,
+          ),
         );
       }
       return http.Response.fromStream(await request.send());

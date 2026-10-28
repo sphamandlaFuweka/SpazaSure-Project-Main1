@@ -39,7 +39,10 @@ class ProductInfo {
   }
 
   static List<String> _strings(dynamic v) => v is List
-      ? v.map((e) => e?.toString().trim() ?? '').where((e) => e.isNotEmpty).toList()
+      ? v
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList()
       : const [];
 
   factory ProductInfo.fromJson(Map<String, dynamic>? json) {
@@ -56,11 +59,13 @@ class ProductInfo {
       nutrition: (json['nutrition'] is List)
           ? (json['nutrition'] as List)
                 .whereType<Map>()
-                .map((m) => NutritionRow(
-                      nutrient: _text(m['nutrient']) ?? '',
-                      per100: _text(m['per100']),
-                      perServing: _text(m['perServing']),
-                    ))
+                .map(
+                  (m) => NutritionRow(
+                    nutrient: _text(m['nutrient']) ?? '',
+                    per100: _text(m['per100']),
+                    perServing: _text(m['perServing']),
+                  ),
+                )
                 .where((r) => r.nutrient.isNotEmpty)
                 .toList()
           : const [],
@@ -70,10 +75,12 @@ class ProductInfo {
       specifications: (json['specifications'] is List)
           ? (json['specifications'] as List)
                 .whereType<Map>()
-                .map((m) => SpecificationRow(
-                      label: _text(m['label']) ?? '',
-                      value: _text(m['value']) ?? '',
-                    ))
+                .map(
+                  (m) => SpecificationRow(
+                    label: _text(m['label']) ?? '',
+                    value: _text(m['value']) ?? '',
+                  ),
+                )
                 .where((r) => r.label.isNotEmpty && r.value.isNotEmpty)
                 .toList()
           : const [],
@@ -84,9 +91,12 @@ class ProductInfo {
   /// Brand, pack size, origin, manufacturer and the supplier's specification rows.
   List<SpecificationRow> get facts => [
     if (brand != null) SpecificationRow(label: 'Brand', value: brand!),
-    if (packSize != null) SpecificationRow(label: 'Pack size', value: packSize!),
-    if (manufacturer != null) SpecificationRow(label: 'Manufacturer', value: manufacturer!),
-    if (countryOfOrigin != null) SpecificationRow(label: 'Country of origin', value: countryOfOrigin!),
+    if (packSize != null)
+      SpecificationRow(label: 'Pack size', value: packSize!),
+    if (manufacturer != null)
+      SpecificationRow(label: 'Manufacturer', value: manufacturer!),
+    if (countryOfOrigin != null)
+      SpecificationRow(label: 'Country of origin', value: countryOfOrigin!),
     ...specifications,
   ];
 

@@ -89,7 +89,9 @@ class PushService {
       if (await FirebaseMessaging.instance.getAPNSToken() != null) return true;
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
-    debugPrint('[Push] No APNs token from Apple; push stays off on this phone.');
+    debugPrint(
+      '[Push] No APNs token from Apple; push stays off on this phone.',
+    );
     return false;
   }
 

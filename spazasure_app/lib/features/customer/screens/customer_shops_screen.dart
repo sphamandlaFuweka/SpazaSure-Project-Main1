@@ -8,6 +8,7 @@ import 'package:spazasure_app/core/geo/south_africa.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'customer_shop_detail_screen.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerShopsScreen extends StatefulWidget {
   const CustomerShopsScreen({super.key});
@@ -153,7 +154,7 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    appBar: AppBar(title: const Text('Trusted shops')),
+    appBar: BrandAppBar(title: const Text('Trusted shops')),
     body: RefreshIndicator(
       onRefresh: _load,
       child: ListView(

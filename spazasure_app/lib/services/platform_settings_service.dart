@@ -24,16 +24,28 @@ class PlatformSettings {
 
   bool cashOnDeliveryAllowedFor(double total) =>
       cashOnDeliveryEnabled &&
-      (cashOnDeliveryMaxOrderTotal <= 0 || total <= cashOnDeliveryMaxOrderTotal);
+      (cashOnDeliveryMaxOrderTotal <= 0 ||
+          total <= cashOnDeliveryMaxOrderTotal);
 
   factory PlatformSettings.fromJson(Map<String, dynamic> j) {
-    double d(String key, double fallback) => (j[key] as num?)?.toDouble() ?? fallback;
+    double d(String key, double fallback) =>
+        (j[key] as num?)?.toDouble() ?? fallback;
     return PlatformSettings(
-      standardDeliveryFee: d('standardDeliveryFee', defaults.standardDeliveryFee),
+      standardDeliveryFee: d(
+        'standardDeliveryFee',
+        defaults.standardDeliveryFee,
+      ),
       expressDeliveryFee: d('expressDeliveryFee', defaults.expressDeliveryFee),
-      shopServiceFeePercent: d('shopServiceFeePercent', defaults.shopServiceFeePercent),
-      cashOnDeliveryEnabled: j['cashOnDeliveryEnabled'] as bool? ?? defaults.cashOnDeliveryEnabled,
-      cashOnDeliveryMaxOrderTotal: d('cashOnDeliveryMaxOrderTotal', defaults.cashOnDeliveryMaxOrderTotal),
+      shopServiceFeePercent: d(
+        'shopServiceFeePercent',
+        defaults.shopServiceFeePercent,
+      ),
+      cashOnDeliveryEnabled:
+          j['cashOnDeliveryEnabled'] as bool? ?? defaults.cashOnDeliveryEnabled,
+      cashOnDeliveryMaxOrderTotal: d(
+        'cashOnDeliveryMaxOrderTotal',
+        defaults.cashOnDeliveryMaxOrderTotal,
+      ),
     );
   }
 }

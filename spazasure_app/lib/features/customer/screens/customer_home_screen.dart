@@ -9,6 +9,7 @@ import 'package:spazasure_app/features/customer/screens/ask_spazasure_sheet.dart
 import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -16,7 +17,7 @@ class CustomerHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    appBar: AppBar(
+    appBar: BrandAppBar(
       title: const Text('SpazaSure'),
       actions: [
         // Chats with shops + news & alerts, with a dot for anything unread

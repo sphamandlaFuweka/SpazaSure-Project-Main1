@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerRewardsScreen extends StatefulWidget {
   const CustomerRewardsScreen({super.key});
@@ -73,7 +74,7 @@ class _CustomerRewardsScreenState extends State<CustomerRewardsScreen> {
     final progress = (points % 500) / 500;
     final vouchers = (_summary?['vouchers'] as List?) ?? const [];
     return Scaffold(
-      appBar: AppBar(title: const Text('My Rewards')),
+      appBar: BrandAppBar(title: const Text('My Rewards')),
       backgroundColor: AppColors.background,
       body: _loading
           ? const Center(child: CircularProgressIndicator())

@@ -25,7 +25,9 @@ class CustomerSubscriptionPlan {
         isAvailable: json['isAvailable'] == true,
         description: json['description']?.toString() ?? '',
         features:
-            (json['features'] as List?)?.map((item) => item.toString()).toList() ??
+            (json['features'] as List?)
+                ?.map((item) => item.toString())
+                .toList() ??
             const [],
       );
 }

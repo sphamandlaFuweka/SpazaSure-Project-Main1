@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/feedback_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// "Send feedback": what works, what doesn't and what testers would like, with an optional
 /// rating and screenshot. The team reads it in the admin console.
@@ -80,7 +81,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Thank you! Your feedback helps us make SpazaSure better.'),
+          content: Text(
+            'Thank you! Your feedback helps us make SpazaSure better.',
+          ),
         ),
       );
       Navigator.pop(context, true);
@@ -95,21 +98,21 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Send feedback'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-      ),
+      appBar: BrandAppBar(title: const Text('Send feedback'), elevation: 0),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
             "SpazaSure is still being tested. Tell us what works, what doesn't and what you'd like to see. We read every message.",
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 16),
-          Text('What is it about?', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'What is it about?',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -145,16 +148,21 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
           const SizedBox(height: 8),
           Text(
             'How do you rate SpazaSure so far? (optional)',
-            style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+            style: AppTextStyles.bodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Row(
             children: [
               for (var star = 1; star <= 5; star++)
                 IconButton(
                   tooltip: '$star of 5',
-                  onPressed: () => setState(() => _rating = _rating == star ? null : star),
+                  onPressed: () =>
+                      setState(() => _rating = _rating == star ? null : star),
                   icon: Icon(
-                    _rating != null && star <= _rating! ? Icons.star_rounded : Icons.star_outline_rounded,
+                    _rating != null && star <= _rating!
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     color: AppColors.warning,
                     size: 32,
                   ),
@@ -173,12 +181,19 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.memory(_screenshot!, width: 72, height: 72, fit: BoxFit.cover),
+                  child: Image.memory(
+                    _screenshot!,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(child: Text('Screenshot added')),
                 TextButton(
-                  onPressed: _sending ? null : () => setState(() => _screenshot = null),
+                  onPressed: _sending
+                      ? null
+                      : () => setState(() => _screenshot = null),
                   child: const Text('Remove'),
                 ),
               ],
@@ -186,7 +201,10 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+              child: Text(
+                _error!,
+                style: AppTextStyles.caption.copyWith(color: AppColors.error),
+              ),
             ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -195,11 +213,16 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.send_rounded),
             label: const Text('Send feedback'),
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
           ),
         ],
       ),
@@ -218,15 +241,21 @@ class FeedbackCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ListTile(
-        leading: const Icon(Icons.rate_review_outlined, color: AppColors.primary),
+        leading: const Icon(
+          Icons.rate_review_outlined,
+          color: AppColors.primary,
+        ),
         title: const Text('Send feedback'),
-        subtitle: const Text('Report a problem or share an idea while we test SpazaSure'),
+        subtitle: const Text(
+          'Report a problem or share an idea while we test SpazaSure',
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
             settings: const RouteSettings(name: '/send-feedback'),
-            builder: (_) => SendFeedbackScreen(service: service, fromScreen: 'Profile'),
+            builder: (_) =>
+                SendFeedbackScreen(service: service, fromScreen: 'Profile'),
           ),
         ),
       ),

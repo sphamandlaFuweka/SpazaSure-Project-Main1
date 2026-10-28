@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/chat_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// One conversation between a customer and a spaza shop.
 class ChatThreadScreen extends StatefulWidget {
@@ -149,7 +150,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         titleSpacing: 0,
         title: Row(
           children: [

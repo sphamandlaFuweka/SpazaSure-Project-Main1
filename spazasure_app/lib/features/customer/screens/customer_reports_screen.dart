@@ -4,6 +4,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/services/customer_report_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerReportsScreen extends StatefulWidget {
   const CustomerReportsScreen({super.key});
@@ -92,7 +93,7 @@ class _CustomerReportsScreenState extends State<CustomerReportsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
-    appBar: AppBar(
+    appBar: BrandAppBar(
       title: const Text('My reports'),
       actions: [
         IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),

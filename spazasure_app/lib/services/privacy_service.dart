@@ -6,11 +6,16 @@ class DeletionRequest {
   final String? decisionNote;
   final DateTime? createdAt;
 
-  const DeletionRequest({required this.status, this.decisionNote, this.createdAt});
+  const DeletionRequest({
+    required this.status,
+    this.decisionNote,
+    this.createdAt,
+  });
 
   bool get isPending => status == 'pending';
 
-  factory DeletionRequest.fromJson(Map<String, dynamic> json) => DeletionRequest(
+  factory DeletionRequest.fromJson(Map<String, dynamic> json) =>
+      DeletionRequest(
         status: json['status']?.toString() ?? 'pending',
         decisionNote: json['decisionNote']?.toString(),
         createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
@@ -48,9 +53,12 @@ class PrivacyService {
 
   /// Returns the server's message, e.g. what still has to be settled first.
   Future<String> requestDeletion(String reason) async {
-    final res = await ApiService.post('$basePath/deletion-request', {'reason': reason});
+    final res = await ApiService.post('$basePath/deletion-request', {
+      'reason': reason,
+    });
     return res['message']?.toString() ?? 'We received your request.';
   }
 
-  Future<void> cancelDeletion() => ApiService.delete('$basePath/deletion-request');
+  Future<void> cancelDeletion() =>
+      ApiService.delete('$basePath/deletion-request');
 }

@@ -10,6 +10,7 @@ import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   const OrderDetailScreen({super.key});
@@ -20,9 +21,8 @@ class OrderDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: BrandAppBar(
         title: Text(order.orderNumber),
-        backgroundColor: AppColors.surface,
         actions: [
           if (order.canHaveInvoice)
             IconButton(
@@ -291,7 +291,12 @@ class OrderDetailScreen extends StatelessWidget {
               ),
             // The code the driver checks on arrival: proves the goods reached this shop
             if (order.deliveryCode != null &&
-                const ['confirmed', 'processing', 'ready', 'dispatched'].contains(order.status))
+                const [
+                  'confirmed',
+                  'processing',
+                  'ready',
+                  'dispatched',
+                ].contains(order.status))
               _deliveryCodeCard(order),
             if (order.shipsFrom != null || order.driverName != null)
               Container(
@@ -305,9 +310,15 @@ class OrderDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (order.shipsFrom != null)
-                      _infoRow(Icons.warehouse_outlined, 'Ships from ${order.shipsFrom}'),
+                      _infoRow(
+                        Icons.warehouse_outlined,
+                        'Ships from ${order.shipsFrom}',
+                      ),
                     if (order.driverName != null)
-                      _infoRow(Icons.local_shipping_outlined, 'Driver: ${order.driverName}'),
+                      _infoRow(
+                        Icons.local_shipping_outlined,
+                        'Driver: ${order.driverName}',
+                      ),
                   ],
                 ),
               ),
@@ -316,7 +327,8 @@ class OrderDetailScreen extends StatelessWidget {
         ),
       ),
       // Cash orders are confirmed by the driver after checking the delivery code
-      bottomNavigationBar: order.status == 'dispatched' &&
+      bottomNavigationBar:
+          order.status == 'dispatched' &&
               order.paymentMethod != OrderService.cashOnDelivery
           ? Container(
               padding: const EdgeInsets.all(16),
@@ -418,28 +430,37 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _infoRow(IconData icon, String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textSecondary),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
+      ],
+    ),
+  );
 
   /// Opens the invoice PDF in the phone's browser, where it can be saved or shared.
   Future<void> _openInvoice(BuildContext context, Order order) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final url = await OrderService.invoiceLink(order.id);
-      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
       if (!opened) throw StateError('Could not open the invoice.');
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(e is ApiException ? e.message : 'Could not open the invoice. Try again.'),
-        backgroundColor: AppColors.error,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException
+                ? e.message
+                : 'Could not open the invoice. Try again.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -498,7 +519,9 @@ class OrderDetailScreen extends StatelessWidget {
                 ? 'Show this to the SpazaSure driver once you have checked your goods and paid R${order.total.toStringAsFixed(2)} in cash.'
                 : 'Show this to the SpazaSure driver once you have checked your goods. It confirms they delivered to the right shop.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -512,7 +535,10 @@ class OrderDetailScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: QrImageView(
               // The driver page reads the code back out of this
               data: 'SPAZASURE-DELIVERY:$code',

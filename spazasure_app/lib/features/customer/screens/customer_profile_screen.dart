@@ -90,7 +90,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   TextFormField(
                     controller: first,
                     textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: tr('profile.firstName')),
+                    decoration: InputDecoration(
+                      labelText: tr('profile.firstName'),
+                    ),
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? 'Enter your first name'
                         : null,
@@ -99,7 +101,9 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   TextFormField(
                     controller: last,
                     textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(labelText: tr('profile.lastName')),
+                    decoration: InputDecoration(
+                      labelText: tr('profile.lastName'),
+                    ),
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? 'Enter your last name'
                         : null,
@@ -374,8 +378,16 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           tr('profile.lastName'),
           lastName.isNotEmpty ? lastName : '—',
         ),
-        _infoTile(Icons.email_rounded, tr('profile.email'), email.isNotEmpty ? email : '—'),
-        _infoTile(Icons.phone_rounded, tr('profile.phone'), phone.isNotEmpty ? phone : '—'),
+        _infoTile(
+          Icons.email_rounded,
+          tr('profile.email'),
+          email.isNotEmpty ? email : '—',
+        ),
+        _infoTile(
+          Icons.phone_rounded,
+          tr('profile.phone'),
+          phone.isNotEmpty ? phone : '—',
+        ),
         _infoTile(Icons.cake_rounded, 'Age', age != null ? '$age' : '—'),
       ],
     );

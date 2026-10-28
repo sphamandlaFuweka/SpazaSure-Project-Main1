@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/academy/widgets/academy_widgets.dart';
 import 'package:spazasure_app/services/shop_academy_service.dart';
+import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 /// Six months of trading from the cash book and stock book: money in, costs, profit and losses.
 class AcademyReportScreen extends StatefulWidget {
@@ -48,16 +49,24 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final months = ((_report['months'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final months = ((_report['months'] as List?) ?? [])
+        .cast<Map<String, dynamic>>();
     final totals = (_report['totals'] as Map?)?.cast<String, dynamic>() ?? {};
-    final top = months.fold<double>(1, (m, r) => math.max(m, math.max(
-      (r['income'] as num).toDouble(),
-      (r['stockPurchases'] as num).toDouble() + (r['operatingExpenses'] as num).toDouble(),
-    )));
+    final top = months.fold<double>(
+      1,
+      (m, r) => math.max(
+        m,
+        math.max(
+          (r['income'] as num).toDouble(),
+          (r['stockPurchases'] as num).toDouble() +
+              (r['operatingExpenses'] as num).toDouble(),
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('6-month report')),
+      appBar: BrandAppBar(title: const Text('6-month report')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _failed
@@ -72,10 +81,20 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: AcademyStat(ShopAcademyService.rand(totals['income']), 'Money in', color: AppColors.success)),
                             Expanded(
                               child: AcademyStat(
-                                ShopAcademyService.rand(((totals['stockPurchases'] as num?) ?? 0) + ((totals['operatingExpenses'] as num?) ?? 0)),
+                                ShopAcademyService.rand(totals['income']),
+                                'Money in',
+                                color: AppColors.success,
+                              ),
+                            ),
+                            Expanded(
+                              child: AcademyStat(
+                                ShopAcademyService.rand(
+                                  ((totals['stockPurchases'] as num?) ?? 0) +
+                                      ((totals['operatingExpenses'] as num?) ??
+                                          0),
+                                ),
                                 'Money out',
                                 color: AppColors.red,
                               ),
@@ -85,8 +104,20 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Expanded(child: AcademyStat(ShopAcademyService.rand(totals['netProfit']), 'Profit', color: AppColors.primary)),
-                            Expanded(child: AcademyStat(ShopAcademyService.rand(totals['stockLosses']), 'Stock losses', color: AppColors.accentDark)),
+                            Expanded(
+                              child: AcademyStat(
+                                ShopAcademyService.rand(totals['netProfit']),
+                                'Profit',
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Expanded(
+                              child: AcademyStat(
+                                ShopAcademyService.rand(totals['stockLosses']),
+                                'Stock losses',
+                                color: AppColors.accentDark,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -108,16 +139,32 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
-                                          _bar((m['income'] as num).toDouble() / top, AppColors.success),
+                                          _bar(
+                                            (m['income'] as num).toDouble() /
+                                                top,
+                                            AppColors.success,
+                                          ),
                                           const SizedBox(width: 3),
-                                          _bar(((m['stockPurchases'] as num) + (m['operatingExpenses'] as num)).toDouble() / top, AppColors.red),
+                                          _bar(
+                                            ((m['stockPurchases'] as num) +
+                                                        (m['operatingExpenses']
+                                                            as num))
+                                                    .toDouble() /
+                                                top,
+                                            AppColors.red,
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(_monthLabel(m['month']), style: AppTextStyles.caption),
+                                      Text(
+                                        _monthLabel(m['month']),
+                                        style: AppTextStyles.caption,
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -149,10 +196,21 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                                 SizedBox(
                                   width: 70,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(_monthLabel(m['month']), style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
-                                      Text('${m['daysRecorded']} days', style: AppTextStyles.caption.copyWith(color: AppColors.textHint)),
+                                      Text(
+                                        _monthLabel(m['month']),
+                                        style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${m['daysRecorded']} days',
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: AppColors.textHint,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -167,7 +225,9 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                                   ShopAcademyService.rand(m['netProfit']),
                                   style: AppTextStyles.body.copyWith(
                                     fontWeight: FontWeight.w800,
-                                    color: (m['netProfit'] as num) >= 0 ? AppColors.primary : AppColors.red,
+                                    color: (m['netProfit'] as num) >= 0
+                                        ? AppColors.primary
+                                        : AppColors.red,
                                   ),
                                 ),
                               ],
@@ -181,7 +241,9 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
                     child: Text(
                       '${_report['recordedMonths'] ?? 0} of these months have entries on 8 or more days. '
                       'Funders usually want 3 to 6 recorded months.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textHint,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -194,12 +256,22 @@ class _AcademyReportScreenState extends State<AcademyReportScreen> {
   Widget _bar(double fraction, Color color) => Container(
     width: 12,
     height: math.max(2, 120 * fraction.clamp(0, 1)),
-    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(4),
+    ),
   );
 
   Widget _legend(String label, Color color) => Row(
     children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      ),
       const SizedBox(width: 6),
       Text(label, style: AppTextStyles.caption),
     ],
