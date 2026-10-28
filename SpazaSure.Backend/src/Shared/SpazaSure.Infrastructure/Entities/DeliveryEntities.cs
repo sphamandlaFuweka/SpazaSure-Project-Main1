@@ -25,6 +25,21 @@ public class Driver : BaseEntity
     public DateTime? LastSeenAt { get; set; }
 
     public ICollection<DriverDocument> Documents { get; set; } = [];
+    public ICollection<DriverPushSubscription> PushSubscriptions { get; set; } = [];
+}
+
+/// <summary>
+/// A phone the driver turned delivery alerts on for, from their driver page (standard web push).
+/// New deliveries pop up on it even when the page is closed.
+/// </summary>
+public class DriverPushSubscription : BaseEntity
+{
+    public Guid DriverId { get; set; }
+    public string Endpoint { get; set; } = string.Empty;
+    public string P256dh { get; set; } = string.Empty;
+    public string Auth { get; set; } = string.Empty;
+
+    public Driver Driver { get; set; } = null!;
 }
 
 /// <summary>

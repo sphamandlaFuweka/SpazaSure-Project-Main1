@@ -29,31 +29,9 @@ class CartProvider extends ChangeNotifier {
     return perSupplier * _items.map((item) => item.product.supplierId).toSet().length;
   }
 
-  double platformFee() {
-    final subtotals = <String, double>{};
-    final rates = <String, double>{};
-    for (final item in _items) {
-      final supplierId = item.product.supplierId;
-      subtotals.update(
-        supplierId,
-        (value) => value + item.total,
-        ifAbsent: () => item.total,
-      );
-      rates[supplierId] = item.product.supplierCommissionRate;
-    }
-    return subtotals.entries.fold(0, (sum, entry) {
-      // Supplier tier commission + any shop service fee, as charged by the server
-      final fee = entry.value *
-          ((rates[entry.key] ?? 5) + _settings.shopServiceFeePercent) /
-          100;
-      return sum + double.parse(fee.toStringAsFixed(2));
-    });
-  }
-
-  double total(String option) {
-    final sub = subtotal;
-    return sub + deliveryFee(option) + platformFee();
-  }
+  // Product prices from the server already include SpazaSure's fee, so the total is
+  // just the items plus delivery: shops never see a separate fee.
+  double total(String option) => subtotal + deliveryFee(option);
 
   bool add(Product product, int quantity) {
     if (quantity < 1 || product.stockQuantity < quantity) return false;

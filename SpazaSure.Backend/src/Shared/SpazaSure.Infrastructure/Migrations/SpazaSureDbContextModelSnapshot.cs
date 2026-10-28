@@ -645,6 +645,56 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("driver_documents", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.DriverPushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("auth");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("endpoint");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("p256dh");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_driver_push_subscriptions");
+
+                    b.HasIndex("DriverId")
+                        .HasDatabaseName("ix_driver_push_subscriptions_driver_id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique()
+                        .HasDatabaseName("ix_driver_push_subscriptions_endpoint");
+
+                    b.ToTable("driver_push_subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.EmailSend", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1199,6 +1249,20 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("driver_id");
 
+                    b.Property<DateTime?>("DriverPaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("driver_paid_at");
+
+                    b.Property<decimal?>("DriverPay")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("driver_pay");
+
+                    b.Property<string>("DriverPayReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("driver_pay_reference");
+
                     b.Property<Guid?>("GroupBuyId")
                         .HasColumnType("uuid")
                         .HasColumnName("group_buy_id");
@@ -1369,6 +1433,16 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
+
+                    b.Property<decimal>("ShopLineTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("shop_line_total");
+
+                    b.Property<decimal>("ShopUnitPrice")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("shop_unit_price");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(10, 2)
@@ -3881,6 +3955,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Driver");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.DriverPushSubscription", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.Driver", "Driver")
+                        .WithMany("PushSubscriptions")
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_driver_push_subscriptions_drivers_driver_id");
+
+                    b.Navigation("Driver");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.FeedbackItem", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.User", "User")
@@ -4465,6 +4551,8 @@ namespace SpazaSure.Infrastructure.Migrations
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Driver", b =>
                 {
                     b.Navigation("Documents");
+
+                    b.Navigation("PushSubscriptions");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuy", b =>

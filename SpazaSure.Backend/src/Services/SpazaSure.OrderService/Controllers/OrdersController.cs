@@ -12,7 +12,7 @@ namespace SpazaSure.OrderService.Controllers;
 [ApiController]
 [Route("api/supplier/orders")]
 [Authorize]
-public class OrdersController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+public class OrdersController(SpazaSureDbContext db, EventPublisher events, DriverAlerts? driverAlerts = null) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -243,6 +243,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events) : Co
         // A cancelled order gives its stock back
         await OrderStock.SyncAsync(db, order, heldStock);
         await db.SaveChangesAsync();
+        // The driver hears when the order is ready to collect, or cancelled
+        if (driverAlerts is not null) await driverAlerts.OrderStatusChangedAsync(order);
 
         // Notify the shop owner about the status change
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.Id == order.ShopId);

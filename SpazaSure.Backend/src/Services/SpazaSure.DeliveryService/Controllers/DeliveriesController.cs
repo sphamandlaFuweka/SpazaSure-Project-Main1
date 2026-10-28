@@ -13,7 +13,7 @@ namespace SpazaSure.DeliveryService.Controllers;
 [ApiController]
 [Route("api/admin/deliveries")]
 [Authorize(Roles = "admin")]
-public class DeliveriesController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+public class DeliveriesController(SpazaSureDbContext db, EventPublisher events, DriverAlerts? driverAlerts = null) : ControllerBase
 {
     /// <summary>
     /// Orders waiting for or on their way to a shop. "unassigned" lists the ones without a driver,
@@ -59,10 +59,23 @@ public class DeliveriesController(SpazaSureDbContext db, EventPublisher events) 
         }
 
         var changed = order.DriverId != driver?.Id;
+        var previousDriverId = order.DriverId;
         order.DriverId = driver?.Id;
         order.Driver = driver;
         order.DriverAssignedAt = driver is null ? null : DateTime.UtcNow;
         await db.SaveChangesAsync();
+
+        if (changed && driverAlerts is not null)
+        {
+            // The new driver gets a phone alert; one taken off the order hears so too
+            if (driver is not null)
+                await driverAlerts.SendAsync(driver, "New delivery for you",
+                    $"Order {order.OrderNumber}: collect from {Tracking.PickupName(order)}, deliver to {order.Shop.ShopName}. Open SpazaSure for directions.",
+                    order.OrderNumber);
+            if (previousDriverId is { } oldId && await db.Drivers.FirstOrDefaultAsync(d => d.Id == oldId && d.IsActive) is { } oldDriver)
+                await driverAlerts.SendAsync(oldDriver, "Delivery taken off you",
+                    $"Order {order.OrderNumber} has been given to another driver. You don't need to deliver it.", order.OrderNumber);
+        }
 
         if (changed && driver is not null)
             events.PublishNotification(
@@ -117,6 +130,9 @@ internal static class Tracking
 {
     /// <summary>A driver position older than this isn't shown; the driver probably stopped sharing.</summary>
     public static readonly TimeSpan FreshFor = TimeSpan.FromMinutes(30);
+
+    public static string PickupName(Order o) =>
+        o.SupplierBranch is { } b ? $"{o.Supplier.CompanyName} - {b.Name}" : o.Supplier.CompanyName;
 
     public static object Pickup(Order o) => o.SupplierBranch is { } b
         ? new { Name = $"{o.Supplier.CompanyName} - {b.Name}", b.Address, Latitude = (double?)b.Latitude, Longitude = (double?)b.Longitude }

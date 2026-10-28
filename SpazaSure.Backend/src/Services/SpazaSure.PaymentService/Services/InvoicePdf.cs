@@ -121,8 +121,8 @@ public static class InvoicePdf
                     col.Item().Background(Color.FromHex("#F5F7FF")).Padding(10).Column(c =>
                     {
                         c.Item().Text("Other charges on this order (charged by SpazaSure, not part of this invoice)").FontSize(9).SemiBold();
-                        if (order.DeliveryFee > 0) c.Item().Text($"Delivery: {R(order.DeliveryFee)}").FontSize(9);
-                        if (order.PlatformCommission > 0) c.Item().Text($"Service fee: {R(order.PlatformCommission)}").FontSize(9);
+                        // SpazaSure's platform fee is never shown to shops as a fee of its own
+                        c.Item().Text($"Delivery and SpazaSure service: {R(order.DeliveryFee + order.PlatformCommission)}").FontSize(9);
                         c.Item().Text($"Order total paid to SpazaSure: {R(order.TotalAmount)}").FontSize(9);
                     });
 

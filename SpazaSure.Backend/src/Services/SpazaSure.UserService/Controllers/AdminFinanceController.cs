@@ -8,8 +8,11 @@ namespace SpazaSure.UserService.Controllers;
 
 /// <summary>
 /// One place for all of SpazaSure's money: what came in (wallet top-ups, Paystack order payments,
-/// cash collected on delivery, onboarding fees, supplier subscriptions) and what went out (supplier payouts
-/// and shop wallet withdrawals).
+/// cash collected on delivery, onboarding fees, supplier subscriptions) and what went out (supplier payouts,
+/// driver payments and shop wallet withdrawals).
+///
+/// Where an order's money goes: the supplier is paid the subtotal (their own prices); SpazaSure keeps the
+/// platform fee (built into the prices shops see) and the delivery fee, and pays the driver from it.
 /// Customer subscriptions aren't listed because no payment record is stored for them.
 /// </summary>
 [ApiController]
@@ -46,6 +49,15 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
             .SumAsync(o => (decimal?)o.PlatformCommission, ct) ?? 0m;
         var otherRevenue = confirmed.Where(e => e.Category is "onboarding_fee" or "supplier_subscription").Sum(e => e.Amount);
 
+        // Delivery: the shop's delivery fee comes to SpazaSure, which pays the driver
+        var deliveryFees = await db.Orders.AsNoTracking()
+            .Where(o => o.Status == "delivered" && o.PaymentStatus == "paid" && o.DeliveredAt >= start && o.DeliveredAt < end)
+            .SumAsync(o => (decimal?)o.DeliveryFee, ct) ?? 0m;
+        var driverPayments = confirmed.Where(e => e.Category == "driver_payment").Sum(e => e.Amount);
+        var driverPayDue = await db.Orders.AsNoTracking()
+            .Where(o => o.Status == "delivered" && o.DriverId != null && o.DriverPaidAt == null)
+            .Select(o => o.DeliveryFee).ToListAsync(ct);
+
         var walletBalancesHeld = await db.ShopWalletLedgerEntries.AsNoTracking()
             .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
 
@@ -71,6 +83,18 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
             moneyOut,
             net = moneyIn - moneyOut,
             platformEarnings = commission + otherRevenue,
+            // SpazaSure's own budget for the period: what it earned, and what it spent on deliveries
+            budget = new
+            {
+                platformFees = commission,
+                deliveryFees,
+                driverPayments,
+                deliveryNet = deliveryFees - driverPayments,
+                otherRevenue,
+                total = commission + otherRevenue + deliveryFees - driverPayments,
+            },
+            // Deliveries done whose driver hasn't been paid yet (their delivery fees, as a guide)
+            driverPayDue = new { count = driverPayDue.Count, deliveryFees = driverPayDue.Sum() },
             byCategory,
             walletBalancesHeld,
             owedToSuppliers,
@@ -135,6 +159,52 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
             .ToListAsync(ct);
         return Ok(ApiResponse<object>.Ok(new { total, page, pageSize, balance, items }));
     }
+
+    /// <summary>
+    /// Delivered orders that had a driver, for paying drivers: "unpaid" (the default) or "paid".
+    /// Shows the delivery fee SpazaSure received for each, as a guide to what to pay.
+    /// </summary>
+    [HttpGet("driver-payments")]
+    public async Task<IActionResult> DriverPayments([FromQuery] string status = "unpaid", [FromQuery] Guid? driverId = null, CancellationToken ct = default)
+    {
+        var query = db.Orders.AsNoTracking().Where(o => o.Status == "delivered" && o.DriverId != null);
+        query = status == "paid" ? query.Where(o => o.DriverPaidAt != null) : query.Where(o => o.DriverPaidAt == null);
+        if (driverId is not null) query = query.Where(o => o.DriverId == driverId);
+        var items = await query
+            .OrderByDescending(o => o.DeliveredAt)
+            .Take(300)
+            .Select(o => new
+            {
+                OrderId = o.Id, o.OrderNumber, o.DeliveredAt, o.DeliveryFee, o.DeliveryDistanceKm,
+                o.DriverId, DriverName = o.Driver!.FullName, DriverPhone = o.Driver.Phone,
+                ShopName = o.Shop.ShopName, SupplierName = o.Supplier.CompanyName,
+                o.DriverPay, o.DriverPaidAt, o.DriverPayReference,
+            })
+            .ToListAsync(ct);
+        return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    /// <summary>Records what SpazaSure paid the driver for one delivery.</summary>
+    [HttpPut("driver-payments/{orderId:guid}")]
+    public async Task<IActionResult> RecordDriverPayment(Guid orderId, [FromBody] DriverPaymentRequest req, CancellationToken ct)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.DriverId is null) return BadRequest(ApiResponse.Fail("No driver delivered this order."));
+        if (order.Status != "delivered") return BadRequest(ApiResponse.Fail("Pay the driver once the order has been delivered."));
+        if (req.Amount is < 0 or > 100_000) return BadRequest(ApiResponse.Fail("Enter an amount between R0 and R100,000."));
+        var reference = req.Reference?.Trim();
+        if (reference?.Length > 100) return BadRequest(ApiResponse.Fail("Keep the reference to 100 characters."));
+
+        order.DriverPay = Math.Round(req.Amount, 2);
+        order.DriverPayReference = string.IsNullOrEmpty(reference) ? null : reference;
+        order.DriverPaidAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return Ok(ApiResponse<object>.Ok(new { order.Id, order.DriverPay, order.DriverPaidAt, order.DriverPayReference },
+            $"Driver payment of R{order.DriverPay:F2} recorded for {order.OrderNumber}."));
+    }
+
+    public record DriverPaymentRequest(decimal Amount, string? Reference);
 
     /// <summary>Defaults to the last 30 days; the end date is inclusive.</summary>
     private static (DateTime Start, DateTime EndExclusive) Range(DateTime? from, DateTime? to)
@@ -208,6 +278,15 @@ public class AdminFinanceController(SpazaSureDbContext db) : ControllerBase
                 $"payout-{g.Key.SupplierId}-{g.Key.PaidOutAt:O}", g.Key.PaidOutAt!.Value, "out", "supplier_payout",
                 g.Sum(o => o.Subtotal), "confirmed", g.Key.PayoutReference,
                 g.First().CompanyName, $"Supplier share for {g.Count()} order{(g.Count() == 1 ? "" : "s")}")));
+
+        // Driver payments: what SpazaSure paid drivers for deliveries, out of the delivery fees
+        var driverPaid = await db.Orders.AsNoTracking()
+            .Where(o => o.DriverPaidAt != null && o.DriverPay > 0 && o.DriverPaidAt >= start && o.DriverPaidAt < end)
+            .Select(o => new { o.Id, o.DriverPaidAt, o.DriverPay, o.DriverPayReference, o.OrderNumber, DriverName = o.Driver!.FullName })
+            .ToListAsync(ct);
+        entries.AddRange(driverPaid.Select(o => new FinanceEntry(
+            $"driver-{o.Id}", o.DriverPaidAt!.Value, "out", "driver_payment", o.DriverPay!.Value, "confirmed",
+            o.DriverPayReference, o.DriverName ?? "Driver", $"Delivery of {o.OrderNumber}")));
 
         // Shop withdrawals: money paid out of wallets into shops' bank accounts
         var withdrawals = await db.ShopWalletTransactions.AsNoTracking()

@@ -63,8 +63,9 @@ public class ShopOrdersController(
         {
             var (supplierId, choice) = (entry.Key, entry.Value);
             var supplier = products.First(p => p.SupplierId == supplierId).Supplier;
+            // What the shop pays for the goods: prices with SpazaSure's fee built in
             var subtotal = lines.Where(l => products.First(p => p.Id == l.ProductId).SupplierId == supplierId)
-                .Sum(l => products.First(p => p.Id == l.ProductId).Price * l.Quantity);
+                .Sum(l => ShopPricing.Line(products.First(p => p.Id == l.ProductId).Price, l.Quantity, ShopPricing.Markup(rules)).ShopLineTotal);
             return new
             {
                 SupplierId = supplierId,
@@ -167,6 +168,7 @@ public class ShopOrdersController(
                 var unitPrice = product.Price;
                 var lineTotal = unitPrice * item.Quantity;
                 subtotal += lineTotal;
+                var (shopUnitPrice, shopLineTotal) = ShopPricing.Line(unitPrice, item.Quantity, ShopPricing.Markup(rules));
 
                 orderItems.Add(new OrderItem
                 {
@@ -176,18 +178,19 @@ public class ShopOrdersController(
                     UnitPrice = unitPrice,
                     DiscountPct = 0m,
                     LineTotal = lineTotal,
+                    ShopUnitPrice = shopUnitPrice,
+                    ShopLineTotal = shopLineTotal,
                     Product = product
                 });
             }
 
-            // Fees come from admin platform settings (see PlatformRules for defaults).
-            // The shop pays the supplier's tier commission plus any shop service fee on top
-            // of the subtotal; both are SpazaSure revenue, so they're stored together.
+            // Where the money goes: the supplier is paid the subtotal (their own prices). SpazaSure
+            // keeps its platform fee, which shops pay as part of the item prices (never as a
+            // separate fee), and the delivery fee, from which it pays the driver.
             // Delivery is priced on the distance from the shipping branch (see DeliveryFees)
             var deliveryFee = DeliveryFees.For(rules, req.DeliveryType, from.DistanceKm);
             var deliversToShop = string.IsNullOrWhiteSpace(req.DeliveryAddress) || req.DeliveryAddress == shop.Address;
-            var platformCommission = Math.Round(
-                subtotal * ((supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m), 2);
+            var platformCommission = orderItems.Sum(i => i.ShopLineTotal) - subtotal;
             var totalAmount = subtotal + deliveryFee + platformCommission;
 
             // Random, so two shops checking out at the same moment can't get the same number
@@ -382,9 +385,9 @@ public class ShopOrdersController(
                 o.GroupBuyId,
                 o.GroupBuyParticipantId,
                 IsGroupBuy = o.GroupBuyId.HasValue,
-                o.Subtotal,
+                // The shop's goods total, SpazaSure's fee included; shops never see it as a fee
+                Subtotal = o.Subtotal + o.PlatformCommission,
                 o.DeliveryFee,
-                o.PlatformCommission,
                 o.TotalAmount,
                 Total = o.TotalAmount,
                 o.Status,
@@ -410,9 +413,9 @@ public class ShopOrdersController(
                     ProductName = i.Product.Name,
                     ProductImage = i.Product.Images,
                     i.Quantity,
-                    i.UnitPrice,
-                    Price = i.UnitPrice,
-                    i.LineTotal
+                    UnitPrice = i.ShopUnitPrice,
+                    Price = i.ShopUnitPrice,
+                    LineTotal = i.ShopLineTotal
                 }),
                 Items = o.Items.Select(i => new
                 {
@@ -421,9 +424,9 @@ public class ShopOrdersController(
                     ProductName = i.Product.Name,
                     ProductImage = i.Product.Images,
                     i.Quantity,
-                    i.UnitPrice,
-                    Price = i.UnitPrice,
-                    i.LineTotal
+                    UnitPrice = i.ShopUnitPrice,
+                    Price = i.ShopUnitPrice,
+                    LineTotal = i.ShopLineTotal
                 })
             })
             .ToListAsync();
@@ -455,9 +458,9 @@ public class ShopOrdersController(
                 o.GroupBuyId,
                 o.GroupBuyParticipantId,
                 IsGroupBuy = o.GroupBuyId.HasValue,
-                o.Subtotal,
+                // The shop's goods total, SpazaSure's fee included; shops never see it as a fee
+                Subtotal = o.Subtotal + o.PlatformCommission,
                 o.DeliveryFee,
-                o.PlatformCommission,
                 o.TotalAmount,
                 Total = o.TotalAmount,
                 o.Status,
@@ -483,9 +486,9 @@ public class ShopOrdersController(
                     ProductName = i.Product.Name,
                     ProductImage = i.Product.Images,
                     i.Quantity,
-                    i.UnitPrice,
-                    Price = i.UnitPrice,
-                    i.LineTotal
+                    UnitPrice = i.ShopUnitPrice,
+                    Price = i.ShopUnitPrice,
+                    LineTotal = i.ShopLineTotal
                 }),
                 Items = o.Items.Select(i => new
                 {
@@ -494,9 +497,9 @@ public class ShopOrdersController(
                     ProductName = i.Product.Name,
                     ProductImage = i.Product.Images,
                     i.Quantity,
-                    i.UnitPrice,
-                    Price = i.UnitPrice,
-                    i.LineTotal
+                    UnitPrice = i.ShopUnitPrice,
+                    Price = i.ShopUnitPrice,
+                    LineTotal = i.ShopLineTotal
                 })
             })
             .FirstOrDefaultAsync();

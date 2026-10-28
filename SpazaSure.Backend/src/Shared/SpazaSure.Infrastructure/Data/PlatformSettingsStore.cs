@@ -22,7 +22,12 @@ public sealed record PlatformRules
     /// <summary>Group buys: base delivery fee (R) plus a rate per km.</summary>
     public decimal GroupBuyBaseDeliveryFee { get; init; } = 50m;
     public decimal GroupBuyPerKmRate { get; init; } = 8m;
-    /// <summary>Extra % of the product subtotal charged to the shop, on top of the supplier tier commission. 0 = off.</summary>
+    /// <summary>
+    /// SpazaSure's fee: % added to the supplier's price for every supplier, whatever their plan.
+    /// Shops never see it as a fee; it is built into the prices they are shown (see ShopPricing).
+    /// </summary>
+    public decimal PlatformFeePercent { get; init; } = 5m;
+    /// <summary>Extra % added on top of the platform fee, also built into shop prices. 0 = off.</summary>
     public decimal ShopServiceFeePercent { get; init; } = 0m;
     /// <summary>Days after delivery before a supplier's payout becomes available.</summary>
     public int PayoutDelayDays { get; init; } = 3;
@@ -56,6 +61,7 @@ public sealed record PlatformRules
         if (GroupBuyBaseDeliveryFee is < 0 or > 5000) return "Group-buy base delivery fee must be between R0 and R5,000.";
         if (DeliveryPerKmRate is < 0 or > 500) return "Delivery rate per km must be between R0 and R500.";
         if (GroupBuyPerKmRate is < 0 or > 500) return "Group-buy rate per km must be between R0 and R500.";
+        if (PlatformFeePercent is < 0 or > 30) return "Platform fee must be between 0% and 30%.";
         if (ShopServiceFeePercent is < 0 or > 20) return "Shop service fee must be between 0% and 20%.";
         if (PayoutDelayDays is < 0 or > 60) return "Payout delay must be between 0 and 60 days.";
         if (SupplierReachKm is < 1 or > 2000) return "Supplier reach must be between 1 and 2,000 km.";
@@ -80,6 +86,7 @@ public static class PlatformSettingsStore
     public const string GroupBuyBaseDeliveryFeeKey = "group_buy_delivery_base_fee";
     public const string GroupBuyPerKmRateKey = "group_buy_delivery_per_km";
     public const string DeliveryPerKmRateKey = "delivery_per_km";
+    public const string PlatformFeePercentKey = "platform_fee_percent";
     public const string ShopServiceFeePercentKey = "shop_service_fee_percent";
     public const string PayoutDelayDaysKey = "payout_delay_days";
     public const string SupplierReachKmKey = "supplier_reach_km";
@@ -105,6 +112,7 @@ public static class PlatformSettingsStore
             GroupBuyBaseDeliveryFee = Dec(values, GroupBuyBaseDeliveryFeeKey, d.GroupBuyBaseDeliveryFee),
             GroupBuyPerKmRate = Dec(values, GroupBuyPerKmRateKey, d.GroupBuyPerKmRate),
             DeliveryPerKmRate = Dec(values, DeliveryPerKmRateKey, d.DeliveryPerKmRate),
+            PlatformFeePercent = Dec(values, PlatformFeePercentKey, d.PlatformFeePercent),
             ShopServiceFeePercent = Dec(values, ShopServiceFeePercentKey, d.ShopServiceFeePercent),
             PayoutDelayDays = values.TryGetValue(PayoutDelayDaysKey, out var days) && int.TryParse(days, out var n) ? n : d.PayoutDelayDays,
             SupplierReachKm = Dec(values, SupplierReachKmKey, d.SupplierReachKm),
@@ -130,6 +138,7 @@ public static class PlatformSettingsStore
             [GroupBuyBaseDeliveryFeeKey] = Fmt(rules.GroupBuyBaseDeliveryFee),
             [GroupBuyPerKmRateKey] = Fmt(rules.GroupBuyPerKmRate),
             [DeliveryPerKmRateKey] = Fmt(rules.DeliveryPerKmRate),
+            [PlatformFeePercentKey] = Fmt(rules.PlatformFeePercent),
             [ShopServiceFeePercentKey] = Fmt(rules.ShopServiceFeePercent),
             [PayoutDelayDaysKey] = rules.PayoutDelayDays.ToString(CultureInfo.InvariantCulture),
             [SupplierReachKmKey] = Fmt(rules.SupplierReachKm),

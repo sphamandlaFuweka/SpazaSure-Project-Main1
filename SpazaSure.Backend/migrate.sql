@@ -1996,6 +1996,35 @@ CREATE TABLE IF NOT EXISTS email_sends (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_email_sends_user_id_key ON email_sends(user_id, key);
 CREATE INDEX IF NOT EXISTS ix_email_sends_created_at ON email_sends(created_at);
 
+-- Shop prices: SpazaSure's platform fee is built into what shops pay per item, never shown as a
+-- separate fee. line_total stays the supplier's amount; shop_line_total is what the shop pays.
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS shop_unit_price numeric(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS shop_line_total numeric(10,2) NOT NULL DEFAULT 0;
+-- Orders placed before: spread each order's platform fee over its lines, by line value
+UPDATE order_items i
+SET shop_line_total = round(i.line_total + CASE WHEN o.subtotal > 0 THEN o.platform_commission * i.line_total / o.subtotal ELSE 0 END, 2),
+    shop_unit_price = round((i.line_total + CASE WHEN o.subtotal > 0 THEN o.platform_commission * i.line_total / o.subtotal ELSE 0 END) / GREATEST(i.quantity, 1), 2)
+FROM orders o
+WHERE o.id = i.order_id AND i.shop_line_total = 0 AND i.line_total > 0;
+
+-- What SpazaSure pays the driver for each delivery (the shop's delivery fee is SpazaSure's income)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_pay numeric(10,2);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_paid_at timestamp with time zone;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_pay_reference varchar(100);
+
+-- Phones drivers turned delivery alerts on for (web push from the driver page)
+CREATE TABLE IF NOT EXISTS driver_push_subscriptions (
+    id uuid NOT NULL CONSTRAINT pk_driver_push_subscriptions PRIMARY KEY,
+    driver_id uuid NOT NULL CONSTRAINT fk_driver_push_subscriptions_drivers_driver_id REFERENCES drivers(id) ON DELETE CASCADE,
+    endpoint varchar(1000) NOT NULL,
+    p256dh varchar(200) NOT NULL,
+    auth varchar(100) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_driver_push_subscriptions_endpoint ON driver_push_subscriptions(endpoint);
+CREATE INDEX IF NOT EXISTS ix_driver_push_subscriptions_driver_id ON driver_push_subscriptions(driver_id);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

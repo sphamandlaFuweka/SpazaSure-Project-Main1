@@ -349,7 +349,8 @@ export default function AdminSettingsPage() {
                     { key: 'deliveryPerKmRate', label: 'Delivery rate per km (R)', hint: 'Distance from the branch that ships the order to the shop. Charged instead of the standard fee when it comes to more, so far deliveries pay their real cost.', step: '0.5', max: 500 },
                     { key: 'groupBuyBaseDeliveryFee', label: 'Group-buy base delivery fee (R)', hint: 'Group-buy delivery = base fee + distance × rate.', step: '1', max: 5000 },
                     { key: 'groupBuyPerKmRate', label: 'Group-buy rate per km (R)', hint: 'Straight-line distance from supplier to shop.', step: '0.5', max: 500 },
-                    { key: 'shopServiceFeePercent', label: 'Shop service fee (%)', hint: 'Extra % of the product subtotal, charged to the shop on top of the supplier\'s tier commission. 0 = off.', step: '0.1', max: 20 },
+                    { key: 'platformFeePercent', label: 'Platform fee (%)', hint: 'SpazaSure\'s fee, added to every supplier\'s price whatever their plan. Shops only see it as part of the price, never as a fee.', step: '0.1', max: 30 },
+                    { key: 'shopServiceFeePercent', label: 'Extra service fee (%)', hint: 'Added on top of the platform fee, also built into the prices shops see. 0 = off.', step: '0.1', max: 20 },
                     { key: 'payoutDelayDays', label: 'Supplier payout delay (days)', hint: 'Days after delivery before the supplier\'s money becomes available to pay out.', step: '1', max: 60 },
                     { key: 'supplierReachKm', label: 'Supplier reach (km)', hint: 'Shops only see and order from suppliers in their province and within this straight-line distance.', step: '1', max: 2000 },
                   ] as const).map(({ key, label, hint, step, max }) => (
@@ -363,9 +364,10 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
                 <div className="info-box">
-                  <strong>How an order is charged:</strong> products + delivery (R{rules.standardDeliveryFee} standard / R{rules.expressDeliveryFee} express)
-                  + supplier tier commission{rules.shopServiceFeePercent > 0 ? ` + ${rules.shopServiceFeePercent}% service fee` : ''}.
-                  The supplier is paid the products + delivery, {rules.payoutDelayDays} day{rules.payoutDelayDays === 1 ? '' : 's'} after delivery.
+                  <strong>Where the money goes:</strong> shops see each product at the supplier's price + {rules.platformFeePercent + rules.shopServiceFeePercent}%
+                  (R100 shows as R{(100 * (1 + (rules.platformFeePercent + rules.shopServiceFeePercent) / 100)).toFixed(2)}), plus delivery
+                  (R{rules.standardDeliveryFee} standard / R{rules.expressDeliveryFee} express). The supplier is paid their own price,
+                  {' '}{rules.payoutDelayDays} day{rules.payoutDelayDays === 1 ? '' : 's'} after delivery. SpazaSure keeps the fee and the delivery charge, and pays the driver from it.
                 </div>
                 <div className="flex justify-end">
                   <button onClick={() => saveRules(rules)} disabled={rulesSaving} className="btn-primary">

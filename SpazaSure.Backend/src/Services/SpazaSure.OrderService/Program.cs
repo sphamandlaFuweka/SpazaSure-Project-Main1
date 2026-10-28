@@ -32,6 +32,8 @@ builder.Services.AddSingleton(sp =>
 });
 // Admins get a notification when a request crashes
 builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, SpazaSure.Infrastructure.Data.AdminErrorAlerts>();
+// Phone alerts for drivers: new deliveries, ready to collect, cancelled
+builder.Services.AddScoped<SpazaSure.Infrastructure.Data.DriverAlerts>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo

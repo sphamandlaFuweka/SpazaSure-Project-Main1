@@ -42,6 +42,11 @@ public class Order : BaseEntity
     /// <summary>The driver an admin allocated to deliver this order.</summary>
     public Guid? DriverId { get; set; }
     public DateTime? DriverAssignedAt { get; set; }
+    /// <summary>What SpazaSure paid the driver for this delivery (the shop's delivery fee is SpazaSure's income).</summary>
+    public decimal? DriverPay { get; set; }
+    public DateTime? DriverPaidAt { get; set; }
+    /// <summary>Bank or EFT reference of the driver payment.</summary>
+    public string? DriverPayReference { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
     public SupplierBranch? SupplierBranch { get; set; }
@@ -60,7 +65,11 @@ public class OrderItem : BaseEntity
     public decimal OriginalUnitPrice { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal DiscountPct { get; set; }
+    /// <summary>The supplier's line total: what the supplier is paid for this line.</summary>
     public decimal LineTotal { get; set; }
+    /// <summary>The unit price the shop pays and sees: the supplier price plus SpazaSure's fee (see ShopPricing).</summary>
+    public decimal ShopUnitPrice { get; set; }
+    public decimal ShopLineTotal { get; set; }
 
     public Order Order { get; set; } = null!;
     public Product Product { get; set; } = null!;

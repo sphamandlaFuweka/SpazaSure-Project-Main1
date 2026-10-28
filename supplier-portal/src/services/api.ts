@@ -1012,6 +1012,8 @@ export interface PlatformRules {
   groupBuyPerKmRate: number;
   /** Normal orders: R per km from the shipping branch, charged when more than the standard fee. */
   deliveryPerKmRate: number;
+  /** SpazaSure's fee: % added to every supplier's price. Shops see it only as part of the price. */
+  platformFeePercent: number;
   shopServiceFeePercent: number;
   payoutDelayDays: number;
   /** Furthest a shop can be from a supplier (km) to see and order from it; same province is also required */
@@ -1152,7 +1154,7 @@ export const walletWithdrawalsApi = {
 // Admin finance: every money movement in one place
 export type FinanceCategory =
   | 'wallet_top_up' | 'order_paystack' | 'order_cash_on_delivery'
-  | 'onboarding_fee' | 'supplier_subscription' | 'supplier_payout' | 'shop_withdrawal';
+  | 'onboarding_fee' | 'supplier_subscription' | 'supplier_payout' | 'shop_withdrawal' | 'driver_payment';
 export type FinanceStatus = 'confirmed' | 'pending' | 'rejected' | 'cancelled' | 'failed' | 'refund_due';
 
 export interface FinanceEntry {
@@ -1174,6 +1176,17 @@ export interface FinanceSummary {
   moneyOut: number;
   net: number;
   platformEarnings: number;
+  /** SpazaSure's own money for the period: fees earned, and delivery fees less what drivers were paid. */
+  budget: {
+    platformFees: number;
+    deliveryFees: number;
+    driverPayments: number;
+    deliveryNet: number;
+    otherRevenue: number;
+    total: number;
+  };
+  /** Delivered orders whose driver hasn't been paid yet, and their delivery fees. */
+  driverPayDue: { count: number; deliveryFees: number };
   byCategory: { category: FinanceCategory; direction: 'in' | 'out'; count: number; amount: number }[];
   walletBalancesHeld: number;
   owedToSuppliers: number;
@@ -1205,7 +1218,29 @@ export interface WalletLedgerEntry {
   amount: number;
 }
 
+/** A delivered order a driver delivered, for recording what SpazaSure paid them. */
+export interface DriverPaymentRow {
+  orderId: string;
+  orderNumber: string;
+  deliveredAt?: string | null;
+  deliveryFee: number;
+  deliveryDistanceKm?: number | null;
+  driverId: string;
+  driverName: string;
+  driverPhone: string;
+  shopName: string;
+  supplierName: string;
+  driverPay?: number | null;
+  driverPaidAt?: string | null;
+  driverPayReference?: string | null;
+}
+
 export const adminFinanceApi = {
+  driverPayments: (status: 'unpaid' | 'paid' = 'unpaid') =>
+    api.get('/admin/finance/driver-payments', { params: { status } })
+      .then((r) => (r.data?.data ?? r.data ?? []) as DriverPaymentRow[]),
+  recordDriverPayment: (orderId: string, amount: number, reference?: string) =>
+    api.put(`/admin/finance/driver-payments/${orderId}`, { amount, reference: reference || null }).then((r) => r.data),
   walletLedger: (params: { search?: string } = {}, page = 1, pageSize = 25) =>
     api.get('/admin/finance/wallet-ledger', { params: cleanParams({ ...params, page, pageSize }) })
       .then((r) => (r.data?.data ?? r.data) as { total: number; page: number; pageSize: number; balance: number; items: WalletLedgerEntry[] }),

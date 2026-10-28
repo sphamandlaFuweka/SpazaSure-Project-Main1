@@ -25,7 +25,8 @@ internal static class GroupBuyResponse
             .ThenInclude(i => i.GroupBuyProduct).ThenInclude(p => p.Product)
         .AsSplitQuery();
 
-    internal static object ProjectShop(GroupBuy groupBuy)
+    /// <summary>A group buy as shops see it: prices include SpazaSure's fee (markup, see ShopPricing).</summary>
+    internal static object ProjectShop(GroupBuy groupBuy, decimal markup)
     {
         var isExpired = groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active";
         return new
@@ -49,8 +50,8 @@ internal static class GroupBuyResponse
                 p.ProductId,
                 ProductName = p.Product.Name,
                 MinOrderQty = p.Product.MinOrderQty,
-                p.OriginalPrice,
-                p.DiscountPrice,
+                OriginalPrice = ShopPricing.ShopPrice(p.OriginalPrice, markup),
+                DiscountPrice = ShopPricing.ShopPrice(p.DiscountPrice, markup),
                 p.DiscountPct,
                 p.TargetQty,
                 p.CurrentQty,
@@ -215,7 +216,8 @@ public class ShopGroupBuyController(
         }
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
-        return Ok(ApiResponse<object>.Ok(campaigns.Select(GroupBuyResponse.ProjectShop).ToList()));
+        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
+        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup)).ToList()));
     }
 
     /// <summary>
@@ -254,7 +256,7 @@ public class ShopGroupBuyController(
             .FirstOrDefaultAsync(g => g.Id == id);
         return groupBuy is null
             ? NotFound(ApiResponse.Fail("Group buy not found."))
-            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy)));
+            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)))));
     }
 
 [HttpPost("{id:guid}/join")]
@@ -387,7 +389,7 @@ public class ShopGroupBuyController(
 
         var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
             .FirstAsync(g => g.Id == id);
-        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(refreshed), "You have joined the group buy."));
+        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db))), "You have joined the group buy."));
     }
 
     [HttpPost("{id:guid}/leave")]
@@ -728,9 +730,12 @@ public class SupplierGroupBuyController(
             foreach (var entry in eligible)
             {
                 var shop = entry.Participant.Shop;
+                rules ??= await PlatformSettingsStore.LoadAsync(db);
+                var markup = ShopPricing.Markup(rules);
                 var newItems = entry.Items.Select(item =>
                 {
                     var product = qualified[item.GroupBuyProductId];
+                    var (shopUnitPrice, shopLineTotal) = ShopPricing.Line(product.DiscountPrice, item.Quantity, markup);
                     return new OrderItem
                     {
                         ProductId = product.ProductId,
@@ -739,7 +744,9 @@ public class SupplierGroupBuyController(
                         UnitPrice = product.DiscountPrice,
                         DiscountPct = product.DiscountPct,
                         LineTotal = Math.Round(product.DiscountPrice * item.Quantity, 2,
-                            MidpointRounding.AwayFromZero)
+                            MidpointRounding.AwayFromZero),
+                        ShopUnitPrice = shopUnitPrice,
+                        ShopLineTotal = shopLineTotal,
                     };
                 }).ToList();
 
@@ -781,11 +788,9 @@ public class SupplierGroupBuyController(
                     foreach (var item in newItems) order.Items.Add(item);
                 }
 
+                // The supplier is paid the subtotal; SpazaSure's fee is built into the shop prices
                 order.Subtotal = order.Items.Sum(i => i.LineTotal);
-                rules ??= await PlatformSettingsStore.LoadAsync(db);
-                order.PlatformCommission = Math.Round(
-                    order.Subtotal * (supplier.CommissionRate + rules.ShopServiceFeePercent) / 100m, 2,
-                    MidpointRounding.AwayFromZero);
+                order.PlatformCommission = order.Items.Sum(i => i.ShopLineTotal) - order.Subtotal;
                 order.TotalAmount = order.Subtotal + order.DeliveryFee + order.PlatformCommission;
                 notifications.Add((shop.UserId, order.Id, order.OrderNumber));
 

@@ -88,14 +88,17 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var stable = ordered.ThenBy(p => p.Name).ThenBy(p => p.Id);
 
         var total = await query.CountAsync();
+        // Shops see prices with SpazaSure's fee built in, never the supplier's own price
+        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
         var items = await stable.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new {
-                p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
+                p.Id, p.Name, p.Description, p.Sku, Price = ShopPricing.ShopPrice(p.Price, markup), p.MinOrderQty,
                 p.StockQty, p.Unit, p.Images, p.IsFoodItem,
                 CategoryId = p.CategoryId, CategoryName = p.Category != null ? p.Category.Name : null,
                 SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
                 SupplierTier = p.Supplier.Tier, SupplierLogo = p.Supplier.LogoUrl,
-                SupplierCommissionRate = p.Supplier.CommissionRate,
+                // The fee is already in Price; 0 stops older app builds adding it again
+                SupplierCommissionRate = 0m,
                 SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
                 IsNearby = (p.Supplier.City != null && p.Supplier.City.ToLower() == shopCity) ||
                            (p.Supplier.Province != null && p.Supplier.Province.ToLower() == shopProvince),
@@ -163,14 +166,15 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             return NotFound(ApiResponse.Fail("This supplier doesn't deliver to your area."));
         var shopForAvailability = await CurrentShopAsync();
         var availability = (await AvailabilityAsync(shopForAvailability, [p.Id])).GetValueOrDefault(p.Id);
+        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
         return Ok(ApiResponse<object>.Ok(new {
             Availability = availability,
-            p.Id, p.Name, p.Description, p.Sku, p.Price, p.MinOrderQty,
+            p.Id, p.Name, p.Description, p.Sku, Price = ShopPricing.ShopPrice(p.Price, markup), p.MinOrderQty,
             p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
             SupplierTier = p.Supplier.Tier,
             p.IsFoodItem, Info = ProductInfo.Project(p),
-            SupplierCommissionRate = p.Supplier.CommissionRate,
+            SupplierCommissionRate = 0m,
             SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
         }));
     }
@@ -256,7 +260,8 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse<object>.Ok(new {
             ScanType = qr is null ? (p.Barcode == code ? "barcode" : "sku") : "qr",
             QrToken = qr?.QrCode,
-            p.Id, p.Name, p.Description, p.Sku, p.Barcode, p.Price, p.MinOrderQty,
+            p.Id, p.Name, p.Description, p.Sku, p.Barcode,
+            Price = ShopPricing.ShopPrice(p.Price, await PlatformSettingsStore.LoadAsync(db)), p.MinOrderQty,
             p.StockQty, p.Unit, p.Images, p.IsAvailable, p.IsApproved,
             CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,

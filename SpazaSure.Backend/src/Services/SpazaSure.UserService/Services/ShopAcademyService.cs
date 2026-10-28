@@ -86,6 +86,8 @@ public class ShopAcademyService(SpazaSureDbContext db, IConfiguration config)
             var day = DateOnly.FromDateTime((order.DeliveredAt ?? order.CreatedAt).AddHours(2));
             foreach (var line in order.Items)
             {
+                // What the shop paid per unit (SpazaSure's fee included), not the supplier's price
+                var cost = line.ShopUnitPrice > 0 ? line.ShopUnitPrice : line.UnitPrice;
                 var item = items.FirstOrDefault(i => i.ProductId == line.ProductId);
                 if (item == null)
                 {
@@ -97,13 +99,13 @@ public class ShopAcademyService(SpazaSureDbContext db, IConfiguration config)
                         Category = line.Product.Category?.Name,
                         Unit = line.Product.Unit,
                         Barcode = line.Product.Barcode,
-                        SellingPrice = SuggestedPrice(line.UnitPrice),
+                        SellingPrice = SuggestedPrice(cost),
                     };
                     db.ShopStockItems.Add(item);
                     items.Add(item);
                 }
                 item.IsActive = true;
-                var movement = Apply(item, "received", line.Quantity, line.UnitPrice, null, $"SpazaSure order {order.OrderNumber}", day)!;
+                var movement = Apply(item, "received", line.Quantity, cost, null, $"SpazaSure order {order.OrderNumber}", day)!;
                 movement.SourceOrderId = order.Id;
                 db.ShopStockMovements.Add(movement);
                 lines++;

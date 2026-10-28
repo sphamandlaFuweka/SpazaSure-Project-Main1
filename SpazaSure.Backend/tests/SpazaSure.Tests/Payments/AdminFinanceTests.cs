@@ -83,6 +83,59 @@ public class AdminFinanceTests
     }
 
     [Fact]
+    public async Task Budget_KeepsDeliveryFees_AndPaysDriversFromThem()
+    {
+        var (finance, db, supplier, shop) = Create();
+        var driver = new Driver { FullName = "Lerato Mokoena", Phone = "0820009000", AccessToken = new string('a', 48), BadgeCode = "DRV001" };
+        db.Drivers.Add(driver);
+        var delivered = AddOrder(db, supplier, shop, "paystack", "delivered", "paid", DateTime.UtcNow);
+        delivered.DriverId = driver.Id;
+        db.SaveChanges();
+
+        // Delivered, driver not paid yet: SpazaSure holds the R150 delivery fee
+        var due = Data(await finance.DriverPayments("unpaid", null, default));
+        due.GetArrayLength().Should().Be(1);
+        due[0].GetProperty("deliveryFee").GetDecimal().Should().Be(150m);
+        Data(await finance.Summary(null, null, default)).GetProperty("driverPayDue").GetProperty("count").GetInt32().Should().Be(1);
+
+        (await finance.RecordDriverPayment(delivered.Id, new AdminFinanceController.DriverPaymentRequest(110m, "EFT-DRV-1"), default))
+            .Should().BeOfType<OkObjectResult>();
+
+        var budget = Data(await finance.Summary(null, null, default)).GetProperty("budget");
+        budget.GetProperty("platformFees").GetDecimal().Should().Be(50m);
+        budget.GetProperty("deliveryFees").GetDecimal().Should().Be(150m);
+        budget.GetProperty("driverPayments").GetDecimal().Should().Be(110m);
+        budget.GetProperty("deliveryNet").GetDecimal().Should().Be(40m);
+        budget.GetProperty("total").GetDecimal().Should().Be(90m);
+        Data(await finance.DriverPayments("unpaid", null, default)).GetArrayLength().Should().Be(0);
+
+        var paid = Data(await finance.Transactions(null, null, "out", "driver_payment", null, 1, 25, default));
+        paid.GetProperty("total").GetInt32().Should().Be(1);
+        paid.GetProperty("items")[0].GetProperty("party").GetString().Should().Be("Lerato Mokoena");
+
+        // The driver sees the delivery, and the pay, in their history
+        var history = Data(await new SpazaSure.DeliveryService.Controllers.DriverPortalController(db).Jobs(driver.AccessToken))
+            .GetProperty("history");
+        history[0].GetProperty("driverPay").GetDecimal().Should().Be(110m);
+        history[0].GetProperty("paid").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DriverPayment_IsOnlyRecordedForDeliveredOrdersWithADriver()
+    {
+        var (finance, db, supplier, shop) = Create();
+        var open = AddOrder(db, supplier, shop, "paystack", "dispatched", "paid");
+        open.DriverId = Guid.NewGuid();
+        var noDriver = AddOrder(db, supplier, shop, "paystack", "delivered", "paid", DateTime.UtcNow);
+        db.SaveChanges();
+
+        (await finance.RecordDriverPayment(open.Id, new AdminFinanceController.DriverPaymentRequest(100m, null), default))
+            .Should().BeOfType<BadRequestObjectResult>();
+        (await finance.RecordDriverPayment(noDriver.Id, new AdminFinanceController.DriverPaymentRequest(100m, null), default))
+            .Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task Transactions_FilterByDirectionAndCategory_AndGroupPayoutsPerBatch()
     {
         var (finance, db, supplier, shop) = Create();

@@ -126,6 +126,47 @@ public class WalletTests
     }
 
     [Fact]
+    public async Task PlatformFee_IsAFlat5Percent_BuiltIntoShopPrices_AndNeverShownAsAFee()
+    {
+        var f = Create();
+        // A supplier on a cheaper plan: the shop still pays SpazaSure's flat 5%
+        (await f.Db.Suppliers.SingleAsync()).CommissionRate = 3m;
+        await f.Db.SaveChangesAsync();
+        await AddApprovedTopUp(f, 1000m);
+
+        await f.Checkout.PlaceOrder(Order(f.Product, 3));
+
+        var order = await f.Db.Orders.Include(o => o.Items).SingleAsync();
+        order.Subtotal.Should().Be(300m);            // what the supplier is paid
+        order.PlatformCommission.Should().Be(15m);   // SpazaSure's 5%
+        order.TotalAmount.Should().Be(315m);
+        var item = order.Items.Single();
+        item.UnitPrice.Should().Be(100m);
+        item.ShopUnitPrice.Should().Be(105m);
+        item.ShopLineTotal.Should().Be(315m);
+
+        // The shop's view of its order: prices include the fee and there is no fee line
+        var shopView = Data(await f.Checkout.Get(order.Id));
+        shopView.GetProperty("subtotal").GetDecimal().Should().Be(315m);
+        shopView.TryGetProperty("platformCommission", out _).Should().BeFalse();
+        var line = shopView.GetProperty("items")[0];
+        line.GetProperty("unitPrice").GetDecimal().Should().Be(105m);
+        line.GetProperty("lineTotal").GetDecimal().Should().Be(315m);
+    }
+
+    [Theory]
+    [InlineData(100, 1, 105, 5)]
+    [InlineData(33.33, 3, 105.00, 5.01)]   // 33.33 x 1.05 = 34.9965 -> 35.00 a unit
+    [InlineData(19.99, 7, 146.93, 7.00)]
+    public void ShopPricing_ReceiptsAddUpToTheCent(decimal price, int quantity, decimal shopLine, decimal fee)
+    {
+        var (unit, line) = ShopPricing.Line(price, quantity, 0.05m);
+        line.Should().Be(unit * quantity);
+        line.Should().Be(shopLine);
+        (line - price * quantity).Should().Be(fee);
+    }
+
+    [Fact]
     public async Task WalletCheckout_FailsWhenBalanceIsTooLow()
     {
         var f = Create();

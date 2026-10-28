@@ -67,7 +67,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double _deliveryFee(CartProvider cart, String option) =>
       option == 'pickup' ? 0 : _quotes[option]?.deliveryFeeTotal ?? cart.deliveryFee(option);
 
-  double _total(CartProvider cart) => cart.subtotal + _deliveryFee(cart, _deliveryOption) + cart.platformFee();
+  double _total(CartProvider cart) => cart.subtotal + _deliveryFee(cart, _deliveryOption);
 
   /// Stock problems at the branch that delivers to the shop; pickup has none to report here.
   List<String> get _problems => _deliveryOption == 'pickup' ? const [] : _quotes[_deliveryOption]?.problems ?? const [];
@@ -231,12 +231,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 _amountRow('Items (${cart.count})', cart.subtotal),
                 _amountRow('Delivery', _deliveryFee(cart, _deliveryOption)),
-                _amountRow(
-                  cart.settings.shopServiceFeePercent > 0
-                      ? 'Service fee (${cart.settings.shopServiceFeePercent.toStringAsFixed(1)}%)'
-                      : 'Platform fee',
-                  cart.platformFee(),
-                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Divider(color: AppColors.divider.withValues(alpha: 0.9), height: 1),

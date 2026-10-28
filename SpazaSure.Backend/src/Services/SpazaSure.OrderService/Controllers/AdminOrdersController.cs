@@ -11,7 +11,7 @@ namespace SpazaSure.OrderService.Controllers;
 [ApiController]
 [Route("api/admin/orders")]
 [Authorize(Roles = "admin")]
-public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events) : ControllerBase
+public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events, DriverAlerts? driverAlerts = null) : ControllerBase
 {
     /// <summary>
     /// SpazaSure's delivery run: orders ready to collect from suppliers, and orders out for delivery,
@@ -409,6 +409,8 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events)
         await OrderStock.SyncAsync(db, order, heldStock);
         await db.SaveChangesAsync();
 
+        if (previousStatus != order.Status && driverAlerts is not null)
+            await driverAlerts.OrderStatusChangedAsync(order);
         if (previousStatus != order.Status)
         {
             // Both sides hear about changes an admin makes to their order

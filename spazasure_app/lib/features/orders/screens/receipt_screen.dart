@@ -364,8 +364,6 @@ class ReceiptScreen extends StatelessWidget {
           _totalRow('Subtotal', order.subtotal),
           const SizedBox(height: 6),
           _totalRow('Delivery Fee', order.deliveryFee),
-          const SizedBox(height: 6),
-          _totalRow('Platform Fee', order.platformFee),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),

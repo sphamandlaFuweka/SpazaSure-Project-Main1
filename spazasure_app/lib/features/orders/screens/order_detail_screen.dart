@@ -167,10 +167,6 @@ class OrderDetailScreen extends StatelessWidget {
                     'Delivery (${order.deliveryOption})',
                     'R${order.deliveryFee.toStringAsFixed(2)}',
                   ),
-                  _summaryRow(
-                    'Platform Fee',
-                    'R${order.platformFee.toStringAsFixed(2)}',
-                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),

@@ -18,6 +18,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<ProductBranchStock> ProductBranchStock => Set<ProductBranchStock>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<DriverDocument> DriverDocuments => Set<DriverDocument>();
+    public DbSet<DriverPushSubscription> DriverPushSubscriptions => Set<DriverPushSubscription>();
     public DbSet<TaxInvoice> TaxInvoices => Set<TaxInvoice>();
     public DbSet<SupplierDocument> SupplierDocuments => Set<SupplierDocument>();
     public DbSet<SpazaShop> SpazaShops => Set<SpazaShop>();
@@ -185,6 +186,16 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(d => d.DocUrl).HasMaxLength(500);
             e.HasIndex(d => new { d.DriverId, d.DocType }).IsUnique();
             e.HasOne(d => d.Driver).WithMany(d => d.Documents).HasForeignKey(d => d.DriverId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<DriverPushSubscription>(e =>
+        {
+            e.ToTable("driver_push_subscriptions");
+            e.Property(s => s.Endpoint).HasMaxLength(1000);
+            e.Property(s => s.P256dh).HasMaxLength(200);
+            e.Property(s => s.Auth).HasMaxLength(100);
+            e.HasIndex(s => s.Endpoint).IsUnique();
+            e.HasOne(s => s.Driver).WithMany(d => d.PushSubscriptions).HasForeignKey(s => s.DriverId).OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<TaxInvoice>(e =>
@@ -392,6 +403,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
                 .HasFilter("group_buy_participant_id IS NOT NULL");
             e.Property(o => o.Subtotal).HasPrecision(10, 2);
             e.Property(o => o.DeliveryFee).HasPrecision(10, 2);
+            e.Property(o => o.DriverPay).HasPrecision(10, 2);
+            e.Property(o => o.DriverPayReference).HasMaxLength(100);
             e.HasIndex(o => o.PayoutReference);
             e.Property(o => o.DeliveryMarkup).HasPrecision(10, 2);
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);
@@ -417,6 +430,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(i => i.UnitPrice).HasPrecision(10, 2);
             e.Property(i => i.DiscountPct).HasPrecision(5, 2);
             e.Property(i => i.LineTotal).HasPrecision(10, 2);
+            e.Property(i => i.ShopUnitPrice).HasPrecision(10, 2);
+            e.Property(i => i.ShopLineTotal).HasPrecision(10, 2);
             e.HasOne(i => i.Order).WithMany(o => o.Items).HasForeignKey(i => i.OrderId);
             e.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId);
         });
