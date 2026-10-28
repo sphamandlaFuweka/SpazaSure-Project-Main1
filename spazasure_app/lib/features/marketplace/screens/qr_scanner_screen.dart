@@ -7,14 +7,18 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/features/shop_verification/shop_verify_screen.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/customer/widgets/customer_verification_result.dart';
+import 'package:spazasure_app/features/customer/widgets/packaging_analysis_result.dart';
+import 'package:spazasure_app/features/customer/widgets/scanned_code_card.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
 import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/barcode_check.dart';
 import 'package:spazasure_app/services/device_context.dart';
+import 'package:spazasure_app/services/packaging_insights.dart';
 import 'package:spazasure_app/services/packaging_ocr_service.dart';
 import 'package:spazasure_app/services/product_service.dart';
 import 'package:spazasure_app/services/packaging_text_parser.dart';
+import 'package:spazasure_app/services/scanned_code.dart';
 
 class QrScannerScreen extends StatefulWidget {
   final bool customerMode;
@@ -31,7 +35,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   final _codeController = TextEditingController();
   final _pinController = TextEditingController();
   String? _pin;
-  final _packagingBarcodeController = TextEditingController();
   MobileScannerController? _cameraController;
   // Reads barcodes from packaging photos; separate from the live camera.
   MobileScannerController? _photoScanner;
@@ -49,8 +52,15 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String? _packagingText;
   String? _rewardMessage;
   bool _rewardDuplicate = false;
+  // What the last scanned or typed code turned out to be (link, GS1, payment...)
+  ScannedCode? _code;
+  // The packaging photo analysis, and the photo itself for a report
+  Map<String, dynamic>? _packagingResult;
+  XFile? _packagingPhoto;
 
-  bool get _hasResult => _product != null || _error != null;
+  bool get _showCodeOnly => _code != null && !_code!.isProduct;
+  bool get _hasResult =>
+      _product != null || _error != null || _showCodeOnly || _packagingResult != null;
 
   @override
   void initState() {
@@ -87,6 +97,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       // The result is shown in place of the tabs, so choosing a tab starts over
       _product = null;
       _error = null;
+      _code = null;
+      _packagingResult = null;
     });
   }
 
@@ -95,8 +107,31 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       _scanning = _tabController.index == 0;
       _product = null;
       _error = null;
+      _code = null;
+      _packagingResult = null;
       _lastScanned = null;
     });
+  }
+
+  /// Works out what a scanned or typed code is. Product codes (barcodes, SpazaSure codes,
+  /// GS1 data, SKUs) are checked; anything else (a link, payment, Wi-Fi...) is explained.
+  void _handleCode(String raw, {required String method, String? pin}) {
+    final code = ScannedCode.parse(raw);
+    setState(() {
+      _code = code;
+      _packagingResult = null;
+    });
+    if (!code.isProduct) {
+      AnalyticsService.productScan(method: method, source: 'code_${code.kind.name}', riskLevel: null);
+      return;
+    }
+    _lookupProduct(
+      code.productCode!,
+      batch: code.batch,
+      expiry: code.expiry,
+      pin: pin,
+      method: method,
+    );
   }
 
   @override
@@ -104,7 +139,6 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     _tabController.dispose();
     _codeController.dispose();
     _pinController.dispose();
-    _packagingBarcodeController.dispose();
     _cameraController?.dispose();
     _photoScanner?.dispose();
     super.dispose();
@@ -261,7 +295,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       });
       return;
     }
-    _lookupProduct(code, method: 'camera');
+    _handleCode(code, method: 'camera');
   }
 
   @override
@@ -319,12 +353,36 @@ class _QrScannerScreenState extends State<QrScannerScreen>
               child: Center(child: CircularProgressIndicator()),
             ),
           if (_error != null) _buildErrorResult(),
-          if (_product != null)
+          if (_showCodeOnly || _packagingResult != null || _product != null)
             Expanded(
               flex: 3,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _buildProductResult(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // A link, payment code etc. needs explaining; so does a GS1 code or a
+                    // barcode that fails its check, shown above the product check.
+                    if (_code != null &&
+                        (_showCodeOnly ||
+                            _code!.kind == ScannedCodeKind.gs1 ||
+                            _code!.warnings.isNotEmpty))
+                      ScannedCodeCard(code: _code!),
+                    if (_packagingResult != null)
+                      PackagingAnalysisResult(
+                        result: _packagingResult!,
+                        onVerifyBarcode: _packagingBarcode == null
+                            ? null
+                            : () => _verifyPackagingBarcode(_packagingBarcode!),
+                        onReport: _reportPackaging,
+                        onRetake: () {
+                          _resetScan();
+                          _readPackaging(ImageSource.camera);
+                        },
+                      ),
+                    if (_product != null) _buildProductResult(),
+                  ],
+                ),
               ),
             ),
         ],
@@ -471,32 +529,27 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   Widget _buildPackagingTab() {
-    if (!PackagingOcrService.supported) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Text(
-            'Packaging scan reads the barcode, batch and expiry date from a photo. It is available in the SpazaSure mobile app on Android and iOS. Use Manual Entry here.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-          ),
-        ),
-      );
-    }
-    final scan = _packaging;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Icon(
+            Icons.document_scanner_rounded,
+            size: 48,
+            color: AppColors.primary.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 12),
           Text(
-            'Scan the packaging',
+            'Check the packaging itself',
             textAlign: TextAlign.center,
             style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
-            'Take a clear photo of the side of the pack with the barcode, batch number and expiry date.',
+            'For when there is no barcode, or it isn\'t registered. Photograph the front or the side with '
+            'the most writing. SpazaSure reads the product, maker, ingredients, dates and marks, and looks '
+            'for signs of a fake.',
             textAlign: TextAlign.center,
             style: AppTextStyles.caption.copyWith(
               color: AppColors.textSecondary,
@@ -527,9 +580,18 @@ class _QrScannerScreenState extends State<QrScannerScreen>
             ],
           ),
           if (_reading)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(child: CircularProgressIndicator()),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Analysing the pack...',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
           if (_packagingError != null)
             Padding(
@@ -539,51 +601,22 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                 style: AppTextStyles.caption.copyWith(color: AppColors.error),
               ),
             ),
-          if (scan != null) ...[
-            const SizedBox(height: 16),
-            TextField(
-              controller: _packagingBarcodeController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Barcode',
-                helperText: scan.barcode == null
-                    ? 'No barcode could be read. Type the number printed under the bars.'
-                    : 'Read from the photo. Correct it if it looks wrong.',
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _infoRow(
-              Icons.event,
-              'Expiry',
-              scan.expiry == null
-                  ? 'Not found'
-                  : scan.expiry!.toIso8601String().substring(0, 10),
-            ),
-            _infoRow(Icons.inventory, 'Batch', scan.batch ?? 'Not found'),
-            const SizedBox(height: 6),
-            FilledButton.icon(
-              onPressed: _loading
-                  ? null
-                  : () => _lookupProduct(
-                      _packagingBarcodeController.text.trim(),
-                      expiry: scan.expiry,
-                      batch: scan.batch,
-                      packagingText: scan.rawText,
-                      method: 'packaging',
-                    ),
-              icon: const Icon(Icons.verified_user_rounded),
-              label: const Text('Verify product'),
-            ),
-          ],
+          const SizedBox(height: 16),
+          Text(
+            'Tips: hold the phone steady, fill the frame with the label, and avoid glare. '
+            'Photograph another side afterwards if the dates or maker are elsewhere.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          ),
         ],
       ),
     );
+  }
+
+  /// The barcode read off the pack (by the AI, or on the phone), for checking on SpazaSure.
+  String? get _packagingBarcode {
+    final code = _packagingResult?['barcode']?.toString() ?? _packaging?.barcode;
+    return code == null || code.isEmpty ? null : code;
   }
 
   Future<void> _readPackaging(ImageSource source) async {
@@ -594,35 +627,80 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     try {
       final photo = await ImagePicker().pickImage(
         source: source,
-        imageQuality: 90,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
       );
       if (photo == null) return;
-      final scan = await PackagingOcrService.scan(photo.path);
-      var barcode = scan.barcode;
-      if (barcode == null) {
-        // The digits may be unreadable even when the bars decode fine.
-        try {
-          _photoScanner ??= MobileScannerController(autoStart: false);
-          final capture = await _photoScanner!.analyzeImage(photo.path);
-          barcode = capture?.barcodes.firstOrNull?.rawValue;
-        } catch (_) {
-          // Fall back to the typed barcode field.
+
+      // Text and barcode on the phone first: sent along as hints, and the fallback.
+      var scan = const PackagingScan(rawText: '');
+      if (PackagingOcrService.supported) {
+        scan = await PackagingOcrService.scan(photo.path);
+        if (scan.barcode == null) {
+          // The digits may be unreadable even when the bars decode fine.
+          try {
+            _photoScanner ??= MobileScannerController(autoStart: false);
+            final capture = await _photoScanner!.analyzeImage(photo.path);
+            final bars = capture?.barcodes.firstOrNull?.rawValue;
+            if (bars != null) {
+              scan = PackagingScan(rawText: scan.rawText, barcode: bars, expiry: scan.expiry, batch: scan.batch);
+            }
+          } catch (_) {
+            // No barcode in the photo is fine.
+          }
         }
       }
-      if (!mounted) return;
-      final hasText = scan.rawText.trim().isNotEmpty;
-      setState(() {
-        _packaging = PackagingScan(
-          rawText: scan.rawText,
-          barcode: barcode,
-          expiry: scan.expiry,
-          batch: scan.batch,
+
+      final bytes = await photo.readAsBytes();
+      final name = photo.name.contains('.') ? photo.name : 'packaging.jpg';
+      Map<String, dynamic>? result;
+      String? unavailable;
+      try {
+        final res = await ApiService.uploadFile(
+          '/customer/verify/packaging',
+          fieldName: 'photo',
+          fileBytes: bytes,
+          fileName: name,
+          fields: {
+            if (scan.rawText.trim().isNotEmpty)
+              'ocrText': scan.rawText.length > 3000 ? scan.rawText.substring(0, 3000) : scan.rawText,
+            if (scan.barcode != null) 'barcode': scan.barcode!,
+          },
         );
-        _packagingBarcodeController.text = barcode ?? '';
-        if (!hasText && barcode == null) {
-          _packagingError =
-              'No text was found in that photo. Try again in better light.';
+        final data = Map<String, dynamic>.from(res['data'] as Map);
+        if (data['source'] == 'unavailable') {
+          unavailable = data['reason']?.toString();
+        } else {
+          result = data;
         }
+      } catch (e) {
+        unavailable = 'offline';
+      }
+
+      if (result == null) {
+        if (scan.rawText.trim().isEmpty && scan.barcode == null) {
+          if (!mounted) return;
+          setState(() => _packagingError = unavailable == 'daily_limit'
+              ? 'You have used today\'s photo checks. The phone could not read any text in this one; try again in better light.'
+              : 'No text could be read from that photo. Try again closer, in good light.');
+          return;
+        }
+        result = PackagingInsights.analyze(scan);
+      }
+      if (!mounted) return;
+      AnalyticsService.productScan(
+        method: 'packaging',
+        source: result['source']?.toString(),
+        riskLevel: result['riskLevel']?.toString(),
+      );
+      setState(() {
+        _packaging = scan;
+        _packagingPhoto = photo;
+        _packagingResult = result;
+        _code = null;
+        _product = null;
+        _error = null;
       });
     } catch (e) {
       if (mounted) {
@@ -631,6 +709,57 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     } finally {
       if (mounted) setState(() => _reading = false);
     }
+  }
+
+  void _verifyPackagingBarcode(String barcode) {
+    final scan = _packaging;
+    final a = _packagingResult?['analysis'] as Map?;
+    final expiry = DateTime.tryParse(a?['expiryDate']?.toString() ?? '') ?? scan?.expiry;
+    final batch = a?['batchNumber']?.toString() ?? scan?.batch;
+    setState(() => _packagingResult = null);
+    _lookupProduct(
+      barcode,
+      expiry: expiry,
+      batch: batch,
+      packagingText: scan?.rawText,
+      method: 'packaging',
+    );
+  }
+
+  Future<void> _reportPackaging() async {
+    final r = _packagingResult!;
+    final a = Map<String, dynamic>.from(r['analysis'] as Map? ?? const {});
+    final photo = _packagingPhoto;
+    final bytes = photo == null ? null : await photo.readAsBytes();
+    final flags = [
+      ...((a['redFlags'] as List?) ?? const []),
+      for (final c in (r['checks'] as List? ?? const []))
+        if (c is Map && c['status'] == 'fail') c['detail'],
+    ].map((e) => '- $e').join('\n');
+    if (!mounted) return;
+    final name = [a['brand'], a['productName']].where((e) => e != null).join(' ');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReportScreen(
+          barcode: _packagingBarcode,
+          productName: name.isEmpty ? null : name,
+          batchNumber: a['batchNumber']?.toString(),
+          expiryDate: a['expiryDate']?.toString(),
+          initialType: r['riskLevel'] == 'high' ? 'Fake / Counterfeit Product' : 'Other',
+          initialDescription: flags.isEmpty ? null : 'Flagged by SpazaSure packaging check:\n$flags',
+          initialPhoto: bytes == null
+              ? null
+              : PlatformFile(name: photo!.name, size: bytes.length, bytes: bytes),
+        ),
+      ),
+    );
+  }
+
+  void _submitManual(String value) {
+    final code = value.trim();
+    if (code.isEmpty || _loading) return;
+    _handleCode(code, method: 'manual', pin: _pinController.text.trim());
   }
 
   Widget _buildManualTab() {
@@ -679,18 +808,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       vertical: 14,
                     ),
                   ),
-                  onSubmitted: (v) =>
-                      _lookupProduct(v.trim(), pin: _pinController.text.trim()),
+                  onSubmitted: (v) => _submitManual(v),
                 ),
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: _loading
-                    ? null
-                    : () => _lookupProduct(
-                        _codeController.text.trim(),
-                        pin: _pinController.text.trim(),
-                      ),
+                onTap: _loading ? null : () => _submitManual(_codeController.text),
                 child: Container(
                   width: 52,
                   height: 52,
@@ -881,31 +1004,5 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
-  }
-
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: AppColors.textHint),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

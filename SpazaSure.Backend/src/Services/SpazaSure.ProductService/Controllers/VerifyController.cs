@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using System.Security.Claims;
@@ -21,9 +22,197 @@ namespace SpazaSure.ProductService.Controllers;
 [ApiController]
 [Route("api/customer/verify")]
 [Authorize]
-public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFoodFactsService, IConfiguration config) : ControllerBase
+public class VerifyController(
+    SpazaSureDbContext db,
+    OpenFoodFactsService openFoodFactsService,
+    PackagingVisionService packagingVision,
+    IMemoryCache cache,
+    IConfiguration config) : ControllerBase
 {
     private const int MaxPinAttempts = 5;
+    // Each photo is a paid vision call, so one account can't run up the bill
+    private const int MaxPackagingAnalysesPerDay = 40;
+    private const long MaxPhotoBytes = 8 * 1024 * 1024;
+    private static readonly HashSet<string> PhotoTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    /// <summary>
+    /// Reads a photo of the pack itself, for when there is no barcode to scan or it isn't
+    /// registered: what the product is, who made it, what the label says, and whether the
+    /// pack looks genuine. The barcode read off the pack is cross-checked against SpazaSure
+    /// and the open product databases. Returns source "unavailable" when the vision model
+    /// is off or fails, so the app shows its own reading of the text instead.
+    /// </summary>
+    [HttpPost("packaging")]
+    [RequestSizeLimit(MaxPhotoBytes + 64 * 1024)]
+    public async Task<IActionResult> AnalyzePackaging(
+        IFormFile photo,
+        [FromForm] string? ocrText,
+        [FromForm] string? barcode,
+        CancellationToken cancellationToken)
+    {
+        if (photo is null || photo.Length == 0)
+            return BadRequest(ApiResponse.Fail("Add a photo of the packaging."));
+        if (photo.Length > MaxPhotoBytes)
+            return BadRequest(ApiResponse.Fail("That photo is too large. Try again with a smaller one."));
+        // The app sends application/octet-stream, so fall back to the file name
+        var mediaType = photo.ContentType?.ToLowerInvariant() ?? "";
+        if (!PhotoTypes.Contains(mediaType))
+            mediaType = Path.GetExtension(photo.FileName).ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".gif" => "image/gif",
+                _ => "image/jpeg",
+            };
+
+        var userKey = $"packaging-analyses:{User.FindFirstValue(ClaimTypes.NameIdentifier)}:{DateTime.UtcNow:yyyyMMdd}";
+        var usedToday = cache.Get<int>(userKey);
+        if (usedToday >= MaxPackagingAnalysesPerDay)
+            return Ok(ApiResponse<object>.Ok(new { source = "unavailable", reason = "daily_limit" }));
+
+        await using var stream = photo.OpenReadStream();
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken);
+        var text = string.IsNullOrWhiteSpace(ocrText) ? null : ocrText.Length > 3000 ? ocrText[..3000] : ocrText;
+
+        var result = await packagingVision.AnalyzeAsync(buffer.ToArray(), mediaType, text, cancellationToken);
+        if (result.Analysis is not { } analysis)
+            return Ok(ApiResponse<object>.Ok(new { source = "unavailable", reason = result.Unavailable }));
+        cache.Set(userKey, usedToday + 1, TimeSpan.FromDays(1));
+
+        var checks = new List<PackagingCheck>();
+        void Check(string label, string status, string detail) => checks.Add(new(label, status, detail));
+
+        // The digits printed on the pack win over the phone's guess; both are compared.
+        var printed = Digits(analysis.BarcodeDigits);
+        var scanned = Digits(barcode);
+        var code = printed ?? scanned;
+        if (printed is not null && scanned is not null && printed != scanned)
+            Check("Barcode", "warn", $"The phone read {scanned} but the digits printed on the pack are {printed}. Re-scan the barcode to be sure.");
+
+        BarcodeInsight? barcodeInfo = code is null ? null : BarcodeInsights.Analyze(code);
+        if (barcodeInfo is { IsRetailBarcode: true, CheckDigitValid: false })
+            Check("Barcode", "fail", $"{code} fails the barcode check digit. Genuine barcodes always pass; this one may be misprinted or made up.");
+
+        var packName = string.Join(' ', new[] { analysis.Brand, analysis.ProductName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+        // 1. Is this product on SpazaSure, by barcode first and then by name?
+        Product? registry = null;
+        if (code is not null)
+            registry = await db.Products.Include(p => p.Supplier)
+                .FirstOrDefaultAsync(p => p.Barcode == code && p.IsApproved, cancellationToken);
+        if (registry is not null)
+        {
+            if (packName.Length > 0 && !NamesOverlap(packName, $"{registry.Brand} {registry.Name}"))
+                Check("Barcode matches product", "fail",
+                    $"On SpazaSure this barcode belongs to \"{registry.Name}\", but the pack says \"{packName}\". A barcode copied from another product is a common sign of a fake.");
+            else
+                Check("Barcode matches product", "pass", $"The barcode is registered on SpazaSure for {registry.Name}.");
+            if (!string.IsNullOrWhiteSpace(registry.Manufacturer) && !string.IsNullOrWhiteSpace(analysis.Manufacturer)
+                && !NamesOverlap(registry.Manufacturer, analysis.Manufacturer))
+                Check("Manufacturer", "warn",
+                    $"SpazaSure lists {registry.Manufacturer} as the maker, but the pack names {analysis.Manufacturer}.");
+        }
+        else if (packName.Length > 0)
+        {
+            // Search on the most distinctive word (the brand when it was read), rank the rest in memory
+            var words = Words(packName).ToList();
+            var key = $"%{Words(analysis.Brand ?? "").FirstOrDefault() ?? words.FirstOrDefault()}%";
+            List<Product> candidates = words.Count == 0 ? [] : await db.Products.Include(p => p.Supplier)
+                .Where(p => p.IsApproved && (EF.Functions.ILike(p.Name, key) || (p.Brand != null && EF.Functions.ILike(p.Brand, key))))
+                .Take(20)
+                .ToListAsync(cancellationToken);
+            registry = candidates
+                .OrderByDescending(p => Words($"{p.Brand} {p.Name}").Intersect(words).Count())
+                .FirstOrDefault(p => NamesOverlap(packName, $"{p.Brand} {p.Name}"));
+            if (registry is not null && code is not null && registry.Barcode is { Length: > 0 } && registry.Barcode != code)
+                Check("Barcode matches product", "warn",
+                    $"SpazaSure has {registry.Name} with barcode {registry.Barcode}, but this pack shows {code}. It may be a different size or variant; compare them.");
+        }
+
+        // 2. Not on SpazaSure: what do the open databases say this barcode is?
+        OpenFoodFactsProductSnapshot? database = null;
+        if (registry is null && code is not null && barcodeInfo is { IsRetailBarcode: true })
+        {
+            database = (await openFoodFactsService.LookupAsync(code, cancellationToken)).Product;
+            var dbName = $"{database?.Brands} {database?.Name}".Trim();
+            if (database is not null && packName.Length > 0 && dbName.Length > 0)
+            {
+                if (NamesOverlap(packName, dbName))
+                    Check("Barcode matches product", "pass", $"{database.DataSource} lists this barcode as {dbName}, which matches the pack.");
+                else
+                    Check("Barcode matches product", "fail",
+                        $"{database.DataSource} lists this barcode as \"{dbName}\", but the pack says \"{packName}\". A barcode copied from another product is a common sign of a fake.");
+            }
+        }
+
+        var expiry = DateOnly.TryParse(analysis.ExpiryDate, out var e) ? e : (DateOnly?)null;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (expiry is { } exp)
+        {
+            if (exp < today) Check("Expiry date", "fail", $"Expired on {exp:d MMM yyyy}. Do not sell or use it.");
+            else if (exp <= today.AddDays(30)) Check("Expiry date", "warn", $"Expires soon, on {exp:d MMM yyyy}.");
+            else Check("Expiry date", "pass", $"Good until {exp:d MMM yyyy}.");
+        }
+        if (string.IsNullOrWhiteSpace(analysis.Manufacturer))
+            Check("Manufacturer", "warn", "No manufacturer or importer could be read. South African retail packs must name one; check the other sides.");
+
+        var riskLevel = analysis.Verdict switch
+        {
+            "likely_counterfeit" => "high",
+            _ when checks.Any(c => c.Status == "fail") => "high",
+            "some_concerns" => "medium",
+            _ when checks.Any(c => c.Status == "warn") => "medium",
+            "looks_genuine" => "low",
+            _ => "unknown",
+        };
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            source = "packaging_ai",
+            analysis,
+            barcode = code,
+            barcodeInfo,
+            registryProduct = registry is null ? null : new
+            {
+                productId = registry.Id,
+                name = registry.Name,
+                brand = registry.Brand,
+                manufacturer = registry.Manufacturer,
+                barcode = registry.Barcode,
+                supplierName = registry.Supplier.CompanyName,
+                supplierVerified = registry.Supplier.Status == "verified",
+            },
+            databaseProduct = database is null ? null : new
+            {
+                name = database.Name,
+                brand = database.Brands,
+                quantity = database.Quantity,
+                dataSource = database.DataSource,
+                imageUrl = database.ImageUrl,
+            },
+            checks,
+            riskLevel,
+        }));
+    }
+
+    private static string? Digits(string? value)
+    {
+        var digits = value is null ? "" : new string(value.Where(char.IsDigit).ToArray());
+        return digits.Length >= 8 ? digits : null;
+    }
+
+    private static readonly HashSet<string> CommonWords =
+        ["the", "and", "with", "for", "new", "original", "pack", "brand", "limited", "ltd", "pty", "(pty)"];
+
+    private static IEnumerable<string> Words(string text) =>
+        text.ToLowerInvariant()
+            .Split([' ', '-', '/', ',', '.', '&', '(', ')', '\''], StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length >= 3 && !CommonWords.Contains(w) && !w.All(char.IsDigit))
+            .Distinct();
+
+    // True when the two names share a distinctive word, e.g. a brand.
+    private static bool NamesOverlap(string a, string b) => Words(a).Intersect(Words(b)).Any();
 
     [HttpGet("{code}")]
     public async Task<IActionResult> Verify(
@@ -396,3 +585,6 @@ public class VerifyController(SpazaSureDbContext db, OpenFoodFactsService openFo
         }
     }
 }
+
+/// <summary>One cross-check of a packaging photo: pass, warn or fail.</summary>
+public sealed record PackagingCheck(string Label, string Status, string Detail);

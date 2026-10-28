@@ -29,6 +29,8 @@ builder.Services.AddHttpClient<SpazaSure.ProductService.Services.OpenFoodFactsSe
     // The Open Food Facts databases ask every app to identify itself
     client.DefaultRequestHeaders.UserAgent.ParseAdd("SpazaSure/1.0 (+https://spazasure.co.za)");
 });
+// Reads packaging photos with Claude; off until Anthropic:ApiKey (or ANTHROPIC_API_KEY) is set
+builder.Services.AddSingleton<SpazaSure.ProductService.Services.PackagingVisionService>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
