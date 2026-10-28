@@ -362,6 +362,7 @@ public class ShopOrdersController(
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
+        var apiBase = PublicApi.Base(Request);
         var query = db.Orders
             .Include(o => o.Supplier)
             .Include(o => o.Items).ThenInclude(i => i.Product)
@@ -416,7 +417,7 @@ public class ShopOrdersController(
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     UnitPrice = i.ShopUnitPrice,
                     Price = i.ShopUnitPrice,
@@ -427,7 +428,7 @@ public class ShopOrdersController(
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     UnitPrice = i.ShopUnitPrice,
                     Price = i.ShopUnitPrice,
@@ -448,6 +449,7 @@ public class ShopOrdersController(
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
+        var apiBase = PublicApi.Base(Request);
         var order = await db.Orders
             .Where(o => o.Id == id && o.ShopId == shop.Id)
             .Select(o => new
@@ -490,7 +492,7 @@ public class ShopOrdersController(
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     UnitPrice = i.ShopUnitPrice,
                     Price = i.ShopUnitPrice,
@@ -501,7 +503,7 @@ public class ShopOrdersController(
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     UnitPrice = i.ShopUnitPrice,
                     Price = i.ShopUnitPrice,

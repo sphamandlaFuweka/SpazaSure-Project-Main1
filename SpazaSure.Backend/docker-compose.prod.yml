@@ -130,6 +130,7 @@ services:
     healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
       ASPNETCORE_URLS:                      http://+:5002
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
@@ -151,6 +152,7 @@ services:
     healthcheck: *app-healthcheck
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
       ASPNETCORE_URLS:                      http://+:5003
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq
@@ -178,6 +180,7 @@ services:
       - prod_uploads:/app/uploads
     environment:
       ASPNETCORE_ENVIRONMENT:               Production
+      PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
       ASPNETCORE_URLS:                      http://+:5005
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure;Username=spazasure_prod_user;Password=${PROD_DB_PASSWORD};SSL Mode=Disable"
       RabbitMQ__Host:                       rabbitmq

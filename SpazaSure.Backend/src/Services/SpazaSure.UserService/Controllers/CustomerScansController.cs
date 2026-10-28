@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using System.Security.Claims;
 
@@ -23,6 +24,7 @@ public class CustomerScansController(SpazaSureDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMyScans()
     {
+        var apiBase = PublicApi.Base(Request);
         var scans = await db.CustomerScanEvents
             .Where(s => s.CustomerUserId == UserId)
             .OrderByDescending(s => s.CreatedAt)
@@ -32,7 +34,7 @@ public class CustomerScansController(SpazaSureDbContext db) : ControllerBase
                 s.Code,
                 s.ProductId,
                 productName = s.Product != null ? s.Product.Name : null,
-                productImage = s.Product != null ? s.Product.Images : null,
+                productImage = s.Product != null ? ProductImages.ForList(apiBase, s.Product.Id, s.Product.Images.Length <= ProductImages.InlineLimit ? s.Product.Images : null, s.Product.Images.Length, s.Product.Images.Length - s.Product.Images.Replace("\"", "").Length) : null,
                 s.Source,
                 s.PointsAwarded,
                 s.CreatedAt,

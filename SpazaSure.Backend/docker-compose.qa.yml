@@ -86,6 +86,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT:               QA
+      PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
       ASPNETCORE_URLS:                      http://+:5002
       Urls:                                 http://+:5002
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"
@@ -109,6 +110,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT:               QA
+      PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
       ASPNETCORE_URLS:                      http://+:5003
       Urls:                                 http://+:5003
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"
@@ -138,6 +140,7 @@ services:
       - qa_uploads:/app/uploads
     environment:
       ASPNETCORE_ENVIRONMENT:               QA
+      PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
       ASPNETCORE_URLS:                      http://+:5005
       Urls:                                 http://+:5005
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=spazasure_qa;Username=spazasure_qa_user;Password=${QA_DB_PASSWORD}"

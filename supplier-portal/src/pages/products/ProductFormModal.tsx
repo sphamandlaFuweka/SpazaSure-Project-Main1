@@ -9,6 +9,7 @@ import { emptyProductInfo } from '../../types';
 import { Modal } from '../../components/ui';
 import { productsApi } from '../../services/api';
 import { barcodeDigits, barcodeProblem } from '../../utils/barcode';
+import { shrinkImage } from '../../utils/image';
 import { AuthenticitySection, DetailsSection, NutritionSection } from './ProductInfoFields';
 
 type Tab = 'basics' | 'details' | 'nutrition' | 'authenticity';
@@ -123,12 +124,14 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
   const barcodeChanged = barcodeValue.trim() !== (product?.barcode ?? '');
   const barcodeError = barcodeChanged ? barcodeProblem(barcodeValue) : null;
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => setValue('imageUrl', e.target?.result as string, { shouldValidate: true });
-    reader.readAsDataURL(file);
+    try {
+      setValue('imageUrl', await shrinkImage(file), { shouldValidate: true });
+    } catch {
+      toast.error('Could not read that image. Try another photo.');
+    }
   };
 
   const clearImage = () => setValue('imageUrl', '', { shouldValidate: false });

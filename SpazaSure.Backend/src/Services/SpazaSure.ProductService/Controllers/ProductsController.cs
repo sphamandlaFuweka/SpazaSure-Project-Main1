@@ -37,11 +37,12 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         else if (status == "archived") query = query.Where(p => !p.IsAvailable && p.IsApproved);
 
         var total = await query.CountAsync();
+        var apiBase = PublicApi.Base(Request);
         var items = await query.OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new {
                 p.Id, p.Name, p.Sku, p.Barcode, p.Price, p.StockQty, p.Unit,
-                p.IsAvailable, p.IsApproved, p.Images, p.Description,
+                p.IsAvailable, p.IsApproved, Images = ProductImages.ForList(apiBase, p.Id, p.Images.Length <= ProductImages.InlineLimit ? p.Images : null, p.Images.Length, p.Images.Length - p.Images.Replace("\"", "").Length), p.Description,
                 p.MinOrderQty, p.IsFoodItem, p.CategoryId,
                 Category = p.Category == null ? null : p.Category.Name,
                 HasQrCode = p.QrCodes.Any(q => q.OrderItemId == null),
@@ -66,11 +67,13 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
 
     // Same shape as a List item. Returning the Product entity itself fails to serialize: the tracked
     // supplier links back to its products (Product.Supplier.Products.Supplier...).
-    private async Task<object?> ProductDetail(Guid id, Guid supplierId) =>
-        await db.Products.AsNoTracking().Where(p => p.Id == id && p.SupplierId == supplierId)
+    private async Task<object?> ProductDetail(Guid id, Guid supplierId)
+    {
+        var apiBase = PublicApi.Base(Request);
+        return await db.Products.AsNoTracking().Where(p => p.Id == id && p.SupplierId == supplierId)
             .Select(p => new {
                 p.Id, p.Name, p.Sku, p.Barcode, p.Price, p.StockQty, p.Unit,
-                p.IsAvailable, p.IsApproved, p.Images, p.Description,
+                p.IsAvailable, p.IsApproved, Images = ProductImages.ForList(apiBase, p.Id, p.Images.Length <= ProductImages.InlineLimit ? p.Images : null, p.Images.Length, p.Images.Length - p.Images.Replace("\"", "").Length), p.Description,
                 p.MinOrderQty, p.IsFoodItem, p.CategoryId,
                 Category = p.Category == null ? null : p.Category.Name,
                 HasQrCode = p.QrCodes.Any(q => q.OrderItemId == null),
@@ -78,6 +81,7 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
                 BranchStock = p.BranchStock.Select(s => new { s.SupplierBranchId, BranchName = s.SupplierBranch.Name, s.StockQty }).ToList(),
                 p.CreatedAt
             }).FirstOrDefaultAsync();
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create(ProductRequest req)
@@ -149,7 +153,7 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         product.MinOrderQty = req.MinOrderQty;
         product.StockQty = req.StockQty;
         product.Unit = req.Unit;
-        product.Images = req.Images ?? product.Images;
+        product.Images = ProductImages.Keep(req.Images, product.Images, product.Id);
         product.IsAvailable = req.IsAvailable;
         product.IsFoodItem = req.IsFoodItem;
         // Older clients don't send product information; leave it as it is.

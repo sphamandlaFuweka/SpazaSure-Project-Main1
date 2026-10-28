@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using System.Security.Claims;
 using System.Text.Json;
@@ -90,13 +91,14 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var total = await query.CountAsync();
         // Shops see prices with SpazaSure's fee built in, never the supplier's own price
         var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
+        var apiBase = PublicApi.Base(Request);
         var items = await stable.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new {
                 p.Id, p.Name, p.Description, p.Sku, Price = ShopPricing.ShopPrice(p.Price, markup), p.MinOrderQty,
-                p.StockQty, p.Unit, p.Images, p.IsFoodItem,
+                p.StockQty, p.Unit, Images = ProductImages.ForList(apiBase, p.Id, p.Images.Length <= ProductImages.InlineLimit ? p.Images : null, p.Images.Length, p.Images.Length - p.Images.Replace("\"", "").Length), p.IsFoodItem,
                 CategoryId = p.CategoryId, CategoryName = p.Category != null ? p.Category.Name : null,
                 SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
-                SupplierTier = p.Supplier.Tier, SupplierLogo = p.Supplier.LogoUrl,
+                SupplierTier = p.Supplier.Tier, SupplierLogo = ProductImages.LogoForList(apiBase, p.SupplierId, p.Supplier.LogoUrl != null && p.Supplier.LogoUrl.Length <= ProductImages.InlineLimit ? p.Supplier.LogoUrl : null, p.Supplier.LogoUrl == null ? 0 : p.Supplier.LogoUrl.Length),
                 // The fee is already in Price; 0 stops older app builds adding it again
                 SupplierCommissionRate = 0m,
                 SupplierCity = p.Supplier.City, SupplierProvince = p.Supplier.Province,
@@ -170,7 +172,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         return Ok(ApiResponse<object>.Ok(new {
             Availability = availability,
             p.Id, p.Name, p.Description, p.Sku, Price = ShopPricing.ShopPrice(p.Price, markup), p.MinOrderQty,
-            p.StockQty, p.Unit, p.Images, CategoryName = p.Category?.Name,
+            p.StockQty, p.Unit, Images = ProductImages.WithLinks(PublicApi.Base(Request), p.Id, p.Images), CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
             SupplierTier = p.Supplier.Tier,
             p.IsFoodItem, Info = ProductInfo.Project(p),
@@ -206,12 +208,13 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
 
         var suppliers = db.Suppliers.Where(s => s.Status == "active" || s.Status == "verified");
         if (reachable is not null) suppliers = suppliers.Where(s => reachable.Contains(s.Id));
+        var apiBase = PublicApi.Base(Request);
         var items = await suppliers
             .OrderByDescending(s => s.City != null && s.City.ToLower() == shopCity)
             .ThenByDescending(s => s.Province != null && s.Province.ToLower() == shopProvince)
             .ThenBy(s => s.CompanyName)
             .Select(s => new {
-                s.Id, s.CompanyName, s.Tier, s.LogoUrl, s.City, s.Province,
+                s.Id, s.CompanyName, s.Tier, LogoUrl = ProductImages.LogoForList(apiBase, s.Id, s.LogoUrl != null && s.LogoUrl.Length <= ProductImages.InlineLimit ? s.LogoUrl : null, s.LogoUrl == null ? 0 : s.LogoUrl.Length), s.City, s.Province,
                 ProductCount = s.Products.Count(p => p.IsAvailable && p.IsApproved && p.StockQty > 0),
                 IsNearby = (s.City != null && s.City.ToLower() == shopCity) ||
                            (s.Province != null && s.Province.ToLower() == shopProvince),
@@ -262,7 +265,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             QrToken = qr?.QrCode,
             p.Id, p.Name, p.Description, p.Sku, p.Barcode,
             Price = ShopPricing.ShopPrice(p.Price, await PlatformSettingsStore.LoadAsync(db)), p.MinOrderQty,
-            p.StockQty, p.Unit, p.Images, p.IsAvailable, p.IsApproved,
+            p.StockQty, p.Unit, Images = ProductImages.WithLinks(PublicApi.Base(Request), p.Id, p.Images), p.IsAvailable, p.IsApproved,
             CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,
             SupplierTier = p.Supplier.Tier, SupplierCity = p.Supplier.City,

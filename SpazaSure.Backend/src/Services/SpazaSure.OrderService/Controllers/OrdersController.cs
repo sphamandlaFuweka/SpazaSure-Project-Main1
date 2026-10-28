@@ -32,6 +32,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
             query = query.Where(o => o.Status == status);
 
         var total = await query.CountAsync();
+        var apiBase = PublicApi.Base(Request);
         var items = await query
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -74,7 +75,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     i.OriginalUnitPrice,
                     i.UnitPrice,
@@ -90,7 +91,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     i.OriginalUnitPrice,
                     i.UnitPrice,
@@ -113,6 +114,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
         var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
 
+        var apiBase = PublicApi.Base(Request);
         var order = await db.Orders
             .Where(o => o.Id == id && o.SupplierId == supplier.Id)
             .Select(o => new
@@ -153,7 +155,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     i.OriginalUnitPrice,
                     i.UnitPrice,
@@ -169,7 +171,7 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
                     i.Id,
                     i.ProductId,
                     ProductName = i.Product.Name,
-                    ProductImage = i.Product.Images,
+                    ProductImage = ProductImages.ForList(apiBase, i.ProductId, i.Product.Images.Length <= ProductImages.InlineLimit ? i.Product.Images : null, i.Product.Images.Length, i.Product.Images.Length - i.Product.Images.Replace("\"", "").Length),
                     i.Quantity,
                     i.OriginalUnitPrice,
                     i.UnitPrice,

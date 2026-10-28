@@ -38,6 +38,7 @@ public class AdminProductsController(SpazaSureDbContext db, EventPublisher event
         else if (status == "archived") query = query.Where(p => !p.IsAvailable && p.IsApproved);
 
         var total = await query.CountAsync();
+        var apiBase = PublicApi.Base(Request);
         var items = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -45,7 +46,7 @@ public class AdminProductsController(SpazaSureDbContext db, EventPublisher event
             .Select(p => new
             {
                 p.Id, p.Name, p.Sku, p.Price, p.StockQty, p.Unit,
-                p.IsAvailable, p.IsApproved, p.Images, p.Description,
+                p.IsAvailable, p.IsApproved, Images = ProductImages.ForList(apiBase, p.Id, p.Images.Length <= ProductImages.InlineLimit ? p.Images : null, p.Images.Length, p.Images.Length - p.Images.Replace("\"", "").Length), p.Description,
                 p.MinOrderQty, p.IsFoodItem, p.CategoryId, p.Barcode,
                 Category = p.Category == null ? null : p.Category.Name,
                 SupplierId = p.SupplierId,
@@ -71,7 +72,7 @@ public class AdminProductsController(SpazaSureDbContext db, EventPublisher event
         {
             product.Id, product.Name, product.Sku, product.Price,
             product.StockQty, product.Unit, product.IsAvailable, product.IsApproved,
-            product.Images, product.Description, product.MinOrderQty,
+            Images = ProductImages.WithLinks(PublicApi.Base(Request), product.Id, product.Images), product.Description, product.MinOrderQty,
             product.IsFoodItem, product.CategoryId, product.Barcode,
             Category = product.Category?.Name,
             SupplierId = product.SupplierId,

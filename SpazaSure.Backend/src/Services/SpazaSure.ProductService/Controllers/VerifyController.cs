@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Infrastructure.Entities;
 using System.Security.Claims;
 using SpazaSure.ProductService.Services;
@@ -259,7 +260,7 @@ public class VerifyController(
                 PinStatus = pinStatus,
             }, today);
 
-            return Ok(ApiResponse<object>.Ok(BuildResult(
+            return Ok(ApiResponse<object>.Ok(BuildResult(PublicApi.Base(Request),
                 source: "spazasure_unit",
                 verdict: recalled ? "recalled" : pinStatus is "valid" ? "genuine" : pinStatus,
                 product: unit.Product,
@@ -299,7 +300,7 @@ public class VerifyController(
                 IsFood = qr.Product.IsFoodItem, CloneSuspected = cloned,
             }, today);
 
-            return Ok(ApiResponse<object>.Ok(BuildResult(
+            return Ok(ApiResponse<object>.Ok(BuildResult(PublicApi.Base(Request),
                 source: "spazasure_qr",
                 verdict: qr.IsRecalled ? "recalled" : "genuine",
                 product: qr.Product,
@@ -341,7 +342,7 @@ public class VerifyController(
                 IsFood = product.IsFoodItem, CloneSuspected = cloned,
             }, today);
 
-            return Ok(ApiResponse<object>.Ok(BuildResult(
+            return Ok(ApiResponse<object>.Ok(BuildResult(PublicApi.Base(Request),
                 source: "spazasure_barcode",
                 verdict: anyRecalled ? "recalled" : "genuine",
                 product: product,
@@ -525,7 +526,7 @@ public class VerifyController(
     }
 
     private static object BuildResult(
-        string source, string verdict, Infrastructure.Entities.Product product,
+        string apiBase, string source, string verdict, Infrastructure.Entities.Product product,
         string? batchNumber, DateOnly? expiryDate, bool isRecalled, string[]? myAllergies,
         VerificationRisk risk, bool requiresPin = false, string? pinStatus = null)
     {
@@ -545,7 +546,7 @@ public class VerifyController(
             info = ProductInfo.Project(product),
             // The supplier's own "how to spot a fake" checks for this product.
             authenticityTips = ProductInfo.Tips(product),
-            images = DeserializeList(product.Images),
+            images = ProductImages.Links(apiBase, product.Id, product.Images),
             allergens = productAllergens,
             isFoodItem = product.IsFoodItem,
             isRecalled,
