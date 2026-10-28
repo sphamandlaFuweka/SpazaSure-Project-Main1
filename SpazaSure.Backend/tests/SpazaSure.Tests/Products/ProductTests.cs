@@ -7,16 +7,11 @@ namespace SpazaSure.Tests.Products;
 
 public class BarcodeServiceTests
 {
-    // NOTE: The current GenerateEan13 implementation produces an 11-digit base
-    // string plus 1 check digit = 12 characters total. The tests below validate
-    // the actual behaviour. A future fix can pad to the full EAN-13 (13 digits)
-    // by using digits11 = (seed % 100_000_000_000L).ToString("D12")[..12].
-
     [Fact]
-    public void GenerateEan13_ReturnsTwelveDigitString()
+    public void GenerateEan13_ReturnsThirteenDigitSpazaSureCode()
     {
         var barcode = BarcodeService.GenerateEan13(Guid.NewGuid());
-        barcode.Should().MatchRegex("^[0-9]{12}$");
+        barcode.Should().MatchRegex("^290[0-9]{10}$");
     }
 
     [Fact]
@@ -36,23 +31,46 @@ public class BarcodeServiceTests
         a.Should().NotBe(b);
     }
 
+    [Theory]
+    [InlineData("6009523606526")]   // EAN-13 off a real pack
+    [InlineData("96385074")]        // EAN-8
+    [InlineData("036000291452")]    // UPC-A
+    [InlineData("10012345678902")]  // GTIN-14
+    public void Problem_AcceptsPrintedBarcodes(string barcode) =>
+        BarcodeService.Problem(barcode).Should().BeNull();
+
+    [Theory]
+    [InlineData("6009523606527")]   // one digit wrong
+    [InlineData("600952360652")]    // a digit missing
+    [InlineData("60095236065AB")]
+    public void Problem_RejectsMistypedBarcodes(string barcode) =>
+        BarcodeService.Problem(barcode).Should().NotBeNull();
+
     [Fact]
-    public void CalculateCheckDigit_HasValidEan13Checksum()
+    public void Normalize_DropsSpacesAndDashes() =>
+        BarcodeService.Normalize(" 6 009523-606526 ").Should().Be("6009523606526");
+
+    [Fact]
+    public void Normalize_TreatsBlankAsNoBarcode() =>
+        BarcodeService.Normalize("  ").Should().BeNull();
+
+    [Fact]
+    public void GenerateEan13_IsAValidCodeRecognisedAsSpazaSures()
     {
-        // The 11-digit base produces a valid EAN check digit.
-        // Weight: alternating 1 and 3 over 11 digits, check = (10 - sum%10) % 10
-        var id      = Guid.NewGuid();
-        var barcode = BarcodeService.GenerateEan13(id);
-        var base11  = barcode[..11];
-        var check   = barcode[11] - 48; // ASCII digit to int
-
-        var sum = 0;
-        for (int i = 0; i < 11; i++)
-            sum += (base11[i] - 48) * (i % 2 == 0 ? 1 : 3);
-
-        var expected = (10 - (sum % 10)) % 10;
-        check.Should().Be(expected);
+        // Scanners reject a wrong check digit, so every generated code must pass it
+        for (var i = 0; i < 200; i++)
+        {
+            var id = Guid.NewGuid();
+            var code = BarcodeService.GenerateEan13(id);
+            BarcodeService.Problem(code).Should().BeNull();
+            BarcodeService.IsGenerated(id, code).Should().BeTrue();
+            BarcodeInsights.Analyze(code).Kind.Should().Be("spazasure");
+        }
     }
+
+    [Fact]
+    public void IsGenerated_IsFalseForAPrintedBarcode() =>
+        BarcodeService.IsGenerated(Guid.NewGuid(), "6009523606526").Should().BeFalse();
 
     [Fact]
     public void RenderSvg_ReturnsNonEmptySvgString()

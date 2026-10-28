@@ -78,6 +78,7 @@ public static class BarcodeInsights
             : "The check digit is wrong, which happens with forged or misprinted barcodes. Compare the number under the bars with what was scanned.";
         return kind switch
         {
+            "spazasure" => $"A SpazaSure code, made for a product that came without a barcode of its own. It is only recognised by SpazaSure. {check}",
             "in_store" => $"A shop's own code (prefix {prefix}), used for items it weighs, packs or prices itself, such as meat or bread. {check}",
             "book" => $"A book barcode (ISBN). {check}",
             "magazine" => $"A magazine or newspaper barcode (ISSN). {check}",
@@ -96,6 +97,7 @@ public static class BarcodeInsights
             >= 20 and <= 29 => "in_store",
             >= 40 and <= 49 => "restricted",
             >= 50 and <= 59 => "coupon",
+            290 => "spazasure",
             >= 200 and <= 299 => "in_store",
             977 => "magazine",
             978 or 979 => "book",

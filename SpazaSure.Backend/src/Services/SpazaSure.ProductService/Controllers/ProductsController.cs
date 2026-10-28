@@ -91,7 +91,8 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
 
         var product = new Product {
             SupplierId = supplier.Id, CategoryId = req.CategoryId, Name = req.Name.Trim(),
-            Description = req.Description, Sku = req.Sku.Trim(), Barcode = req.Barcode,
+            // The barcode printed on the pack; one is generated below only when there isn't one
+            Description = req.Description, Sku = req.Sku?.Trim() ?? "", Barcode = BarcodeService.Normalize(req.Barcode),
             Price = req.Price, MinOrderQty = req.MinOrderQty, StockQty = req.StockQty,
             Unit = req.Unit, Images = req.Images ?? "[]", IsAvailable = req.IsAvailable,
             IsFoodItem = req.IsFoodItem,
@@ -140,8 +141,10 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         product.CategoryId = req.CategoryId;
         product.Name = req.Name.Trim();
         product.Description = req.Description;
-        product.Sku = req.Sku.Trim();
-        if (req.Barcode is not null) product.Barcode = req.Barcode;
+        product.Sku = req.Sku?.Trim() ?? "";
+        // null keeps the current barcode; an empty one means the pack has none, so SpazaSure makes one
+        if (req.Barcode is not null)
+            product.Barcode = BarcodeService.Normalize(req.Barcode) ?? BarcodeService.GenerateEan13(product.Id);
         product.Price = req.Price;
         product.MinOrderQty = req.MinOrderQty;
         product.StockQty = req.StockQty;
@@ -275,7 +278,9 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
         }
         return Ok(ApiResponse<object>.Ok(new {
             productId = product.Id, productName = product.Name, sku = product.Sku,
-            barcode = product.Barcode, barcodeSvg = BarcodeService.RenderSvg(product.Barcode)
+            barcode = product.Barcode, barcodeSvg = BarcodeService.RenderSvg(product.Barcode),
+            // Made by SpazaSure, not from the pack: scanning the pack won't find this product
+            generated = BarcodeService.IsGenerated(product.Id, product.Barcode),
         }));
     }
 
@@ -330,13 +335,22 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
     private async Task<string?> ValidateRequestAsync(ProductRequest req, Guid supplierId, Product? existing)
     {
         if (string.IsNullOrWhiteSpace(req.Name) || req.Name.Trim().Length > 200) return "Give the product a name (up to 200 characters).";
-        if (string.IsNullOrWhiteSpace(req.Sku) || req.Sku.Trim().Length > 60) return "Give the product a SKU (up to 60 characters).";
+        // The SKU is optional: the barcode identifies the product
+        if (req.Sku?.Trim().Length > 60) return "Keep the SKU to 60 characters or fewer.";
         if (req.Price <= 0 || req.Price > 1_000_000) return "The price must be more than R0.";
         if (req.StockQty < 0) return "Stock can't be negative.";
         if (req.MinOrderQty < 1) return "The minimum order must be at least 1.";
-        var sku = req.Sku.Trim();
-        if (await db.Products.AnyAsync(p => p.SupplierId == supplierId && p.Sku == sku && (existing == null || p.Id != existing.Id)))
+        var sku = req.Sku?.Trim() ?? "";
+        if (sku.Length > 0 && await db.Products.AnyAsync(p => p.SupplierId == supplierId && p.Sku == sku && (existing == null || p.Id != existing.Id)))
             return $"You already have a product with SKU {sku}.";
+        if (BarcodeService.Normalize(req.Barcode) is { } barcode && barcode != existing?.Barcode)
+        {
+            if (BarcodeService.Problem(barcode) is { } problem) return problem;
+            if (barcode.StartsWith(BarcodeService.GeneratedPrefix))
+                return "Barcodes starting with 290 are made by SpazaSure. Type the barcode printed on the pack, or leave it empty.";
+            if (await db.Products.AnyAsync(p => p.SupplierId == supplierId && p.Barcode == barcode && (existing == null || p.Id != existing.Id)))
+                return $"You already have a product with barcode {barcode}.";
+        }
         if (req.CategoryId is { } categoryId && categoryId != existing?.CategoryId &&
             !await db.Categories.AnyAsync(c => c.Id == categoryId && c.IsActive))
             return "Choose one of the listed categories.";
@@ -361,7 +375,7 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
 
 public record ProductRequest(
     [Required] string Name,
-    [Required] string Sku,
+    string? Sku,
     [Required] decimal Price,
     string? Description,
     string? Barcode,

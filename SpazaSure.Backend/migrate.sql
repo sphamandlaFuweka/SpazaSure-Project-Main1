@@ -1309,7 +1309,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_Suppliers_RegistrationNumber" ON suppliers
 CREATE INDEX IF NOT EXISTS "IX_ShopDocuments_ShopId" ON shop_documents(shop_id);
 CREATE INDEX IF NOT EXISTS "IX_SupplierDocuments_SupplierId" ON supplier_documents(supplier_id);
 CREATE INDEX IF NOT EXISTS "IX_Products_CategoryId" ON products(category_id);
-CREATE UNIQUE INDEX IF NOT EXISTS "IX_Products_SupplierId_Sku" ON products(supplier_id, sku);
+-- A product may have no SKU yet (its barcode identifies it); only filled-in SKUs must be unique per supplier.
+-- (An EF-created database names the old index in snake case.)
+DROP INDEX IF EXISTS "IX_Products_SupplierId_Sku";
+DROP INDEX IF EXISTS ix_products_supplier_id_sku;
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_Products_SupplierId_Sku_Filled" ON products(supplier_id, sku) WHERE sku <> '';
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_Orders_OrderNumber" ON orders(order_number);
 CREATE INDEX IF NOT EXISTS "IX_Orders_ShopId" ON orders(shop_id);
 CREATE INDEX IF NOT EXISTS "IX_Orders_SupplierId" ON orders(supplier_id);

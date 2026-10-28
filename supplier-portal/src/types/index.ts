@@ -95,6 +95,8 @@ export interface ProductFormData {
   stockQuantity: number;
   minOrderQty: number;
   imageUrl: string;
+  /** The barcode printed on the pack. Empty means it has none, so SpazaSure makes one. */
+  barcode?: string;
   isFoodItem?: boolean;
   /** Sent only when the form edited it; otherwise the server keeps what it has. */
   info?: ProductInfo;

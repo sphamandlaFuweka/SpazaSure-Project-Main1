@@ -5,11 +5,14 @@ import { Modal } from '../../components/ui';
 import { productsApi } from '../../services/api';
 import type { ProductFormData } from '../../types';
 import clsx from 'clsx';
+import { barcodeDigits, barcodeProblem } from '../../utils/barcode';
 
 interface ParsedRow {
   name: string;
   description: string;
   sku: string;
+  /** Printed on the pack; empty means SpazaSure makes one. */
+  barcode: string;
   price: number;
   discountPrice?: number;
   categoryId: string;
@@ -34,11 +37,12 @@ interface Props {
 }
 
 // "category" takes the category name exactly as listed below (not case sensitive).
-const TEMPLATE_HEADERS = ['name', 'description', 'sku', 'price', 'category', 'stockQuantity', 'minOrderQty', 'imageUrl'];
+// "barcode" is the number printed on the pack; leave it empty when the pack has none.
+const TEMPLATE_HEADERS = ['name', 'description', 'barcode', 'sku', 'price', 'category', 'stockQuantity', 'minOrderQty', 'imageUrl'];
 
 const SAMPLE_DATA = [
-  ['Sunflower Oil 2L', 'Pure sunflower cooking oil 2 litre bottle', 'OIL-SUN-2L', '45.99', 'Cooking oil & fats', '500', '12', 'https://example.com/oil.jpg'],
-  ['White Sugar 2.5kg', 'Fine white sugar 2.5kg bag', 'SUG-WHT-25', '39.99', 'Maize meal, flour & rice', '300', '6', 'https://example.com/sugar.jpg'],
+  ['Sunflower Oil 2L', 'Pure sunflower cooking oil 2 litre bottle', '6001234567890', 'OIL-SUN-2L', '45.99', 'Cooking oil & fats', '500', '12', 'https://example.com/oil.jpg'],
+  ['White Sugar 2.5kg', 'Fine white sugar 2.5kg bag', '', '', '39.99', 'Maize meal, flour & rice', '300', '6', 'https://example.com/sugar.jpg'],
 ];
 
 export default function BulkUploadModal({ onClose, onComplete }: Props) {
@@ -80,6 +84,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
     const nameIdx = header.indexOf('name');
     const descIdx = header.indexOf('description');
     const skuIdx = header.indexOf('sku');
+    const barcodeIdx = header.indexOf('barcode');
     const priceIdx = header.indexOf('price');
     // Older templates used a categoryId column; names are easier, so both are accepted.
     const catIdx = header.indexOf('category') >= 0 ? header.indexOf('category') : header.indexOf('categoryid');
@@ -87,8 +92,8 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
     const moqIdx = header.indexOf('minorderqty');
     const imgIdx = header.indexOf('imageurl');
 
-    if (nameIdx === -1 || skuIdx === -1 || priceIdx === -1) {
-      toast.error('CSV must have at least: name, sku, price columns');
+    if (nameIdx === -1 || priceIdx === -1) {
+      toast.error('CSV must have at least: name, price columns');
       return [];
     }
 
@@ -96,7 +101,8 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
     for (let i = 1; i < lines.length; i++) {
       const cells = parseCSVLine(lines[i]);
       const name = cells[nameIdx]?.trim() ?? '';
-      const sku = cells[skuIdx]?.trim() ?? '';
+      const sku = skuIdx >= 0 ? (cells[skuIdx]?.trim() ?? '') : '';
+      const barcode = barcodeIdx >= 0 ? barcodeDigits(cells[barcodeIdx] ?? '') : '';
       const priceStr = cells[priceIdx]?.trim() ?? '';
       const price = parseFloat(priceStr);
 
@@ -107,7 +113,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
 
       let error: string | undefined;
       if (!name) error = 'Name is required';
-      else if (!sku) error = 'SKU is required';
+      else if (barcodeProblem(barcode)) error = `Barcode: ${barcodeProblem(barcode)}`;
       else if (isNaN(price) || price <= 0) error = 'Invalid price';
       else if (!categoryText) error = 'Category is required';
       else if (!category) error = `Unknown category "${categoryText}"`;
@@ -117,6 +123,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
         name,
         description: cells[descIdx]?.trim() ?? '',
         sku,
+        barcode,
         price: isNaN(price) ? 0 : price,
         categoryId: category?.id ?? '',
         categoryName: category?.name ?? categoryText,
@@ -196,6 +203,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
           name: row.name,
           description: row.description,
           sku: row.sku,
+          barcode: row.barcode,
           price: row.price,
           categoryId: row.categoryId,
           stockQuantity: row.stockQuantity,
@@ -316,7 +324,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                   <tr>
                     <th className="px-3 py-2 text-left font-bold text-gray-500">#</th>
                     <th className="px-3 py-2 text-left font-bold text-gray-500">Name</th>
-                    <th className="px-3 py-2 text-left font-bold text-gray-500">SKU</th>
+                    <th className="px-3 py-2 text-left font-bold text-gray-500">Barcode</th>
                     <th className="px-3 py-2 text-left font-bold text-gray-500">Category</th>
                     <th className="px-3 py-2 text-right font-bold text-gray-500">Price</th>
                     <th className="px-3 py-2 text-right font-bold text-gray-500">Stock</th>
@@ -328,7 +336,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
                     <tr key={i} className={clsx('border-t border-gray-100', row.error && 'bg-red-50/50')}>
                       <td className="px-3 py-2 text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 font-medium text-gray-900 max-w-[180px] truncate">{row.name || '—'}</td>
-                      <td className="px-3 py-2 font-mono text-gray-500">{row.sku || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-gray-500">{row.barcode || 'New'}</td>
                       <td className="px-3 py-2 text-gray-600 max-w-[140px] truncate">{row.categoryName || '—'}</td>
                       <td className="px-3 py-2 text-right font-semibold text-gray-900">
                         {row.price > 0 ? `R${row.price.toFixed(2)}` : '—'}

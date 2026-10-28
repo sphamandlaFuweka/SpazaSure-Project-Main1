@@ -10,13 +10,66 @@ public static class BarcodeService
     private static readonly string[] R = ["1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"];
     private static readonly string[] Parity = ["LLLLLL","LLGLGG","LLGGLG","LLGGGL","LGLLGG","LGGLLG","LGGGLL","LGLGLG","LGLGGL","LGGLGL"];
 
-    /// <summary>Generates a unique EAN-13 barcode string for a product.</summary>
+    /// <summary>
+    /// Prefix of the codes SpazaSure makes for products that came without a barcode. GS1 keeps
+    /// 200-299 for in-store use, so these can never match a real product's barcode.
+    /// </summary>
+    public const string GeneratedPrefix = "290";
+
+    /// <summary>
+    /// Makes an EAN-13 for a product that has no barcode of its own. Only for those: a product's
+    /// printed barcode must be kept, or scanning the pack won't find it.
+    /// </summary>
     public static string GenerateEan13(Guid productId)
     {
-        var bytes = productId.ToByteArray();
-        var seed  = Math.Abs(BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8));
-        var digits11 = (seed % 100_000_000_000L).ToString().PadLeft(11, '0')[..11];
+        var digits9 = (Seed(productId) % 1_000_000_000L).ToString().PadLeft(9, '0');
+        var digits12 = GeneratedPrefix + digits9;
+        return digits12 + CheckDigitFor(digits12);
+    }
+
+    // Codes made before GeneratedPrefix existed: 11 digits from the product id plus a check digit.
+    private static string LegacyEan13(Guid productId)
+    {
+        var digits11 = (Seed(productId) % 100_000_000_000L).ToString().PadLeft(11, '0')[..11];
         return digits11 + CalculateCheckDigit(digits11);
+    }
+
+    private static long Seed(Guid productId)
+    {
+        var bytes = productId.ToByteArray();
+        return Math.Abs(BitConverter.ToInt64(bytes, 0) ^ BitConverter.ToInt64(bytes, 8));
+    }
+
+    /// <summary>True when SpazaSure made this barcode rather than it coming from the pack.</summary>
+    public static bool IsGenerated(Guid productId, string? barcode) =>
+        !string.IsNullOrEmpty(barcode) && (barcode == GenerateEan13(productId) || barcode == LegacyEan13(productId));
+
+    /// <summary>The digits of a typed or scanned barcode (spaces and dashes dropped), or null when empty.</summary>
+    public static string? Normalize(string? barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode)) return null;
+        var digits = new string(barcode.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
+        return digits.Length == 0 ? null : digits;
+    }
+
+    /// <summary>Why a printed barcode can't be right, or null when it is a valid EAN-8, UPC-A, EAN-13 or GTIN-14.</summary>
+    public static string? Problem(string digits)
+    {
+        if (!digits.All(char.IsDigit)) return "A barcode has only numbers. Type the digits printed under the bars.";
+        if (digits.Length is not (8 or 12 or 13 or 14))
+            return $"That barcode has {digits.Length} digits. Product barcodes have 8, 12, 13 or 14; check you typed them all.";
+        if (CheckDigitFor(digits[..^1]) != digits[^1].ToString())
+            return "That barcode's last digit doesn't match the rest, so a digit was probably mistyped. Check it against the pack.";
+        return null;
+    }
+
+    // GS1 mod-10 check digit for EAN-8, UPC-A, EAN-13 and GTIN-14 (weights 3,1 from the right).
+    private static string CheckDigitFor(string body)
+    {
+        var sum = 0;
+        for (var i = 0; i < body.Length; i++)
+            sum += (body[body.Length - 1 - i] - '0') * (i % 2 == 0 ? 3 : 1);
+        return ((10 - sum % 10) % 10).ToString();
     }
 
     public static string CalculateCheckDigit(string d11)
@@ -37,6 +90,8 @@ public static class BarcodeService
 
         ean13 = new string(ean13.Where(char.IsDigit).ToArray());
         if (ean13.Length < 13) ean13 = ean13.PadLeft(13, '0');
+        // A GTIN-14 for a single unit is the EAN-13 with a leading 0; dropping the end would lose the check digit
+        if (ean13.Length == 14 && ean13[0] == '0') ean13 = ean13[1..];
         if (ean13.Length > 13) ean13 = ean13[..13];
 
         const int bw = 2;       // bar width px

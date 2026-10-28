@@ -8,6 +8,7 @@ import type { Product, ProductInfo } from '../../types';
 import { emptyProductInfo } from '../../types';
 import { Modal } from '../../components/ui';
 import { productsApi } from '../../services/api';
+import { barcodeDigits, barcodeProblem } from '../../utils/barcode';
 import { AuthenticitySection, DetailsSection, NutritionSection } from './ProductInfoFields';
 
 type Tab = 'basics' | 'details' | 'nutrition' | 'authenticity';
@@ -29,7 +30,10 @@ const cleanInfo = (info: ProductInfo): ProductInfo => ({
 const schema = z.object({
   name:          z.string().min(2, 'Required'),
   description:   z.string().min(10, 'Min 10 characters'),
-  sku:           z.string().min(3, 'Required'),
+  // Optional: the barcode identifies the product; the SKU is the supplier's own stock code
+  sku:           z.string().optional().default(''),
+  // Checked in the form, and only when changed: an existing product may hold an older code
+  barcode:       z.string().optional().default(''),
   price:         z.coerce.number().positive('Must be positive'),
   categoryId:    z.string().optional().default(''),
   categoryName:  z.string().optional().default(''),
@@ -47,6 +51,8 @@ interface BarcodeResult {
   sku:         string;
   barcode:     string;
   barcodeSvg:  string;
+  /** SpazaSure made it because the pack has no barcode of its own. */
+  generated?:  boolean;
 }
 
 interface Props {
@@ -60,12 +66,25 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     resolver: zodResolver(schema),
     defaultValues: product ? {
       name: product.name, description: product.description, sku: product.sku,
+      barcode: product.barcode ?? '',
       price: product.price,
       categoryId: product.categoryId, categoryName: product.categoryName,
       stockQuantity: product.stockQuantity, minOrderQty: product.minOrderQty,
       imageUrl: product.imageUrl,
-    } : { minOrderQty: 1, stockQuantity: 0, imageUrl: '' },
+    } : { minOrderQty: 1, stockQuantity: 0, imageUrl: '', barcode: '' },
   });
+
+  // Whether the product's current barcode was made by SpazaSure rather than read off the pack.
+  // Those don't match a scan of the real pack, so the supplier is asked for the printed one.
+  const [barcodeWasGenerated, setBarcodeWasGenerated] = useState(false);
+  useEffect(() => {
+    if (!product?.barcode) return;
+    let cancelled = false;
+    productsApi.getBarcode(product.id)
+      .then((res: any) => { if (!cancelled) setBarcodeWasGenerated((res?.data ?? res)?.generated === true); })
+      .catch(() => { /* only a hint; the form works without it */ });
+    return () => { cancelled = true; };
+  }, [product]);
 
   const [tab, setTab] = useState<Tab>('basics');
   const [isFoodItem, setIsFoodItem] = useState(product?.isFoodItem ?? false);
@@ -99,6 +118,10 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
   const barcodeRef   = useRef<HTMLDivElement>(null);
 
   const imageUrl = watch('imageUrl');
+  const barcodeValue = watch('barcode') ?? '';
+  const barcodeEntered = barcodeDigits(barcodeValue).length > 0;
+  const barcodeChanged = barcodeValue.trim() !== (product?.barcode ?? '');
+  const barcodeError = barcodeChanged ? barcodeProblem(barcodeValue) : null;
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -114,6 +137,11 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     if (!data.categoryId) {
       setError('categoryId', { type: 'required', message: 'Choose a category so shops can find this product' });
       setTab('basics');
+      return;
+    }
+    if (barcodeError) {
+      setTab('basics');
+      toast.error(barcodeError);
       return;
     }
     if (!product && !data.imageUrl) {
@@ -143,8 +171,11 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
         try {
           if (!productId) throw new Error('No product id returned');
           const res: any = await productsApi.getBarcode(productId);
-          setBarcodeResult(res.data ?? res);
-          toast.success('Product submitted for approval. Barcode generated.');
+          const result: BarcodeResult = res.data ?? res;
+          setBarcodeResult(result);
+          toast.success(result.generated
+            ? 'Product submitted for approval. SpazaSure barcode created.'
+            : 'Product submitted for approval.');
         } catch {
           // The product is saved; its barcode can be opened later from the product list
           toast.success('Product submitted for approval');
@@ -201,7 +232,9 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
              style={{ animation: 'barcodeIn 0.4s cubic-bezier(0.34,1.56,0.64,1)' }}>
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 size={16} className="text-emerald-600" />
-            <span className="text-sm font-bold text-emerald-800">Barcode Generated & Saved</span>
+            <span className="text-sm font-bold text-emerald-800">
+              {barcodeResult.generated ? 'SpazaSure barcode created. Print it and stick it on each pack' : 'Barcode saved'}
+            </span>
           </div>
           <div className="flex items-center gap-6">
             {/* SVG barcode */}
@@ -333,9 +366,33 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
           </div>
 
           <div>
-            <label className="label">SKU</label>
+            <label className="label">SKU <span className="text-gray-400 font-normal">(optional, your own stock code)</span></label>
             <input {...register('sku')} className={`input font-mono ${errors.sku ? 'input-error' : ''}`} placeholder="OIL-SUN-2L" />
             {errors.sku && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.sku.message}</p>}
+          </div>
+
+          <div className="col-span-2">
+            <label className="label">Barcode on the pack <span className="text-gray-400 font-normal">(if it has one)</span></label>
+            <input {...register('barcode')} inputMode="numeric" autoComplete="off"
+              className={`input font-mono tracking-wider ${barcodeError ? 'input-error' : ''}`}
+              placeholder="e.g. 6001234567890" />
+            {barcodeError ? (
+              <p className="text-red-500 text-xs mt-1.5 font-medium">{barcodeError}</p>
+            ) : barcodeEntered && (barcodeChanged ? true : !barcodeWasGenerated) ? (
+              <p className="text-emerald-600 text-xs mt-1.5 font-medium flex items-center gap-1">
+                <CheckCircle2 size={12} /> Valid barcode. Shops and customers who scan the pack will find this product.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Type the numbers printed under the bars, exactly as on the pack. No barcode on the pack? Leave this empty and SpazaSure will create one.
+              </p>
+            )}
+            {product && barcodeWasGenerated && !barcodeChanged && (
+              <p className="text-xs mt-2 font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                This barcode was created by SpazaSure, so scanning the real pack won't find this product.
+                If the pack has its own barcode, type it here instead.
+              </p>
+            )}
           </div>
 
           <div>
@@ -384,12 +441,13 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
           </label>
         </div>
 
-        {/* Barcode info box — shown before save */}
-        {!barcodeResult && (
+        {/* Barcode info box: only a new product with no barcode gets one made */}
+        {!barcodeResult && !product && !barcodeEntered && (
           <div className="flex items-center gap-3 bg-primary-50 border border-primary-100 rounded-xl p-3.5">
             <Barcode size={18} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-medium">
-              A unique <strong>EAN-13 barcode</strong> will be automatically generated and saved when you submit this product.
+              No barcode entered, so SpazaSure will create one for you to print and stick on the packs.
+              If the pack already has a barcode, type it in the <strong>Basics</strong> tab instead.
             </p>
           </div>
         )}

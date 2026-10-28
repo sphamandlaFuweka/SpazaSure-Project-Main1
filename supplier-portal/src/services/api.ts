@@ -216,6 +216,8 @@ export const productsApi = {
       minOrderQty: Number(data.minOrderQty) || 1,
       unit:        'unit',
       images:      data.imageUrl ? JSON.stringify([data.imageUrl]) : '[]',
+      // null: the pack has no barcode, so the server makes one
+      barcode:     data.barcode?.trim() || null,
       isAvailable: true,
       isFoodItem:  data.isFoodItem ?? false,
       info:        data.info ?? null,
@@ -244,6 +246,9 @@ export const productsApi = {
       unit:        existing?.unit ?? 'unit',
       // null tells the backend to keep the current images
       images:      data.imageUrl ? JSON.stringify([data.imageUrl, ...otherImages]) : null,
+      // null keeps the current barcode; '' means the pack has none, so the server makes one
+      barcode:     data.barcode === undefined || data.barcode.trim() === (existing?.barcode ?? '')
+                     ? null : data.barcode.trim(),
       isAvailable: existing?.isAvailable ?? true,
       isFoodItem:  data.isFoodItem ?? existing?.isFoodItem ?? false,
       info:        data.info ?? null,

@@ -349,7 +349,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         model.Entity<Product>(e =>
         {
             e.ToTable("products");
-            e.HasIndex(p => new { p.SupplierId, p.Sku }).IsUnique();
+            // A product may have no SKU yet; only filled-in SKUs are unique per supplier
+            e.HasIndex(p => new { p.SupplierId, p.Sku }).IsUnique()
+                .HasFilter("sku <> ''").HasDatabaseName("IX_Products_SupplierId_Sku_Filled");
             e.Property(p => p.Price).HasPrecision(10, 2);
             e.Property(p => p.Brand).HasMaxLength(120);
             e.Property(p => p.PackSize).HasMaxLength(60);

@@ -1726,7 +1726,8 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasIndex("SupplierId", "Sku")
                         .IsUnique()
-                        .HasDatabaseName("ix_products_supplier_id_sku");
+                        .HasDatabaseName("IX_Products_SupplierId_Sku_Filled")
+                        .HasFilter("sku <> ''");
 
                     b.ToTable("products", (string)null);
                 });
