@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -288,6 +289,10 @@ class OrderDetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            // The code the driver checks on arrival: proves the goods reached this shop
+            if (order.deliveryCode != null &&
+                const ['confirmed', 'processing', 'ready', 'dispatched'].contains(order.status))
+              _deliveryCodeCard(order),
             if (order.shipsFrom != null || order.driverName != null)
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -310,7 +315,9 @@ class OrderDetailScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: order.status == 'dispatched'
+      // Cash orders are confirmed by the driver after checking the delivery code
+      bottomNavigationBar: order.status == 'dispatched' &&
+              order.paymentMethod != OrderService.cashOnDelivery
           ? Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -466,6 +473,59 @@ class OrderDetailScreen extends StatelessWidget {
             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
           ),
           Text(value, style: AppTextStyles.body),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryCodeCard(Order order) {
+    final code = order.deliveryCode!;
+    final isCod = order.paymentMethod == OrderService.cashOnDelivery;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Text('Your delivery code', style: AppTextStyles.subtitle),
+          const SizedBox(height: 4),
+          Text(
+            isCod
+                ? 'Show this to the SpazaSure driver once you have checked your goods and paid R${order.total.toStringAsFixed(2)} in cash.'
+                : 'Show this to the SpazaSure driver once you have checked your goods. It confirms they delivered to the right shop.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${code.substring(0, 3)} ${code.substring(3)}',
+            style: AppTextStyles.h1.copyWith(
+              letterSpacing: 6,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: QrImageView(
+              // The driver page reads the code back out of this
+              data: 'SPAZASURE-DELIVERY:$code',
+              size: 160,
+              backgroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The driver can scan this. Never share the code before the goods arrive.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          ),
         ],
       ),
     );

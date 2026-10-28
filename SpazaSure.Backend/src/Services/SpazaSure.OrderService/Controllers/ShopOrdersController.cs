@@ -144,6 +144,7 @@ public class ShopOrdersController(
         if (isCashOnDelivery && !rules.CashOnDeliveryEnabled)
             return BadRequest(ApiResponse.Fail("Cash on delivery is not available right now. Please pay with Paystack."));
         var createdOrders = new List<Order>();
+        var newCodes = new HashSet<string>();
         var checkoutId = Guid.NewGuid();
         await using var transaction = await db.Database.BeginTransactionAsync();
         // Hold the shop's wallet until this checkout commits, so the balance can't be spent twice
@@ -208,6 +209,8 @@ public class ShopOrdersController(
                 DeliveryLongitude = deliversToShop ? shop.Longitude : null,
                 DeliveryDistanceKm = from.DistanceKm is { } km ? Math.Round((decimal)km, 2) : null,
                 SupplierBranchId = from.From!.BranchId,
+                // The code the shop shows the driver on arrival; unique across all orders
+                DeliveryCode = req.DeliveryType == "pickup" ? null : await OrderDeliveryCodes.NewAsync(db, newCodes),
                 Subtotal = subtotal,
                 DeliveryFee = deliveryFee,
                 PlatformCommission = platformCommission,
@@ -400,6 +403,8 @@ public class ShopOrdersController(
                 // The branch (warehouse) the order ships from, and the driver allocated to deliver it
                 ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
                 DriverName = o.Driver != null ? o.Driver.FullName : null,
+                // Shown to the driver on arrival; not needed once delivered or cancelled
+                DeliveryCode = o.Status == "delivered" || o.Status == "cancelled" ? null : o.DeliveryCode,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 o.Notes,
@@ -473,6 +478,7 @@ public class ShopOrdersController(
                 // The branch (warehouse) the order ships from, and the driver allocated to deliver it
                 ShipsFrom = o.SupplierBranch != null ? o.SupplierBranch.Name : "Head office",
                 DriverName = o.Driver != null ? o.Driver.FullName : null,
+                DeliveryCode = o.Status == "delivered" || o.Status == "cancelled" ? null : o.DeliveryCode,
                 o.PaymentMethod,
                 o.PaymentStatus,
                 o.Notes,
@@ -525,14 +531,10 @@ public class ShopOrdersController(
         if (order.Status != "dispatched")
             return BadRequest(ApiResponse.Fail("Only dispatched orders can be confirmed as delivered."));
 
+        // Cash orders: the driver confirms, after checking the shop's delivery code and taking the cash
         if (order.PaymentMethod == CashOnDelivery)
-        {
-            var code = req?.Code?.Trim();
-            if (string.IsNullOrEmpty(code))
-                return BadRequest(ApiResponse.Fail("Enter the delivery code the driver gave you to confirm this cash order."));
-            if (!DeliveryCodes.Matches(order.DeliveryCode, code))
-                return BadRequest(ApiResponse.Fail("That delivery code is not correct. Check it with the driver and try again."));
-        }
+            return BadRequest(ApiResponse.Fail(
+                "The driver confirms cash orders. Show them your delivery code once you've paid and have your goods."));
 
         order.Status = "delivered";
         order.DeliveredAt ??= DateTime.UtcNow;
@@ -554,18 +556,6 @@ public class ShopOrdersController(
 }
 
 public record ConfirmDeliveryRequest(string? Code);
-
-/// <summary>Codes that prove a cash on delivery order reached the shop.</summary>
-public static class DeliveryCodes
-{
-    public static string Generate() =>
-        System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-
-    public static bool Matches(string? expected, string? supplied) =>
-        !string.IsNullOrEmpty(expected) && !string.IsNullOrEmpty(supplied) &&
-        System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(expected), System.Text.Encoding.UTF8.GetBytes(supplied));
-}
 
 // ── Request DTOs ────────────────────────────────────────────────────────────
 

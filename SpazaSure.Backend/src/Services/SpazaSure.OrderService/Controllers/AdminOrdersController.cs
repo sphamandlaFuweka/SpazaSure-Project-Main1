@@ -397,8 +397,9 @@ public class AdminOrdersController(SpazaSureDbContext db, EventPublisher events,
 
         var heldStock = OrderStock.Holds(order);
         order.Status = req.Status;
-        if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
-            order.DeliveryCode ??= DeliveryCodes.Generate();
+        // Every delivery has a code the driver checks at the shop (older orders get one now)
+        if (req.Status == "dispatched" && order.DeliveryType != "pickup")
+            order.DeliveryCode ??= await OrderDeliveryCodes.NewAsync(db);
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
         // Payouts are timed from delivery; moving an order out of "delivered" clears it
         order.DeliveredAt = req.Status == "delivered" ? order.DeliveredAt ?? DateTime.UtcNow : null;

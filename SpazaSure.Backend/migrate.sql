@@ -2030,6 +2030,9 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS collected_at timestamp with time zon
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_latitude double precision;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_longitude double precision;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_by varchar(20);
+-- Each delivery order's code is unique; the driver gets a few tries to enter it
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_code_attempts integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS ix_orders_delivery_code ON orders(delivery_code);
 
 -- Uploaded documents are checked against the profile of the account that uploaded them: right
 -- document, same name and ID/registration number, in date, and not already on another account.

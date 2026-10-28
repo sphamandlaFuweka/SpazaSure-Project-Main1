@@ -530,8 +530,7 @@ public class SupplierGroupBuyController(
         foreach (var order in ready)
         {
             order.Status = "dispatched";
-            if (order.PaymentMethod == ShopOrdersController.CashOnDelivery)
-                order.DeliveryCode ??= DeliveryCodes.Generate();
+            order.DeliveryCode ??= await OrderDeliveryCodes.NewAsync(db);
             await ShopWallet.SyncOrderAsync(db, order);
         }
         await db.SaveChangesAsync();
@@ -727,6 +726,7 @@ public class SupplierGroupBuyController(
                     "All joined quantities for qualified products must be included.", omittedItems));
 
             var newOrders = new List<Order>();
+            var newCodes = new HashSet<string>();
             foreach (var entry in eligible)
             {
                 var shop = entry.Participant.Shop;
@@ -778,6 +778,8 @@ public class SupplierGroupBuyController(
                         PaymentMethod = "invoice",
                         PaymentStatus = "pending",
                         Notes = $"Group Buy: {groupBuy.Title}",
+                        // The code the driver checks at the shop; unique across all orders
+                        DeliveryCode = await OrderDeliveryCodes.NewAsync(db, newCodes),
                         Items = newItems
                     };
                     newOrders.Add(order);

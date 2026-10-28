@@ -1257,6 +1257,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("delivery_code");
 
+                    b.Property<int>("DeliveryCodeAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("delivery_code_attempts");
+
                     b.Property<decimal?>("DeliveryDistanceKm")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -1401,6 +1405,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_orders");
+
+                    b.HasIndex("DeliveryCode")
+                        .HasDatabaseName("ix_orders_delivery_code");
 
                     b.HasIndex("DriverId")
                         .HasDatabaseName("ix_orders_driver_id");

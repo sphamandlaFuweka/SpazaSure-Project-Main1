@@ -28,8 +28,13 @@ public class Order : BaseEntity
     public string? PaystackSplitCode { get; set; }
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
-    /// <summary>Cash on delivery only: created at dispatch and entered by the shop to confirm delivery.</summary>
+    /// <summary>
+    /// The order's own 6-digit code (unique, see OrderDeliveryCodes). The shop shows it to the
+    /// driver, who types or scans it to confirm the goods reached the right shop.
+    /// </summary>
     public string? DeliveryCode { get; set; }
+    /// <summary>Wrong codes the driver entered; delivery confirmation locks at OrderDeliveryCodes.MaxAttempts.</summary>
+    public int DeliveryCodeAttempts { get; set; }
     /// <summary>When the order reached "delivered"; payouts become available PayoutDelayDays later.</summary>
     public DateTime? DeliveredAt { get; set; }
     /// <summary>When the supplier share was paid or allocated to their Paystack subaccount.</summary>

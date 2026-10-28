@@ -230,8 +230,8 @@ public class OrdersController(SpazaSureDbContext db, EventPublisher events, Driv
 
         var heldStock = OrderStock.Holds(order);
         order.Status = req.Status;
-        if (req.Status == "dispatched" && order.PaymentMethod == ShopOrdersController.CashOnDelivery)
-            order.DeliveryCode ??= DeliveryCodes.Generate();
+        if (req.Status == "dispatched" && order.DeliveryType != "pickup")
+            order.DeliveryCode ??= await OrderDeliveryCodes.NewAsync(db);
         if (req.Status == "cancelled") order.RejectionReason = req.Reason;
         if (req.Status == "delivered")
         {

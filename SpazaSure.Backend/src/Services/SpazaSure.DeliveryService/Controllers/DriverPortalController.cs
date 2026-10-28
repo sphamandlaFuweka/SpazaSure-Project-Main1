@@ -117,7 +117,7 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
 
     /// <summary>
     /// The driver confirms, at the supplier, that they have the goods: the order is on its way.
-    /// The shop is told, with its shop number, which the driver checks on arrival.
+    /// The shop is told, with the order's delivery code, which the driver checks on arrival.
     /// </summary>
     [HttpPost("api/delivery/driver/{token}/orders/{orderNumber}/collected")]
     public async Task<IActionResult> Collected(string token, string orderNumber, [FromBody] DriverStepRequest? req = null)
@@ -137,28 +137,29 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
 
         order.Status = "dispatched";
         order.CollectedAt = DateTime.UtcNow;
-        if (order.PaymentMethod == "cash_on_delivery") order.DeliveryCode ??= ShopDeliveryCode();
-        var shopCode = await ShopVerification.EnsureCodeAsync(db, order.Shop);
+        // Orders placed before every order had a code get one now
+        order.DeliveryCode ??= await OrderDeliveryCodes.NewAsync(db);
         SaveLocation(driver, req);
         await db.SaveChangesAsync();
 
         events?.PublishNotification(
             supplierId: order.Shop.UserId.ToString(), type: "delivery", title: "Your order is on its way",
             message: $"{driver.FullName} ({driver.VehicleRegistration}) collected order {order.OrderNumber} and is on the way. " +
-                     $"When they arrive, show them your shop number {shopCode} (on your SpazaSure sticker) so they know it's the right shop." +
-                     (order.DeliveryCode is null ? "" : $" Pay R{order.TotalAmount:F2} in cash."),
+                     $"When they arrive, show them your delivery code {order.DeliveryCode} (or its QR code on the order in the app) once you have your goods." +
+                     (order.PaymentMethod == "cash_on_delivery" ? $" Pay R{order.TotalAmount:F2} in cash." : ""),
             priority: "high", referenceId: order.Id.ToString(), routingKey: "order.dispatched");
         events?.PublishNotification(
             supplierId: order.Supplier.UserId.ToString(), type: "order", title: "Order collected",
             message: $"SpazaSure driver {driver.FullName} collected order {order.OrderNumber}.",
             referenceId: order.Id.ToString(), routingKey: "order.dispatched");
-        return Ok(ApiResponse.Ok("Collected. Drive safely, and check the shop number when you arrive."));
+        return Ok(ApiResponse.Ok("Collected. Drive safely, and ask the shop for its delivery code when you arrive."));
     }
 
     /// <summary>
-    /// The driver confirms delivery, at the shop. They must first confirm it's the right shop, by
-    /// typing the shop number on its SpazaSure sticker or scanning the sticker's QR code. Cash
-    /// orders also need the driver to confirm they collected the cash.
+    /// The driver confirms delivery, at the shop, with the order's delivery code: the shop shows
+    /// it in its app and the driver types it or scans its QR code. That proves the goods reached
+    /// the right shop. A few wrong codes lock the order. Cash orders also need the driver to
+    /// confirm they collected the cash.
     /// </summary>
     [HttpPost("api/delivery/driver/{token}/orders/{orderNumber}/delivered")]
     public async Task<IActionResult> Delivered(string token, string orderNumber, [FromBody] DriverDeliveredRequest req)
@@ -171,12 +172,24 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
         if (order.Status != "dispatched")
             return BadRequest(ApiResponse.Fail("Confirm that you collected the order first."));
 
-        var entered = ShopVerification.Normalize(req.ShopCode);
+        if (order.DeliveryCodeAttempts >= OrderDeliveryCodes.MaxAttempts)
+            return BadRequest(ApiResponse.Fail("Too many wrong codes for this order. Call SpazaSure to finish the delivery."));
+        var entered = OrderDeliveryCodes.Read(req.DeliveryCode);
         if (entered is null)
-            return BadRequest(ApiResponse.Fail("Type the shop number on the shop's SpazaSure sticker (like SS123456), or scan the sticker."));
-        if (string.IsNullOrEmpty(order.Shop.ShopCode) || entered != order.Shop.ShopCode)
-            return BadRequest(ApiResponse.Fail(
-                $"That's not the shop number for {order.Shop.ShopName}. Check you're at the right shop: {order.DeliveryAddress ?? order.Shop.Address}."));
+            return BadRequest(ApiResponse.Fail("Ask the shop for the 6-digit delivery code for this order (it's in their SpazaSure app), or scan its QR code."));
+        if (!OrderDeliveryCodes.Matches(order.DeliveryCode, entered))
+        {
+            order.DeliveryCodeAttempts++;
+            await db.SaveChangesAsync();
+            var left = OrderDeliveryCodes.MaxAttempts - order.DeliveryCodeAttempts;
+            if (left == 0 && events is not null)
+                await AdminAlerts.NotifyAdminsAsync(db, events, "delivery", "Delivery code locked",
+                    $"{driver.FullName} entered {OrderDeliveryCodes.MaxAttempts} wrong codes for order {order.OrderNumber} ({order.Shop.ShopName}).",
+                    order.Id.ToString());
+            return BadRequest(ApiResponse.Fail(left > 0
+                ? $"That's not the code for this order. Check you're at {order.Shop.ShopName}, {order.DeliveryAddress ?? order.Shop.Address}. {left} {(left == 1 ? "try" : "tries")} left."
+                : "That's not the code for this order, and it's now locked. Call SpazaSure to finish the delivery."));
+        }
         if (order.PaymentMethod == "cash_on_delivery" && !req.CashCollected)
             return BadRequest(ApiResponse.Fail($"Collect the R{order.TotalAmount:F2} cash from the shop first, then confirm."));
 
@@ -213,9 +226,6 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
     private Task<Order?> DriversOrderAsync(Driver driver, string orderNumber) =>
         db.Orders.Include(o => o.Shop).Include(o => o.Supplier)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber && o.DriverId == driver.Id);
-
-    private static string ShopDeliveryCode() =>
-        System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
     private static (double Latitude, double Longitude)? SaveLocation(Driver driver, DriverStepRequest? req) =>
         SaveLocation(driver, req?.Latitude, req?.Longitude);
@@ -348,7 +358,7 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
             <div id="history"><p>Loading...</p></div>
             <div id="scanner" hidden>
               <video id="scanVideo" playsinline muted></video>
-              <p>Point the camera at the QR code on the shop's SpazaSure sticker.</p>
+              <p>Point the camera at the delivery QR code on the shop's phone.</p>
               <button id="scanClose" class="off">Cancel</button>
             </div>
             <script>
@@ -409,9 +419,9 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                   ${j.status === 'dispatched' ? `
                     <div class="atshop">
                       <b>At the shop</b>
-                      <p class="hint">Check it's the right shop: type the number on its SpazaSure sticker, or scan the sticker.</p>
+                      <p class="hint">Ask the shop for this order's delivery code (it's in their SpazaSure app), or scan the QR code on their phone.</p>
                       <div class="row2">
-                        <input id="code-${esc(j.orderNumber)}" placeholder="Shop number, e.g. SS123456" autocapitalize="characters" autocomplete="off">
+                        <input id="code-${esc(j.orderNumber)}" placeholder="6-digit delivery code" inputmode="numeric" maxlength="40" autocomplete="off">
                         <button class="scan" data-scan="${esc(j.orderNumber)}">Scan</button>
                       </div>
                       ${j.cashOnDelivery ? `<label class="check"><input type="checkbox" id="cash-${esc(j.orderNumber)}"> I collected ${money(j.totalAmount)} in cash</label>` : ''}
@@ -460,25 +470,25 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                 if (confirm('Do you have all the goods for ' + b.dataset.collect + '?')) step(b.dataset.collect, 'collected', {}, b);
               } else if (b.dataset.deliver) {
                 const n = b.dataset.deliver, cash = document.getElementById('cash-' + n);
-                step(n, 'delivered', { shopCode: document.getElementById('code-' + n).value, cashCollected: !!(cash && cash.checked) }, b);
+                step(n, 'delivered', { deliveryCode: document.getElementById('code-' + n).value, cashCollected: !!(cash && cash.checked) }, b);
               } else if (b.dataset.scan) {
                 scanSticker(b.dataset.scan);
               }
             });
 
-            // Scans the QR code on the shop's SpazaSure sticker with the phone camera, where the browser can
+            // Scans the delivery QR code the shop shows in its app, with the phone camera, where the browser can
             let scanStream = null;
             async function scanSticker(orderNumber) {
               const msg = document.getElementById('msg-' + orderNumber);
               if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
                 msg.className = 'msg err';
-                msg.textContent = 'This phone cannot scan from the browser. Type the shop number from the sticker instead.';
+                msg.textContent = 'This phone cannot scan from the browser. Type the 6-digit code the shop shows you instead.';
                 return;
               }
               const box = document.getElementById('scanner'), video = document.getElementById('scanVideo');
               try {
                 scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-              } catch { msg.className = 'msg err'; msg.textContent = 'Allow the camera to scan, or type the shop number.'; return; }
+              } catch { msg.className = 'msg err'; msg.textContent = 'Allow the camera to scan, or type the code.'; return; }
               video.srcObject = scanStream; await video.play(); box.hidden = false;
               const detector = new BarcodeDetector({ formats: ['qr_code'] });
               const tick = async () => {
@@ -488,7 +498,7 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
                   if (found) {
                     document.getElementById('code-' + orderNumber).value = found.rawValue;
                     stopScan();
-                    msg.className = 'msg ok'; msg.textContent = 'Sticker scanned. Now confirm delivered.';
+                    msg.className = 'msg ok'; msg.textContent = 'Code scanned. Now confirm delivered.';
                     if (navigator.vibrate) navigator.vibrate(150);
                     return;
                   }
@@ -632,5 +642,5 @@ public record DriverAlertSubscriptionRequest(string Endpoint, string P256dh, str
 
 public record DriverStepRequest(double? Latitude, double? Longitude);
 
-/// <summary>ShopCode: typed off the shop's sticker, or the sticker's scanned QR (a verify link).</summary>
-public record DriverDeliveredRequest(string? ShopCode, bool CashCollected, double? Latitude, double? Longitude);
+/// <summary>DeliveryCode: the order's 6-digit code, typed or scanned from the QR code in the shop's app.</summary>
+public record DriverDeliveredRequest(string? DeliveryCode, bool CashCollected, double? Latitude, double? Longitude);

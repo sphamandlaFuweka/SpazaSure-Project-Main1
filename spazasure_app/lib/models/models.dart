@@ -148,6 +148,10 @@ class Order {
   /// The driver SpazaSure allocated to deliver the order.
   final String? driverName;
 
+  /// This order's 6-digit delivery code: the shop shows it to the driver, who types or scans it
+  /// to confirm the goods reached the right shop. Null for pickups and finished orders.
+  final String? deliveryCode;
+
   const Order({
     required this.id,
     required this.orderNumber,
@@ -173,6 +177,7 @@ class Order {
     this.estimatedDelivery,
     this.shipsFrom,
     this.driverName,
+    this.deliveryCode,
   });
 
   /// Invoices are issued once the supplier confirms the order.

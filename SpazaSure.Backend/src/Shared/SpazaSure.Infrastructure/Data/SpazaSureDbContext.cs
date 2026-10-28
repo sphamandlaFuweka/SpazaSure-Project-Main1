@@ -418,6 +418,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(o => o.DriverPay).HasPrecision(10, 2);
             e.Property(o => o.DriverPayReference).HasMaxLength(100);
             e.Property(o => o.DeliveredBy).HasMaxLength(20);
+            // Delivery codes are unique; looked up when a new one is made
+            e.HasIndex(o => o.DeliveryCode);
             e.HasIndex(o => o.PayoutReference);
             e.Property(o => o.DeliveryMarkup).HasPrecision(10, 2);
             e.Property(o => o.DeliveryDistanceKm).HasPrecision(10, 2);

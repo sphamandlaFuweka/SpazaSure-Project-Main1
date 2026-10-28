@@ -99,24 +99,18 @@ public class CashOnDeliveryTests
     }
 
     [Fact]
-    public async Task ShopMustEnterCorrectDeliveryCode_ToConfirmCashOrder()
+    public async Task CashOrder_IsConfirmedByTheDriver_NotTheShop()
     {
         var (orders, _, _, db, supplier) = Create();
         var order = AddOrder(db, supplier, Cod, "processing", "pending");
         await orders.UpdateStatus(order.Id, new UpdateStatusRequest("ready", null));
         await CreateAdmin(db).UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null));
         var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode!;
-        var shop = CreateShopController(db);
+        code.Should().MatchRegex("^[0-9]{6}$");
 
-        (await shop.ConfirmDelivery(order.Id, null)).Should().BeOfType<BadRequestObjectResult>();
-        (await shop.ConfirmDelivery(order.Id, new ConfirmDeliveryRequest("000000x"))).Should().BeOfType<BadRequestObjectResult>();
+        // The shop holds the code, so it can't use it to close the order itself
+        (await CreateShopController(db).ConfirmDelivery(order.Id, new ConfirmDeliveryRequest(code))).Should().BeOfType<BadRequestObjectResult>();
         (await db.Orders.FindAsync(order.Id))!.Status.Should().Be("dispatched");
-
-        (await shop.ConfirmDelivery(order.Id, new ConfirmDeliveryRequest($" {code} "))).Should().BeOfType<OkObjectResult>();
-        var saved = await db.Orders.FindAsync(order.Id);
-        saved!.Status.Should().Be("delivered");
-        saved.PaymentStatus.Should().Be("paid");
-        saved.DeliveredAt.Should().NotBeNull();
     }
 
     [Fact]
@@ -129,21 +123,28 @@ public class CashOnDeliveryTests
     }
 
     [Fact]
-    public async Task SupplierCanProcessUnpaidCashOrder_AndShopConfirmationMarksItPaid()
+    public async Task SupplierCanProcessUnpaidCashOrder_AndTheDriversConfirmationMarksItPaid()
     {
         var (orders, _, _, db, supplier) = Create();
         var order = AddOrder(db, supplier, Cod, "pending", "pending");
+        var driver = new Driver { FullName = "Thabo", Phone = "0825551234", VehicleRegistration = "ND 1", AccessToken = new string('d', 48), BadgeCode = "DRV-COD01" };
+        db.Drivers.Add(driver);
+        order.DriverId = driver.Id;
+        await db.SaveChangesAsync();
 
         // Unlike Paystack orders, cash orders don't wait for an online payment
         foreach (var next in new[] { "processing", "ready" })
             (await orders.UpdateStatus(order.Id, new UpdateStatusRequest(next, null))).Should().BeOfType<OkObjectResult>();
-        (await CreateAdmin(db).UpdateStatus(order.Id, new UpdateStatusRequest("dispatched", null))).Should().BeOfType<OkObjectResult>();
+        var portal = new SpazaSure.DeliveryService.Controllers.DriverPortalController(db);
+        (await portal.Collected(driver.AccessToken, order.OrderNumber)).Should().BeOfType<OkObjectResult>();
         var code = (await db.Orders.FindAsync(order.Id))!.DeliveryCode;
-        (await CreateShopController(db).ConfirmDelivery(order.Id, new ConfirmDeliveryRequest(code))).Should().BeOfType<OkObjectResult>();
+        (await portal.Delivered(driver.AccessToken, order.OrderNumber,
+            new SpazaSure.DeliveryService.Controllers.DriverDeliveredRequest(code, true, null, null))).Should().BeOfType<OkObjectResult>();
 
         var saved = await db.Orders.FindAsync(order.Id);
         saved!.PaymentStatus.Should().Be("paid");
         saved.DeliveredAt.Should().NotBeNull();
+        saved.DeliveredBy.Should().Be("driver");
     }
 
     [Fact]

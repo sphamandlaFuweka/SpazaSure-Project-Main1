@@ -222,6 +222,7 @@ class OrderService {
       deliveryLongitude: (o['deliveryLongitude'] as num?)?.toDouble(),
       shipsFrom: o['shipsFrom']?.toString(),
       driverName: o['driverName']?.toString(),
+      deliveryCode: o['deliveryCode']?.toString(),
       createdAt: DateTime.tryParse(o['createdAt'] ?? '') ?? DateTime.now(),
       estimatedDelivery: o['estimatedDelivery'] != null
           ? DateTime.tryParse(o['estimatedDelivery'])
