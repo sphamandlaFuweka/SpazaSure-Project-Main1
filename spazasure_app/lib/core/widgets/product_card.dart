@@ -4,7 +4,11 @@ import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 
+/// Sized for a three-column catalogue grid; give it about [gridHeight] of height.
 class ProductCard extends StatelessWidget {
+  static const double imageHeight = 88;
+  static const double gridHeight = 214;
+
   final Product product;
   final VoidCallback? onTap;
   final VoidCallback? onAddToCart;
@@ -22,7 +26,7 @@ class ProductCard extends StatelessWidget {
       return Center(
         child: Icon(
           Icons.inventory_2_outlined,
-          size: 48,
+          size: 32,
           color: AppColors.primary.withValues(alpha: 0.3),
         ),
       );
@@ -36,7 +40,7 @@ class ProductCard extends StatelessWidget {
         final bytes = base64Decode(base64Str);
         return SizedBox(
           width: double.infinity,
-          height: 120,
+          height: imageHeight,
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
@@ -51,7 +55,7 @@ class ProductCard extends StatelessWidget {
     if (url.startsWith('http')) {
       return SizedBox(
         width: double.infinity,
-        height: 120,
+        height: imageHeight,
         child: Image.network(
           url,
           fit: BoxFit.cover,
@@ -66,7 +70,7 @@ class ProductCard extends StatelessWidget {
     return Center(
       child: Icon(
         Icons.inventory_2_outlined,
-        size: 48,
+        size: 32,
         color: AppColors.primary.withValues(alpha: 0.3),
       ),
     );
@@ -79,7 +83,7 @@ class ProductCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -93,11 +97,11 @@ class ProductCard extends StatelessWidget {
           children: [
             // Product Image
             Container(
-              height: 120,
+              height: imageHeight,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
+                  top: Radius.circular(12),
                 ),
               ),
               child: Stack(
@@ -105,28 +109,29 @@ class ProductCard extends StatelessWidget {
                   // Show actual image or fallback to icon
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(12),
                     ),
                     child: _buildProductImage(),
                   ),
                   if (product.discountPrice != null)
                     Positioned(
-                      top: 8,
-                      left: 8,
+                      top: 4,
+                      left: 4,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 5,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.error,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${(((product.price - product.discountPrice!) / product.price) * 100).round()}% OFF',
+                          '-${(((product.price - product.discountPrice!) / product.price) * 100).round()}%',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 9,
                           ),
                         ),
                       ),
@@ -138,20 +143,17 @@ class ProductCard extends StatelessWidget {
                     'bronze',
                   }.contains(product.supplierTier))
                     Positioned(
-                      top: 8,
-                      right: 8,
+                      top: 4,
+                      right: 4,
                       child: _SupplierTierBadge(tier: product.supplierTier!),
                     ),
                   // Nearby badge
                   if (product.isNearby)
                     Positioned(
-                      bottom: 8,
-                      left: 8,
+                      bottom: 4,
+                      left: 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(8),
@@ -162,24 +164,9 @@ class ProductCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.near_me,
-                              size: 10,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Nearby',
-                              style: AppTextStyles.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
+                        child: const Tooltip(
+                          message: 'Nearby',
+                          child: Icon(Icons.near_me, size: 10, color: Colors.white),
                         ),
                       ),
                     ),
@@ -188,14 +175,15 @@ class ProductCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.black45,
                         borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
+                          top: Radius.circular(12),
                         ),
                       ),
                       child: Center(
                         child: Text(
-                          'Out of Stock',
-                          style: AppTextStyles.subtitle.copyWith(
+                          'Out of stock',
+                          style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -204,7 +192,7 @@ class ProductCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -212,16 +200,18 @@ class ProductCard extends StatelessWidget {
                   Text(
                     product.name,
                     style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
+                      fontSize: 11.5,
+                      height: 1.2,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     product.supplierName,
-                    style: AppTextStyles.caption,
+                    style: AppTextStyles.caption.copyWith(fontSize: 10),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -233,7 +223,7 @@ class ProductCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: product.outOfStockNearYou ? AppColors.error : AppColors.accentDark,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   if (product.supplierCity != null &&
@@ -266,7 +256,7 @@ class ProductCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -280,16 +270,21 @@ class ProductCard extends StatelessWidget {
                                 style: AppTextStyles.caption.copyWith(
                                   decoration: TextDecoration.lineThrough,
                                   color: AppColors.textHint,
+                                  fontSize: 9,
                                 ),
                               ),
                               Text(
                                 'R${product.discountPrice!.toStringAsFixed(2)}',
-                                style: AppTextStyles.priceSmall,
+                                style: AppTextStyles.priceSmall.copyWith(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ] else
                               Text(
                                 'R${product.price.toStringAsFixed(2)}',
-                                style: AppTextStyles.priceSmall,
+                                style: AppTextStyles.priceSmall.copyWith(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                           ],
                         ),
@@ -298,15 +293,15 @@ class ProductCard extends StatelessWidget {
                         GestureDetector(
                           onTap: onAddToCart,
                           child: Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Icon(
                               Icons.add,
                               color: Colors.white,
-                              size: 18,
+                              size: 16,
                             ),
                           ),
                         ),
@@ -361,7 +356,7 @@ class _SupplierTierBadge extends StatelessWidget {
     return Tooltip(
       message: '${_tier[0].toUpperCase()}${_tier.substring(1)} Supplier',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: _color.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(6),

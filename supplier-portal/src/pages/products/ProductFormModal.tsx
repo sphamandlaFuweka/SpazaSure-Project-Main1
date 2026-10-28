@@ -400,7 +400,10 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
 
           <div>
             <label className="label">Category <span className="text-red-500">*</span></label>
+            {/* Controlled: the list loads after the form opens, and an uncontrolled select would
+                then fall back to "Select category" although a category is chosen */}
             <select {...register('categoryId')}
+              value={watch('categoryId') ?? ''}
               onChange={(e) => { setValue('categoryId', e.target.value); const cat = categories.find((c) => c.id === e.target.value); if (cat) setValue('categoryName', cat.name); }}
               className={`select ${errors.categoryId ? 'input-error' : ''}`}>
               <option value="">Select category</option>

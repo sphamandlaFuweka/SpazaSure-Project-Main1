@@ -276,13 +276,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ],
                     )
                   : GridView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.62,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            crossAxisCount: 3,
+                            mainAxisExtent: ProductCard.gridHeight,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
                       itemCount: _filteredProducts.length,
                       itemBuilder: (context, index) {
