@@ -39,8 +39,14 @@ class LanguagePickerTile extends StatelessWidget {
               ListTile(
                 title: Text(entry.value),
                 trailing: entry.key == current
-                    ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                    : const Icon(Icons.circle_outlined, color: AppColors.textHint),
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : const Icon(
+                        Icons.circle_outlined,
+                        color: AppColors.textHint,
+                      ),
                 onTap: () => Navigator.pop(ctx, entry.key),
               ),
             Padding(
@@ -56,7 +62,10 @@ class LanguagePickerTile extends StatelessWidget {
     await onChanged?.call(picked);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('language.changed')), backgroundColor: AppColors.success),
+        SnackBar(
+          content: Text(tr('language.changed')),
+          backgroundColor: AppColors.success,
+        ),
       );
     }
   }

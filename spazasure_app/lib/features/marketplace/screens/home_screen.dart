@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -185,17 +186,27 @@ class _HomeScreenState extends State<HomeScreen>
               if (_error != null)
                 SliverToBoxAdapter(child: _buildErrorBanner(_error!)),
               SliverToBoxAdapter(child: _buildWalletCard()),
-              SliverToBoxAdapter(child: _buildKpiRow()),
-              SliverToBoxAdapter(child: _buildActiveOrder()),
-              SliverToBoxAdapter(child: _buildQuickActions()),
+              SliverToBoxAdapter(
+                child: Entrance(index: 2, child: _buildKpiRow()),
+              ),
+              SliverToBoxAdapter(
+                child: Entrance(index: 3, child: _buildActiveOrder()),
+              ),
+              SliverToBoxAdapter(
+                child: Entrance(index: 4, child: _buildQuickActions()),
+              ),
               SliverToBoxAdapter(
                 child: _buildSectionTitle(
                   'Shop by Category',
                   onTap: () => Navigator.pushNamed(context, '/marketplace'),
                 ),
               ),
-              SliverToBoxAdapter(child: _buildCategories()),
-              SliverToBoxAdapter(child: _buildPromoBanner()),
+              SliverToBoxAdapter(
+                child: Entrance(index: 5, child: _buildCategories()),
+              ),
+              SliverToBoxAdapter(
+                child: Entrance(index: 6, child: _buildPromoBanner()),
+              ),
               SliverToBoxAdapter(
                 child: _buildSectionTitle(
                   'Popular Products',
@@ -416,10 +427,71 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ─── PIECE 2: PREMIUM WALLET CARD ───────────────────────────────────────────
   Widget _buildWalletCard() {
-    return GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 30, 16, 4),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: _fanCard(
+              AppColors.accent,
+              const [AppColors.red, AppColors.secondary, Colors.white],
+              angle: -0.07,
+              offset: const Offset(-4, -20),
+              delay: 350,
+            ),
+          ),
+          Positioned.fill(
+            child: _fanCard(
+              AppColors.secondary,
+              const [AppColors.accent, AppColors.primaryDark, Colors.white],
+              angle: 0.05,
+              offset: const Offset(6, -11),
+              delay: 450,
+            ),
+          ),
+          _walletFront(),
+        ],
+      ),
+    );
+  }
+
+  /// A card behind the wallet: dealt out from under it once the wallet lands.
+  Widget _fanCard(
+    Color color,
+    List<Color> pattern, {
+    required double angle,
+    required Offset offset,
+    required int delay,
+  }) => IgnorePointer(
+    child:
+        Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: CustomPaint(painter: BrandPattern(pattern)),
+            )
+            .animate()
+            .fadeIn(delay: delay.ms, duration: 200.ms)
+            .custom(
+              delay: delay.ms,
+              duration: 650.ms,
+              curve: Curves.easeOutBack,
+              builder: (_, v, child) => Transform.translate(
+                offset: offset * v,
+                child: Transform.rotate(angle: angle * v, child: child),
+              ),
+            ),
+  );
+
+  Widget _walletFront() {
+    return Pressable(
           onTap: () => Navigator.pushNamed(context, '/wallet'),
           child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -442,21 +514,18 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: Stack(
               children: [
-                // Decorative circles
-                Positioned(
-                  right: -30,
-                  top: -30,
-                  child: _decorCircle(120, 0.06),
-                ),
-                Positioned(
-                  right: 40,
-                  bottom: -40,
-                  child: _decorCircle(100, 0.05),
-                ),
-                Positioned(
-                  left: -20,
-                  bottom: -20,
-                  child: _decorCircle(80, 0.04),
+                // Brand shapes, faint behind the numbers
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.2,
+                    child: CustomPaint(
+                      painter: BrandPattern([
+                        AppColors.accent,
+                        AppColors.secondaryLight,
+                        Colors.white,
+                      ]),
+                    ),
+                  ),
                 ),
                 // Card content
                 Padding(
@@ -507,19 +576,20 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        !_walletVisible
-                            ? 'R ••••••'
-                            : _walletBalance == null
-                            ? 'R --'
-                            : 'R ${_walletBalance!.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
+                      _walletVisible && _walletBalance != null
+                          ? TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: _walletBalance!),
+                              duration: const Duration(milliseconds: 900),
+                              curve: Curves.easeOutCubic,
+                              builder: (_, value, __) => Text(
+                                'R ${value.toStringAsFixed(2)}',
+                                style: _balanceStyle,
+                              ),
+                            )
+                          : Text(
+                              _walletVisible ? 'R --' : 'R ••••••',
+                              style: _balanceStyle,
+                            ),
                       const SizedBox(height: 4),
                       const Text(
                         'Available Balance',
@@ -572,9 +642,22 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         )
         .animate()
-        .fadeIn(delay: 100.ms)
-        .slideY(begin: 0.08, end: 0, delay: 100.ms, duration: 400.ms);
+        .fadeIn(delay: 100.ms, duration: 300.ms)
+        .scaleXY(
+          begin: 0.9,
+          end: 1,
+          delay: 100.ms,
+          duration: 550.ms,
+          curve: Curves.easeOutBack,
+        );
   }
+
+  static const _balanceStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 32,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.5,
+  );
 
   Widget _buildErrorBanner(String message) => Container(
     margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -596,15 +679,6 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         TextButton(onPressed: _loadData, child: const Text('Retry')),
       ],
-    ),
-  );
-
-  Widget _decorCircle(double size, double opacity) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: opacity),
-      shape: BoxShape.circle,
     ),
   );
 
@@ -908,7 +982,8 @@ class _HomeScreenState extends State<HomeScreen>
         children: actions
             .map(
               (a) => Expanded(
-                child: GestureDetector(
+                child: Pressable(
+                  scale: 0.9,
                   onTap: () =>
                       Navigator.pushNamed(context, a['route'] as String),
                   child: Padding(
@@ -1113,8 +1188,18 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ] else ...[
-              Positioned(right: -20, top: -20, child: _decorCircle(110, 0.12)),
-              Positioned(right: 30, bottom: -30, child: _decorCircle(80, 0.1)),
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.25,
+                  child: CustomPaint(
+                    painter: BrandPattern([
+                      AppColors.accent,
+                      AppColors.secondaryLight,
+                      Colors.white,
+                    ]),
+                  ),
+                ),
+              ),
             ],
             Padding(
               padding: const EdgeInsets.all(20),
@@ -1241,7 +1326,7 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),

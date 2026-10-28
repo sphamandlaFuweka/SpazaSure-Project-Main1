@@ -40,8 +40,16 @@ void main() {
     final fromDatabase = GalleryPhoto.fromProduct({
       'images': ['https://x/front.jpg'],
       'gallery': [
-        {'url': 'https://x/front.jpg', 'label': 'Front of pack', 'source': 'Open Food Facts'},
-        {'url': 'https://x/ingredients.jpg', 'label': 'Ingredients', 'source': 'Open Food Facts'},
+        {
+          'url': 'https://x/front.jpg',
+          'label': 'Front of pack',
+          'source': 'Open Food Facts',
+        },
+        {
+          'url': 'https://x/ingredients.jpg',
+          'label': 'Ingredients',
+          'source': 'Open Food Facts',
+        },
       ],
     });
     expect(fromDatabase.map((p) => p.label), ['Front of pack', 'Ingredients']);
@@ -49,11 +57,16 @@ void main() {
     final fromSupplier = GalleryPhoto.fromProduct({
       'images': ['/uploads/products/a.jpg', _dataImage],
     });
-    expect(fromSupplier.map((p) => p.label), ['Supplier photo 1', 'Supplier photo 2']);
+    expect(fromSupplier.map((p) => p.label), [
+      'Supplier photo 1',
+      'Supplier photo 2',
+    ]);
     expect(fromSupplier.first.source, 'SpazaSure supplier');
   });
 
-  testWidgets('shows supplier photos and opens the side-by-side comparison', (tester) async {
+  testWidgets('shows supplier photos and opens the side-by-side comparison', (
+    tester,
+  ) async {
     await _show(tester, {
       'source': 'spazasure_barcode',
       'name': 'Sunlight Dishwashing Liquid',
@@ -80,7 +93,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('offers a text check when there are no photos on record', (tester) async {
+  testWidgets('offers a text check when there are no photos on record', (
+    tester,
+  ) async {
     await _show(tester, {
       'source': 'open_food_facts',
       'name': 'Iwisa Super Maize Meal',

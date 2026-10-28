@@ -17,7 +17,12 @@ class _FakeFeedback extends FeedbackService {
     List<int>? screenshotBytes,
     String? screenshotName,
   }) async {
-    sent.add({'type': type, 'message': message, 'rating': rating, 'screen': screen});
+    sent.add({
+      'type': type,
+      'message': message,
+      'rating': rating,
+      'screen': screen,
+    });
   }
 }
 
@@ -31,7 +36,10 @@ Future<_FakeFeedback> _open(WidgetTester tester) async {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => SendFeedbackScreen(service: fake, fromScreen: 'Scan result: 6001067089827'),
+                builder: (_) => SendFeedbackScreen(
+                  service: fake,
+                  fromScreen: 'Scan result: 6001067089827',
+                ),
               ),
             ),
             child: const Text('open'),
@@ -57,11 +65,16 @@ void main() {
     expect(fake.sent, isEmpty);
   });
 
-  testWidgets('sends the type, message, rating and where it came from', (tester) async {
+  testWidgets('sends the type, message, rating and where it came from', (
+    tester,
+  ) async {
     final fake = await _open(tester);
 
     await tester.tap(find.text('An idea'));
-    await tester.enterText(find.byType(TextField), 'Please add a Zulu version of the app');
+    await tester.enterText(
+      find.byType(TextField),
+      'Please add a Zulu version of the app',
+    );
     await tester.tap(find.byTooltip('4 of 5'));
     await tester.pump();
     await tester.ensureVisible(find.byIcon(Icons.send_rounded));
@@ -74,7 +87,10 @@ void main() {
       'rating': 4,
       'screen': 'Scan result: 6001067089827',
     });
-    expect(find.byType(SendFeedbackScreen), findsNothing); // closed after sending
+    expect(
+      find.byType(SendFeedbackScreen),
+      findsNothing,
+    ); // closed after sending
     expect(find.textContaining('Thank you!'), findsOneWidget);
   });
 }

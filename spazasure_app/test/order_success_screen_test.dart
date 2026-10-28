@@ -5,15 +5,23 @@ import 'package:spazasure_app/services/order_service.dart';
 
 void main() {
   Future<void> show(WidgetTester tester, String method) async {
-    await tester.pumpWidget(MaterialApp(
-      home: OrderSuccessScreen(
-        success: OrderSuccess(orderNumber: 'ORD-1042', paymentMethod: method, total: 447.99),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OrderSuccessScreen(
+          success: OrderSuccess(
+            orderNumber: 'ORD-1042',
+            paymentMethod: method,
+            total: 447.99,
+          ),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('card payment shows the thank-you screen with the order number', (tester) async {
+  testWidgets('card payment shows the thank-you screen with the order number', (
+    tester,
+  ) async {
     await show(tester, OrderService.paystack);
 
     expect(find.text('Thank you for your order'), findsOneWidget);
@@ -22,7 +30,9 @@ void main() {
     expect(find.text('Back to home'), findsOneWidget);
   });
 
-  testWidgets('cash on delivery says how much cash to have ready', (tester) async {
+  testWidgets('cash on delivery says how much cash to have ready', (
+    tester,
+  ) async {
     await show(tester, OrderService.cashOnDelivery);
 
     expect(find.text('Order placed!'), findsOneWidget);

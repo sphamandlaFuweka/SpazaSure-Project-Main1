@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/animated_logo.dart';
 import 'package:spazasure_app/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -129,57 +131,33 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo container with glow
-                  SizedBox(
-                        width: 130,
-                        height: 130,
-                        child: Image.asset(
-                          'assets/images/spazasure_logo.png',
-                          fit: BoxFit.contain,
-                        ),
-                      )
-                      .animate()
-                      .scale(
-                        begin: const Offset(0.3, 0.3),
-                        end: const Offset(1, 1),
-                        duration: 800.ms,
-                        curve: Curves.elasticOut,
-                      )
-                      .fadeIn(duration: 600.ms),
+                  // The pinwheel builds itself from its four pieces
+                  const AnimatedLogo(size: 150),
 
                   const SizedBox(height: 28),
 
-                  // App name with shimmer
-                  Text(
-                        'SpazaSure',
-                        style: GoogleFonts.nunito(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                  // Each letter pops up in turn once the logo has landed
+                  BouncyWordmark(
+                    delay: 1000.ms,
+                    highlight: AppColors.accent,
+                    style: GoogleFonts.nunito(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      )
-                      .animate()
-                      .fadeIn(delay: 400.ms, duration: 600.ms)
-                      .slideY(
-                        begin: 0.3,
-                        end: 0,
-                        delay: 400.ms,
-                        duration: 600.ms,
-                        curve: Curves.easeOut,
-                      )
-                      .shimmer(
-                        delay: 1200.ms,
-                        duration: 1800.ms,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
+                      ],
+                    ),
+                  ).animate().shimmer(
+                    delay: 2000.ms,
+                    duration: 1400.ms,
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
 
                   const SizedBox(height: 10),
 
@@ -193,11 +171,11 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       )
                       .animate()
-                      .fadeIn(delay: 800.ms, duration: 600.ms)
+                      .fadeIn(delay: 1600.ms, duration: 600.ms)
                       .slideY(
                         begin: 0.5,
                         end: 0,
-                        delay: 800.ms,
+                        delay: 1600.ms,
                         duration: 600.ms,
                       ),
 

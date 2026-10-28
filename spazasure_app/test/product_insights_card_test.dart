@@ -23,14 +23,27 @@ final _cola = <String, dynamic>{
     'highlights': [
       {
         'tone': 'warning',
-        'text': 'High in sugar: 10.6 g per 100 ml (about 2½ teaspoons of sugar).',
+        'text':
+            'High in sugar: 10.6 g per 100 ml (about 2½ teaspoons of sugar).',
       },
       {'tone': 'good', 'text': 'Low in salt.'},
     ],
     'nutritionBasis': '100 ml',
     'nutrition': [
-      {'key': 'energy-kcal', 'label': 'Energy', 'value': 42, 'unit': 'kcal', 'level': null},
-      {'key': 'sugars', 'label': 'Sugars', 'value': 10.6, 'unit': 'g', 'level': 'high'},
+      {
+        'key': 'energy-kcal',
+        'label': 'Energy',
+        'value': 42,
+        'unit': 'kcal',
+        'level': null,
+      },
+      {
+        'key': 'sugars',
+        'label': 'Sugars',
+        'value': 10.6,
+        'unit': 'g',
+        'level': 'high',
+      },
       {'key': 'salt', 'label': 'Salt', 'value': 0, 'unit': 'g', 'level': 'low'},
     ],
     'novaGroup': 4,
@@ -38,7 +51,11 @@ final _cola = <String, dynamic>{
     'nutriScore': 'E',
     'nutriScoreLabel': 'Lowest nutritional quality',
     'additives': [
-      {'code': 'E150D', 'name': 'Sulphite ammonia caramel', 'purpose': 'colour'},
+      {
+        'code': 'E150D',
+        'name': 'Sulphite ammonia caramel',
+        'purpose': 'colour',
+      },
       {'code': 'E338', 'name': 'Phosphoric acid', 'purpose': 'acid'},
     ],
     'diet': ['Vegan', 'No palm oil'],
@@ -77,7 +94,9 @@ Future<void> _show(WidgetTester tester, Map<String, dynamic> product) async {
 }
 
 void main() {
-  testWidgets('explains a product that is only in a global database', (tester) async {
+  testWidgets('explains a product that is only in a global database', (
+    tester,
+  ) async {
     await _show(tester, _cola);
     await tester.ensureVisible(find.text('Product information'));
     await tester.tap(find.text('Product information'));
@@ -99,7 +118,10 @@ void main() {
     await tester.ensureVisible(find.text('What we checked'));
     await tester.tap(find.text('What we checked'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('product details were found in Open Food Facts'), findsOneWidget);
+    expect(
+      find.textContaining('product details were found in Open Food Facts'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull); // no layout overflow
 
     await tester.ensureVisible(find.text('Additives (2)'));
@@ -108,7 +130,9 @@ void main() {
     expect(find.text('Sulphite ammonia caramel · colour'), findsOneWidget);
   });
 
-  testWidgets('tells a shop when the product is not sold on the marketplace', (tester) async {
+  testWidgets('tells a shop when the product is not sold on the marketplace', (
+    tester,
+  ) async {
     await _show(tester, {..._cola, 'notInMarketplace': true});
 
     expect(find.textContaining('Not sold on SpazaSure'), findsOneWidget);
@@ -121,7 +145,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows a shop the marketplace listing with an order button', (tester) async {
+  testWidgets('shows a shop the marketplace listing with an order button', (
+    tester,
+  ) async {
     String? ordered;
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3;
@@ -160,7 +186,10 @@ void main() {
     expect(find.text('Sold on the SpazaSure marketplace'), findsOneWidget);
     expect(find.textContaining('R 32.50 per case'), findsOneWidget);
     expect(find.textContaining('Soweto Wholesale (verified)'), findsOneWidget);
-    expect(find.textContaining('the code may have been copied'), findsOneWidget);
+    expect(
+      find.textContaining('the code may have been copied'),
+      findsOneWidget,
+    );
     // Shops can't redeem the customer's PIN, and are told not to scratch it
     expect(find.text('Check PIN'), findsNothing);
     expect(find.textContaining("Don't scratch it"), findsOneWidget);
@@ -171,7 +200,9 @@ void main() {
     expect(ordered, 'p-1');
   });
 
-  testWidgets('still explains the barcode when no database has the product', (tester) async {
+  testWidgets('still explains the barcode when no database has the product', (
+    tester,
+  ) async {
     await _show(tester, {
       'source': 'not_registered',
       'code': '6001234567892',

@@ -35,7 +35,13 @@ void main() {
     });
 
     test('rejects short, foreign and malformed numbers', () {
-      for (final phone in ['08212345', '+44 20 7946 0958', '0921234567', '082-ABC-4567', '']) {
+      for (final phone in [
+        '08212345',
+        '+44 20 7946 0958',
+        '0921234567',
+        '082-ABC-4567',
+        '',
+      ]) {
         expect(SaValidation.isValidPhone(phone), isFalse, reason: phone);
       }
     });

@@ -11,7 +11,10 @@ void main() {
 
   test('rejects a misread retail barcode so the camera keeps scanning', () {
     expect(isPlausibleScan('6001067089820'), isFalse);
-    expect(isPlausibleScan('6001067O89827'), isTrue); // not all digits: treated as another code
+    expect(
+      isPlausibleScan('6001067O89827'),
+      isTrue,
+    ); // not all digits: treated as another code
   });
 
   test('accepts QR codes, SKUs and odd-length numbers as read', () {

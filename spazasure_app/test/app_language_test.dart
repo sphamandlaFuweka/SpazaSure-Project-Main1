@@ -25,17 +25,29 @@ void main() {
     expect(tr('no.such.key'), 'no.such.key');
   });
 
-  test('the registration language applies until the person picks one in the app', () async {
-    await AppLanguage.applyPreference('isiZulu');
-    expect(AppLanguage.code.value, AppLanguage.zulu);
+  test(
+    'the registration language applies until the person picks one in the app',
+    () async {
+      await AppLanguage.applyPreference('isiZulu');
+      expect(AppLanguage.code.value, AppLanguage.zulu);
 
-    await AppLanguage.choose(AppLanguage.sotho);
-    await AppLanguage.applyPreference('isiZulu');
-    expect(AppLanguage.code.value, AppLanguage.sotho);
-  });
+      await AppLanguage.choose(AppLanguage.sotho);
+      await AppLanguage.applyPreference('isiZulu');
+      expect(AppLanguage.code.value, AppLanguage.sotho);
+    },
+  );
 
   test('every key has an isiZulu and a Sesotho translation', () {
-    for (final key in ['nav.home', 'home.verifyProduct', 'profile.signOut', 'shop.documents', 'language.title', 'academy.cashBook', 'academy.lessons', 'shop.academySub']) {
+    for (final key in [
+      'nav.home',
+      'home.verifyProduct',
+      'profile.signOut',
+      'shop.documents',
+      'language.title',
+      'academy.cashBook',
+      'academy.lessons',
+      'shop.academySub',
+    ]) {
       AppLanguage.code.value = AppLanguage.english;
       final english = tr(key);
       for (final code in [AppLanguage.zulu, AppLanguage.sotho]) {

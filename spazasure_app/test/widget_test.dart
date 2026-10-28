@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spazasure_app/core/widgets/animated_logo.dart';
 import 'package:spazasure_app/main.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
@@ -19,7 +20,9 @@ void main() {
         child: const SpazaSureApp(),
       ),
     );
-    expect(find.text('SpazaSure'), findsOneWidget);
+    // The splash builds the logo and spells the name out letter by letter
+    expect(find.byType(AnimatedLogo), findsOneWidget);
+    expect(find.byType(BouncyWordmark), findsOneWidget);
     // Let the splash animations and timers finish so no timers are left pending.
     await tester.pump(const Duration(seconds: 10));
     // Close the app and let any network timeouts it started run out

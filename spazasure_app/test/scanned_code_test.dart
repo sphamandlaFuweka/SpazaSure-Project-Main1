@@ -20,11 +20,16 @@ void main() {
 
     test('SpazaSure QR and unit codes are product codes', () {
       expect(ScannedCode.parse('SPZQR-ABC123').kind, ScannedCodeKind.spazaSure);
-      expect(ScannedCode.parse('SZABCDEFGH234567').kind, ScannedCodeKind.spazaSure);
+      expect(
+        ScannedCode.parse('SZABCDEFGH234567').kind,
+        ScannedCodeKind.spazaSure,
+      );
     });
 
     test('GS1 Digital Link gives GTIN, batch and expiry', () {
-      final c = ScannedCode.parse('https://id.gs1.org/01/06009523606526/10/LOT42?17=271231');
+      final c = ScannedCode.parse(
+        'https://id.gs1.org/01/06009523606526/10/LOT42?17=271231',
+      );
       expect(c.kind, ScannedCodeKind.gs1);
       expect(c.productCode, '6009523606526');
       expect(c.batch, 'LOT42');
@@ -38,7 +43,10 @@ void main() {
       // Day 00 means the end of the month
       expect(c.expiry, DateTime(2027, 12, 31));
       expect(c.batch, 'AB12');
-      expect(c.details.any((d) => d.key == 'Serial number' && d.value == 'XYZ'), isTrue);
+      expect(
+        c.details.any((d) => d.key == 'Serial number' && d.value == 'XYZ'),
+        isTrue,
+      );
     });
 
     test('GS1 element string in brackets', () {
@@ -56,13 +64,28 @@ void main() {
     });
 
     test('risky links get warnings', () {
-      expect(ScannedCode.parse('http://bit.ly/abc').warnings.length, greaterThanOrEqualTo(2));
-      expect(ScannedCode.parse('https://xn--tgerbrands-x9a.com/login').warnings, isNotEmpty);
+      expect(
+        ScannedCode.parse('http://bit.ly/abc').warnings.length,
+        greaterThanOrEqualTo(2),
+      );
+      expect(
+        ScannedCode.parse('https://xn--tgerbrands-x9a.com/login').warnings,
+        isNotEmpty,
+      );
     });
 
     test('payment codes are recognised', () {
-      expect(ScannedCode.parse('https://pos.snapscan.io/qr/abc').kind, ScannedCodeKind.payment);
-      final emv = ScannedCode.parse('000201010211' '5303710' '5909Spaza Joe' '6007Soweto' '6304ABCD');
+      expect(
+        ScannedCode.parse('https://pos.snapscan.io/qr/abc').kind,
+        ScannedCodeKind.payment,
+      );
+      final emv = ScannedCode.parse(
+        '000201010211'
+        '5303710'
+        '5909Spaza Joe'
+        '6007Soweto'
+        '6304ABCD',
+      );
       expect(emv.kind, ScannedCodeKind.payment);
       expect(emv.details.any((d) => d.value == 'Spaza Joe'), isTrue);
     });
@@ -71,12 +94,18 @@ void main() {
       final w = ScannedCode.parse('WIFI:S:ShopNet;T:WPA;P:secret;;');
       expect(w.kind, ScannedCodeKind.wifi);
       expect(w.details.first.value, 'ShopNet');
-      expect(ScannedCode.parse('BEGIN:VCARD\nFN:Jane Doe\nEND:VCARD').kind, ScannedCodeKind.contact);
+      expect(
+        ScannedCode.parse('BEGIN:VCARD\nFN:Jane Doe\nEND:VCARD').kind,
+        ScannedCodeKind.contact,
+      );
     });
 
     test('short text may be a SKU, long text is just text', () {
       expect(ScannedCode.parse('SKU-001').kind, ScannedCodeKind.sku);
-      expect(ScannedCode.parse('Thank you for buying our product today').kind, ScannedCodeKind.text);
+      expect(
+        ScannedCode.parse('Thank you for buying our product today').kind,
+        ScannedCodeKind.text,
+      );
     });
   });
 

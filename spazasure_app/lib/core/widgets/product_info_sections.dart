@@ -44,9 +44,12 @@ class ProductInfoSections extends StatelessWidget {
         _section(
           icon: Icons.list_alt_rounded,
           title: 'Product details',
-          child: Column(children: [for (final f in facts) _factRow(f.label, f.value)]),
+          child: Column(
+            children: [for (final f in facts) _factRow(f.label, f.value)],
+          ),
         ),
-      if (showIngredients && (info.ingredients != null || info.allergens.isNotEmpty))
+      if (showIngredients &&
+          (info.ingredients != null || info.allergens.isNotEmpty))
         _section(
           icon: Icons.eco_outlined,
           title: 'Ingredients and allergens',
@@ -54,17 +57,30 @@ class ProductInfoSections extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (info.ingredients != null)
-                Text(info.ingredients!, style: AppTextStyles.bodySmall.copyWith(height: 1.5)),
+                Text(
+                  info.ingredients!,
+                  style: AppTextStyles.bodySmall.copyWith(height: 1.5),
+                ),
               if (info.allergens.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Text('Contains', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  'Contains',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: [
                     for (final a in info.allergens)
-                      _chip(a, highlightAllergens.any((h) => h.toLowerCase() == a.toLowerCase())),
+                      _chip(
+                        a,
+                        highlightAllergens.any(
+                          (h) => h.toLowerCase() == a.toLowerCase(),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -130,7 +146,10 @@ class ProductInfoSections extends StatelessWidget {
       child: ExpansionTile(
         initiallyExpanded: initiallyExpanded,
         leading: Icon(icon, color: color, size: 22),
-        title: Text(title, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700)),
+        title: Text(
+          title,
+          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+        ),
         iconColor: AppColors.textSecondary,
         collapsedIconColor: AppColors.textSecondary,
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -146,16 +165,35 @@ class ProductInfoSections extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 2, child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))),
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(flex: 3, child: Text(value, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w700))),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: AppTextStyles.bodySmall.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ],
     ),
   );
 
   Widget _paragraph(String text) => Text(
     text,
-    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.5),
+    style: AppTextStyles.bodySmall.copyWith(
+      color: AppColors.textSecondary,
+      height: 1.5,
+    ),
   );
 
   Widget _chip(String label, bool highlighted) {
@@ -168,13 +206,19 @@ class ProductInfoSections extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppTextStyles.caption.copyWith(color: highlighted ? AppColors.error : AppColors.textPrimary, fontWeight: FontWeight.w700),
+        style: AppTextStyles.caption.copyWith(
+          color: highlighted ? AppColors.error : AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 
   Widget _nutritionTable() {
-    final header = AppTextStyles.caption.copyWith(fontWeight: FontWeight.w800, color: AppColors.textSecondary);
+    final header = AppTextStyles.caption.copyWith(
+      fontWeight: FontWeight.w800,
+      color: AppColors.textSecondary,
+    );
     final cell = AppTextStyles.bodySmall;
     final hasServing = info.nutrition.any((n) => n.perServing != null);
     return Column(
@@ -185,8 +229,10 @@ class ProductInfoSections extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               [
-                if (info.servingSize != null) 'Serving size: ${info.servingSize}',
-                if (info.servingsPerPack != null) 'Servings per pack: ${info.servingsPerPack}',
+                if (info.servingSize != null)
+                  'Serving size: ${info.servingSize}',
+                if (info.servingsPerPack != null)
+                  'Servings per pack: ${info.servingsPerPack}',
               ].join('  ·  '),
               style: AppTextStyles.caption,
             ),
@@ -197,26 +243,44 @@ class ProductInfoSections extends StatelessWidget {
             1: const FlexColumnWidth(2),
             if (hasServing) 2: const FlexColumnWidth(2),
           },
-          border: const TableBorder(horizontalInside: BorderSide(color: AppColors.divider)),
+          border: const TableBorder(
+            horizontalInside: BorderSide(color: AppColors.divider),
+          ),
           children: [
-            TableRow(children: [
-              _cell(Text('Typical values', style: header)),
-              _cell(Text('Per 100 g/ml', style: header)),
-              if (hasServing) _cell(Text('Per serving', style: header)),
-            ]),
+            TableRow(
+              children: [
+                _cell(Text('Typical values', style: header)),
+                _cell(Text('Per 100 g/ml', style: header)),
+                if (hasServing) _cell(Text('Per serving', style: header)),
+              ],
+            ),
             for (final n in info.nutrition)
-              TableRow(children: [
-                _cell(Text(n.nutrient, style: cell)),
-                _cell(Text(n.per100 ?? '-', style: cell.copyWith(fontWeight: FontWeight.w700))),
-                if (hasServing) _cell(Text(n.perServing ?? '-', style: cell.copyWith(fontWeight: FontWeight.w700))),
-              ]),
+              TableRow(
+                children: [
+                  _cell(Text(n.nutrient, style: cell)),
+                  _cell(
+                    Text(
+                      n.per100 ?? '-',
+                      style: cell.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (hasServing)
+                    _cell(
+                      Text(
+                        n.perServing ?? '-',
+                        style: cell.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                ],
+              ),
           ],
         ),
       ],
     );
   }
 
-  Widget _cell(Widget child) => Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: child);
+  Widget _cell(Widget child) =>
+      Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: child);
 }
 
 /// The supplier's numbered checks for telling the genuine product from a counterfeit.
@@ -244,14 +308,25 @@ class AuthenticityChecklist extends StatelessWidget {
                   width: 22,
                   height: 22,
                   alignment: Alignment.center,
-                  decoration: const BoxDecoration(color: AppColors.secondaryTint, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: AppColors.secondaryTint,
+                    shape: BoxShape.circle,
+                  ),
                   child: Text(
                     '${i + 1}',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w800),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(tips[i], style: AppTextStyles.bodySmall.copyWith(height: 1.4))),
+                Expanded(
+                  child: Text(
+                    tips[i],
+                    style: AppTextStyles.bodySmall.copyWith(height: 1.4),
+                  ),
+                ),
               ],
             ),
           ),

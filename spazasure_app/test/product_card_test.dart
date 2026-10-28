@@ -31,21 +31,23 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisExtent: ProductCard.gridHeight,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisExtent: ProductCard.gridHeight,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => const ProductCard(product: full),
           ),
-          itemCount: 6,
-          itemBuilder: (_, __) => const ProductCard(product: full),
         ),
       ),
-    ));
+    );
 
     // A RenderFlex overflow is reported as an exception
     expect(tester.takeException(), isNull);

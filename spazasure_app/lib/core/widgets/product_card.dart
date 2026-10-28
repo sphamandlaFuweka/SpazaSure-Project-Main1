@@ -167,7 +167,11 @@ class ProductCard extends StatelessWidget {
                         ),
                         child: const Tooltip(
                           message: 'Nearby',
-                          child: Icon(Icons.near_me, size: 10, color: Colors.white),
+                          child: Icon(
+                            Icons.near_me,
+                            size: 10,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -222,7 +226,9 @@ class ProductCard extends StatelessWidget {
                       style: AppTextStyles.caption.copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: product.outOfStockNearYou ? AppColors.error : AppColors.accentDark,
+                        color: product.outOfStockNearYou
+                            ? AppColors.error
+                            : AppColors.accentDark,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -276,14 +282,18 @@ class ProductCard extends StatelessWidget {
                               ),
                               Text(
                                 'R${product.discountPrice!.toStringAsFixed(2)}',
-                                style: AppTextStyles.priceSmall.copyWith(fontSize: 12),
+                                style: AppTextStyles.priceSmall.copyWith(
+                                  fontSize: 12,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ] else
                               Text(
                                 'R${product.price.toStringAsFixed(2)}',
-                                style: AppTextStyles.priceSmall.copyWith(fontSize: 12),
+                                style: AppTextStyles.priceSmall.copyWith(
+                                  fontSize: 12,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
