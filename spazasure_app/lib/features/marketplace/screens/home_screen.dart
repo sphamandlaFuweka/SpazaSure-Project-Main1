@@ -426,65 +426,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ─── PIECE 2: PREMIUM WALLET CARD ───────────────────────────────────────────
-  Widget _buildWalletCard() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 30, 16, 4),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: _fanCard(
-              AppColors.accent,
-              const [AppColors.red, AppColors.secondary, Colors.white],
-              angle: -0.07,
-              offset: const Offset(-4, -20),
-              delay: 350,
-            ),
-          ),
-          Positioned.fill(
-            child: _fanCard(
-              AppColors.secondary,
-              const [AppColors.accent, AppColors.primaryDark, Colors.white],
-              angle: 0.05,
-              offset: const Offset(6, -11),
-              delay: 450,
-            ),
-          ),
-          _walletFront(),
-        ],
-      ),
-    );
-  }
-
-  /// A card behind the wallet: dealt out from under it once the wallet lands.
-  Widget _fanCard(
-    Color color,
-    List<Color> pattern, {
-    required double angle,
-    required Offset offset,
-    required int delay,
-  }) => IgnorePointer(
-    child:
-        Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: CustomPaint(painter: BrandPattern(pattern)),
-            )
-            .animate()
-            .fadeIn(delay: delay.ms, duration: 200.ms)
-            .custom(
-              delay: delay.ms,
-              duration: 650.ms,
-              curve: Curves.easeOutBack,
-              builder: (_, v, child) => Transform.translate(
-                offset: offset * v,
-                child: Transform.rotate(angle: angle * v, child: child),
-              ),
-            ),
+  Widget _buildWalletCard() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: _walletFront(),
   );
 
   Widget _walletFront() {
@@ -514,19 +458,9 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: Stack(
               children: [
-                // Brand shapes, faint behind the numbers
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.2,
-                    child: CustomPaint(
-                      painter: BrandPattern([
-                        AppColors.accent,
-                        AppColors.secondaryLight,
-                        Colors.white,
-                      ]),
-                    ),
-                  ),
-                ),
+                // Two soft circles, kept quiet behind the numbers
+                Positioned(right: -40, top: -40, child: _softCircle(140)),
+                Positioned(right: 50, bottom: -50, child: _softCircle(110)),
                 // Card content
                 Padding(
                   padding: const EdgeInsets.all(22),
@@ -651,6 +585,15 @@ class _HomeScreenState extends State<HomeScreen>
           curve: Curves.easeOutBack,
         );
   }
+
+  Widget _softCircle(double size) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.white.withValues(alpha: 0.06),
+    ),
+  );
 
   static const _balanceStyle = TextStyle(
     color: Colors.white,

@@ -267,6 +267,11 @@ public class ShopGroupBuyController(
         if (req.Items.Select(i => i.GroupBuyProductId).Distinct().Count() != req.Items.Count)
             return BadRequest(ApiResponse.Fail("Group buy product IDs must be unique."));
 
+        // Group buying is for onboarded shops: the once-off onboarding fee comes first
+        var unpaid = await db.SpazaShops.AsNoTracking().AnyAsync(s => s.UserId == UserId && !s.OnboardingFeePaid);
+        if (unpaid && await OnboardingFee.AmountAsync(db) is > 0m and var fee)
+            return StatusCode(StatusCodes.Status402PaymentRequired, ApiResponse.Fail(OnboardingFee.NeededForGroupBuys(fee)));
+
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 
 /*
@@ -84,6 +84,9 @@ const sections: { title: string; body: (string | string[])[] }[] = [
 ];
 
 export default function PrivacyNoticePage() {
+  // Opened from the SpazaSure app (?app=1): the app closes the page when this link is followed
+  const [params] = useSearchParams();
+  const fromApp = params.get('app') === '1';
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
       <article className="mx-auto max-w-3xl rounded-3xl bg-white p-6 sm:p-10 shadow-sm border border-gray-100">
@@ -111,7 +114,9 @@ export default function PrivacyNoticePage() {
           </section>
         ))}
 
-        <Link to="/login" className="text-sm font-semibold text-primary hover:underline">Back to SpazaSure</Link>
+        <Link to="/login" className="text-sm font-semibold text-primary hover:underline">
+          {fromApp ? 'Back to the SpazaSure app' : 'Back to SpazaSure'}
+        </Link>
       </article>
     </div>
   );

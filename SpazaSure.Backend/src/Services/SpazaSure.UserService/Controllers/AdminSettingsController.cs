@@ -13,8 +13,8 @@ namespace SpazaSure.UserService.Controllers;
 [Authorize(Roles = "admin")]
 public class AdminSettingsController(SpazaSureDbContext db) : ControllerBase
 {
-    internal const string OnboardingFeeKey = "shop_onboarding_fee_amount";
-    internal const decimal DefaultOnboardingFee = 150m;
+    internal const string OnboardingFeeKey = OnboardingFee.Key;
+    internal const decimal DefaultOnboardingFee = OnboardingFee.Default;
 
     [HttpGet("onboarding-fee")]
     public async Task<IActionResult> GetOnboardingFee()

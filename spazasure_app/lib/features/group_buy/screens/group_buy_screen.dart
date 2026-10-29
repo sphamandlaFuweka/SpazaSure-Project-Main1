@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/features/profile/widgets/onboarding_fee_gate.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
@@ -451,6 +452,8 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
   }
 
   Future<void> _showJoinDialog(GroupBuy group) async {
+    // The once-off onboarding fee comes before a shop's first group buy
+    if (!await OnboardingFeeGate.ensurePaid(context) || !mounted) return;
     final joinableProducts = group.products
         .where(
           (product) =>

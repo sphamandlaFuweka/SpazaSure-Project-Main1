@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/animated_logo.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 
@@ -141,36 +139,51 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   /// The logo builds itself on top of a fanned hand of brand cards.
-  Widget _hero() => SizedBox(
-    width: double.infinity,
-    height: 250,
-    child: Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
+  Widget _hero() => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(
       children: [
-        _HeroCards(
-          front: _customerLogin ? AppColors.secondary : AppColors.primary,
-        ),
-        Positioned(top: 30, child: AnimatedLogo(size: 118, delay: 250.ms)),
-        Positioned(
-          bottom: 10,
-          child: BouncyWordmark(
-            delay: 1100.ms,
-            highlight: AppColors.accent,
-            style: GoogleFonts.nunito(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            // Soft rings behind the logo
+            for (final (size, alpha) in const [(190.0, 0.08), (156.0, 0.12)])
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: alpha),
                 ),
-              ],
-            ),
+              ).animate().scaleXY(
+                begin: 0.6,
+                end: 1,
+                duration: 700.ms,
+                curve: Curves.easeOutBack,
+              ),
+            AnimatedLogo(size: 122, delay: 150.ms),
+          ],
+        ),
+        const SizedBox(height: 14),
+        BouncyWordmark(
+          delay: 1000.ms,
+          highlight: AppColors.accent,
+          style: GoogleFonts.nunito(
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          'Trusted Supply Chain',
+          style: GoogleFonts.nunito(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 2,
+            color: Colors.white.withValues(alpha: 0.85),
+          ),
+        ).animate().fadeIn(delay: 1600.ms, duration: 500.ms),
       ],
     ),
   );
@@ -463,45 +476,45 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _modeSwitch() => Semantics(
     label: 'Sign in as',
     child: Container(
-      height: 48,
+      height: 50,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutBack,
-            alignment: _customerLogin
-                ? Alignment.centerRight
-                : Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                decoration: BoxDecoration(
-                  color: _modeColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _modeColor.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final half = box.maxWidth / 2;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                left: _customerLogin ? half : 0,
+                top: 0,
+                bottom: 0,
+                width: half,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    color: _modeColor,
+                    borderRadius: BorderRadius.circular(21),
+                  ),
+                ),
+              ),
+              // Full height, so the labels sit in the middle of the pill
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    _modeOption(false, Icons.storefront_outlined, 'Retailer'),
+                    _modeOption(true, Icons.person_outline, 'Customer'),
                   ],
                 ),
               ),
-            ),
-          ),
-          Row(
-            children: [
-              _modeOption(false, Icons.storefront_outlined, 'Retailer'),
-              _modeOption(true, Icons.person_outline, 'Customer'),
             ],
-          ),
-        ],
+          );
+        },
       ),
     ),
   );
@@ -602,125 +615,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ).animate().fadeIn(delay: 1000.ms),
     ],
   );
-}
-
-/// Three brand cards fanned behind the logo: dealt out from the middle, then
-/// floating gently. The front card takes the sign-in colour.
-class _HeroCards extends StatefulWidget {
-  final Color front;
-  const _HeroCards({required this.front});
-
-  @override
-  State<_HeroCards> createState() => _HeroCardsState();
-}
-
-class _HeroCardsState extends State<_HeroCards> with TickerProviderStateMixin {
-  late final AnimationController _deal = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  );
-  late final AnimationController _float = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_deal.isAnimating || _deal.isCompleted) return;
-    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
-      _deal.value = 1;
-    } else {
-      _deal.forward();
-      _float.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _deal.dispose();
-    _float.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([_deal, _float]),
-    builder: (_, __) {
-      final bob = sin(_float.value * pi) * 6;
-      return Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          _card(
-            0,
-            AppColors.accent,
-            const [AppColors.red, AppColors.primaryDark, Colors.white],
-            -0.22,
-            const Offset(-58, 6),
-            -bob,
-          ),
-          _card(
-            1,
-            AppColors.red,
-            const [AppColors.accent, AppColors.primaryDark, Colors.white],
-            0.2,
-            const Offset(58, 6),
-            bob,
-          ),
-          _card(
-            2,
-            widget.front,
-            const [AppColors.accent, AppColors.secondaryLight, Colors.white],
-            0,
-            const Offset(0, -6),
-            -bob * 0.6,
-          ),
-        ],
-      );
-    },
-  );
-
-  Widget _card(
-    int i,
-    Color color,
-    List<Color> pattern,
-    double angle,
-    Offset offset,
-    double bob,
-  ) {
-    // Each card starts a little after the one before
-    final t = ((_deal.value - i * 0.1) / 0.7).clamp(0.0, 1.0);
-    final v = Curves.easeOutBack.transform(t);
-    return Opacity(
-      opacity: (t * 3).clamp(0.0, 1.0),
-      child: Transform.translate(
-        offset: offset * v + Offset(0, 40 * (1 - v) + bob),
-        child: Transform.rotate(
-          angle: angle * v,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            width: 150,
-            height: 190,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(23),
-              child: CustomPaint(painter: BrandPattern(pattern)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

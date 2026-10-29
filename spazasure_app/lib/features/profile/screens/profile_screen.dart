@@ -3,6 +3,7 @@ import 'package:spazasure_app/services/feedback_service.dart';
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -1612,7 +1613,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 14),
               Text('SpazaSure', style: AppTextStyles.h3),
               const SizedBox(height: 4),
-              Text('Version 1.0.0', style: AppTextStyles.caption),
+              // The installed build's real version
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (_, snap) => Text(
+                  snap.hasData ? 'Version ${snap.data!.version}' : ' ',
+                  style: AppTextStyles.caption,
+                ),
+              ),
               const SizedBox(height: 14),
               Text(
                 'Connecting spaza shop owners with verified suppliers for safe, affordable products across South Africa.',
@@ -1630,12 +1638,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: const Color(0xFFF8F9FA),
                   borderRadius: BorderRadius.circular(14),
                 ),
+                // What SpazaSure does for a shop, and how to reach us
                 child: Column(
                   children: [
-                    _aboutRow('Platform', 'Flutter & .NET 9'),
-                    _aboutRow('Database', 'PostgreSQL'),
-                    _aboutRow('Built by', 'SpazaSure Team'),
-                    _aboutRow('Year', '2026'),
+                    _aboutRow('Suppliers', 'Verified before they sell'),
+                    _aboutRow('Products', 'QR codes customers can check'),
+                    _aboutRow('Delivery', 'Tracked to your shop'),
+                    _aboutRow('Based in', 'Durban, South Africa'),
+                    _aboutRow('Call', '074 381 1256'),
+                    _aboutRow('Email', 'info@spazasure.co.za'),
                   ],
                 ),
               ),
@@ -1672,10 +1683,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label,
             style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
           ),
-          Text(
-            value,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

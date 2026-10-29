@@ -4,18 +4,22 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/privacy_notice_screen.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// The SpazaSure privacy notice (POPIA s18), published on the portal.
 const privacyNoticeUrl = 'https://portal.spazasure.co.za/privacy';
 
-Future<void> openPrivacyNotice() => launchUrl(
-  Uri.parse(privacyNoticeUrl),
-  mode: LaunchMode.externalApplication,
-);
+/// Opens the notice inside the app; ?app=1 makes its back link say "Back to the SpazaSure app".
+Future<void> openPrivacyNotice(BuildContext context) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            const PrivacyNoticeScreen(url: '$privacyNoticeUrl?app=1'),
+      ),
+    );
 
 /// Asks people who haven't accepted the current privacy notice (e.g. they registered before it
 /// existed, or it has changed) to accept it, or sign out. Call once after sign-in.
@@ -48,7 +52,7 @@ Future<void> ensurePrivacyConsent(
             ),
             TextButton(
               style: TextButton.styleFrom(padding: EdgeInsets.zero),
-              onPressed: openPrivacyNotice,
+              onPressed: () => openPrivacyNotice(context),
               child: const Text('Read the privacy notice'),
             ),
           ],
@@ -118,7 +122,7 @@ class PrivacyConsentTile extends StatelessWidget {
             padding: EdgeInsets.zero,
             minimumSize: const Size(0, 32),
           ),
-          onPressed: openPrivacyNotice,
+          onPressed: () => openPrivacyNotice(context),
           child: const Text('Read the privacy notice'),
         ),
       ),
@@ -290,7 +294,7 @@ class _PrivacySectionState extends State<PrivacySection> {
           leading: const Icon(Icons.policy_outlined),
           title: const Text('Privacy notice'),
           subtitle: const Text('How SpazaSure handles your information'),
-          onTap: openPrivacyNotice,
+          onTap: () => openPrivacyNotice(context),
         ),
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
