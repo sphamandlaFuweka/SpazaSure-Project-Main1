@@ -85,9 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Retailers sign in on green (suppliers and shops), customers on blue, like the welcome pages
-  Color get _modeColor =>
-      _customerLogin ? AppColors.primary : AppColors.secondary;
+  // Retailers and customers both sign in on brand blue
+  Color get _modeColor => AppColors.primary;
 
   @override
   Widget build(BuildContext context) {
@@ -412,7 +411,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 22),
 
-                // Dark pill button, like "Next" on the welcome pages
+                // Brand blue pill button
                 Pressable(
                   onTap: _isLoading ? null : _handleSignIn,
                   child: AnimatedContainer(
@@ -421,8 +420,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 56,
                     decoration: BoxDecoration(
                       color: _isLoading
-                          ? AppColors.textPrimary.withValues(alpha: 0.6)
-                          : AppColors.textPrimary,
+                          ? AppColors.primary.withValues(alpha: 0.6)
+                          : AppColors.primary,
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Center(
