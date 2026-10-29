@@ -24,6 +24,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _phoneError;
 
+  // Set on each build: shorter phones get a smaller logo and tighter
+  // spacing so the whole form fits without scrolling
+  bool _compact = false;
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -102,17 +106,32 @@ class _LoginScreenState extends State<LoginScreen> {
             Positioned(top: -90, right: -70, child: _glow(280)),
             Positioned(top: 300, left: -110, child: _glow(220)),
             SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Column(
-                  children: [
-                    _hero(),
-                    const SizedBox(height: 18),
-                    _loginCard(),
-                    const SizedBox(height: 22),
-                    _links(),
-                  ],
-                ),
+              child: Builder(
+                builder: (context) {
+                  // Screen height, not the space left: the keyboard opening
+                  // must not reshuffle the layout mid-typing
+                  final media = MediaQuery.of(context);
+                  _compact =
+                      media.size.height - media.viewPadding.vertical < 820;
+                  // Still scrolls if the keyboard or a large font needs it
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      _compact ? 4 : 12,
+                      16,
+                      _compact ? 12 : 24,
+                    ),
+                    child: Column(
+                      children: [
+                        _hero(),
+                        SizedBox(height: _compact ? 12 : 18),
+                        _loginCard(),
+                        SizedBox(height: _compact ? 8 : 22),
+                        _links(),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -139,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// The logo builds itself on top of a fanned hand of brand cards.
   Widget _hero() => Padding(
-    padding: const EdgeInsets.only(top: 18),
+    padding: EdgeInsets.only(top: _compact ? 4 : 18),
     child: Column(
       children: [
         Stack(
@@ -148,8 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
             // Soft rings behind the logo
             for (final (size, alpha) in const [(190.0, 0.08), (156.0, 0.12)])
               Container(
-                width: size,
-                height: size,
+                width: _compact ? size * 0.6 : size,
+                height: _compact ? size * 0.6 : size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: alpha),
@@ -160,15 +179,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 duration: 700.ms,
                 curve: Curves.easeOutBack,
               ),
-            AnimatedLogo(size: 122, delay: 150.ms),
+            AnimatedLogo(size: _compact ? 74 : 122, delay: 150.ms),
           ],
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: _compact ? 6 : 14),
         BouncyWordmark(
           delay: 1000.ms,
           highlight: AppColors.accent,
           style: GoogleFonts.nunito(
-            fontSize: 32,
+            fontSize: _compact ? 26 : 32,
             fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
@@ -190,7 +209,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _loginCard() =>
       Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+            padding: EdgeInsets.fromLTRB(
+              22,
+              _compact ? 18 : 22,
+              22,
+              _compact ? 16 : 20,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(32),
@@ -249,9 +273,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: _compact ? 12 : 18),
                 _modeSwitch(),
-                const SizedBox(height: 22),
+                SizedBox(height: _compact ? 14 : 22),
 
                 Text(
                   'Phone Number',
@@ -261,10 +285,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: _compact ? 6 : 8),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  height: 56,
+                  height: _compact ? 52 : 56,
                   decoration: BoxDecoration(
                     color: AppColors.background,
                     borderRadius: BorderRadius.circular(18),
@@ -330,9 +354,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
                             filled: false,
-                            contentPadding: const EdgeInsets.symmetric(
+                            contentPadding: EdgeInsets.symmetric(
                               horizontal: 14,
-                              vertical: 16,
+                              vertical: _compact ? 14 : 16,
                             ),
                           ),
                         ),
@@ -368,7 +392,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       .animate(key: ValueKey(_phoneError))
                       .shakeX(hz: 5, amount: 4, duration: 350.ms),
 
-                const SizedBox(height: 16),
+                SizedBox(height: _compact ? 12 : 16),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -376,6 +400,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   onSubmitted: (_) => _handleSignIn(),
                   decoration: InputDecoration(
                     labelText: 'Password',
+                    isDense: _compact,
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
@@ -403,13 +428,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Forgot your password? Contact SpazaSure support.',
+                  'Forgot password? Contact SpazaSure support.',
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 22),
+                SizedBox(height: _compact ? 14 : 22),
 
                 // Brand blue pill button
                 Pressable(
@@ -417,7 +442,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     width: double.infinity,
-                    height: 56,
+                    height: _compact ? 52 : 56,
                     decoration: BoxDecoration(
                       color: _isLoading
                           ? AppColors.primary.withValues(alpha: 0.6)
@@ -568,7 +593,7 @@ class _LoginScreenState extends State<LoginScreen> {
           InkWell(
             onTap: () => Navigator.pushNamed(context, '/register'),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: _compact ? 8 : 12),
               child: Text(
                 'Register',
                 style: GoogleFonts.nunito(
@@ -586,7 +611,10 @@ class _LoginScreenState extends State<LoginScreen> {
       Pressable(
         onTap: () => Navigator.pushNamed(context, '/customer-register'),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          padding: EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: _compact ? 9 : 11,
+          ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(22),
@@ -603,15 +631,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ).animate().fadeIn(delay: 900.ms),
-      const SizedBox(height: 26),
-      Text(
-        'Empowering Spaza Shops Across South Africa 🇿🇦',
-        style: GoogleFonts.nunito(
-          fontSize: 12,
-          color: Colors.white.withValues(alpha: 0.75),
-        ),
-        textAlign: TextAlign.center,
-      ).animate().fadeIn(delay: 1000.ms),
+      // Room for the closing tagline only on taller phones
+      if (!_compact) ...[
+        const SizedBox(height: 26),
+        Text(
+          'Empowering Spaza Shops Across South Africa 🇿🇦',
+          style: GoogleFonts.nunito(
+            fontSize: 12,
+            color: Colors.white.withValues(alpha: 0.75),
+          ),
+          textAlign: TextAlign.center,
+        ).animate().fadeIn(delay: 1000.ms),
+      ],
     ],
   );
 }
