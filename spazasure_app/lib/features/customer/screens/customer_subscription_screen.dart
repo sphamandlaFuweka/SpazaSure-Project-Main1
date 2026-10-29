@@ -32,7 +32,11 @@ class _CustomerSubscriptionScreenState
       _loadError = null;
     });
     try {
-      final overview = await CustomerSubscriptionService.getOverview();
+      var overview = await CustomerSubscriptionService.getOverview();
+      // A payment left pending may already have gone through on Paystack
+      if (overview.status == 'pending') {
+        overview = await CustomerSubscriptionService.verifyPayment();
+      }
       if (mounted) setState(() => _overview = overview);
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
@@ -46,24 +50,35 @@ class _CustomerSubscriptionScreenState
     try {
       final url = await CustomerSubscriptionService.createCheckout('plus');
       if (!mounted) return;
-      final paymentCompleted = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OnboardingFeeCheckoutScreen(
-            checkoutUrl: url,
-            title: 'Subscribe to SpazaSure Plus',
-          ),
-        ),
-      );
-      await _load();
-      if (paymentCompleted == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment received. Your subscription is updating.'),
-            backgroundColor: AppColors.success,
+      if (url != null) {
+        await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OnboardingFeeCheckoutScreen(
+              checkoutUrl: url,
+              title: 'Subscribe to SpazaSure Plus',
+            ),
           ),
         );
       }
+      // Checked even when the page was closed by hand, since the payment may still have gone through
+      final overview = await CustomerSubscriptionService.verifyPayment();
+      if (!mounted) return;
+      setState(() => _overview = overview);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            overview.isPlusActive
+                ? 'Welcome to SpazaSure Plus! Your Plus features are unlocked.'
+                : overview.status == 'pending'
+                ? 'Payment not confirmed yet. If you paid, it will show here shortly.'
+                : 'Your membership has been updated.',
+          ),
+          backgroundColor: overview.isPlusActive
+              ? AppColors.success
+              : AppColors.textPrimary,
+        ),
+      );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -199,6 +214,7 @@ class _CustomerSubscriptionScreenState
     final canCancel =
         isPlus &&
         isCurrent &&
+        overview.autoRenews &&
         !overview.cancelAtPeriodEnd &&
         const {'active', 'past_due', 'unpaid'}.contains(overview.status);
 
@@ -268,12 +284,24 @@ class _CustomerSubscriptionScreenState
                 'Ends ${_dateLabel(overview.currentPeriodEnd)}',
                 style: AppTextStyles.bodySmall,
               )
+            else if (isPlus && overview.isPlusActive && !overview.autoRenews)
+              Text(
+                'Paid until ${_dateLabel(overview.currentPeriodEnd)}. '
+                'It does not renew by itself, so pay again here when it ends.',
+                style: AppTextStyles.bodySmall,
+              )
             else if (isPlus && !isCurrent)
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _working ? null : _checkout,
-                  child: Text(_working ? 'Please wait...' : 'Choose Plus'),
+                  child: Text(
+                    _working
+                        ? 'Please wait...'
+                        : overview.status == 'expired'
+                        ? 'Renew Plus'
+                        : 'Choose Plus',
+                  ),
                 ),
               )
             else if (isPlus && overview.status == 'pending')
@@ -293,7 +321,8 @@ class _CustomerSubscriptionScreenState
   }
 
   String _statusLabel(CustomerSubscriptionOverview overview) {
-    if (overview.isPlusActive && overview.cancelAtPeriodEnd) {
+    if (overview.isPlusActive &&
+        (overview.cancelAtPeriodEnd || !overview.autoRenews)) {
       return 'Active until ${_dateLabel(overview.currentPeriodEnd)}';
     }
     if (overview.isPlusActive) return 'Active';
@@ -301,6 +330,7 @@ class _CustomerSubscriptionScreenState
     if (overview.status == 'past_due' || overview.status == 'unpaid') {
       return 'Payment needs attention';
     }
+    if (overview.status == 'expired') return 'Plus has ended. Renew to unlock it again';
     return 'Free plan';
   }
 

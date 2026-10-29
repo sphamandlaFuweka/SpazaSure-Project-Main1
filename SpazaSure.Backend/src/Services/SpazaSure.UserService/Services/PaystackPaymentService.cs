@@ -31,6 +31,18 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
             amount, email, reference, callbackUrl, null, cancellationToken);
     }
 
+    /// <summary>A single charge with no Paystack plan, so nothing renews by itself.</summary>
+    public async Task<PaystackCheckout> CreateOnceOffCheckoutAsync(
+        decimal amount,
+        string email,
+        string reference,
+        string callbackUrl,
+        CancellationToken cancellationToken = default)
+    {
+        return await InitializeTransactionAsync(
+            amount, email, reference, callbackUrl, null, cancellationToken);
+    }
+
     public async Task<PaystackCheckout> CreateSubscriptionCheckoutAsync(
         decimal amount,
         string email,

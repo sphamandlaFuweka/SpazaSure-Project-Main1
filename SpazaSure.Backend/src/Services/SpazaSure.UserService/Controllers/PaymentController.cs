@@ -19,7 +19,6 @@ public class PaymentController(
     PaystackPaymentService paystack,
     EventPublisher events) : ControllerBase
 {
-    private const decimal CustomerPlusMonthlyPrice = 19.99m;
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpPost("paystack/checkout-session")]
@@ -275,9 +274,9 @@ public class PaymentController(
 
         if (customerSubscription is not null)
         {
-            if (!IsExpectedAmount(transaction, CustomerPlusMonthlyPrice))
+            if (!IsExpectedAmount(transaction, CustomerPlus.MonthlyPrice))
                 return BadRequest();
-            ActivateCustomerSubscription(customerSubscription, transaction);
+            CustomerPlus.Activate(customerSubscription, transaction);
             await db.SaveChangesAsync(cancellationToken);
             return Ok();
         }
@@ -313,7 +312,7 @@ public class PaymentController(
                      s.Status == "active",
                 cancellationToken);
         if (customerSubscription is not null &&
-            IsExpectedAmount(transaction, CustomerPlusMonthlyPrice))
+            IsExpectedAmount(transaction, CustomerPlus.MonthlyPrice))
         {
             customerSubscription.PaymentReference = transaction.Reference;
             customerSubscription.CurrentPeriodEnd = DateTime.UtcNow.AddMonths(1);
@@ -461,17 +460,6 @@ public class PaymentController(
             await db.SaveChangesAsync(cancellationToken);
         }
         return Ok();
-    }
-
-    private static void ActivateCustomerSubscription(
-        CustomerSubscription subscription,
-        PaystackTransaction transaction)
-    {
-        subscription.Status = "active";
-        subscription.PaymentReference = transaction.Reference;
-        subscription.PaymentProviderCustomerCode = transaction.CustomerCode;
-        subscription.CurrentPeriodEnd = DateTime.UtcNow.AddMonths(1);
-        subscription.CancelAtPeriodEnd = false;
     }
 
     private static void ActivateSupplierSubscription(

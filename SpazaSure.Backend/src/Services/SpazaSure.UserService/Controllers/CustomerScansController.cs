@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using System.Security.Claims;
 
 namespace SpazaSure.UserService.Controllers;
@@ -24,6 +25,10 @@ public class CustomerScansController(SpazaSureDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMyScans()
     {
+        // Scan history is a SpazaSure Plus feature; scans are still recorded for everyone
+        if (!await CustomerPlus.IsActiveAsync(db, UserId))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail(CustomerPlus.RequiredMessage));
+
         var apiBase = PublicApi.Base(Request);
         var scans = await db.CustomerScanEvents
             .Where(s => s.CustomerUserId == UserId)

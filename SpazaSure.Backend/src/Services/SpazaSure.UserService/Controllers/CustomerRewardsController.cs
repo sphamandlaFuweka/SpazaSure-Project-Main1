@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Models;
+using SpazaSure.UserService.Services;
 using System.Security.Claims;
 
 namespace SpazaSure.UserService.Controllers;
@@ -42,6 +43,10 @@ public class CustomerRewardsController(SpazaSureDbContext db) : ControllerBase
     [HttpPost("redeem")]
     public async Task<IActionResult> Redeem()
     {
+        // Everyone earns points, but turning them into vouchers is a SpazaSure Plus reward
+        if (!await CustomerPlus.IsActiveAsync(db, UserId))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail(CustomerPlus.RequiredMessage));
+
         var points = await db.CustomerRewardTransactions
             .Where(t => t.CustomerUserId == UserId)
             .SumAsync(t => t.Points);

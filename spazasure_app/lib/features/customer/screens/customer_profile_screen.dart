@@ -14,6 +14,7 @@ import 'package:spazasure_app/providers/auth_provider.dart';
 import 'package:spazasure_app/services/customer_profile_service.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
 import 'package:spazasure_app/core/widgets/language_picker.dart';
+import 'package:spazasure_app/features/customer/plus_gate.dart';
 
 /// The customer role's own Profile tab — deliberately distinct from the
 /// shop-owner ProfileScreen: a customer isn't running a shop, so this shows
@@ -449,11 +450,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           title: Text(tr('profile.scanHistory')),
           subtitle: Text(tr('profile.scanHistorySub')),
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => Navigator.push(
+          onTap: () => PlusGate.open(
             context,
-            MaterialPageRoute(
-              builder: (_) => const CustomerScanHistoryScreen(),
-            ),
+            feature: tr('profile.scanHistory'),
+            builder: (_) => const CustomerScanHistoryScreen(),
           ),
         ),
         ListTile(
@@ -461,9 +461,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           title: Text(tr('home.rewards')),
           subtitle: Text(tr('profile.rewardsSub')),
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => Navigator.push(
+          onTap: () => PlusGate.open(
             context,
-            MaterialPageRoute(builder: (_) => const CustomerRewardsScreen()),
+            feature: tr('home.rewards'),
+            builder: (_) => const CustomerRewardsScreen(),
           ),
         ),
         // Also saved as the customer's preferred language, so it follows them to a new phone

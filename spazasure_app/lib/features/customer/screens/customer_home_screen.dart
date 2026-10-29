@@ -10,6 +10,7 @@ import 'package:spazasure_app/features/customer/screens/kwazi_chat_sheet.dart';
 import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
+import 'package:spazasure_app/features/customer/plus_gate.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -132,9 +133,10 @@ class CustomerHomeScreen extends StatelessWidget {
           tr('home.rewards'),
           tr('home.rewardsSub'),
           AppColors.secondary,
-          () => Navigator.push(
+          () => PlusGate.open(
             context,
-            MaterialPageRoute(builder: (_) => const CustomerRewardsScreen()),
+            feature: tr('home.rewards'),
+            builder: (_) => const CustomerRewardsScreen(),
           ),
         ),
         const SizedBox(height: 12),
