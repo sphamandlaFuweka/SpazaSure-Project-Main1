@@ -150,6 +150,51 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
               ),
             ),
+            // Shop from one supplier: a drop-down of the suppliers that deliver to this shop
+            Container(
+              color: AppColors.surface,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: DropdownButtonFormField<String?>(
+                key: ValueKey(_selectedSupplier),
+                initialValue:
+                    productProvider.suppliers.any(
+                      (s) => s.id == _selectedSupplier,
+                    )
+                    ? _selectedSupplier
+                    : null,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(
+                    Icons.storefront_outlined,
+                    color: AppColors.textHint,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All suppliers'),
+                  ),
+                  for (final supplier in productProvider.suppliers)
+                    DropdownMenuItem<String?>(
+                      value: supplier.id,
+                      child: Text(
+                        supplier.productCount > 0
+                            ? '${supplier.companyName} (${supplier.productCount})'
+                            : supplier.companyName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (supplierId) {
+                  setState(() => _selectedSupplier = supplierId);
+                  _filterProducts();
+                },
+              ),
+            ),
             // Category chips
             SizedBox(
               height: 50,
@@ -194,24 +239,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 },
               ),
             ),
-            // An active supplier filter, so it can't silently hide products
-            if (_selectedSupplier != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: InputChip(
-                    avatar: const Icon(Icons.storefront_outlined, size: 18),
-                    label: Text(
-                      'Supplier: ${productProvider.suppliers.where((s) => s.id == _selectedSupplier).map((s) => s.companyName).firstOrNull ?? 'selected'}',
-                    ),
-                    onDeleted: () {
-                      setState(() => _selectedSupplier = null);
-                      _filterProducts();
-                    },
-                  ),
-                ),
-              ),
             // Results count & sort
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Android 13+: allow push notifications (asked for after sign-in) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Notifications buzz the phone -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Analytics measures app use only, never ads: drop the advertising ID permission the SDK adds -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <application
@@ -47,7 +49,7 @@
         <!-- Push notifications use the high-importance channel created in MainActivity, so they pop up -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="spazasure_alerts" />
+            android:value="spazasure_alerts_v2" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />

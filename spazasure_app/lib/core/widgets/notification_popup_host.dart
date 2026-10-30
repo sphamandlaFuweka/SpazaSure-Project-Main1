@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:spazasure_app/core/alert_feedback.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
@@ -139,7 +139,8 @@ class _NotificationPopupHostState extends State<NotificationPopupHost>
   void _showNext() {
     if (_showing != null || _queue.isEmpty || !mounted) return;
     final next = _queue.removeAt(0);
-    HapticFeedback.mediumImpact();
+    // A tone and a buzz, like a push, so a new alert isn't missed
+    AlertFeedback.play();
     setState(() => _showing = next);
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 6), _dismiss);

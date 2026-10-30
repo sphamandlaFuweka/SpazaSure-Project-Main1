@@ -13,8 +13,12 @@ namespace SpazaSure.NotificationService.Services;
 /// </summary>
 public sealed class PushSender
 {
-    /// <summary>Android channel created by the app (MainActivity.kt) so pushes pop up on screen.</summary>
-    private const string AndroidChannelId = "spazasure_alerts";
+    /// <summary>
+    /// Android channel created by the app (MainActivity.kt) so pushes pop up on screen, play a tone
+    /// and vibrate. App versions before 1.0.15 only have "spazasure_alerts"; Android then shows
+    /// the push in its default channel instead.
+    /// </summary>
+    private const string AndroidChannelId = "spazasure_alerts_v2";
 
     private readonly FirebaseMessaging? _messaging;
     private readonly ILogger<PushSender> _logger;
@@ -71,6 +75,8 @@ public sealed class PushSender
                     ChannelId = AndroidChannelId,
                     Color = "#25449A",
                     Sound = "default",
+                    // Phones older than Android 8 take sound and vibration from the push itself
+                    DefaultVibrateTimings = true,
                     Priority = highPriority ? NotificationPriority.MAX : NotificationPriority.HIGH,
                 },
             },
