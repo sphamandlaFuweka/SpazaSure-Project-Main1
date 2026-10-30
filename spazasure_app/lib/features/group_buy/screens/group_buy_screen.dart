@@ -8,7 +8,10 @@ import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class GroupBuyScreen extends StatefulWidget {
-  const GroupBuyScreen({super.key});
+  /// Set when a shared group buy link opened the app: show that deal straight away.
+  final String? openGroupBuyId;
+
+  const GroupBuyScreen({super.key, this.openGroupBuyId});
 
   @override
   State<GroupBuyScreen> createState() => _GroupBuyScreenState();
@@ -48,10 +51,34 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
         _myGroups = groups[1];
         _error = null;
       });
+      _openLinkedGroup();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  bool _linkHandled = false;
+
+  /// Opens the deal from a shared link once, after the first successful load.
+  void _openLinkedGroup() {
+    final id = widget.openGroupBuyId;
+    if (id == null || _linkHandled) return;
+    _linkHandled = true;
+    final open = _activeGroups.where((g) => g.id == id).firstOrNull;
+    if (open != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showJoinDialog(open);
+      });
+    } else if (_myGroups.any((g) => g.id == id)) {
+      _tabController.animateTo(1);
+      _showMessage('You have already joined this group buy', AppColors.info);
+    } else {
+      _showMessage(
+        'This group buy has ended or is not open to shops in your area',
+        AppColors.warning,
+      );
     }
   }
 

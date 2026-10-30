@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -36,7 +35,10 @@ class _HomeScreenState extends State<HomeScreen>
   String _rating = '--';
   double? _walletBalance;
   int _unreadNotifications = 0;
-  GroupBuy? _featuredGroup;
+  /// Open group buys with a poster, shown as the swipeable banner
+  List<GroupBuy> _bannerGroups = [];
+  final _bannerController = PageController();
+  int _bannerPage = 0;
   @override
   void initState() {
     super.initState();
@@ -49,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     NotificationPopupHost.unreadCount.removeListener(_syncUnread);
     WidgetsBinding.instance.removeObserver(this);
+    _bannerController.dispose();
     super.dispose();
   }
 
@@ -103,10 +106,10 @@ class _HomeScreenState extends State<HomeScreen>
     try {
       final groups = await GroupBuyService.getGroupBuys('active');
       if (!mounted) return;
-      final withPoster = groups.where((g) => g.bannerImageUrl != null);
-      setState(
-        () => _featuredGroup = withPoster.isEmpty ? null : withPoster.first,
-      );
+      setState(() {
+        _bannerGroups = groups.where((g) => g.bannerImageUrl != null).toList();
+        if (_bannerPage >= _bannerGroups.length) _bannerPage = 0;
+      });
     } catch (_) {}
   }
 
@@ -1093,140 +1096,118 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ─── PIECE 7: PROMO BANNER ───────────────────────────────────────────────────
+  // ─── PIECE 7: GROUP BUY BANNER ───────────────────────────────────────────────
+  /// Swipe through the posters of the group buys open to this shop. "Join now" opens the
+  /// one showing. Without any posters only the join row shows.
   Widget _buildPromoBanner() {
-    final poster = _featuredGroup?.bannerImageUrl;
-    final hasPoster = poster != null;
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/group-buy'),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        height: 130,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE8A510), Color(0xFFF8B217), Color(0xFFFAC44B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    final groups = _bannerGroups;
+    final current = groups.isEmpty
+        ? null
+        : groups[_bannerPage.clamp(0, groups.length - 1)];
+    void open() => Navigator.pushNamed(
+      context,
+      '/group-buy',
+      arguments: current?.id,
+    );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            if (hasPoster) ...[
-              Positioned.fill(
-                child: Image.network(
-                  poster,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withValues(alpha: 0.65),
-                        Colors.black.withValues(alpha: 0.1),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ] else ...[
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.25,
-                  child: CustomPaint(
-                    painter: BrandPattern([
-                      AppColors.accent,
-                      AppColors.secondaryLight,
-                      Colors.white,
-                    ]),
-                  ),
-                ),
-              ),
-            ],
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
+        ],
+      ),
+      child: Column(
+        children: [
+          if (groups.isNotEmpty)
+            AspectRatio(
+              aspectRatio: 16 / 7,
+              child: Stack(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            '🔥 LIMITED TIME',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          hasPoster ? _featuredGroup!.title : 'Save up to 20%',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: hasPoster ? Colors.white : AppColors.primary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'Join a group order now',
-                          style: TextStyle(
-                            color: hasPoster
-                                ? Colors.white70
-                                : AppColors.primaryDark,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Text(
-                      'Join Now',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
+                  PageView.builder(
+                    controller: _bannerController,
+                    itemCount: groups.length,
+                    onPageChanged: (page) =>
+                        setState(() => _bannerPage = page),
+                    itemBuilder: (_, index) => GestureDetector(
+                      onTap: open,
+                      child: Image.network(
+                        groups[index].bannerImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Container(color: AppColors.primaryLight),
                       ),
                     ),
                   ),
+                  if (groups.length > 1)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 8,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (var i = 0; i < groups.length; i++)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: i == _bannerPage ? 16 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: i == _bannerPage
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
-          ],
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Join a group order now',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: open,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Join now',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     ).animate().fadeIn(delay: 350.ms);
   }

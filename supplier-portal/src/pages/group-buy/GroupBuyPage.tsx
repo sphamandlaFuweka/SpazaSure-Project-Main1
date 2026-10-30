@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
   Clock,
+  Eye,
   Inbox,
   MapPin,
   Package,
@@ -14,6 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Modal } from '../../components/ui';
 import { groupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyOrder, GroupBuyProduct, SupplierGroupBuyFilter } from '../../types';
 import { shortOrderNumber } from '../../utils';
@@ -65,10 +65,20 @@ const dispatchableOrders = (group: GroupBuy) =>
 const acceptValue = (group: GroupBuy) =>
   qualifiedProducts(group).reduce((total, product) => total + product.discountPrice * product.currentQty, 0);
 
+/** Units committed across all products, as a share of the combined targets. */
+const overallProgress = (group: GroupBuy) => {
+  const target = group.products.reduce((total, p) => total + p.targetQty, 0);
+  const current = group.products.reduce((total, p) => total + p.currentQty, 0);
+  return target > 0 ? Math.min(100, Math.round(current / target * 100)) : 0;
+};
+
+const displayStatusOf = (group: GroupBuy) =>
+  group.status.toLowerCase() === 'active' && !isLive(group) ? 'expired' : group.status;
+
 export default function GroupBuyPage() {
   const [groups, setGroups] = useState<GroupBuy[]>([]);
   const [filter, setFilter] = useState<SupplierGroupBuyFilter>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -134,6 +144,9 @@ export default function GroupBuyPage() {
     shops: groups.reduce((total, group) => total + group.participantCount, 0),
   }), [groups]);
 
+  // Looked up by id so the details refresh after accepting or dispatching
+  const viewing = groups.find((group) => group.id === viewId);
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in">
       <div>
@@ -175,19 +188,76 @@ export default function GroupBuyPage() {
           <p className="text-sm text-gray-400 mt-1">{emptyText[filter]}</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              expanded={expandedId === group.id}
-              busy={busyId === group.id}
-              onToggle={() => setExpandedId((current) => current === group.id ? null : group.id)}
-              onAccept={() => accept(group)}
-              onDispatch={() => dispatch(group)}
-            />
-          ))}
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm min-w-[760px]">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                <th className="p-3">Group buy</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Products</th>
+                <th className="p-3 text-right">Shops</th>
+                <th className="p-3 w-40">Progress</th>
+                <th className="p-3">Ends</th>
+                <th className="p-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group) => {
+                const status = displayStatusOf(group);
+                const toDispatch = dispatchableOrders(group).length;
+                const progress = overallProgress(group);
+                return (
+                  <tr key={group.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+                    <td className="p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {group.bannerImageUrl
+                          ? <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-16 h-7 rounded-md object-cover flex-shrink-0" />
+                          : <div className="w-16 h-7 rounded-md bg-primary/10 flex-shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 truncate max-w-[260px]">{group.title}</p>
+                          {canAccept(group) && <p className="text-[11px] font-bold text-emerald-700">Waiting for you to accept</p>}
+                          {toDispatch > 0 && <p className="text-[11px] font-bold text-blue-700">{toDispatch} to dispatch</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize whitespace-nowrap ${statusClass(status)}`}>
+                        {status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-semibold tabular-nums">{group.products.length}</td>
+                    <td className="p-3 text-right font-semibold tabular-nums">{group.participantCount}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
+                        </div>
+                        <span className="text-xs font-bold text-gray-600 tabular-nums w-9 text-right">{progress}%</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-gray-500 whitespace-nowrap">{new Date(group.expiresAt).toLocaleDateString('en-ZA')}</td>
+                    <td className="p-3 text-right">
+                      <button onClick={() => setViewId(group.id)} className="btn-secondary inline-flex items-center gap-1.5 text-sm">
+                        <Eye size={14} /> View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {viewing && (
+        <Modal title={viewing.title} size="xl" onClose={() => setViewId(null)}>
+          <GroupDetails
+            group={viewing}
+            busy={busyId === viewing.id}
+            onAccept={() => accept(viewing)}
+            onDispatch={() => dispatch(viewing)}
+          />
+        </Modal>
       )}
     </div>
   );
@@ -208,18 +278,15 @@ function Stat({ icon, label, value, tone }: { icon: ReactNode; label: string; va
   );
 }
 
-function GroupCard({
+/** Everything about one group buy, shown in the View pop-up. */
+function GroupDetails({
   group,
-  expanded,
   busy,
-  onToggle,
   onAccept,
   onDispatch,
 }: {
   group: GroupBuy;
-  expanded: boolean;
   busy: boolean;
-  onToggle: () => void;
   onAccept: () => void;
   onDispatch: () => void;
 }) {
@@ -228,16 +295,15 @@ function GroupCard({
   const orders = group.orders ?? [];
   const daysLeft = Math.max(0, Math.ceil((new Date(group.expiresAt).getTime() - Date.now()) / 86_400_000));
   const live = isLive(group);
-  const displayStatus = group.status.toLowerCase() === 'active' && !live ? 'expired' : group.status;
+  const displayStatus = displayStatusOf(group);
 
   return (
-    <article className="card overflow-hidden">
-      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full h-36 object-cover" />}
+    <div>
+      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full aspect-[16/7] object-cover" />}
       <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-black text-gray-900">{group.title}</h2>
               <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize ${statusClass(displayStatus)}`}>
                 {displayStatus.replace('_', ' ')}
               </span>
@@ -297,11 +363,7 @@ function GroupCard({
 
         {orders.length > 0 && <OrderList orders={orders} />}
 
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between pt-2">
-          <button onClick={onToggle} className="btn-secondary flex items-center justify-center gap-2">
-            <Users size={15} /> {expanded ? 'Hide participants' : 'View participating shops'}
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-end pt-2">
           <div className="flex flex-col sm:flex-row gap-2">
             {acceptable && (
               <button
@@ -325,8 +387,8 @@ function GroupCard({
         </div>
       </div>
 
-      {expanded && <Participants group={group} />}
-    </article>
+      <Participants group={group} />
+    </div>
   );
 }
 

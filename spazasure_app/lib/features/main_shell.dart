@@ -1,5 +1,6 @@
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
+import 'package:spazasure_app/services/deep_link_service.dart';
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:provider/provider.dart';
@@ -26,9 +27,17 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => ensurePrivacyConsent(context, PrivacyService.shop),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ensurePrivacyConsent(context, PrivacyService.shop);
+      // A shared group buy link tapped before sign-in opens now
+      DeepLinkService.shopShellOpened();
+    });
+  }
+
+  @override
+  void dispose() {
+    DeepLinkService.shopShellClosed();
+    super.dispose();
   }
 
   final _screens = const [

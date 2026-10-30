@@ -340,7 +340,7 @@ public class GroupBuyAdvertController(SpazaSureDbContext db) : ControllerBase
             .Append(".head{background:#25449A;color:#fff;padding:24px}.head h1{margin:0 0 6px;font-size:22px}.head p{margin:0;opacity:.85}")
             .Append(".body{padding:20px}.row{margin-bottom:16px}.bar{height:8px;background:#DCE4FF;border-radius:6px;overflow:hidden}")
             .Append(".bar i{display:block;height:100%;background:#F8B217}.pill{display:inline-block;background:#FFF0BD;color:#AA7206;font-weight:700;font-size:12px;padding:3px 10px;border-radius:99px}")
-            .Append(".cta{background:#F8B217;color:#0E1B42;text-align:center;font-weight:800;padding:14px;border-radius:14px;margin-top:8px}small{color:#607CC8}</style></head><body><div class=\"card\">");
+            .Append(".cta{display:block;text-decoration:none;background:#F8B217;color:#0E1B42;text-align:center;font-weight:800;padding:14px;border-radius:14px;margin-top:8px}.note{text-align:center;font-size:13px;color:#607CC8;margin:10px 0 0}small{color:#607CC8}</style></head><body><div class=\"card\">");
 
         if (!live)
         {
@@ -364,7 +364,17 @@ public class GroupBuyAdvertController(SpazaSureDbContext db) : ControllerBase
                     .Append(" each when the target is reached &middot; ").Append(p.CurrentQty).Append(" of ").Append(p.TargetQty)
                     .Append(" joined</small><div class=\"bar\"><i style=\"width:").Append(pct).Append("%\"></i></div></div>");
             }
-            html.Append("<div class=\"cta\">Open the SpazaSure app and tap Group Buy to join</div></div>");
+            // Opens this deal in the app. On Android an intent link comes back to this page with
+            // ?app=missing when the app isn't installed, instead of a Play Store "not found" page.
+            html.Append("<a id=\"open\" class=\"cta\" href=\"spazasure://group-buy/").Append(groupBuy.Id)
+                .Append("\">Open in the SpazaSure app to join</a>");
+            if (Request.Query["app"] == "missing")
+                html.Append("<p class=\"note\">The SpazaSure app isn't on this phone yet. Install it, sign in as a shop, then tap the button again.</p>");
+            else
+                html.Append("<p class=\"note\">Already in the app? Tap Group Buy on the home screen.</p>");
+            html.Append("</div><script>if(/Android/i.test(navigator.userAgent)){var back=location.origin+location.pathname+'?app=missing';")
+                .Append("document.getElementById('open').href='intent://group-buy/").Append(groupBuy.Id)
+                .Append("#Intent;scheme=spazasure;package=com.spazasure.spazasure_app;S.browser_fallback_url='+encodeURIComponent(back)+';end';}</script>");
         }
 
         html.Append("</div></body></html>");

@@ -35,6 +35,7 @@ import 'features/orders/screens/rate_delivery_screen.dart';
 import 'features/orders/screens/receipt_screen.dart';
 import 'core/widgets/logo_page_route.dart';
 import 'services/analytics_service.dart';
+import 'services/deep_link_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ Future<void> main() async {
     ),
   );
   AppLanguage.load();
+  DeepLinkService.init(appNavigatorKey);
   final auth = AuthProvider()..init();
   // When a session can't be renewed, sign out and go back to login instead of leaving
   // every screen failing while the app still looks signed in.
@@ -129,7 +131,12 @@ class SpazaSureApp extends StatelessWidget {
           '/notifications': () => const NotificationsScreen(),
           '/wallet': () => const WalletScreen(),
           '/academy': () => const AcademyScreen(),
-          '/group-buy': () => const GroupBuyScreen(),
+          // A shared group buy link passes the campaign's id to open it straight away
+          '/group-buy': () => GroupBuyScreen(
+            openGroupBuyId: settings.arguments is String
+                ? settings.arguments as String
+                : null,
+          ),
           '/qr-scanner': () => const QrScannerScreen(),
           '/report': () => const ReportScreen(),
           '/rate-delivery': () => const RateDeliveryScreen(),

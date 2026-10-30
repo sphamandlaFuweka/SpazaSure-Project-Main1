@@ -34,6 +34,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- "Open in the app" on a shared group buy page: spazasure://group-buy/<id> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="spazasure" android:host="group-buy"/>
+            </intent-filter>
+            <!-- DeepLinkService handles links after sign-in, so Flutter must not push them as routes itself -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Push notifications use the high-importance channel created in MainActivity, so they pop up -->
         <meta-data
