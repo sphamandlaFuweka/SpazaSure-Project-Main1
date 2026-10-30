@@ -203,12 +203,21 @@
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
+/* Map tiles in SpazaSure navy: the brand-map-tint filter is defined in index.html */
+.brand-map {
+  filter: url(#brand-map-tint);
+}
+/* Outside South Africa (maps are locked to it) shows the brand's light blue, not grey */
+.leaflet-container {
+  background: #EEF2FF;
+}
+
 .shops-map .leaflet-container {
   font-family: 'Nunito', sans-serif;
   background: #F5F7FF;
 }
 .shops-map .leaflet-bar {
-  border: 1px solid rgba(21, 128, 61, 0.14);
+  border: 1px solid rgba(37, 68, 154, 0.14);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
@@ -217,13 +226,13 @@
   width: 36px;
   height: 36px;
   line-height: 34px;
-  border-bottom-color: rgba(21, 128, 61, 0.12);
-  color: #166534;
+  border-bottom-color: rgba(37, 68, 154, 0.12);
+  color: #25449A;
   background: rgba(255, 255, 255, 0.96);
 }
 .shops-map .leaflet-bar a:hover {
-  color: #14532d;
-  background: #f0fdf4;
+  color: #1B3275;
+  background: #EEF2FF;
 }
 .shops-map .leaflet-control-attribution {
   border-radius: 8px 0 0;
@@ -231,7 +240,7 @@
   background: rgba(255, 255, 255, 0.88);
 }
 .shops-map .leaflet-control-attribution a {
-  color: #15803d;
+  color: #25449A;
 }
 .shops-map .shop-pin {
   background: transparent;

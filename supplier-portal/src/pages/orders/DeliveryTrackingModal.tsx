@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { BrandTileLayer, SOUTH_AFRICA_MAP } from '../../components/ui/BrandMap';
 import L from 'leaflet';
 import { Modal } from '../../components/ui';
 import type { Order } from '../../types';
@@ -136,11 +137,8 @@ export default function DeliveryTrackingModal({ order, onClose }: Props) {
               </p>
             </div>
           ) : (
-            <MapContainer center={points[0]} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+            <MapContainer center={points[0]} zoom={13} {...SOUTH_AFRICA_MAP} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+            <BrandTileLayer />
               <FitBounds points={points} />
 
               {supplierCoords && shopCoords && (

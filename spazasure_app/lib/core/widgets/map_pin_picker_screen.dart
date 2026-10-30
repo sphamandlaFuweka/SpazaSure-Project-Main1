@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:spazasure_app/core/widgets/brand_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -133,16 +134,13 @@ class _MapPinPickerScreenState extends State<MapPinPickerScreen> {
             options: MapOptions(
               initialCenter: _center,
               initialZoom: widget.initial == null ? 12 : 17,
-              minZoom: 5,
+              minZoom: BrandMap.minZoom,
               maxZoom: 19,
+              cameraConstraint: BrandMap.cameraConstraint,
+              backgroundColor: BrandMap.background,
               onPositionChanged: _onMoved,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'co.spazasure.app',
-              ),
-            ],
+            children: [BrandMap.tiles()],
           ),
           // The pin stays in the middle; the map moves underneath it
           IgnorePointer(

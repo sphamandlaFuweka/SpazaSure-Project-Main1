@@ -13,6 +13,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Tints map tiles in SpazaSure navy (see .brand-map in index.css) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <filter id="brand-map-tint" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.1818 0.6116 0.0617 0 0.1451
+                                              0.1559 0.5245 0.0529 0 0.2667
+                                              0.0842 0.2834 0.0286 0 0.6039
+                                              0      0      0      1 0" />
+      </filter>
+    </svg>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

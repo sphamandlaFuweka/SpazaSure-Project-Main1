@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:spazasure_app/core/widgets/brand_map.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
@@ -147,6 +148,9 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                     options: MapOptions(
                       initialCenter: center,
                       initialZoom: 13,
+                      minZoom: BrandMap.minZoom,
+                      cameraConstraint: BrandMap.cameraConstraint,
+                      backgroundColor: BrandMap.background,
                       // The shop moved the map: stop snapping back to the driver
                       onPositionChanged: (_, hasGesture) {
                         if (hasGesture && _followDriver) {
@@ -155,11 +159,7 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
                       },
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.spazasure.app',
-                      ),
+                      BrandMap.tiles(),
                       if (driverPoint != null && shopPoint != null)
                         PolylineLayer(
                           polylines: [

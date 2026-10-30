@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
+import { MapContainer, useMapEvents } from 'react-leaflet';
+import { BrandTileLayer, SOUTH_AFRICA_MAP } from './BrandMap';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Check, Loader2, Hand } from 'lucide-react';
 import { Modal } from './index';
@@ -66,11 +67,8 @@ export default function MapPinPicker({ initial, typedAddress, onPick, onClose }:
           <Hand size={15} className="text-brand-blue" /> Drag the map so the pin sits on the entrance of the place.
         </p>
         <div className="relative h-[360px] rounded-2xl overflow-hidden border border-brand-blue-light">
-          <MapContainer center={center} zoom={initial ? 17 : 12} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+          <MapContainer center={center} zoom={initial ? 17 : 12} {...SOUTH_AFRICA_MAP} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+            <BrandTileLayer />
             <CenterTracker
               onMoving={() => setMoving(true)}
               onMove={(lat, lng) => { setMoving(false); setCenter([lat, lng]); lookUp(lat, lng); }}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/brand_map.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -208,17 +209,16 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
                         (SouthAfrica.bounds.west + SouthAfrica.bounds.east) / 2,
                       ),
                       initialZoom: 5,
+                      minZoom: BrandMap.minZoom,
+                      cameraConstraint: BrandMap.cameraConstraint,
+                      backgroundColor: BrandMap.background,
                       onMapReady: () {
                         _mapReady = true;
                         _frameMap();
                       },
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'co.spazasure.app',
-                      ),
+                      BrandMap.tiles(),
                       MarkerLayer(
                         markers: [
                           for (final shop in _visibleShops)

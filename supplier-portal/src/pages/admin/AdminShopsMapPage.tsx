@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, Marker, useMap } from 'react-leaflet';
+import { BrandTileLayer, SOUTH_AFRICA_MAP } from '../../components/ui/BrandMap';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned } from 'lucide-react';
@@ -195,11 +196,8 @@ export default function AdminShopsMapPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="shops-map relative overflow-hidden rounded-2xl border border-primary-100 bg-primary-50 shadow-card xl:col-span-2 h-[560px] compact:h-[440px]">
-          <MapContainer center={SOUTH_AFRICA_CENTER} zoom={5} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+          <MapContainer center={SOUTH_AFRICA_CENTER} zoom={5} {...SOUTH_AFRICA_MAP} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+            <BrandTileLayer />
             <MapViewport points={points} province={selectedProvince} selectedShop={selected} />
             {pinned.map((s) => (
               <Marker
