@@ -17,6 +17,10 @@ public class GroupBuy : BaseEntity
     public decimal DiscountPrice { get; set; }
     public int DiscountPct { get; set; }
     public DateTime ExpiresAt { get; set; }
+    /// <summary>Times the end date was pushed back a week because the target wasn't reached (once at most).</summary>
+    public int ExtensionCount { get; set; }
+    /// <summary>When members were told the campaign ends in 2 days; cleared when it is extended.</summary>
+    public DateTime? EndingReminderSentAt { get; set; }
     /// <summary>Status: pending_approval, active, completed, expired, cancelled, rejected</summary>
     public string Status { get; set; } = "pending_approval";
 
@@ -77,8 +81,27 @@ public class GroupBuyParticipant : BaseEntity
     public Guid GroupBuyId { get; set; }
     public Guid ShopId { get; set; }
     public int Quantity { get; set; }
-    /// <summary>Status: joined, confirmed, cancelled</summary>
+    /// <summary>Status: pending_payment (card checkout open), joined, confirmed, cancelled</summary>
     public string Status { get; set; } = "joined";
+
+    // Shops pay when they join (see GroupBuyPayments). Null for shops that joined before that.
+    /// <summary>wallet or paystack.</summary>
+    public string? PaymentMethod { get; set; }
+    /// <summary>pending (card checkout open) or paid.</summary>
+    public string? PaymentStatus { get; set; }
+    /// <summary>The Paystack reference of the card checkout.</summary>
+    public string? PaymentReference { get; set; }
+    /// <summary>
+    /// Names this payment in the wallet ledger. New for every attempt, so a shop whose earlier
+    /// payment was refunded can join again without the two payments mixing.
+    /// </summary>
+    public Guid PaymentId { get; set; }
+    /// <summary>Items plus delivery, as charged when joining.</summary>
+    public decimal AmountPaid { get; set; }
+    public decimal DeliveryFee { get; set; }
+    public DateTime? PaidAt { get; set; }
+    /// <summary>A card checkout holds its quantities until then, so no other shop takes them meanwhile.</summary>
+    public DateTime? ReservedUntil { get; set; }
 
     public GroupBuy GroupBuy { get; set; } = null!;
     public SpazaShop Shop { get; set; } = null!;
@@ -91,8 +114,10 @@ public class GroupBuyParticipantItem : BaseEntity
     public Guid ParticipantId { get; set; }
     public Guid GroupBuyProductId { get; set; }
     public int Quantity { get; set; }
-    /// <summary>Status: joined, confirmed, cancelled</summary>
+    /// <summary>Status: reserved (card checkout open), joined, confirmed, cancelled</summary>
     public string Status { get; set; } = "joined";
+    /// <summary>The price per unit the shop paid when joining (includes SpazaSure's fee).</summary>
+    public decimal ShopUnitPrice { get; set; }
 
     public GroupBuyParticipant Participant { get; set; } = null!;
     public GroupBuyProduct GroupBuyProduct { get; set; } = null!;

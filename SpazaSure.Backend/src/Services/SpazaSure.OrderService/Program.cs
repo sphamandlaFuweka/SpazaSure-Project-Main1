@@ -19,6 +19,7 @@ builder.Services.AddHttpClient<PaystackSplitPaymentService>(c => c.Timeout = Tim
 // Automatic supplier payouts (Paystack Transfers), when Paystack:AutomaticPayouts is true
 builder.Services.AddHttpClient<PaystackTransferService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddHostedService<AutomaticPayoutWorker>();
+builder.Services.AddHostedService<GroupBuyExpiryWorker>();
 
 // RabbitMQ Event Publisher for notifications
 builder.Services.AddSingleton(sp =>

@@ -281,26 +281,18 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         if (groupBuy.Status is not ("active" or "pending_approval"))
             return BadRequest(ApiResponse.Fail("Only active or pending campaigns can be cancelled."));
 
-        groupBuy.Status = "cancelled";
         groupBuy.RejectionNote = string.IsNullOrWhiteSpace(req?.Note) ? null : req!.Note!.Trim();
-        foreach (var p in groupBuy.Products.Where(p => p.Status is "active" or "qualified" or "pending_approval"))
-        {
-            p.Status = "cancelled";
-            p.CurrentQty = 0;
-        }
-        foreach (var participant in groupBuy.Participants)
-        {
-            foreach (var item in participant.Items.Where(i => i.Status == "joined")) item.Status = "cancelled";
-            if (participant.Status == "joined") participant.Status = "cancelled";
-            participant.Quantity = 0;
-        }
-        GroupBuyResponse.SyncLegacy(groupBuy);
+        // Money held for items that never made it into an order goes back to the shops' wallets
+        var refunds = await GroupBuyPayments.CloseAsync(db, groupBuy, "cancelled");
         await db.SaveChangesAsync();
 
         Notify(groupBuy, "Group buy cancelled", $"An admin cancelled '{groupBuy.Title}'.");
-        // Shops that had joined lose their commitment, so tell them too
+        GroupBuyNotices.Refunds(events, groupBuy, refunds);
+        // Shops that joined without paying (before payment at joining) lose their commitment, so tell them too
+        var refunded = refunds.Select(r => r.Participant.Id).ToHashSet();
         events.PublishNotificationToMany(
-            groupBuy.Participants.Where(p => p.Status == "cancelled").Select(p => p.Shop.UserId.ToString()),
+            groupBuy.Participants.Where(p => p.Status == "cancelled" && !refunded.Contains(p.Id) && p.PaymentStatus is null)
+                .Select(p => p.Shop.UserId.ToString()),
             "group_buy", "Group buy cancelled",
             $"'{groupBuy.Title}' was cancelled, so your commitment was released.",
             referenceId: groupBuy.Id.ToString(), routingKey: "notification.group_buy");

@@ -1,9 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/features/profile/widgets/onboarding_fee_gate.dart';
+import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
@@ -357,6 +358,15 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                                 icon: const Icon(Icons.group_add, size: 18),
                                 label: const Text('Join'),
                               )
+                            // Payment is final, so a shop that paid can't leave
+                            : group.isPaid
+                            ? OutlinedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.check_circle, size: 18),
+                                label: Text(
+                                  'Paid ${_rand(group.myAmountPaid)}',
+                                ),
+                              )
                             : OutlinedButton.icon(
                                 onPressed: () => _leaveGroup(group),
                                 style: OutlinedButton.styleFrom(
@@ -484,20 +494,37 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     final joinableProducts = group.products
         .where(
           (product) =>
-              product.status == 'active' || product.status == 'qualified',
+              (product.status == 'active' || product.status == 'qualified') &&
+              product.remaining > 0,
         )
         .toList();
     if (joinableProducts.isEmpty) {
-      _showMessage('This group buy has no products available', AppColors.error);
+      _showMessage(
+        'Every product in this group buy has reached its target',
+        AppColors.info,
+      );
       return;
     }
     final selected = <String, bool>{
-      for (final product in joinableProducts) product.id: false,
+      for (final product in joinableProducts)
+        product.id: joinableProducts.length == 1,
     };
     final controllers = <String, TextEditingController>{
       for (final product in joinableProducts)
-        product.id: TextEditingController(text: '${product.minOrderQty}'),
+        product.id: TextEditingController(
+          // One product: start at the whole minimum; several: the shop splits it
+          text:
+              '${joinableProducts.length == 1 ? group.minTotal.clamp(product.minPerShop, product.remaining) : product.minPerShop}',
+        ),
     };
+    // The 10-item minimum counts across every product the shop picks
+    int selectedTotal() => joinableProducts
+        .where((product) => selected[product.id] == true)
+        .fold(
+          0,
+          (sum, product) =>
+              sum + (int.tryParse(controllers[product.id]!.text) ?? 0),
+        );
     final formKey = GlobalKey<FormState>();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -517,7 +544,10 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Select products and enter your quantities.',
+                      group.minTotal < 10
+                          ? 'Only ${group.minTotal} items are left. Take them all to complete this group buy.'
+                          : 'Buy at least ${group.minTotal} items in total. '
+                                'Mix products if you like, e.g. 3 of one and 7 of another.',
                       style: AppTextStyles.bodySmall,
                     ),
                     const SizedBox(height: 12),
@@ -535,7 +565,7 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                               activeColor: AppColors.primary,
                               title: Text(product.productName),
                               subtitle: Text(
-                                '${product.currentQty}/${product.targetQty} • min ${product.minOrderQty}',
+                                '${product.remaining} still needed',
                               ),
                               onChanged: (value) => setDialogState(
                                 () => selected[product.id] = value ?? false,
@@ -552,14 +582,19 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                                 child: TextFormField(
                                   controller: controllers[product.id],
                                   keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
+                                  onChanged: (_) => setDialogState(() {}),
+                                  decoration: InputDecoration(
                                     labelText: 'Quantity',
+                                    helperText: 'Up to ${product.remaining}',
                                   ),
                                   validator: (value) {
                                     final quantity = int.tryParse(value ?? '');
                                     if (quantity == null ||
-                                        quantity < product.minOrderQty) {
-                                      return 'Minimum ${product.minOrderQty}';
+                                        quantity < product.minPerShop) {
+                                      return 'At least ${product.minPerShop}';
+                                    }
+                                    if (quantity > product.remaining) {
+                                      return 'Only ${product.remaining} still needed';
                                     }
                                     return null;
                                   },
@@ -567,6 +602,15 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                               ),
                           ],
                         ),
+                      ),
+                    ),
+                    Text(
+                      'Total: ${selectedTotal()} of at least ${group.minTotal} items',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: selectedTotal() >= group.minTotal
+                            ? AppColors.success
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -589,9 +633,16 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                   return;
                 }
                 if (formKey.currentState?.validate() != true) return;
+                if (selectedTotal() < group.minTotal) {
+                  _showMessage(
+                    'Buy at least ${group.minTotal} items in total',
+                    AppColors.warning,
+                  );
+                  return;
+                }
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text('Join'),
+              child: const Text('Continue'),
             ),
           ],
         ),
@@ -615,10 +666,160 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     for (final controller in controllers.values) {
       controller.dispose();
     }
+
+    // Price it with delivery, then the shop chooses how to pay
+    GroupBuyQuote quote;
     try {
-      await GroupBuyService.join(group.id, items);
+      quote = await GroupBuyService.quote(group.id, items);
+    } catch (error) {
+      if (mounted) _showMessage(error.toString(), AppColors.error);
+      return;
+    }
+    if (!mounted) return;
+    final method = await _choosePayment(quote);
+    if (method == null || !mounted) return;
+    await _pay(group, items, method);
+  }
+
+  static String _rand(double amount) => 'R${amount.toStringAsFixed(2)}';
+
+  Widget _amountRow(String label, double amount, {bool bold = false}) {
+    final style = bold
+        ? AppTextStyles.body.copyWith(fontWeight: FontWeight.w800)
+        : AppTextStyles.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(_rand(amount), style: style),
+        ],
+      ),
+    );
+  }
+
+  /// Shows what the shop pays and returns 'wallet' or 'paystack', or null when it backs out.
+  Future<String?> _choosePayment(GroupBuyQuote quote) {
+    final canUseWallet = quote.walletBalance >= quote.total;
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Pay to join', style: AppTextStyles.h3),
+              const SizedBox(height: 4),
+              Text(
+                'Payment is final. If a product doesn\'t reach its target, '
+                'its money goes back to your SpazaSure wallet.',
+                style: AppTextStyles.caption,
+              ),
+              const SizedBox(height: 16),
+              for (final line in quote.lines)
+                _amountRow(
+                  '${line.quantity} × ${line.productName}',
+                  line.lineTotal,
+                ),
+              _amountRow('Delivery', quote.deliveryFee),
+              const Divider(height: 20),
+              _amountRow('Total', quote.total, bold: true),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: canUseWallet
+                      ? () => Navigator.pop(sheetContext, 'wallet')
+                      : null,
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: Text(
+                    'Pay from wallet (${_rand(quote.walletBalance)})',
+                  ),
+                ),
+              ),
+              if (!canUseWallet)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Your wallet doesn\'t have enough. Top it up, or pay by card.',
+                    style: AppTextStyles.caption,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(sheetContext, 'paystack'),
+                  icon: const Icon(Icons.credit_card),
+                  label: Text('Pay ${_rand(quote.total)} by card'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pay(
+    GroupBuy group,
+    List<Map<String, dynamic>> items,
+    String method,
+  ) async {
+    try {
+      final result = await GroupBuyService.join(group.id, items, method);
       if (!mounted) return;
-      _showMessage('You joined the selected products!', AppColors.success);
+      if (result.checkoutUrl == null) {
+        _showMessage(
+          result.message ?? 'You joined the group buy!',
+          AppColors.success,
+        );
+        await _loadData();
+        return;
+      }
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OnboardingFeeCheckoutScreen(
+            checkoutUrl: result.checkoutUrl!,
+            title: 'Pay for group buy',
+          ),
+        ),
+      );
+      if (!mounted) return;
+      // Paystack tells SpazaSure a moment after the payment, so check a few times
+      var status = 'pending';
+      for (var i = 0; i < 5 && status == 'pending'; i++) {
+        status = await GroupBuyService.confirmPayment(group.id);
+        if (status == 'pending') {
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+      if (!mounted) return;
+      switch (status) {
+        case 'joined':
+          _showMessage(
+            'Payment received. You joined the group buy!',
+            AppColors.success,
+          );
+        case 'refunded':
+          _showMessage(
+            'The group buy filled up while you paid, so the money is in your wallet.',
+            AppColors.warning,
+          );
+        default:
+          _showMessage(
+            'Payment not confirmed yet. If you paid, you will be added shortly; '
+            'otherwise tap Join to try again.',
+            AppColors.warning,
+          );
+      }
       await _loadData();
     } catch (error) {
       if (mounted) _showMessage(error.toString(), AppColors.error);

@@ -505,6 +505,9 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("group_buy_participants");
             e.HasIndex(p => new { p.GroupBuyId, p.ShopId }).IsUnique();
+            e.HasIndex(p => p.PaymentReference);
+            e.Property(p => p.AmountPaid).HasPrecision(10, 2);
+            e.Property(p => p.DeliveryFee).HasPrecision(10, 2);
             e.HasOne(p => p.GroupBuy).WithMany(g => g.Participants).HasForeignKey(p => p.GroupBuyId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(p => p.Shop).WithMany().HasForeignKey(p => p.ShopId);
         });
@@ -514,6 +517,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
         {
             e.ToTable("group_buy_participant_items");
             e.HasIndex(i => new { i.ParticipantId, i.GroupBuyProductId }).IsUnique();
+            e.Property(i => i.ShopUnitPrice).HasPrecision(10, 2);
             e.HasOne(i => i.Participant).WithMany(p => p.Items).HasForeignKey(i => i.ParticipantId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(i => i.GroupBuyProduct).WithMany(p => p.Items).HasForeignKey(i => i.GroupBuyProductId).OnDelete(DeleteBehavior.Restrict);
         });

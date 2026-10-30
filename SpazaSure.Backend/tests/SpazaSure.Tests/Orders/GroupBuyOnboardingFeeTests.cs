@@ -25,12 +25,16 @@ public class GroupBuyOnboardingFeeTests
         {
             User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())], "Test")),
         };
-        return (new ShopGroupBuyController(db, NullLogger<ShopGroupBuyController>.Instance)
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+        return (new ShopGroupBuyController(db, NullLogger<ShopGroupBuyController>.Instance,
+                new SpazaSure.OrderService.Services.DeliveryPricingService(Microsoft.Extensions.Options.Options.Create(new SpazaSure.OrderService.Services.DeliveryPricingOptions())),
+                new SpazaSure.OrderService.Services.OrderPaystackPaymentService(new HttpClient(), config),
+                new SpazaSure.Shared.Helpers.EventPublisher("__nonexistent__", "x", "x"))
             { ControllerContext = new ControllerContext { HttpContext = http } }, db, shop);
     }
 
     private static JoinGroupBuyRequest Request() =>
-        new() { Items = [new JoinGroupBuyItemRequest { GroupBuyProductId = Guid.NewGuid(), Quantity = 10 }] };
+        new() { Items = [new JoinGroupBuyItemRequest { GroupBuyProductId = Guid.NewGuid(), Quantity = 10 }], PaymentMethod = "wallet" };
 
     /// <summary>Joins past the fee check; the in-memory test database then can't open the join's transaction.</summary>
     private static async Task<IActionResult?> JoinPastTheFee(ShopGroupBuyController controller)

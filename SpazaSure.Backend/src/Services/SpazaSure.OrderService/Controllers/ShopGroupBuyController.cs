@@ -25,10 +25,18 @@ internal static class GroupBuyResponse
             .ThenInclude(i => i.GroupBuyProduct).ThenInclude(p => p.Product)
         .AsSplitQuery();
 
-    /// <summary>A group buy as shops see it: prices include SpazaSure's fee (markup, see ShopPricing).</summary>
-    internal static object ProjectShop(GroupBuy groupBuy, decimal markup)
+    /// <summary>Shops that are in: paid (or joined before payment existed), not just holding an open card checkout.</summary>
+    private static bool Counts(GroupBuyParticipant p) => p.Status is not ("cancelled" or "pending_payment");
+
+    /// <summary>
+    /// A group buy as shops see it: prices include SpazaSure's fee (markup, see ShopPricing).
+    /// With <paramref name="shopId"/>, also how much more each product needs and what this shop paid.
+    /// </summary>
+    internal static object ProjectShop(GroupBuy groupBuy, decimal markup, Guid? shopId = null)
     {
-        var isExpired = groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active";
+        var now = DateTime.UtcNow;
+        var isExpired = groupBuy.ExpiresAt <= now && groupBuy.Status == "active";
+        var mine = shopId is null ? null : groupBuy.Participants.SingleOrDefault(p => p.ShopId == shopId);
         return new
         {
             groupBuy.Id,
@@ -42,26 +50,50 @@ internal static class GroupBuyResponse
             Area = ProjectArea(groupBuy),
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
-            ParticipantCount = groupBuy.Participants.Count(p => p.Status != "cancelled"),
+            ParticipantCount = groupBuy.Participants.Count(Counts),
             groupBuy.CreatedAt,
-            Products = groupBuy.Products.Select(p => new
+            Products = groupBuy.Products.Select(p =>
             {
-                p.Id,
-                p.ProductId,
-                ProductName = p.Product.Name,
-                MinOrderQty = p.Product.MinOrderQty,
-                OriginalPrice = ShopPricing.ShopPrice(p.OriginalPrice, markup),
-                DiscountPrice = ShopPricing.ShopPrice(p.DiscountPrice, markup),
-                p.DiscountPct,
-                p.TargetQty,
-                p.CurrentQty,
-                ParticipantCount = p.Items.Where(i => i.Status != "cancelled")
-                    .Select(i => i.ParticipantId).Distinct().Count(),
-                Progress = p.TargetQty <= 0 ? 0m : Math.Clamp(
-                    Math.Round((decimal)p.CurrentQty / p.TargetQty * 100m, 1), 0m, 100m),
-                Status = isExpired && p.Status is "active" or "qualified" ? "expired" : p.Status
+                // Units no shop has taken yet
+                var remaining = GroupBuyPayments.Remaining(groupBuy, p, now, mine?.Id);
+                return new
+                {
+                    p.Id,
+                    p.ProductId,
+                    ProductName = p.Product.Name,
+                    MinOrderQty = p.Product.MinOrderQty,
+                    MinPerShop = GroupBuyPayments.MinimumFor(p, remaining),
+                    Remaining = remaining,
+                    OriginalPrice = ShopPricing.ShopPrice(p.OriginalPrice, markup),
+                    DiscountPrice = ShopPricing.ShopPrice(p.DiscountPrice, markup),
+                    p.DiscountPct,
+                    p.TargetQty,
+                    p.CurrentQty,
+                    ParticipantCount = p.Items.Where(i => i.Status is "joined" or "confirmed")
+                        .Select(i => i.ParticipantId).Distinct().Count(),
+                    Progress = p.TargetQty <= 0 ? 0m : Math.Clamp(
+                        Math.Round((decimal)p.CurrentQty / p.TargetQty * 100m, 1), 0m, 100m),
+                    Status = isExpired && p.Status is "active" or "qualified" ? "expired" : p.Status
+                };
             }).ToList(),
-            Participants = ProjectParticipants(groupBuy)
+            // The fewest items this shop must buy in total, across products
+            MinTotal = GroupBuyPayments.MinimumTotal(groupBuy, now, mine?.Id),
+            Participants = ProjectParticipants(groupBuy),
+            My = mine is null || !Counts(mine) ? null : new
+            {
+                mine.Status,
+                mine.PaymentStatus,
+                mine.PaymentMethod,
+                mine.AmountPaid,
+                mine.DeliveryFee,
+                Items = mine.Items.Where(i => i.Status is "joined" or "confirmed").Select(i => new
+                {
+                    i.GroupBuyProductId,
+                    i.Quantity,
+                    i.ShopUnitPrice,
+                    i.Status,
+                }).ToList(),
+            },
         };
     }
 
@@ -83,7 +115,7 @@ internal static class GroupBuyResponse
             groupBuy.ApprovedAt,
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
-            ParticipantCount = groupBuy.Participants.Count(p => p.Status != "cancelled"),
+            ParticipantCount = groupBuy.Participants.Count(Counts),
             groupBuy.CreatedAt,
             Products = groupBuy.Products.Select(p => new
             {
@@ -96,7 +128,7 @@ internal static class GroupBuyResponse
                 p.DiscountPct,
                 p.TargetQty,
                 p.CurrentQty,
-                ParticipantCount = p.Items.Where(i => i.Status != "cancelled")
+                ParticipantCount = p.Items.Where(i => i.Status is "joined" or "confirmed")
                     .Select(i => i.ParticipantId).Distinct().Count(),
                 Progress = p.TargetQty <= 0 ? 0m : Math.Clamp(
                     Math.Round((decimal)p.CurrentQty / p.TargetQty * 100m, 1), 0m, 100m),
@@ -132,13 +164,16 @@ internal static class GroupBuyResponse
         : null;
 
     private static object ProjectParticipants(GroupBuy groupBuy) =>
-        groupBuy.Participants.Select(p => new
+        groupBuy.Participants.Where(p => p.Status != "pending_payment").Select(p => new
         {
             p.Id,
             p.ShopId,
             ShopName = p.Shop.ShopName,
             p.Status,
-            Items = p.Items.Select(i => new
+            p.PaymentMethod,
+            p.PaymentStatus,
+            p.AmountPaid,
+            Items = p.Items.Where(i => i.Status != "reserved").Select(i => new
             {
                 i.GroupBuyProductId,
                 i.GroupBuyProduct.ProductId,
@@ -148,17 +183,7 @@ internal static class GroupBuyResponse
             }).ToList()
         }).ToList();
 
-    internal static void SyncLegacy(GroupBuy groupBuy)
-    {
-        var first = groupBuy.Products.FirstOrDefault(p => p.ProductId == groupBuy.ProductId)
-            ?? groupBuy.Products.First();
-        groupBuy.ProductId = first.ProductId;
-        groupBuy.TargetQty = first.TargetQty;
-        groupBuy.CurrentQty = first.CurrentQty;
-        groupBuy.OriginalPrice = first.OriginalPrice;
-        groupBuy.DiscountPrice = first.DiscountPrice;
-        groupBuy.DiscountPct = first.DiscountPct;
-    }
+    internal static void SyncLegacy(GroupBuy groupBuy) => GroupBuyPayments.SyncLegacy(groupBuy);
 }
 
 [ApiController]
@@ -166,22 +191,12 @@ internal static class GroupBuyResponse
 [Authorize(Roles = "spaza_owner")]
 public class ShopGroupBuyController(
     SpazaSureDbContext db,
-    ILogger<ShopGroupBuyController> logger) : ControllerBase
+    ILogger<ShopGroupBuyController> logger,
+    DeliveryPricingService pricing,
+    OrderPaystackPaymentService paystack,
+    EventPublisher events) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-    private async Task<GroupBuy?> LoadGroupBuyForUpdate(Guid id)
-    {
-        var lockedGroupId = await db.GroupBuys
-            .FromSqlInterpolated($"SELECT * FROM group_buys WHERE id = {id} FOR UPDATE")
-            .AsNoTracking()
-            .Select(groupBuy => groupBuy.Id)
-            .SingleOrDefaultAsync();
-        if (lockedGroupId == Guid.Empty) return null;
-
-        return await GroupBuyResponse.WithGraph(db.GroupBuys)
-            .FirstOrDefaultAsync(groupBuy => groupBuy.Id == lockedGroupId);
-    }
 
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string status = "active")
@@ -197,13 +212,14 @@ public class ShopGroupBuyController(
 
         var now = DateTime.UtcNow;
         var query = GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking());
+        // A shop is in a group buy once it has paid; an open card checkout doesn't count yet
         query = status switch
         {
             "active" => query.Where(g => g.Status == "active" && g.ExpiresAt > now),
             "my" => query.Where(g => g.Participants.Any(p =>
-                p.ShopId == shop.Id && p.Status != "cancelled")),
+                p.ShopId == shop.Id && p.Status != "cancelled" && p.Status != "pending_payment")),
             "other" => query.Where(g => g.Status == "active" && g.ExpiresAt > now &&
-                !g.Participants.Any(p => p.ShopId == shop.Id && p.Status != "cancelled")),
+                !g.Participants.Any(p => p.ShopId == shop.Id && p.Status != "cancelled" && p.Status != "pending_payment")),
             "expired" => query.Where(g => g.Status == "expired" ||
                 (g.Status == "active" && g.ExpiresAt <= now)),
             _ => query.Where(g => g.Status == status)
@@ -217,7 +233,7 @@ public class ShopGroupBuyController(
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
-        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup)).ToList()));
+        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup, shop.Id)).ToList()));
     }
 
     /// <summary>
@@ -249,17 +265,43 @@ public class ShopGroupBuyController(
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var shopExists = await db.SpazaShops.AnyAsync(s => s.UserId == UserId);
-        if (!shopExists) return NotFound(ApiResponse.Fail("Shop not found."));
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
         var groupBuy = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
             .FirstOrDefaultAsync(g => g.Id == id);
         return groupBuy is null
             ? NotFound(ApiResponse.Fail("Group buy not found."))
-            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)))));
+            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)), shop.Id)));
     }
 
-[HttpPost("{id:guid}/join")]
+    /// <summary>What joining with these quantities costs: items at the group price plus delivery.</summary>
+    [HttpPost("{id:guid}/quote")]
+    public async Task<IActionResult> Quote(Guid id, [FromBody] JoinGroupBuyRequest req)
+    {
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var groupBuy = await GroupBuyPayments.LoadForUpdateAsync(db, id);
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+
+        var own = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id);
+        var (error, price) = await PriceAsync(groupBuy, shop, req, own?.Status == "pending_payment" ? own.Id : null);
+        if (error is not null) return BadRequest(ApiResponse.Fail(error));
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            Items = price!.Lines.Select(l => new { l.Product.Id, ProductName = l.Product.Product.Name, l.Quantity, l.UnitPrice, l.LineTotal }),
+            price.ItemsTotal,
+            price.DeliveryFee,
+            price.Total,
+            WalletBalance = await ShopWallet.BalanceAsync(db, shop.Id),
+        }));
+    }
+
+    /// <summary>
+    /// Joins and pays. Wallet: paid and joined at once. Card: the quantities are held while the
+    /// shop pays on Paystack (checkoutUrl); the webhook or confirm-payment then joins it.
+    /// </summary>
+    [HttpPost("{id:guid}/join")]
     public async Task<IActionResult> Join(Guid id, [FromBody] JoinGroupBuyRequest req)
     {
         if (req.Items is null || req.Items.Count == 0)
@@ -272,19 +314,20 @@ public class ShopGroupBuyController(
         if (unpaid && await OnboardingFee.AmountAsync(db) is > 0m and var fee)
             return StatusCode(StatusCodes.Status402PaymentRequired, ApiResponse.Fail(OnboardingFee.NeededForGroupBuys(fee)));
 
+        var method = req.PaymentMethod?.Trim().ToLowerInvariant();
+        if (method is not (GroupBuyPayments.Wallet or GroupBuyPayments.Card))
+            return BadRequest(ApiResponse.Fail("Group buys are now paid when you join. Please update the SpazaSure app to join."));
+
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
 
-        var groupBuy = await LoadGroupBuyForUpdate(id);
+        var groupBuy = await GroupBuyPayments.LoadForUpdateAsync(db, id);
         if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
-        if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active")
+        var now = DateTime.UtcNow;
+        // Past its end date: the first time it runs another week, after that it closes
+        if (groupBuy.ExpiresAt <= now && groupBuy.Status == "active" && !await ReachEndAsync(groupBuy))
         {
-            groupBuy.Status = "expired";
-            foreach (var product in groupBuy.Products.Where(p => p.Status is "active" or "qualified"))
-                product.Status = "expired";
-            GroupBuyResponse.SyncLegacy(groupBuy);
-            await db.SaveChangesAsync();
             await transaction.CommitAsync();
             return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
         }
@@ -295,81 +338,259 @@ public class ShopGroupBuyController(
                 ? $"This group buy is only open to {GroupBuyArea.Describe(groupBuy)}, and your shop is outside that area."
                 : $"{groupBuy.Supplier.CompanyName} doesn't deliver to your area."));
 
-        var requestedIds = req.Items.Select(i => i.GroupBuyProductId).ToHashSet();
-        var requestedProducts = groupBuy.Products.Where(p => requestedIds.Contains(p.Id)).ToList();
-        if (requestedProducts.Count != requestedIds.Count)
-            return BadRequest(ApiResponse.Fail("One or more requested group buy products were not found."));
-        if (requestedProducts.Any(p => p.Status is not ("active" or "qualified")))
-            return BadRequest(ApiResponse.Fail("Requested products must be active or qualified."));
-
-        foreach (var input in req.Items)
+        var participant = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id);
+        if (participant is not null && (participant.Status is "joined" or "confirmed" || participant.Items.Any(i => i.Status == "joined")))
+            return BadRequest(ApiResponse.Fail("You have already joined this group buy."));
+        if (participant?.Status == "pending_payment")
         {
-            var product = requestedProducts.Single(p => p.Id == input.GroupBuyProductId);
-            if (input.Quantity <= 0 || input.Quantity < product.Product.MinOrderQty)
-                return BadRequest(ApiResponse.Fail(
-                    $"Minimum order for '{product.Product.Name}' is {product.Product.MinOrderQty}."));
-            // Stock at the branch the campaign ships from
-            var committed = product.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
-            var available = BranchStock.AvailableAt(product.Product, groupBuy.SupplierBranchId);
-            if (committed + input.Quantity > available)
-                return BadRequest(ApiResponse.Fail(available - committed <= 0
-                    ? $"'{product.Product.Name}' is out of stock at the branch supplying this group buy."
-                    : $"Only {available - committed} more of '{product.Product.Name}' can be committed; that is what the supplying branch has left."));
+            // An earlier card checkout may have gone through after all: don't charge twice
+            if (await TryConfirmCardAsync(groupBuy, participant, now) is { } result)
+            {
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                NotifyCardResult(groupBuy, participant, result);
+                return BadRequest(ApiResponse.Fail(result == GroupBuyPayments.CardResult.Joined
+                    ? "Your earlier payment went through, so you have already joined this group buy."
+                    : "Your earlier payment went through, but this group buy filled up meanwhile, so it was added to your wallet."));
+            }
         }
 
-        var participant = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id);
-        if (participant is not null && (participant.Status == "joined" || participant.Items.Any(i => i.Status == "joined")))
-            return BadRequest(ApiResponse.Fail("You have already joined this group buy."));
+        var (error, price) = await PriceAsync(groupBuy, shop, req, participant?.Id);
+        if (error is not null) return BadRequest(ApiResponse.Fail(error));
 
         if (participant is null)
         {
-            participant = new GroupBuyParticipant
-            {
-                GroupBuyId = groupBuy.Id,
-                ShopId = shop.Id,
-                Status = "joined"
-            };
+            participant = new GroupBuyParticipant { GroupBuyId = groupBuy.Id, ShopId = shop.Id };
             // Ids are pre-assigned, so EF would treat graph-discovered entities as existing rows (UPDATE) unless added explicitly.
             db.GroupBuyParticipants.Add(participant);
-            groupBuy.Participants.Add(participant);
+            // EF links tracked entities itself; adding again would count this shop twice
+            if (!groupBuy.Participants.Contains(participant)) groupBuy.Participants.Add(participant);
         }
-        else
-        {
-            participant.Status = "joined";
-        }
+        // A new attempt replaces whatever this shop held before
+        foreach (var old in participant.Items.Where(i => i.Status == "reserved")) old.Status = "cancelled";
 
-        foreach (var input in req.Items)
+        var isWallet = method == GroupBuyPayments.Wallet;
+        foreach (var line in price!.Lines)
         {
-            var product = requestedProducts.Single(p => p.Id == input.GroupBuyProductId);
-            var item = participant.Items.SingleOrDefault(i => i.GroupBuyProductId == product.Id);
+            var item = participant.Items.SingleOrDefault(i => i.GroupBuyProductId == line.Product.Id);
             if (item is null)
             {
-                item = new GroupBuyParticipantItem
-                {
-                    ParticipantId = participant.Id,
-                    GroupBuyProductId = product.Id,
-                    GroupBuyProduct = product
-                };
+                item = new GroupBuyParticipantItem { ParticipantId = participant.Id, GroupBuyProductId = line.Product.Id, GroupBuyProduct = line.Product };
                 db.GroupBuyParticipantItems.Add(item);
-                participant.Items.Add(item);
+                if (!participant.Items.Contains(item)) participant.Items.Add(item);
             }
-            else if (item.Status != "cancelled")
-            {
-                return BadRequest(ApiResponse.Fail($"Participation for '{product.Product.Name}' cannot be reactivated."));
-            }
-
-            item.Quantity = input.Quantity;
-            item.Status = "joined";
+            item.Quantity = line.Quantity;
+            item.ShopUnitPrice = line.UnitPrice;
+            item.Status = isWallet ? "joined" : "reserved";
         }
+        participant.PaymentId = Guid.NewGuid();
+        participant.PaymentMethod = method;
+        participant.AmountPaid = price.Total;
+        participant.DeliveryFee = price.DeliveryFee;
 
-        foreach (var product in groupBuy.Products)
+        if (isWallet)
         {
-            product.CurrentQty = product.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
-            if (product.Status is "active" or "qualified")
-                product.Status = product.CurrentQty >= product.TargetQty ? "qualified" : "active";
+            // Hold the wallet until this commits, so the balance can't be spent twice
+            await ShopWallet.LockAsync(db, shop.Id);
+            var balance = await ShopWallet.BalanceAsync(db, shop.Id);
+            if (balance < price.Total)
+                return BadRequest(ApiResponse.Fail(
+                    $"Your wallet balance is R{Math.Max(balance, 0):N2} but this group buy costs R{price.Total:N2}. Top up your wallet or pay by card."));
+            participant.Status = "joined";
+            participant.PaymentStatus = "paid";
+            participant.PaidAt = now;
+            participant.PaymentReference = GroupBuyPayments.NewReference(participant.Id);
+            participant.ReservedUntil = null;
+            GroupBuyPayments.Recount(groupBuy);
+            await GroupBuyPayments.SyncWalletAsync(db, participant, groupBuy.Title);
+            await SaveAsync();
+            await transaction.CommitAsync();
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                Paid = true,
+                CheckoutUrl = (string?)null,
+                Amount = price.Total,
+                GroupBuy = await ProjectAsync(id, shop.Id),
+            }, $"You joined and paid R{price.Total:N2} from your wallet."));
         }
-        participant.Quantity = participant.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
-        GroupBuyResponse.SyncLegacy(groupBuy);
+
+        participant.Status = "pending_payment";
+        participant.PaymentStatus = "pending";
+        participant.PaidAt = null;
+        participant.ReservedUntil = now.Add(GroupBuyPayments.CardReservation);
+        participant.PaymentReference = GroupBuyPayments.NewReference(participant.Id);
+        GroupBuyPayments.Recount(groupBuy);
+        OrderPaystackCheckout checkout;
+        try
+        {
+            checkout = await paystack.CreateHeldCheckoutAsync(
+                price.Total,
+                // Shops often have no email; Paystack still needs one (see PaymentEmail).
+                PaymentEmail.For(shop.Email, shop.Phone, shop.UserId),
+                participant.PaymentReference,
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            // Nothing is kept: the reservation is rolled back with the transaction.
+            logger.LogWarning(ex, "Paystack checkout failed for group buy {GroupBuyId}", id);
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(
+                "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
+        }
+        await SaveAsync();
+        await transaction.CommitAsync();
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            Paid = false,
+            checkout.Reference,
+            CheckoutUrl = checkout.AuthorizationUrl,
+            Amount = price.Total,
+        }));
+    }
+
+    /// <summary>
+    /// Called by the app when the shop comes back from Paystack: asks Paystack whether the card
+    /// payment went through, so the shop joins without waiting for the webhook.
+    /// </summary>
+    [HttpPost("{id:guid}/confirm-payment")]
+    public async Task<IActionResult> ConfirmPayment(Guid id)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var groupBuy = await GroupBuyPayments.LoadForUpdateAsync(db, id);
+        var participant = groupBuy?.Participants.SingleOrDefault(p => p.ShopId == shop.Id);
+        if (groupBuy is null || participant?.PaymentStatus is null)
+            return NotFound(ApiResponse.Fail("No payment was started for this group buy."));
+
+        if (participant.PaymentStatus == "pending" &&
+            await TryConfirmCardAsync(groupBuy, participant, DateTime.UtcNow) is { } result)
+        {
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            NotifyCardResult(groupBuy, participant, result);
+        }
+
+        var status = !GroupBuyPayments.IsPaid(participant) ? "pending"
+            : participant.Status is "joined" or "confirmed" ? "joined"
+            : "refunded";
+        return Ok(ApiResponse<object>.Ok(new { Status = status }, status switch
+        {
+            "joined" => "Payment received. You have joined the group buy.",
+            "refunded" => "Payment received, but this group buy filled up or closed meanwhile, so the money is in your wallet.",
+            _ => "Paystack hasn't confirmed the payment yet.",
+        }));
+    }
+
+    [HttpPost("{id:guid}/leave")]
+    public async Task<IActionResult> Leave(Guid id)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+
+        var groupBuy = await GroupBuyPayments.LoadForUpdateAsync(db, id);
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+        if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active" && !await ReachEndAsync(groupBuy))
+        {
+            await transaction.CommitAsync();
+            return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
+        }
+        if (groupBuy.Status != "active")
+            return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
+        var participant = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id && p.Status == "joined");
+        if (participant is null || !participant.Items.Any(i => i.Status == "joined"))
+            return BadRequest(ApiResponse.Fail("You are not an active participant in this group buy."));
+        // Payment is final: the money comes back only if the group buy doesn't reach its target
+        if (GroupBuyPayments.IsPaid(participant))
+            return BadRequest(ApiResponse.Fail(
+                "You have paid for this group buy, so you can't leave it. If it doesn't reach its target, your money goes back to your wallet."));
+
+        foreach (var item in participant.Items.Where(i => i.Status == "joined"))
+            item.Status = "cancelled";
+        participant.Status = "cancelled";
+        GroupBuyPayments.Recount(groupBuy);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return Ok(ApiResponse<object>.Ok(new { Message = "You have left the group buy." }));
+    }
+
+    private sealed record PricedLine(GroupBuyProduct Product, int Quantity, decimal UnitPrice, decimal LineTotal);
+    private sealed record Price(List<PricedLine> Lines, decimal ItemsTotal, decimal DeliveryFee, decimal Total);
+
+    /// <summary>Checks the quantities (min 10 each, no more than still needed, in stock) and prices them with delivery.</summary>
+    private async Task<(string? Error, Price? Price)> PriceAsync(
+        GroupBuy groupBuy, SpazaShop shop, JoinGroupBuyRequest req, Guid? exceptParticipantId)
+    {
+        if (req.Items is null || req.Items.Count == 0) return ("Choose at least one product.", null);
+        var now = DateTime.UtcNow;
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var markup = ShopPricing.Markup(rules);
+        var lines = new List<PricedLine>();
+        foreach (var input in req.Items)
+        {
+            var product = groupBuy.Products.SingleOrDefault(p => p.Id == input.GroupBuyProductId);
+            if (product is null) return ("One or more products were not found in this group buy.", null);
+            if (product.Status is not ("active" or "qualified"))
+                return ($"'{product.Product.Name}' is no longer open in this group buy.", null);
+            if (GroupBuyPayments.QuantityProblem(groupBuy, product, input.Quantity, now, exceptParticipantId) is { } problem)
+                return (problem, null);
+            // Stock at the branch the campaign ships from
+            var committed = GroupBuyPayments.Committed(groupBuy, product, now, exceptParticipantId);
+            var available = BranchStock.AvailableAt(product.Product, groupBuy.SupplierBranchId);
+            if (committed + input.Quantity > available)
+                return (available - committed <= 0
+                    ? $"'{product.Product.Name}' is out of stock at the branch supplying this group buy."
+                    : $"Only {available - committed} more of '{product.Product.Name}' can be bought; that is what the supplying branch has left.", null);
+            var (unit, total) = ShopPricing.Line(product.DiscountPrice, input.Quantity, markup);
+            lines.Add(new PricedLine(product, input.Quantity, unit, total));
+        }
+        // At least 10 items in total, from one product or a mix
+        if (GroupBuyPayments.TotalProblem(groupBuy, lines.Sum(l => l.Quantity), now, exceptParticipantId) is { } tooFew)
+            return (tooFew, null);
+
+        // Delivered from the branch the campaign runs from (its area centre), else the head office
+        var (fromLatitude, fromLongitude) = groupBuy.AreaLatitude is not null && groupBuy.AreaLongitude is not null
+            ? (groupBuy.AreaLatitude, groupBuy.AreaLongitude)
+            : (groupBuy.Supplier.Latitude, groupBuy.Supplier.Longitude);
+        if (!ValidCoordinates(shop.Latitude, shop.Longitude) || string.IsNullOrWhiteSpace(shop.Address))
+            return ("Add your shop's address and location in your profile so we can work out the delivery fee.", null);
+        if (!ValidCoordinates(fromLatitude, fromLongitude))
+            return ("This group buy can't take orders right now: the supplier's location is missing. Please try again later.", null);
+        var delivery = pricing.Calculate(fromLatitude!.Value, fromLongitude!.Value, shop.Latitude!.Value, shop.Longitude!.Value,
+            rules.GroupBuyBaseDeliveryFee, rules.GroupBuyPerKmRate);
+
+        var itemsTotal = lines.Sum(l => l.LineTotal);
+        return (null, new Price(lines, itemsTotal, delivery.DeliveryFee, itemsTotal + delivery.DeliveryFee));
+    }
+
+    /// <summary>Asks Paystack about an open card checkout; null when it isn't paid (yet).</summary>
+    private async Task<GroupBuyPayments.CardResult?> TryConfirmCardAsync(GroupBuy groupBuy, GroupBuyParticipant participant, DateTime now)
+    {
+        if (string.IsNullOrWhiteSpace(participant.PaymentReference)) return null;
+        long? cents;
+        try { cents = await paystack.PaidAmountAsync(participant.PaymentReference, HttpContext.RequestAborted); }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException) { return null; }
+        if (cents is null) return null;
+        var result = await GroupBuyPayments.ConfirmCardAsync(db, groupBuy, participant, cents.Value, now);
+        return result is GroupBuyPayments.CardResult.Joined or GroupBuyPayments.CardResult.RefundedToWallet ? result : null;
+    }
+
+    private void NotifyCardResult(GroupBuy groupBuy, GroupBuyParticipant participant, GroupBuyPayments.CardResult result) =>
+        GroupBuyNotices.CardPayment(events, groupBuy, participant, result);
+
+    /// <summary>The campaign passed its end date: extends it a week (true) or closes it and refunds (false).</summary>
+    private async Task<bool> ReachEndAsync(GroupBuy groupBuy)
+    {
+        var end = await GroupBuyPayments.ReachEndAsync(db, groupBuy, DateTime.UtcNow);
+        await db.SaveChangesAsync();
+        if (end.Extended) GroupBuyNotices.Extended(events, groupBuy);
+        else GroupBuyNotices.Refunds(events, groupBuy, end.Refunds);
+        return end.Extended;
+    }
+
+    private async Task SaveAsync()
+    {
         try
         {
             await db.SaveChangesAsync();
@@ -390,55 +611,20 @@ public class ShopGroupBuyController(
 
             throw;
         }
-        await transaction.CommitAsync();
-
-        var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking())
-            .FirstAsync(g => g.Id == id);
-        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db))), "You have joined the group buy."));
     }
 
-    [HttpPost("{id:guid}/leave")]
-    public async Task<IActionResult> Leave(Guid id)
+    private async Task<object> ProjectAsync(Guid id, Guid shopId)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
-
-        var groupBuy = await LoadGroupBuyForUpdate(id);
-        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
-        if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active")
-        {
-            groupBuy.Status = "expired";
-            foreach (var product in groupBuy.Products.Where(p => p.Status is "active" or "qualified"))
-                product.Status = "expired";
-            GroupBuyResponse.SyncLegacy(groupBuy);
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
-            return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
-        }
-        if (groupBuy.Status != "active")
-            return BadRequest(ApiResponse.Fail("This group buy is no longer active."));
-        var participant = groupBuy.Participants.SingleOrDefault(p => p.ShopId == shop.Id && p.Status == "joined");
-        if (participant is null || !participant.Items.Any(i => i.Status == "joined"))
-            return BadRequest(ApiResponse.Fail("You are not an active participant in this group buy."));
-
-        foreach (var item in participant.Items.Where(i => i.Status == "joined"))
-            item.Status = "cancelled";
-        foreach (var product in groupBuy.Products)
-        {
-            product.CurrentQty = product.Items.Where(i => i.Status == "joined").Sum(i => i.Quantity);
-            if (product.Status is "active" or "qualified")
-                product.Status = product.CurrentQty >= product.TargetQty ? "qualified" : "active";
-        }
-        participant.Status = "cancelled";
-        participant.Quantity = 0;
-        GroupBuyResponse.SyncLegacy(groupBuy);
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return Ok(ApiResponse<object>.Ok(new { Message = "You have left the group buy." }));
+        var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking()).FirstAsync(g => g.Id == id);
+        return GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)), shopId);
     }
 
+    private static bool ValidCoordinates(double? latitude, double? longitude) =>
+        latitude.HasValue && longitude.HasValue &&
+        double.IsFinite(latitude.Value) && double.IsFinite(longitude.Value) &&
+        latitude.Value is >= -90d and <= 90d && longitude.Value is >= -180d and <= 180d;
 }
+
 
 /// <summary>
 /// Suppliers no longer create group buys: admins run the campaigns. A supplier sees the campaigns
@@ -610,13 +796,16 @@ public class SupplierGroupBuyController(
 
             if (groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active")
             {
-                groupBuy.Status = "expired";
-                foreach (var product in groupBuy.Products.Where(p => p.Status is "active" or "qualified"))
-                    product.Status = "expired";
-                GroupBuyResponse.SyncLegacy(groupBuy);
+                // Past its end date: the first time it runs another week, after that it closes
+                var end = await GroupBuyPayments.ReachEndAsync(db, groupBuy, DateTime.UtcNow);
                 await db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
+                if (end.Extended) GroupBuyNotices.Extended(events, groupBuy);
+                else
+                {
+                    await transaction.CommitAsync();
+                    GroupBuyNotices.Refunds(events, groupBuy, end.Refunds);
+                    return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
+                }
             }
             if (groupBuy.Status is not ("active" or "completed"))
                 return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
@@ -737,10 +926,15 @@ public class SupplierGroupBuyController(
                 var shop = entry.Participant.Shop;
                 rules ??= await PlatformSettingsStore.LoadAsync(db);
                 var markup = ShopPricing.Markup(rules);
+                // Shops that paid when joining get an order already paid from the money SpazaSure
+                // holds, at the prices they paid
+                var prepaid = GroupBuyPayments.IsPaid(entry.Participant);
                 var newItems = entry.Items.Select(item =>
                 {
                     var product = qualified[item.GroupBuyProductId];
-                    var (shopUnitPrice, shopLineTotal) = ShopPricing.Line(product.DiscountPrice, item.Quantity, markup);
+                    var (shopUnitPrice, shopLineTotal) = prepaid
+                        ? (item.ShopUnitPrice, GroupBuyPayments.LineTotal(item))
+                        : ShopPricing.Line(product.DiscountPrice, item.Quantity, markup);
                     return new OrderItem
                     {
                         ProductId = product.ProductId,
@@ -777,11 +971,11 @@ public class SupplierGroupBuyController(
                         DeliveryAddress = shop.Address!.Trim(),
                         DeliveryLatitude = shop.Latitude,
                         DeliveryLongitude = shop.Longitude,
-                        DeliveryFee = delivery.DeliveryFee,
+                        DeliveryFee = prepaid ? entry.Participant.DeliveryFee : delivery.DeliveryFee,
                         DeliveryMarkup = 0m,
                         DeliveryDistanceKm = delivery.DistanceKm,
-                        PaymentMethod = "invoice",
-                        PaymentStatus = "pending",
+                        PaymentMethod = prepaid ? ShopWallet.PaymentMethod : "invoice",
+                        PaymentStatus = prepaid ? "paid" : "pending",
                         Notes = $"Group Buy: {groupBuy.Title}",
                         // The code the driver checks at the shop; unique across all orders
                         DeliveryCode = await OrderDeliveryCodes.NewAsync(db, newCodes),
@@ -802,6 +996,12 @@ public class SupplierGroupBuyController(
                 notifications.Add((shop.UserId, order.Id, order.OrderNumber));
 
                 foreach (var item in entry.Items) item.Status = "confirmed";
+                if (prepaid)
+                {
+                    // The held money moves into the order: the order debits the wallet, the hold gives it back
+                    await ShopWallet.SyncOrderAsync(db, order);
+                    await GroupBuyPayments.SyncWalletAsync(db, entry.Participant, groupBuy.Title);
+                }
             }
 
             foreach (var product in qualified.Values)
@@ -900,6 +1100,8 @@ public class SupplierGroupBuyController(
 public record JoinGroupBuyRequest
 {
     public List<JoinGroupBuyItemRequest> Items { get; init; } = [];
+    /// <summary>wallet or paystack (card).</summary>
+    public string? PaymentMethod { get; init; }
 }
 
 public record JoinGroupBuyItemRequest

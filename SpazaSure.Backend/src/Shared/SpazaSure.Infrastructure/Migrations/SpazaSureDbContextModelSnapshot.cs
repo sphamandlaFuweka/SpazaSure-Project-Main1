@@ -991,9 +991,17 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_price");
 
+                    b.Property<DateTime?>("EndingReminderSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ending_reminder_sent_at");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
+
+                    b.Property<int>("ExtensionCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("extension_count");
 
                     b.Property<decimal>("OriginalPrice")
                         .HasPrecision(10, 2)
@@ -1068,17 +1076,51 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<decimal>("AmountPaid")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("amount_paid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<decimal>("DeliveryFee")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("delivery_fee");
 
                     b.Property<Guid>("GroupBuyId")
                         .HasColumnType("uuid")
                         .HasColumnName("group_buy_id");
 
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentReference")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_reference");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_status");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
+
+                    b.Property<DateTime?>("ReservedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reserved_until");
 
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid")
@@ -1095,6 +1137,9 @@ namespace SpazaSure.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_group_buy_participants");
+
+                    b.HasIndex("PaymentReference")
+                        .HasDatabaseName("ix_group_buy_participants_payment_reference");
 
                     b.HasIndex("ShopId")
                         .HasDatabaseName("ix_group_buy_participants_shop_id");
@@ -1128,6 +1173,11 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
+
+                    b.Property<decimal>("ShopUnitPrice")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("shop_unit_price");
 
                     b.Property<string>("Status")
                         .IsRequired()

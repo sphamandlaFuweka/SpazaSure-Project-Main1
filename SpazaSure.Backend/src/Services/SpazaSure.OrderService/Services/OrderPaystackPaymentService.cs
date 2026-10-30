@@ -103,6 +103,51 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
         return new OrderPaystackRefund(refundId, refundStatus);
     }
 
+    /// <summary>
+    /// A card checkout whose money SpazaSure holds (no split to the supplier yet), for group buys:
+    /// it only becomes the supplier's once they accept and the order is delivered.
+    /// </summary>
+    public async Task<OrderPaystackCheckout> CreateHeldCheckoutAsync(
+        decimal amount, string customerEmail, string reference, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_secretKey))
+            throw new InvalidOperationException("Paystack is not configured for checkout.");
+        if (string.IsNullOrWhiteSpace(customerEmail))
+            throw new InvalidOperationException("An email address is required to pay.");
+        if (!Uri.TryCreate(_callbackUrl, UriKind.Absolute, out var callbackUri) ||
+            (callbackUri.Scheme != Uri.UriSchemeHttps && !callbackUri.IsLoopback))
+            throw new InvalidOperationException("Paystack callback URL must use HTTPS.");
+        if (amount <= 0m)
+            throw new InvalidOperationException("The amount must be greater than zero.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.paystack.co/transaction/initialize")
+        {
+            Content = JsonContent.Create(new
+            {
+                email = customerEmail,
+                amount = decimal.ToInt64(decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero)),
+                currency = "ZAR",
+                reference,
+                callback_url = _callbackUrl
+            })
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _secretKey);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.True)
+            throw new InvalidOperationException(
+                $"Paystack could not initialize checkout: {(root.TryGetProperty("message", out var m) ? m.GetString() : "unknown API response")}");
+        var data = root.GetProperty("data");
+        var authorizationUrl = data.GetProperty("authorization_url").GetString();
+        var returnedReference = data.GetProperty("reference").GetString();
+        if (string.IsNullOrWhiteSpace(authorizationUrl) || !string.Equals(returnedReference, reference, StringComparison.Ordinal))
+            throw new InvalidOperationException("Paystack returned an invalid checkout response.");
+        return new OrderPaystackCheckout(authorizationUrl, reference, string.Empty);
+    }
+
     public async Task<OrderPaystackCheckout> CreateCheckoutAsync(
         IReadOnlyCollection<Order> orders,
         string customerEmail,

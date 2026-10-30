@@ -189,7 +189,13 @@ public class PaymentController(
                 t => t.Reference == reference && t.Method == "paystack",
                 cancellationToken)
             : null;
-        var orders = onboardingPayment is null && walletTransaction is null
+        // A shop paying by card to join a group buy (the reference names the participant)
+        var groupBuyParticipantId = GroupBuyPayments.ParticipantIdFrom(reference);
+        var groupBuyParticipant = onboardingPayment is null && walletTransaction is null && groupBuyParticipantId is not null
+            ? await db.GroupBuyParticipants.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == groupBuyParticipantId, cancellationToken)
+            : null;
+        var orders = onboardingPayment is null && walletTransaction is null && groupBuyParticipant is null
             ? await db.Orders
                 .Include(o => o.Supplier)
                 .Include(o => o.Shop)
@@ -198,6 +204,7 @@ public class PaymentController(
             : [];
         var customerSubscription = onboardingPayment is null &&
                                    walletTransaction is null &&
+                                   groupBuyParticipant is null &&
                                    orders.Count == 0
             ? await db.CustomerSubscriptions
                 .FirstOrDefaultAsync(
@@ -206,6 +213,7 @@ public class PaymentController(
             : null;
         var supplierSubscription = onboardingPayment is null &&
                                    walletTransaction is null &&
+                                   groupBuyParticipant is null &&
                                    orders.Count == 0 &&
                                    customerSubscription is null
             ? await db.SupplierSubscriptions
@@ -237,6 +245,31 @@ public class PaymentController(
             onboardingPayment.Shop.OnboardingFeePaid = true;
             onboardingPayment.Shop.OnboardingFeeRef = reference;
             await db.SaveChangesAsync(cancellationToken);
+            return Ok();
+        }
+
+        if (groupBuyParticipant is not null)
+        {
+            await using var lockTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            var groupBuy = await GroupBuyPayments.LoadForUpdateAsync(db, groupBuyParticipant.GroupBuyId, cancellationToken);
+            var participant = groupBuy?.Participants.SingleOrDefault(p => p.Id == groupBuyParticipant.Id);
+            if (groupBuy is null || participant is null)
+                return Ok();
+            if (participant.PaymentReference != reference)
+            {
+                // The shop paid an older checkout after starting a newer one: the money goes to its wallet
+                await GroupBuyPayments.CreditOldCheckoutAsync(db, participant, reference, transaction.Amount, groupBuy.Title, cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                await lockTransaction.CommitAsync(cancellationToken);
+                return Ok();
+            }
+            var result = await GroupBuyPayments.ConfirmCardAsync(
+                db, groupBuy, participant, transaction.Amount, DateTime.UtcNow, cancellationToken);
+            if (result == GroupBuyPayments.CardResult.WrongAmount)
+                return BadRequest();
+            await db.SaveChangesAsync(cancellationToken);
+            await lockTransaction.CommitAsync(cancellationToken);
+            GroupBuyNotices.CardPayment(events, groupBuy, participant, result);
             return Ok();
         }
 

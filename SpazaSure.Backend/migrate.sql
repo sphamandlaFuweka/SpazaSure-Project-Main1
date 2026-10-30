@@ -2055,6 +2055,22 @@ ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS checked_at timestamp with 
 ALTER TABLE driver_documents ADD COLUMN IF NOT EXISTS document_number varchar(40);
 CREATE INDEX IF NOT EXISTS ix_driver_documents_document_number ON driver_documents(document_number);
 
+-- Shops pay for a group buy when they join (wallet or card); SpazaSure holds the money until
+-- the supplier accepts, and refunds to the wallet whatever doesn't reach its target.
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS payment_method text;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS payment_status text;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS payment_reference text;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS payment_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS amount_paid numeric(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS delivery_fee numeric(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS paid_at timestamp with time zone;
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS reserved_until timestamp with time zone;
+CREATE INDEX IF NOT EXISTS ix_group_buy_participants_payment_reference ON group_buy_participants(payment_reference);
+ALTER TABLE group_buy_participant_items ADD COLUMN IF NOT EXISTS shop_unit_price numeric(10,2) NOT NULL DEFAULT 0;
+-- A campaign that reaches its end date without its targets runs one more week; members hear 2 days before the end
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS extension_count integer NOT NULL DEFAULT 0;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS ending_reminder_sent_at timestamp with time zone;
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

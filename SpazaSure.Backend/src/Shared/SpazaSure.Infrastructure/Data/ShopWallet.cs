@@ -26,6 +26,8 @@ public static class ShopWallet
         public const string OrderRefund = "order_refund";
         public const string WithdrawalDebit = "withdrawal";
         public const string WithdrawalReversal = "withdrawal_reversal";
+        public const string GroupBuyPayment = "group_buy_payment";
+        public const string GroupBuyRefund = "group_buy_refund";
     }
 
     /// <summary>The wallet balance: the sum of every ledger entry.</summary>

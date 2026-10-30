@@ -13,6 +13,12 @@ class GroupBuyProduct {
   final int discountPct;
   final double discountPrice;
 
+  /// Units no shop has taken yet; the target is shared out until this is 0.
+  final int remaining;
+
+  /// The least this shop may take of this product (its own minimum order).
+  final int minPerShop;
+
   const GroupBuyProduct({
     required this.id,
     required this.productId,
@@ -25,6 +31,8 @@ class GroupBuyProduct {
     required this.status,
     this.discountPct = 0,
     this.discountPrice = 0,
+    this.remaining = 0,
+    this.minPerShop = 1,
   });
 
   factory GroupBuyProduct.fromJson(Map<String, dynamic> json) {
@@ -44,6 +52,10 @@ class GroupBuyProduct {
       status: json['status']?.toString() ?? 'active',
       discountPct: (json['discountPct'] as num?)?.toInt() ?? 0,
       discountPrice: (json['discountPrice'] as num?)?.toDouble() ?? 0,
+      remaining:
+          (json['remaining'] as num?)?.toInt() ??
+          (target - current).clamp(0, target),
+      minPerShop: (json['minPerShop'] as num?)?.toInt() ?? 1,
     );
   }
 }
@@ -66,6 +78,13 @@ class GroupBuy {
   final List<GroupBuyProduct> products;
   final List<dynamic> participants;
 
+  /// This shop's payment for the group buy ('paid'), or null when it hasn't joined or joined before paying existed.
+  final String? myPaymentStatus;
+  final double myAmountPaid;
+
+  /// The fewest items a shop buys in total, any mix of products: 10, or all that's left when fewer remain.
+  final int minTotal;
+
   const GroupBuy({
     required this.id,
     required this.title,
@@ -81,6 +100,9 @@ class GroupBuy {
     required this.createdAt,
     required this.products,
     required this.participants,
+    this.myPaymentStatus,
+    this.myAmountPaid = 0,
+    this.minTotal = 10,
   });
 
   factory GroupBuy.fromJson(Map<String, dynamic> json) {
@@ -104,8 +126,17 @@ class GroupBuy {
           .map(GroupBuyProduct.fromJson)
           .toList(),
       participants: json['participants'] as List<dynamic>? ?? const [],
+      minTotal: (json['minTotal'] as num?)?.toInt() ?? 10,
+      myPaymentStatus: (json['my'] as Map<String, dynamic>?)?['paymentStatus']
+          ?.toString(),
+      myAmountPaid:
+          ((json['my'] as Map<String, dynamic>?)?['amountPaid'] as num?)
+              ?.toDouble() ??
+          0,
     );
   }
+
+  bool get isPaid => myPaymentStatus == 'paid';
 
   static String? _areaLabel(dynamic area) {
     if (area is! Map<String, dynamic>) return null;
@@ -142,11 +173,109 @@ class GroupBuyService {
     return GroupBuy.fromJson(response['data'] as Map<String, dynamic>);
   }
 
-  static Future<void> join(String id, List<Map<String, dynamic>> items) async {
-    await ApiService.post('/shop/group-buy/$id/join', {'items': items});
+  /// Items at the group price, delivery and the total for these quantities, plus the wallet balance.
+  static Future<GroupBuyQuote> quote(
+    String id,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final response = await ApiService.post('/shop/group-buy/$id/quote', {
+      'items': items,
+    });
+    return GroupBuyQuote.fromJson(response['data'] as Map<String, dynamic>);
+  }
+
+  /// Joins and pays: 'wallet' pays at once; 'paystack' returns a checkoutUrl to pay by card.
+  static Future<GroupBuyJoinResult> join(
+    String id,
+    List<Map<String, dynamic>> items,
+    String paymentMethod,
+  ) async {
+    final response = await ApiService.post('/shop/group-buy/$id/join', {
+      'items': items,
+      'paymentMethod': paymentMethod,
+    });
+    final data = response['data'] as Map<String, dynamic>? ?? const {};
+    return GroupBuyJoinResult(
+      paid: data['paid'] == true,
+      checkoutUrl: data['checkoutUrl']?.toString(),
+      message: response['message']?.toString(),
+    );
+  }
+
+  /// After the card checkout: 'joined', 'refunded' (the money went to the wallet) or 'pending'.
+  static Future<String> confirmPayment(String id) async {
+    final response = await ApiService.post(
+      '/shop/group-buy/$id/confirm-payment',
+      {},
+    );
+    return (response['data'] as Map<String, dynamic>?)?['status']?.toString() ??
+        'pending';
   }
 
   static Future<void> leave(String id) async {
     await ApiService.post('/shop/group-buy/$id/leave', {});
   }
+}
+
+class GroupBuyQuoteLine {
+  final String productName;
+  final int quantity;
+  final double unitPrice;
+  final double lineTotal;
+
+  const GroupBuyQuoteLine({
+    required this.productName,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+}
+
+class GroupBuyQuote {
+  final List<GroupBuyQuoteLine> lines;
+  final double itemsTotal;
+  final double deliveryFee;
+  final double total;
+  final double walletBalance;
+
+  const GroupBuyQuote({
+    required this.lines,
+    required this.itemsTotal,
+    required this.deliveryFee,
+    required this.total,
+    required this.walletBalance,
+  });
+
+  factory GroupBuyQuote.fromJson(Map<String, dynamic> json) {
+    double money(String key) => (json[key] as num?)?.toDouble() ?? 0;
+    return GroupBuyQuote(
+      lines: (json['items'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (line) => GroupBuyQuoteLine(
+              productName: line['productName']?.toString() ?? '',
+              quantity: (line['quantity'] as num?)?.toInt() ?? 0,
+              unitPrice: (line['unitPrice'] as num?)?.toDouble() ?? 0,
+              lineTotal: (line['lineTotal'] as num?)?.toDouble() ?? 0,
+            ),
+          )
+          .toList(),
+      itemsTotal: money('itemsTotal'),
+      deliveryFee: money('deliveryFee'),
+      total: money('total'),
+      walletBalance: money('walletBalance'),
+    );
+  }
+}
+
+class GroupBuyJoinResult {
+  final bool paid;
+  final String? checkoutUrl;
+  final String? message;
+
+  const GroupBuyJoinResult({
+    required this.paid,
+    this.checkoutUrl,
+    this.message,
+  });
 }
