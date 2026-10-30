@@ -3,6 +3,7 @@ package com.spazasure.spazasure_app
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
@@ -11,6 +12,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -37,11 +39,20 @@ class MainActivity : FlutterActivity() {
         // The in-app pop-up (app open) asks for the same tone and buzz a push gives
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "spazasure/alerts")
             .setMethodCallHandler { call, result ->
-                if (call.method == "play") {
-                    playAlert()
-                    result.success(null)
-                } else {
-                    result.notImplemented()
+                when (call.method) {
+                    "play" -> {
+                        // The shop's in-app choices (Profile > Notifications), on by default
+                        playAlert(
+                            sound = call.argument<Boolean>("sound") ?: true,
+                            vibrate = call.argument<Boolean>("vibrate") ?: true,
+                        )
+                        result.success(null)
+                    }
+                    "openSettings" -> {
+                        openNotificationSettings()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
                 }
             }
     }
@@ -72,16 +83,32 @@ class MainActivity : FlutterActivity() {
         manager.deleteNotificationChannel(OLD_CHANNEL_ID)
     }
 
+    /**
+     * The phone's settings for SpazaSure's alerts, where sound and vibration for pushes (app
+     * closed) are switched on or off. Android only lets the person change those there.
+     */
+    private fun openNotificationSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.fromParts("package", packageName, null))
+        }
+        startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     /** Notification tone and a short buzz, respecting the phone's silent and vibrate modes. */
-    private fun playAlert() {
+    private fun playAlert(sound: Boolean, vibrate: Boolean) {
         val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audio.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+        if (sound && audio.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
             RingtoneManager.getRingtone(
                 applicationContext,
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
             )?.play()
         }
-        if (audio.ringerMode != AudioManager.RINGER_MODE_SILENT) vibrate()
+        if (vibrate && audio.ringerMode != AudioManager.RINGER_MODE_SILENT) vibrate()
     }
 
     private fun vibrate() {

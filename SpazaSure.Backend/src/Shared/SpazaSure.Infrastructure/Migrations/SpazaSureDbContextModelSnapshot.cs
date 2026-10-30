@@ -991,6 +991,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_price");
 
+                    b.Property<int>("DurationDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_days");
+
                     b.Property<DateTime?>("EndingReminderSentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("ending_reminder_sent_at");
@@ -1028,6 +1032,14 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierNote")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_note");
+
+                    b.Property<DateTime?>("SupplierRespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("supplier_responded_at");
 
                     b.Property<int>("TargetQty")
                         .HasColumnType("integer")

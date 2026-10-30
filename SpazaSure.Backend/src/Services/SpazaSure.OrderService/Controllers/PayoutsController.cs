@@ -38,6 +38,40 @@ public static class PayoutRules
         : o.Status != "delivered" || o.DeliveredAt is null ? "awaiting_delivery"
         : o.DeliveredAt <= availableCutoff ? "available"
         : "pending";
+
+    /// <summary>
+    /// Like <see cref="Stage(Order, DateTime)"/>, but a group buy's order that is ready waits
+    /// ("awaiting_group") while <paramref name="heldGroupBuys"/> says the rest of its group buy
+    /// isn't, so the supplier is paid for the whole group buy at once rather than shop by shop.
+    /// </summary>
+    public static string Stage(Order o, DateTime availableCutoff, ISet<Guid> heldGroupBuys)
+    {
+        var stage = Stage(o, availableCutoff);
+        return stage == "available" && o.GroupBuyId is { } groupBuyId && heldGroupBuys.Contains(groupBuyId)
+            ? "awaiting_group"
+            : stage;
+    }
+
+    /// <summary>
+    /// Group buys whose money still waits: the deal is still running (more products may reach
+    /// their target and add orders), or one of its unpaid orders isn't delivered and past the
+    /// payout delay yet.
+    /// </summary>
+    public static async Task<HashSet<Guid>> GroupBuysStillOpenAsync(
+        SpazaSureDbContext db, DateTime availableCutoff, CancellationToken ct = default)
+    {
+        var running = await db.GroupBuys.AsNoTracking()
+            .Where(g => g.Status == "active")
+            .Select(g => g.Id)
+            .ToListAsync(ct);
+        var unfinished = await db.Orders.AsNoTracking()
+            .Where(o => o.GroupBuyId != null && o.Status != "cancelled" && o.PaidOutAt == null && o.PayoutInitiatedAt == null &&
+                        (o.Status != "delivered" || o.DeliveredAt == null || o.DeliveredAt > availableCutoff))
+            .Select(o => o.GroupBuyId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        return running.Concat(unfinished).ToHashSet();
+    }
 }
 
 [ApiController]
@@ -56,15 +90,16 @@ public class SupplierPayoutsController(SpazaSureDbContext db) : ControllerBase
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var now = DateTime.UtcNow;
         var cutoff = now.AddDays(-rules.PayoutDelayDays);
+        var heldGroupBuys = await PayoutRules.GroupBuysStillOpenAsync(db, cutoff);
 
         var orders = await PayoutRules.Settleable(db.Orders.AsNoTracking())
             .Where(o => o.SupplierId == supplier.Id)
             .OrderByDescending(o => o.DeliveredAt ?? o.CreatedAt)
             .ToListAsync();
 
-        decimal Sum(string stage) => orders.Where(o => PayoutRules.Stage(o, cutoff) == stage).Sum(PayoutRules.AmountOwed);
+        decimal Sum(string stage) => orders.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == stage).Sum(PayoutRules.AmountOwed);
         var nextPending = orders
-            .Where(o => PayoutRules.Stage(o, cutoff) == "pending")
+            .Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "pending")
             .Select(o => o.DeliveredAt!.Value.AddDays(rules.PayoutDelayDays))
             .OrderBy(d => d)
             .Cast<DateTime?>()
@@ -74,6 +109,8 @@ public class SupplierPayoutsController(SpazaSureDbContext db) : ControllerBase
         {
             payoutDelayDays = rules.PayoutDelayDays,
             awaitingDelivery = Sum("awaiting_delivery"),
+            // Group buy orders that are ready but wait for the rest of their group buy
+            awaitingGroup = Sum("awaiting_group"),
             pending = Sum("pending"),
             available = Sum("available"),
             processing = Sum("processing"),
@@ -86,7 +123,7 @@ public class SupplierPayoutsController(SpazaSureDbContext db) : ControllerBase
                 o.Id,
                 o.OrderNumber,
                 amount = PayoutRules.AmountOwed(o),
-                stage = PayoutRules.Stage(o, cutoff),
+                stage = PayoutRules.Stage(o, cutoff, heldGroupBuys),
                 o.DeliveredAt,
                 availableAt = o.DeliveredAt?.AddDays(rules.PayoutDelayDays),
                 o.PaidOutAt,
@@ -123,6 +160,7 @@ public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events
     {
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
+        var heldGroupBuys = await PayoutRules.GroupBuysStillOpenAsync(db, cutoff);
 
         var orders = await PayoutRules.Settleable(db.Orders.AsNoTracking())
             .Where(o => o.PaidOutAt == null && o.Status == "delivered" && o.DeliveredAt != null)
@@ -134,10 +172,10 @@ public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events
             .Select(g =>
             {
                 var supplier = g.First().Supplier;
-                var available = g.Where(o => PayoutRules.Stage(o, cutoff) == "available").ToList();
-                var pending = g.Where(o => PayoutRules.Stage(o, cutoff) == "pending").ToList();
-                var processing = g.Where(o => PayoutRules.Stage(o, cutoff) == "processing").ToList();
-                var failed = g.Where(o => PayoutRules.Stage(o, cutoff) == "failed").ToList();
+                var available = g.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "available").ToList();
+                var pending = g.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "pending").ToList();
+                var processing = g.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "processing").ToList();
+                var failed = g.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "failed").ToList();
                 return new
                 {
                     supplierId = g.Key,
@@ -190,13 +228,14 @@ public class AdminPayoutsController(SpazaSureDbContext db, EventPublisher events
     {
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var cutoff = DateTime.UtcNow.AddDays(-rules.PayoutDelayDays);
+        var heldGroupBuys = await PayoutRules.GroupBuysStillOpenAsync(db, cutoff);
 
         var orders = (await PayoutRules.Settleable(db.Orders)
             .Where(o => o.SupplierId == supplierId && o.PaidOutAt == null
                 && o.Status == "delivered" && o.DeliveredAt != null)
             .ToListAsync())
             // A failed automatic payout can also be settled by EFT; one in progress can't (it may still go through)
-            .Where(o => PayoutRules.Stage(o, cutoff) is "available" or "failed")
+            .Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) is "available" or "failed")
             .ToList();
         if (orders.Count == 0)
             return BadRequest(ApiResponse.Fail("This supplier has nothing available to pay out."));

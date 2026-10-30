@@ -26,6 +26,7 @@ import 'features/chat/screens/inbox_screen.dart';
 import 'features/shop_verification/my_sticker_screen.dart';
 import 'features/shop_verification/shop_verify_screen.dart';
 import 'features/notifications/screens/notifications_screen.dart';
+import 'features/profile/screens/notification_settings_screen.dart';
 import 'features/notifications/screens/report_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
 import 'features/academy/screens/academy_screen.dart';
@@ -129,6 +130,7 @@ class SpazaSureApp extends StatelessWidget {
           '/delivery-tracking': () => const DeliveryTrackingScreen(),
           '/compliance': () => const ComplianceScreen(),
           '/notifications': () => const NotificationsScreen(),
+          '/notification-settings': () => const NotificationSettingsScreen(),
           '/wallet': () => const WalletScreen(),
           '/academy': () => const AcademyScreen(),
           // A shared group buy link passes the campaign's id to open it straight away

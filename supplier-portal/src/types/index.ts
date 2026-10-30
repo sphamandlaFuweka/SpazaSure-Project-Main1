@@ -190,9 +190,9 @@ export interface SupplierRating {
 
 // Group Buy
 /** Admin list filters. */
-export type GroupBuyFilter = 'all' | 'active' | 'pending' | 'completed' | 'rejected' | 'cancelled';
+export type GroupBuyFilter = 'all' | 'offers' | 'declined' | 'ready' | 'active' | 'pending' | 'completed' | 'rejected' | 'cancelled';
 /** Supplier list filters: requests are campaigns with a product at target, waiting for the supplier to accept. */
-export type SupplierGroupBuyFilter = 'all' | 'requests' | 'active' | 'to_dispatch' | 'completed' | 'cancelled';
+export type SupplierGroupBuyFilter = 'all' | 'offers' | 'requests' | 'active' | 'to_dispatch' | 'completed' | 'cancelled';
 
 export interface NewGroupBuyRequest {
   supplierId?: string;
@@ -284,6 +284,11 @@ export interface GroupBuy {
   /** Null for campaigns from before group buys had an area. */
   area?: GroupBuyArea | null;
   rejectionNote?: string | null;
+  /** The supplier's answer to SpazaSure's offer: why it declined, or a comment with its acceptance. */
+  supplierNote?: string | null;
+  supplierRespondedAt?: string | null;
+  /** How long the deal runs once published. */
+  durationDays?: number;
   approvedAt?: string | null;
   expiresAt: string;
   status: string;

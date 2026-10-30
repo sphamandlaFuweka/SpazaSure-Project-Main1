@@ -467,6 +467,16 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             builder: (_) => const CustomerRewardsScreen(),
           ),
         ),
+        ListTile(
+          leading: const Icon(
+            Icons.vibration_rounded,
+            color: AppColors.primary,
+          ),
+          title: Text(tr('shop.alerts')),
+          subtitle: Text(tr('shop.alertsSub')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.pushNamed(context, '/notification-settings'),
+        ),
         // Also saved as the customer's preferred language, so it follows them to a new phone
         LanguagePickerTile(
           onChanged: (code) => CustomerProfileService.updateProfile(

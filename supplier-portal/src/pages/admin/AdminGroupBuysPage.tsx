@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Ban, Plus, Users, Loader2, MapPin, Eye } from 'lucide-react';
+import { CheckCircle, XCircle, Ban, Plus, Users, Loader2, MapPin, Eye, Pencil, Send, Rocket } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import { adminGroupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter } from '../../types';
 import { groupBuyPlaces } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
 
+// In the order a deal moves: offered, answered, published, finished
 const filters: { value: GroupBuyFilter; label: string }[] = [
-  { value: 'active', label: 'Active' },
+  { value: 'offers', label: 'Waiting for supplier' },
+  { value: 'declined', label: 'Declined by supplier' },
+  { value: 'ready', label: 'Ready to publish' },
+  { value: 'active', label: 'Live' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'all', label: 'All' },
@@ -30,12 +34,22 @@ const supplierProgress = (g: GroupBuy) => {
 };
 
 const statusStyle = (status: string) => {
-  if (status === 'active' || status === 'completed') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (status === 'pending_approval') return 'bg-accent-50 text-accent-700 border-accent-400';
+  if (status === 'active' || status === 'completed' || status === 'supplier_accepted') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (status === 'pending_approval' || status === 'awaiting_supplier') return 'bg-accent-50 text-accent-700 border-accent-400';
   return 'bg-red-50 text-red-700 border-red-200';
 };
 
-const label = (status: string) => (status === 'pending_approval' ? 'Awaiting approval' : status);
+const label = (status: string) =>
+  ({
+    pending_approval: 'Awaiting approval',
+    awaiting_supplier: 'Waiting for supplier',
+    supplier_accepted: 'Accepted, ready to publish',
+    supplier_rejected: 'Declined by supplier',
+    active: 'Live',
+  })[status] ?? status;
+
+/** A deal that isn't live yet: it can be edited, sent to the supplier and published. */
+const isOffer = (status: string) => ['awaiting_supplier', 'supplier_accepted', 'supplier_rejected'].includes(status);
 
 /** Units committed across all products, as a share of the combined targets. */
 const overallProgress = (g: GroupBuy) => {
@@ -45,12 +59,19 @@ const overallProgress = (g: GroupBuy) => {
 };
 
 export default function AdminGroupBuysPage() {
-  const [filter, setFilter] = useState<GroupBuyFilter>('active');
+  const [filter, setFilter] = useState<GroupBuyFilter>('offers');
   const [groups, setGroups] = useState<GroupBuy[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<GroupBuy | null>(null);
+
+  const publish = (g: GroupBuy) => {
+    if (g.status === 'supplier_rejected' &&
+        !window.confirm(`${g.supplierName} declined "${g.title}". Publish it anyway?`)) return;
+    act(g.id, () => adminGroupBuyApi.publish(g.id), 'Deal published: shops can join now');
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,10 +118,10 @@ export default function AdminGroupBuysPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Group Buys</h1>
-          <p className="page-subtitle">Create deals for suppliers' products and follow them until the supplier accepts and dispatches.</p>
+          <p className="page-subtitle">Offer deals to suppliers, publish the ones they accept, and follow them until the orders are dispatched. You can edit any deal, live ones included.</p>
         </div>
         <button className="btn-primary flex items-center gap-2" onClick={() => setShowCreate(true)}>
-          <Plus size={16} /> Create group buy
+          <Plus size={16} /> New offer
         </button>
       </div>
 
@@ -187,24 +208,32 @@ export default function AdminGroupBuysPage() {
             onApprove={() => act(viewing.id, () => adminGroupBuyApi.approve(viewing.id), 'Group buy approved and live')}
             onReject={() => reject(viewing)}
             onCancel={() => cancel(viewing)}
+            onEdit={() => { setEditing(viewing); setViewId(null); }}
+            onSend={() => act(viewing.id, () => adminGroupBuyApi.send(viewing.id), 'Offer sent to the supplier')}
+            onPublish={() => publish(viewing)}
           />
         </Modal>
       )}
 
-      {showCreate && <GroupBuyCreateModal onClose={() => setShowCreate(false)} onCreated={() => { setFilter('active'); load(); }} />}
+      {showCreate && <GroupBuyCreateModal onClose={() => setShowCreate(false)} onCreated={() => { setFilter('offers'); load(); }} />}
+      {editing && <GroupBuyCreateModal editing={editing} onClose={() => setEditing(null)} onCreated={load} />}
     </div>
   );
 }
 
 /** Everything about one group buy, shown in the View pop-up. */
-function GroupDetails({ g, busy, onApprove, onReject, onCancel }: {
+function GroupDetails({ g, busy, onApprove, onReject, onCancel, onEdit, onSend, onPublish }: {
   g: GroupBuy;
   busy: boolean;
   onApprove: () => void;
   onReject: () => void;
   onCancel: () => void;
+  onEdit: () => void;
+  onSend: () => void;
+  onPublish: () => void;
 }) {
   const isPending = g.status === 'pending_approval';
+  const offer = isOffer(g.status);
   const participants = g.participants.filter((p) => p.status !== 'cancelled');
 
   return (
@@ -227,6 +256,12 @@ function GroupDetails({ g, busy, onApprove, onReject, onCancel }: {
           </p>
           {g.description && <p className="text-sm text-gray-600">{g.description}</p>}
           {g.rejectionNote && <p className="text-sm text-red-700">Note: {g.rejectionNote}</p>}
+          {offer && g.durationDays ? <p className="text-xs text-gray-500">Runs for {g.durationDays} days once published</p> : null}
+          {g.supplierNote && (
+            <div className={`rounded-xl border p-3 text-sm ${g.status === 'supplier_rejected' ? 'border-red-200 bg-red-50 text-red-800' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+              <strong>{g.supplierName} {g.status === 'supplier_rejected' ? 'declined' : 'commented'}:</strong> {g.supplierNote}
+            </div>
+          )}
           {supplierProgress(g) && <p className="text-sm font-semibold text-brand-blue">{supplierProgress(g)}</p>}
         </div>
 
@@ -234,7 +269,12 @@ function GroupDetails({ g, busy, onApprove, onReject, onCancel }: {
           {g.products.map((p) => (
             <div key={p.id}>
               <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-gray-800">{p.productName} <span className="text-xs text-accent-700 font-bold">Save {p.discountPct}%</span></span>
+                <span className="font-semibold text-gray-800">
+                  {p.productName}{' '}
+                  <span className="text-xs text-accent-700 font-bold">
+                    {p.discountPct > 0 ? `Save ${p.discountPct}%` : 'Discount: supplier to set'}
+                  </span>
+                </span>
                 <span className="text-gray-500 tabular-nums">{p.currentQty} / {p.targetQty} &middot; {p.participantCount} shops</span>
               </div>
               <div className="h-2 bg-primary-100 rounded-full overflow-hidden mt-1">
@@ -262,8 +302,23 @@ function GroupDetails({ g, busy, onApprove, onReject, onCancel }: {
           </div>
         </div>
 
-        {(isPending || g.status === 'active') && (
+        {(isPending || offer || g.status === 'active') && (
           <div className="flex flex-wrap justify-end gap-2 pt-1">
+            {(offer || g.status === 'active') && (
+              <button disabled={busy} className="btn-secondary flex items-center gap-1.5 text-sm" onClick={onEdit}>
+                <Pencil size={15} /> Edit deal
+              </button>
+            )}
+            {offer && (
+              <button disabled={busy} className="btn-secondary flex items-center gap-1.5 text-sm" onClick={onSend}>
+                <Send size={15} /> {g.status === 'awaiting_supplier' ? 'Re-send to supplier' : 'Send to supplier'}
+              </button>
+            )}
+            {offer && (
+              <button disabled={busy} className="btn-primary flex items-center gap-1.5 text-sm" onClick={onPublish}>
+                <Rocket size={15} /> {g.status === 'supplier_accepted' ? 'Publish' : 'Publish anyway'}
+              </button>
+            )}
             {isPending && (
               <>
                 <button disabled={busy} className="btn-primary flex items-center gap-1.5 text-sm" onClick={onApprove}>

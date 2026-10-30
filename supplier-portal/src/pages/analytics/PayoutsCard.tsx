@@ -8,6 +8,7 @@ import { formatCurrency, shortOrderNumber } from '../../utils';
 
 const STAGE_LABEL: Record<PayoutStage, { label: string; className: string }> = {
   awaiting_delivery: { label: 'Awaiting delivery', className: 'bg-gray-100 text-ink-2' },
+  awaiting_group:    { label: 'Paid with the whole group buy', className: 'bg-violet-50 text-violet-700' },
   pending:           { label: 'Pending',           className: 'bg-brand-yellow-light text-accent-700' },
   available:         { label: 'Ready to pay out',  className: 'bg-brand-green-light text-brand-green' },
   processing:        { label: 'Being paid',        className: 'bg-sky-50 text-sky-700' },
@@ -29,7 +30,12 @@ export default function PayoutsCard() {
   if (!data) return <div className="card p-5 h-40 skeleton" aria-hidden="true" />;
 
   const tiles = [
-    { label: 'Awaiting delivery', value: data.awaitingDelivery, hint: 'Paid, not delivered by SpazaSure yet' },
+    {
+      label: 'Awaiting delivery', value: data.awaitingDelivery + (data.awaitingGroup ?? 0),
+      hint: data.awaitingGroup
+        ? 'Not delivered yet, or a group buy still finishing: each group buy is paid in one go'
+        : 'Paid, not delivered by SpazaSure yet',
+    },
     {
       label: 'Pending', value: data.pending,
       hint: data.nextAvailableAt ? `Next release ${format(new Date(data.nextAvailableAt), 'd MMM')}` : `${data.payoutDelayDays}-day wait after delivery`,

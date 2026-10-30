@@ -35,10 +35,13 @@ public class PublicShopVerificationController(SpazaSureDbContext db) : Controlle
             shopNumber = shopCode,
             shopName = shop.ShopName,
             area = string.Join(", ", new[] { shop.City, shop.Province }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            // No street address: many spaza shops are in the owner's home
             verified = result.Verified,
             message = result.Summary,
             validUntil = result.ValidUntil,
             ratingAvg = shop.RatingCount > 0 ? shop.RatingAvg : (decimal?)null,
+            ratingCount = shop.RatingCount,
+            memberSince = shop.CreatedAt,
             checkedAt = DateTime.UtcNow,
         }));
     }

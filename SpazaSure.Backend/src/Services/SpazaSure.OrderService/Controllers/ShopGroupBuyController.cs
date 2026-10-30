@@ -115,6 +115,10 @@ internal static class GroupBuyResponse
             groupBuy.CreatedByRole,
             Area = ProjectArea(groupBuy),
             groupBuy.RejectionNote,
+            // The supplier's answer to the offer (accepted, or why it declined)
+            groupBuy.SupplierNote,
+            groupBuy.SupplierRespondedAt,
+            groupBuy.DurationDays,
             groupBuy.ApprovedAt,
             groupBuy.ExpiresAt,
             Status = isExpired ? "expired" : groupBuy.Status,
@@ -682,8 +686,8 @@ public class SupplierGroupBuyController(
     public async Task<IActionResult> List([FromQuery] string status = "all")
     {
         status = status.Trim().ToLowerInvariant();
-        if (status is not ("all" or "requests" or "active" or "to_dispatch" or "completed" or "expired" or "cancelled"))
-            return BadRequest(ApiResponse.Fail("Status must be all, requests, active, to_dispatch, completed, expired, or cancelled."));
+        if (status is not ("all" or "offers" or "requests" or "active" or "to_dispatch" or "completed" or "expired" or "cancelled"))
+            return BadRequest(ApiResponse.Fail("Status must be all, offers, requests, active, to_dispatch, completed, expired, or cancelled."));
 
         var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
         if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
@@ -694,6 +698,8 @@ public class SupplierGroupBuyController(
         var now = DateTime.UtcNow;
         query = status switch
         {
+            // SpazaSure's offers: set a discount and accept, or decline (and the answers given)
+            "offers" => query.Where(g => g.Status == "awaiting_supplier" || g.Status == "supplier_accepted" || g.Status == "supplier_rejected"),
             "requests" => query.Where(g => g.Status == "active" && g.ExpiresAt > now &&
                 g.Products.Any(p => p.Status == "qualified")),
             "active" => query.Where(g => g.Status == "active" && g.ExpiresAt > now),
@@ -731,6 +737,57 @@ public class SupplierGroupBuyController(
     /// Dispatches every order this campaign produced that has not left yet, and tells each shop.
     /// Orders the supplier already moved on (or cancelled) are left alone.
     /// </summary>
+    /// <summary>
+    /// The supplier answers SpazaSure's offer: accept with the discount it gives on each product,
+    /// or decline with a reason. SpazaSure then publishes (or fixes and re-sends) the deal.
+    /// </summary>
+    [HttpPost("{id:guid}/respond")]
+    public async Task<IActionResult> Respond(Guid id, [FromBody] SupplierOfferResponse req)
+    {
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (supplier is null) return NotFound(ApiResponse.Fail("Supplier not found."));
+        var groupBuy = await db.GroupBuys.Include(g => g.Products).ThenInclude(p => p.Product)
+            .FirstOrDefaultAsync(g => g.Id == id && g.SupplierId == supplier.Id);
+        if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
+        if (groupBuy.Status != "awaiting_supplier")
+            return BadRequest(ApiResponse.Fail("This offer has already been answered."));
+
+        var note = req.Note?.Trim();
+        if (note is { Length: > 1000 }) return BadRequest(ApiResponse.Fail("Keep the comment under 1,000 characters."));
+        if (req.Accept)
+        {
+            foreach (var product in groupBuy.Products)
+            {
+                var discount = req.Discounts?.FirstOrDefault(d => d.GroupBuyProductId == product.Id)?.DiscountPct;
+                if (discount is not (>= 1 and <= 99))
+                    return BadRequest(ApiResponse.Fail($"Enter the discount you offer on '{product.Product.Name}' (1 to 99%)."));
+                product.DiscountPct = discount.Value;
+                product.DiscountPrice = Discounted(product.OriginalPrice, discount.Value);
+            }
+            groupBuy.Status = "supplier_accepted";
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(note) || note.Length < 3)
+                return BadRequest(ApiResponse.Fail("Tell SpazaSure why you're declining, so the deal can be fixed."));
+            groupBuy.Status = "supplier_rejected";
+        }
+        groupBuy.SupplierNote = string.IsNullOrWhiteSpace(note) ? null : note;
+        groupBuy.SupplierRespondedAt = DateTime.UtcNow;
+        GroupBuyResponse.SyncLegacy(groupBuy);
+        await db.SaveChangesAsync();
+
+        await AdminAlerts.NotifyAdminsAsync(db, events, "group_buy",
+            req.Accept ? "Group buy offer accepted" : "Group buy offer declined",
+            req.Accept
+                ? $"{supplier.CompanyName} accepted '{groupBuy.Title}'. It's ready to publish."
+                : $"{supplier.CompanyName} declined '{groupBuy.Title}': {note}",
+            groupBuy.Id.ToString());
+        return Ok(ApiResponse.Ok(req.Accept
+            ? "Thank you. SpazaSure will publish the deal to shops."
+            : "Thank you. SpazaSure will look at your comment and get back to you."));
+    }
+
     [HttpPost("{id:guid}/dispatch")]
     public async Task<IActionResult> Dispatch(Guid id)
     {

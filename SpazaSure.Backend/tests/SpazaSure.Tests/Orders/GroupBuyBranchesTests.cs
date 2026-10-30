@@ -102,6 +102,10 @@ public class GroupBuyBranchesTests
             .Create(new NewGroupBuyRequest("Maize month", null, 7, [new NewGroupBuyProduct(product.Id, targetQty, 10)],
                 SupplierId: supplier.Id, AreaRadiusKm: 60m, SupplierBranchIds: [durban.Id], IncludeHeadOffice: true));
         created.Should().BeOfType<OkObjectResult>();
+        // Admins create offers; the deal goes live once published
+        var id = db.GroupBuys.Single().Id;
+        (await new AdminGroupBuyController(db, Events) { ControllerContext = As(admin.Id) }.Publish(id))
+            .Should().BeOfType<OkObjectResult>();
         var groupBuy = db.GroupBuys.Include(g => g.Branches).Include(g => g.Products).Single();
         return new Fixture(db, supplier, supplierUser, admin, durban, product, groupBuy.Products.Single(), groupBuy);
     }

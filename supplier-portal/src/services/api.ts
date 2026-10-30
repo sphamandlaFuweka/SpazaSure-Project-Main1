@@ -335,9 +335,26 @@ export const groupBuyApi = {
   },
   accept: (id: string) =>
     api.post(`/supplier/group-buy/${id}/accept`).then((r) => r.data?.data ?? r.data),
+  /** Answer SpazaSure's offer: accept with the discount on each product, or decline with a reason. */
+  respond: (id: string, body: { accept: boolean; discounts?: { groupBuyProductId: string; discountPct: number }[]; note?: string }) =>
+    api.post(`/supplier/group-buy/${id}/respond`, body).then((r) => r.data),
   dispatch: (id: string) =>
     api.post(`/supplier/group-buy/${id}/dispatch`).then((r) => r.data?.data ?? r.data),
 };
+
+export interface EditGroupBuyRequest {
+  title: string;
+  description?: string;
+  bannerImageUrl?: string;
+  /** Before publishing: how long it will run */
+  durationDays?: number;
+  /** Once live: when it ends */
+  expiresAt?: string;
+  areaRadiusKm: number;
+  supplierBranchIds: string[];
+  includeHeadOffice: boolean;
+  products: { productId: string; targetQty: number; discountPct: number }[];
+}
 
 /** Where an admin can run a supplier's campaign from: the head office or one of its branches. */
 export interface SupplierBranchOptions {
@@ -361,6 +378,12 @@ export const adminGroupBuyApi = {
   supplierProducts: (supplierId: string) =>
     api.get(`/admin/group-buy/suppliers/${supplierId}/products`).then((r) => (r.data?.data ?? r.data ?? []) as SupplierProductOption[]),
   create: (body: NewGroupBuyRequest) => api.post('/admin/group-buy', body).then((r) => r.data),
+  /** Edit a deal at any stage, live ones included. */
+  update: (id: string, body: EditGroupBuyRequest) => api.put(`/admin/group-buy/${id}`, body).then((r) => r.data),
+  /** Send (or re-send) the offer to the supplier for its discount and answer. */
+  send: (id: string) => api.post(`/admin/group-buy/${id}/send`).then((r) => r.data),
+  /** Put the deal live for shops. */
+  publish: (id: string) => api.post(`/admin/group-buy/${id}/publish`).then((r) => r.data),
   uploadBanner: (file: File) => uploadGroupBuyBanner('/admin/group-buy-banner', file),
   approve: (id: string) => api.post(`/admin/group-buy/${id}/approve`).then((r) => r.data),
   reject: (id: string, note: string) => api.post(`/admin/group-buy/${id}/reject`, { note }).then((r) => r.data),
@@ -1052,10 +1075,12 @@ export const adminSettingsApi = {
 
 // Supplier payouts: SpazaSure delivers, and pays suppliers for the goods after the payout delay
 // (automatically through Paystack when automatic payouts are on)
-export type PayoutStage = 'awaiting_delivery' | 'pending' | 'available' | 'processing' | 'failed' | 'paid_out';
+export type PayoutStage = 'awaiting_delivery' | 'awaiting_group' | 'pending' | 'available' | 'processing' | 'failed' | 'paid_out';
 export interface SupplierPayoutSummary {
   payoutDelayDays: number;
   awaitingDelivery: number;
+  /** Group buy orders that are ready but wait for the rest of their group buy, so it is paid in one go */
+  awaitingGroup?: number;
   pending: number;
   available: number;
   /** Being sent to the supplier's bank by Paystack */

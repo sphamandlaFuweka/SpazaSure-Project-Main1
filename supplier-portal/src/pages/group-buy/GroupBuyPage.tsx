@@ -21,6 +21,7 @@ import { shortOrderNumber } from '../../utils';
 
 const filters: { value: SupplierGroupBuyFilter; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'offers', label: 'Offers from SpazaSure' },
   { value: 'requests', label: 'Requests to accept' },
   { value: 'active', label: 'Collecting' },
   { value: 'to_dispatch', label: 'To dispatch' },
@@ -30,6 +31,7 @@ const filters: { value: SupplierGroupBuyFilter; label: string }[] = [
 
 const emptyText: Record<SupplierGroupBuyFilter, string> = {
   all: 'SpazaSure has not run a group buy for your products yet.',
+  offers: 'No offers right now. When SpazaSure proposes a group buy for your products, it shows here for your discount and answer.',
   requests: 'No product has reached its target yet. Requests show here as soon as one does.',
   active: 'No group buys are collecting shop commitments right now.',
   to_dispatch: 'Nothing is waiting to be dispatched.',
@@ -62,7 +64,18 @@ const canAccept = (group: GroupBuy) => isLive(group) && qualifiedProducts(group)
 const dispatchableOrders = (group: GroupBuy) =>
   (group.orders ?? []).filter((order) => DISPATCHABLE.includes(order.status.toLowerCase()));
 
-/** Revenue at the advertised group price for every product that has reached its target. */
+/** An offer from SpazaSure still waiting for the supplier's discount and answer. */
+const needsAnswer = (group: GroupBuy) => group.status === 'awaiting_supplier';
+
+/** Plain words for the offer stages; the rest read as they are. */
+const statusLabel = (status: string) =>
+  ({
+    awaiting_supplier: 'Your answer needed',
+    supplier_accepted: 'Accepted, going live soon',
+    supplier_rejected: 'You declined',
+  })[status] ?? status.replace('_', ' ');
+
+/** Revenue at your group price for every product that has reached its target. */
 const acceptValue = (group: GroupBuy) =>
   qualifiedProducts(group).reduce((total, product) => total + product.discountPrice * product.currentQty, 0);
 
@@ -102,7 +115,7 @@ export default function GroupBuyPage() {
     const confirmed = window.confirm(
       `Accept "${group.title}"?\n\n` +
       `${products.map((p) => `${p.productName}: ${p.currentQty} units at ${money(p.discountPrice)}`).join('\n')}\n\n` +
-      'Each participating shop gets one order at the group price advertised to shops. Delivery is priced from your dispatch location. Stock is reserved now.'
+      'Each participating shop gets one order at your group price. Delivery is priced from your dispatch location. Stock is reserved now.'
     );
     if (!confirmed) return;
 
@@ -138,7 +151,23 @@ export default function GroupBuyPage() {
     }
   };
 
+  /** The supplier's answer to an offer: its discounts and accept, or decline with a reason. */
+  const respond = async (group: GroupBuy, body: Parameters<typeof groupBuyApi.respond>[1]) => {
+    setBusyId(group.id);
+    try {
+      const result = await groupBuyApi.respond(group.id, body);
+      toast.success(result?.message ?? 'Thank you for your answer.');
+      setViewId(null);
+      await loadGroups();
+    } catch {
+      // The shared API interceptor displays the backend message.
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const stats = useMemo(() => ({
+    offers: groups.filter(needsAnswer).length,
     requests: groups.filter(canAccept).length,
     collecting: groups.filter(isLive).length,
     toDispatch: groups.reduce((total, group) => total + dispatchableOrders(group).length, 0),
@@ -153,12 +182,13 @@ export default function GroupBuyPage() {
       <div>
         <h1 className="page-title">Group Buy Requests</h1>
         <p className="page-subtitle">
-          SpazaSure runs group buys for your products. When shops reach a product target, accept the request and dispatch the orders.
+          SpazaSure offers group buys for your products: set the discount you give and accept or decline. Once live, accept the request when shops reach a target, then dispatch the orders.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <Stat icon={<Inbox size={19} />} label="Requests to accept" value={stats.requests} tone="green" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+        <Stat icon={<Inbox size={19} />} label="Offers to answer" value={stats.offers} tone="violet" />
+        <Stat icon={<CheckCircle size={19} />} label="Requests to accept" value={stats.requests} tone="green" />
         <Stat icon={<Clock size={19} />} label="Collecting commitments" value={stats.collecting} tone="amber" />
         <Stat icon={<Truck size={19} />} label="Orders to dispatch" value={stats.toDispatch} tone="blue" />
         <Stat icon={<Users size={19} />} label="Participating shops" value={stats.shops} tone="violet" />
@@ -216,14 +246,15 @@ export default function GroupBuyPage() {
                           : <div className="w-16 h-7 rounded-md bg-primary/10 flex-shrink-0" />}
                         <div className="min-w-0">
                           <p className="font-bold text-gray-900 truncate max-w-[260px]">{group.title}</p>
+                          {needsAnswer(group) && <p className="text-[11px] font-bold text-violet-700">New offer: set your discount and answer</p>}
                           {canAccept(group) && <p className="text-[11px] font-bold text-emerald-700">Waiting for you to accept</p>}
                           {toDispatch > 0 && <p className="text-[11px] font-bold text-blue-700">{toDispatch} to dispatch</p>}
                         </div>
                       </div>
                     </td>
                     <td className="p-3">
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize whitespace-nowrap ${statusClass(status)}`}>
-                        {status.replace('_', ' ')}
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${statusClass(status)}`}>
+                        {statusLabel(status)}
                       </span>
                     </td>
                     <td className="p-3 text-right font-semibold tabular-nums">{group.products.length}</td>
@@ -257,6 +288,7 @@ export default function GroupBuyPage() {
             busy={busyId === viewing.id}
             onAccept={() => accept(viewing)}
             onDispatch={() => dispatch(viewing)}
+            onRespond={(body) => respond(viewing, body)}
           />
         </Modal>
       )}
@@ -285,12 +317,15 @@ function GroupDetails({
   busy,
   onAccept,
   onDispatch,
+  onRespond,
 }: {
   group: GroupBuy;
   busy: boolean;
   onAccept: () => void;
   onDispatch: () => void;
+  onRespond: (body: Parameters<typeof groupBuyApi.respond>[1]) => void;
 }) {
+  if (needsAnswer(group)) return <OfferAnswer group={group} busy={busy} onRespond={onRespond} />;
   const acceptable = canAccept(group);
   const toDispatch = dispatchableOrders(group);
   const orders = group.orders ?? [];
@@ -305,8 +340,8 @@ function GroupDetails({
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full capitalize ${statusClass(displayStatus)}`}>
-                {displayStatus.replace('_', ' ')}
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusClass(displayStatus)}`}>
+                {statusLabel(displayStatus)}
               </span>
               {acceptable && (
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
@@ -336,7 +371,7 @@ function GroupDetails({
             <div className="text-left lg:text-right flex-shrink-0">
               <p className="text-xs text-gray-400">Value if you accept now</p>
               <p className="text-2xl font-black text-emerald-700">{money(acceptValue(group))}</p>
-              <p className="text-[11px] text-gray-400">At the group price advertised to shops</p>
+              <p className="text-[11px] text-gray-400">At your group price</p>
             </div>
           )}
         </div>
@@ -344,6 +379,12 @@ function GroupDetails({
 
       <div className="p-5 space-y-3">
         {group.products.map((product) => <ProductRow key={product.id} product={product} />)}
+
+        {group.supplierNote && (group.status === 'supplier_rejected' || group.status === 'supplier_accepted') && (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+            <strong>Your comment to SpazaSure:</strong> {group.supplierNote}
+          </div>
+        )}
 
         {group.status.toLowerCase() === 'cancelled' && group.rejectionNote && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl p-4">
@@ -389,6 +430,110 @@ function GroupDetails({
       </div>
 
       <Participants group={group} />
+    </div>
+  );
+}
+
+/**
+ * SpazaSure's offer: the supplier sets the discount it gives on each product and accepts, or
+ * declines with a reason. Prices here are the supplier's own.
+ */
+function OfferAnswer({
+  group,
+  busy,
+  onRespond,
+}: {
+  group: GroupBuy;
+  busy: boolean;
+  onRespond: (body: Parameters<typeof groupBuyApi.respond>[1]) => void;
+}) {
+  const [discounts, setDiscounts] = useState<Record<string, number>>(
+    Object.fromEntries(group.products.map((p) => [p.id, p.discountPct || 0])));
+  const [note, setNote] = useState('');
+  const [declining, setDeclining] = useState(false);
+
+  const accept = () => {
+    const missing = group.products.find((p) => !(discounts[p.id] >= 1 && discounts[p.id] <= 99));
+    if (missing) { toast.error(`Enter the discount you offer on ${missing.productName} (1 to 99%)`); return; }
+    onRespond({
+      accept: true,
+      discounts: group.products.map((p) => ({ groupBuyProductId: p.id, discountPct: discounts[p.id] })),
+      note: note.trim() || undefined,
+    });
+  };
+
+  const decline = () => {
+    if (note.trim().length < 3) { toast.error('Tell SpazaSure why you are declining, so the deal can be fixed'); return; }
+    onRespond({ accept: false, note: note.trim() });
+  };
+
+  const totalAtTarget = group.products.reduce(
+    (sum, p) => sum + p.originalPrice * (1 - (discounts[p.id] || 0) / 100) * p.targetQty, 0);
+
+  return (
+    <div>
+      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full aspect-[16/7] object-cover" />}
+      <div className="p-5 space-y-4">
+        <div>
+          <p className="text-sm text-gray-600">
+            SpazaSure would like to run this group buy for your products
+            {group.area && <> for {group.area.description}</>}
+            {group.durationDays ? <>, for {group.durationDays} days once it goes live</> : null}.
+            Set the discount you can give on each product, then accept or decline.
+          </p>
+          {group.description && <p className="text-sm text-gray-500 mt-1">{group.description}</p>}
+        </div>
+
+        <div className="rounded-xl border border-gray-100 divide-y divide-gray-100">
+          {group.products.map((p) => {
+            const pct = discounts[p.id] || 0;
+            const groupPrice = p.originalPrice * (1 - pct / 100);
+            return (
+              <div key={p.id} className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 items-center">
+                <div className="col-span-2">
+                  <p className="font-bold text-gray-900">{p.productName}</p>
+                  <p className="text-xs text-gray-500">Target: {p.targetQty} units across shops</p>
+                </div>
+                <Metric label="Your price" value={money(p.originalPrice)} />
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-gray-400 font-bold">Your discount %</label>
+                  <input className="input mt-0.5" type="number" min={1} max={99} value={pct || ''} placeholder="e.g. 10"
+                    onChange={(e) => setDiscounts((d) => ({ ...d, [p.id]: Number(e.target.value) || 0 }))} />
+                </div>
+                <Metric label="Your group price" value={pct > 0 ? money(groupPrice) : '–'} />
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-sm text-gray-600">
+          If every target is reached you receive about <strong>{money(totalAtTarget)}</strong> at your group prices.
+        </p>
+
+        <div>
+          <label className="label">{declining ? 'Why are you declining?' : 'Comment for SpazaSure (optional)'}</label>
+          <textarea className="input" rows={3} value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder={declining ? 'e.g. The target is too high for one week, or we can only give 5% on rice' : ''} />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2 justify-end">
+          {declining ? (
+            <>
+              <button className="btn-secondary" onClick={() => setDeclining(false)} disabled={busy}>Back</button>
+              <button className="btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2" onClick={decline} disabled={busy}>
+                {busy ? 'Sending...' : 'Decline offer'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-secondary text-red-600" onClick={() => setDeclining(true)} disabled={busy}>Decline</button>
+              <button className="btn-primary flex items-center justify-center gap-2" onClick={accept} disabled={busy}>
+                <CheckCircle size={15} /> {busy ? 'Sending...' : 'Accept with these discounts'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

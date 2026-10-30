@@ -1,9 +1,10 @@
 import 'package:spazasure_app/features/feedback/send_feedback_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/services/feedback_service.dart';
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -111,7 +112,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onboardingFeePaid,
                     ),
                   ),
-                  // Menu sections
+                  // Menu sections, in a logical order: the shop, buying and money,
+                  // staying compliant, tools, settings, then help
                   SliverToBoxAdapter(
                     child: _buildAccountSection(
                       shopName,
@@ -125,6 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       longitude,
                     ),
                   ),
+                  SliverToBoxAdapter(child: _buildOrdersMoneySection()),
                   SliverToBoxAdapter(
                     child: _buildShopSection(
                       address,
@@ -134,6 +137,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onboardingFeeAmount,
                     ),
                   ),
+                  SliverToBoxAdapter(child: _buildToolsSection()),
+                  SliverToBoxAdapter(child: _buildSettingsSection()),
                   SliverToBoxAdapter(child: _buildAppSection()),
                   const SliverToBoxAdapter(
                     child: FeedbackCard(service: FeedbackService.shop),
@@ -170,6 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     final isVerified = status == 'verified' || status == 'active';
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -178,110 +184,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: Column(
-            children: [
-              // Top bar
-              Row(
+      child: Stack(
+        children: [
+          // Soft brand shapes in the blue: a yellow glow, a light leaf, rings and dots
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BrandPattern([
+                const Color(0xFFF8B217).withValues(alpha: 0.16),
+                Colors.white.withValues(alpha: 0.07),
+                Colors.white.withValues(alpha: 0.35),
+              ]),
+            ),
+          ),
+          const Positioned.fill(child: CustomPaint(painter: _HeaderGlow())),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              child: Column(
                 children: [
-                  const SizedBox(width: 48),
-                  const Spacer(),
-                  const Text(
-                    'My Profile',
-                    style: TextStyle(
+                  // Top bar
+                  Row(
+                    children: [
+                      const SizedBox(width: 48),
+                      const Spacer(),
+                      const Text(
+                        'My Profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _loadProfile,
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Avatar
+                  EditableAvatar(
+                    initials: initials,
+                    photoUrl: _profile?.profilePhotoUrl,
+                    uploadPath: '/shop/profile/photo',
+                    onUploaded: (_) => _loadProfile(),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    displayName,
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: _loadProfile,
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.white70,
-                      size: 22,
+                  if (ownerName.isNotEmpty && shopName != ownerName)
+                    Text(
+                      shopName,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  if (phone.isNotEmpty)
+                    Text(
+                      phone,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isVerified
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : const Color(0xFFF8B217).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isVerified
+                            ? const Color(0xFF4DD898)
+                            : const Color(0xFFFFD54F),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isVerified ? Icons.verified : Icons.pending_outlined,
+                          size: 16,
+                          color: isVerified
+                              ? const Color(0xFF4DD898)
+                              : const Color(0xFFFFD54F),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isVerified
+                              ? 'Verified Account'
+                              : 'Pending Verification',
+                          style: TextStyle(
+                            color: isVerified
+                                ? const Color(0xFF4DD898)
+                                : const Color(0xFFFFD54F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              // Avatar
-              EditableAvatar(
-                initials: initials,
-                photoUrl: _profile?.profilePhotoUrl,
-                uploadPath: '/shop/profile/photo',
-                onUploaded: (_) => _loadProfile(),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (ownerName.isNotEmpty && shopName != ownerName)
-                Text(
-                  shopName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              const SizedBox(height: 6),
-              if (phone.isNotEmpty)
-                Text(
-                  phone,
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-              const SizedBox(height: 10),
-              // Status badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isVerified
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : const Color(0xFFF8B217).withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isVerified
-                        ? const Color(0xFF4DD898)
-                        : const Color(0xFFFFD54F),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isVerified ? Icons.verified : Icons.pending_outlined,
-                      size: 16,
-                      color: isVerified
-                          ? const Color(0xFF4DD898)
-                          : const Color(0xFFFFD54F),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isVerified ? 'Verified Account' : 'Pending Verification',
-                      style: TextStyle(
-                        color: isVerified
-                            ? const Color(0xFF4DD898)
-                            : const Color(0xFFFFD54F),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     ).animate().fadeIn(duration: 400.ms);
   }
@@ -400,7 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     double? latitude,
     double? longitude,
   ) {
-    return _menuSection(tr('shop.account'), Icons.person_outline, [
+    return _menuSection(tr('shop.myShop'), Icons.storefront_outlined, [
       _menuTile(
         Icons.store_rounded,
         tr('shop.details'),
@@ -427,11 +456,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
         () => Navigator.pushNamed(context, '/my-sticker'),
       ),
       _menuTile(
+        Icons.star_rounded,
+        tr('shop.reviewsTile'),
+        tr('shop.reviewsTileSub'),
+        const Color(0xFFFFA726),
+        () => _showReviews(context),
+      ),
+    ]).animate().fadeIn(delay: 150.ms).slideY(begin: 0.03, end: 0);
+  }
+
+  /// Buying and the money for it.
+  Widget _buildOrdersMoneySection() {
+    return _menuSection(tr('shop.ordersMoney'), Icons.receipt_long_outlined, [
+      _menuTile(
+        Icons.shopping_bag_rounded,
+        tr('shop.orders'),
+        tr('shop.ordersSub'),
+        const Color(0xFF9C27B0),
+        () => Navigator.pushNamed(context, '/orders'),
+      ),
+      _menuTile(
+        Icons.groups_rounded,
+        tr('shop.groupBuys'),
+        tr('shop.groupBuysSub'),
+        AppColors.primary,
+        () => Navigator.pushNamed(context, '/group-buy'),
+      ),
+      _menuTile(
         Icons.account_balance_wallet_rounded,
         tr('shop.wallet'),
         tr('shop.walletSub'),
         const Color(0xFF2196F3),
         () => Navigator.pushNamed(context, '/wallet'),
+      ),
+    ]).animate().fadeIn(delay: 175.ms).slideY(begin: 0.03, end: 0);
+  }
+
+  /// Day-to-day tools and learning.
+  Widget _buildToolsSection() {
+    return _menuSection(tr('shop.toolsLearning'), Icons.build_outlined, [
+      _menuTile(
+        Icons.qr_code_scanner_rounded,
+        tr('shop.scan'),
+        tr('shop.scanSub'),
+        const Color(0xFF00BCD4),
+        () => Navigator.pushNamed(context, '/qr-scanner'),
       ),
       _menuTile(
         Icons.school_rounded,
@@ -440,14 +509,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Color(0xFFF8B217),
         () => Navigator.pushNamed(context, '/academy'),
       ),
+    ]).animate().fadeIn(delay: 225.ms).slideY(begin: 0.03, end: 0);
+  }
+
+  /// How the app behaves for this shop.
+  Widget _buildSettingsSection() {
+    return _menuSection(tr('shop.settings'), Icons.tune_rounded, [
       _menuTile(
-        Icons.shopping_bag_rounded,
-        tr('shop.orders'),
-        tr('shop.ordersSub'),
-        const Color(0xFF9C27B0),
-        () => Navigator.pushNamed(context, '/orders'),
+        Icons.notifications_rounded,
+        tr('shop.notifications'),
+        tr('shop.notificationsSub'),
+        const Color(0xFFE91E63),
+        () => Navigator.pushNamed(context, '/notifications'),
       ),
-    ]).animate().fadeIn(delay: 150.ms).slideY(begin: 0.03, end: 0);
+      _menuTile(
+        Icons.vibration_rounded,
+        tr('shop.alerts'),
+        tr('shop.alertsSub'),
+        const Color(0xFF7E57C2),
+        () => Navigator.pushNamed(context, '/notification-settings'),
+      ),
+      const LanguagePickerTile(),
+    ]).animate().fadeIn(delay: 240.ms).slideY(begin: 0.03, end: 0);
   }
 
   Widget _buildShopSection(
@@ -489,25 +572,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         },
       ),
-      _menuTile(
-        Icons.qr_code_scanner_rounded,
-        tr('shop.scan'),
-        tr('shop.scanSub'),
-        const Color(0xFF00BCD4),
-        () => Navigator.pushNamed(context, '/qr-scanner'),
-      ),
     ]).animate().fadeIn(delay: 200.ms).slideY(begin: 0.03, end: 0);
   }
 
   Widget _buildAppSection() {
-    return _menuSection(tr('shop.app'), Icons.settings_outlined, [
-      _menuTile(
-        Icons.notifications_rounded,
-        tr('shop.notifications'),
-        tr('shop.notificationsSub'),
-        const Color(0xFFE91E63),
-        () => Navigator.pushNamed(context, '/notifications'),
-      ),
+    return _menuSection(tr('shop.helpAbout'), Icons.help_outline_rounded, [
       _menuTile(
         Icons.headset_mic_rounded,
         tr('shop.help'),
@@ -522,7 +591,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Color(0xFF795548),
         () => _showAbout(context),
       ),
-      const LanguagePickerTile(),
     ]).animate().fadeIn(delay: 250.ms).slideY(begin: 0.03, end: 0);
   }
 
@@ -675,9 +743,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
       child: Column(
         children: [
-          Text(
-            'SpazaSure v1.0.0',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, info) => Text(
+              info.hasData
+                  ? 'SpazaSure v${info.data!.version} (${info.data!.buildNumber})'
+                  : 'SpazaSure',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1697,4 +1770,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+/// The SpazaSure logo's colours as soft glows in the profile header (green on the left,
+/// red at the top right) and a fine dotted band along the bottom.
+class _HeaderGlow extends CustomPainter {
+  const _HeaderGlow();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    void glow(Offset centre, double radius, Color colour) => canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [colour, colour.withValues(alpha: 0)],
+        ).createShader(Rect.fromCircle(center: centre, radius: radius)),
+    );
+    glow(Offset(w * 0.08, h * 0.55), w * 0.35, const Color(0x2E1E9E5A));
+    glow(Offset(w * 0.92, h * 0.12), w * 0.28, const Color(0x24E0523C));
+    final dot = Paint()..color = Colors.white.withValues(alpha: 0.12);
+    for (var x = 12.0; x < w; x += 18) {
+      for (var y = h * 0.82; y < h; y += 14) {
+        canvas.drawCircle(Offset(x, y), 1.2, dot);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HeaderGlow old) => false;
 }

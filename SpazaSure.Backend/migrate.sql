@@ -2097,6 +2097,14 @@ SELECT gen_random_uuid(), g.id, g.supplier_branch_id,
 FROM group_buys g
 WHERE g.area_radius_km IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM group_buy_branches existing WHERE existing.group_buy_id = g.id);
+-- Deals are offered to the supplier first: it sets its discount and accepts or declines (with
+-- a reason); the admin then publishes, and the countdown (duration) starts then.
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS duration_days integer NOT NULL DEFAULT 0;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS supplier_note text;
+ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS supplier_responded_at timestamp with time zone;
+UPDATE group_buys
+SET duration_days = GREATEST(1, LEAST(60, ROUND(EXTRACT(EPOCH FROM (expires_at - created_at)) / 86400)::int))
+WHERE duration_days = 0;
 UPDATE group_buy_participants p
 SET group_buy_branch_id = b.id
 FROM group_buy_branches b

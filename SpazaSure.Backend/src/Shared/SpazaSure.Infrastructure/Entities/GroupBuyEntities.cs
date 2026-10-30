@@ -17,11 +17,21 @@ public class GroupBuy : BaseEntity
     public decimal DiscountPrice { get; set; }
     public int DiscountPct { get; set; }
     public DateTime ExpiresAt { get; set; }
+    /// <summary>How long the deal runs once published; the countdown starts when it goes live.</summary>
+    public int DurationDays { get; set; }
+    /// <summary>The supplier's answer to SpazaSure's offer, e.g. why they declined it.</summary>
+    public string? SupplierNote { get; set; }
+    public DateTime? SupplierRespondedAt { get; set; }
     /// <summary>Times the end date was pushed back a week because the target wasn't reached (once at most).</summary>
     public int ExtensionCount { get; set; }
     /// <summary>When members were told the campaign ends in 2 days; cleared when it is extended.</summary>
     public DateTime? EndingReminderSentAt { get; set; }
-    /// <summary>Status: pending_approval, active, completed, expired, cancelled, rejected</summary>
+    /// <summary>
+    /// Status: awaiting_supplier (SpazaSure's offer, the supplier sets its discount and accepts or
+    /// declines), supplier_accepted (ready to publish), supplier_rejected (see SupplierNote),
+    /// active (published), completed, expired, cancelled; pending_approval and rejected are
+    /// older supplier proposals.
+    /// </summary>
     public string Status { get; set; } = "pending_approval";
 
     /// <summary>Only set for campaigns that existed before shops lost the ability to create them.</summary>

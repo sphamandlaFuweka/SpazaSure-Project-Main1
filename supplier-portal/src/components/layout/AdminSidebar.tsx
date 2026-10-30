@@ -32,20 +32,23 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  // Grouped by the job an admin is doing, in the order a day usually goes: see how things
+  // stand, look after people, run the marketplace, handle the money, deal with issues,
+  // grow and communicate, then administer the platform.
   const allSections: { title: string; items: { to: string; icon: typeof Users; label: string; badge?: number }[] }[] = [
     {
       title: 'Overview',
       items: [
         { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/admin/analytics', icon: BarChart2,       label: 'Analytics' },
+        { to: '/admin/projects',  icon: ClipboardList,   label: 'Projects & Impact' },
       ],
     },
     {
-      title: 'Trust & safety',
+      title: 'Users & verification',
       items: [
         { to: '/admin/suppliers', icon: Users,       label: 'Suppliers, Shops & Customers', badge: pendingSuppliers || undefined },
-        { to: '/admin/documents', icon: ShieldCheck, label: 'Documents',         badge: pendingDocuments || undefined },
-        { to: '/admin/reports',   icon: Flag,        label: 'Reports',           badge: pendingReports || undefined },
+        { to: '/admin/documents', icon: ShieldCheck, label: 'Documents', badge: pendingDocuments || undefined },
         { to: '/admin/shops-map', icon: MapPin,      label: 'Shops Map' },
       ],
     },
@@ -54,35 +57,40 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
       items: [
         { to: '/admin/products',   icon: Package,      label: 'Products' },
         { to: '/admin/orders',     icon: ShoppingCart, label: 'Orders' },
-        { to: '/admin/deliveries', icon: Truck, label: 'Deliveries' },
         { to: '/admin/group-buys', icon: UsersRound,   label: 'Group Buys' },
-        { to: '/admin/payouts',    icon: Wallet,       label: 'Payouts' },
-        { to: '/admin/deposits',   icon: Landmark,     label: 'Wallet Deposits', badge: pendingDeposits || undefined },
+        { to: '/admin/deliveries', icon: Truck,        label: 'Deliveries' },
+      ],
+    },
+    {
+      title: 'Money',
+      items: [
+        { to: '/admin/finance',     icon: Banknote,        label: 'Finance' },
+        { to: '/admin/payouts',     icon: Wallet,          label: 'Supplier Payouts' },
+        { to: '/admin/deposits',    icon: Landmark,        label: 'Wallet Deposits', badge: pendingDeposits || undefined },
         { to: '/admin/withdrawals', icon: ArrowUpFromLine, label: 'Wallet Withdrawals', badge: pendingWithdrawals || undefined },
-        { to: '/admin/finance',    icon: Banknote,     label: 'Finance' },
       ],
     },
     {
-      title: 'Management',
+      title: 'Support & safety',
       items: [
-        { to: '/admin/projects', icon: ClipboardList, label: 'Projects & Impact' },
+        { to: '/admin/reports',           icon: Flag,               label: 'Reports', badge: pendingReports || undefined },
+        { to: '/admin/feedback',          icon: MessageSquareHeart, label: 'Tester Feedback' },
+        { to: '/admin/deletion-requests', icon: UserX,              label: 'Deletion Requests' },
       ],
     },
     {
-      title: 'Testing & growth',
+      title: 'Growth & messages',
       items: [
-        { to: '/admin/feedback', icon: MessageSquareHeart, label: 'Tester Feedback' },
-        { to: '/admin/waitlist', icon: ListPlus,           label: 'Waitlist' },
-        { to: '/admin/emails',   icon: MailCheck,          label: 'Automated Emails' },
+        { to: '/admin/waitlist',      icon: ListPlus,  label: 'Waitlist' },
+        { to: '/admin/emails',        icon: MailCheck, label: 'Automated Emails' },
+        { to: '/admin/notifications', icon: Bell,      label: 'Notifications' },
       ],
     },
     {
-      title: 'System',
+      title: 'Administration',
       items: [
-        { to: '/admin/notifications', icon: Bell,     label: 'Notifications' },
-        { to: '/admin/settings',      icon: Settings, label: 'Settings' },
-        { to: '/admin/team',          icon: KeyRound, label: 'Team & Access' },
-        { to: '/admin/deletion-requests', icon: UserX, label: 'Deletion Requests' },
+        { to: '/admin/team',     icon: KeyRound, label: 'Team & Access' },
+        { to: '/admin/settings', icon: Settings, label: 'Settings' },
       ],
     },
   ];

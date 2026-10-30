@@ -20,7 +20,7 @@ const pageTitles: Record<string, string> = {
   reports:       'Reports',
   analytics:     'Analytics',
   notifications: 'Notifications',
-  payouts:       'Payouts',
+  payouts:       'Supplier Payouts',
   settings:      'Settings',
   team:          'Team & Access',
   deliveries:    'Deliveries',

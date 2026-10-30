@@ -27,13 +27,15 @@ public static class AutomaticPayouts
 
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var cutoff = now.AddDays(-rules.PayoutDelayDays);
+        // A group buy is paid in one transfer once all its orders are ready
+        var heldGroupBuys = await PayoutRules.GroupBuysStillOpenAsync(db, cutoff, ct);
         var candidates = await PayoutRules.Settleable(db.Orders)
             .Where(o => o.PaidOutAt == null && o.PayoutInitiatedAt == null && o.Status == "delivered" && o.DeliveredAt != null)
             .Include(o => o.Supplier)
             .ToListAsync(ct);
 
         int started = 0, skipped = 0;
-        foreach (var group in candidates.Where(o => PayoutRules.Stage(o, cutoff) == "available").GroupBy(o => o.SupplierId))
+        foreach (var group in candidates.Where(o => PayoutRules.Stage(o, cutoff, heldGroupBuys) == "available").GroupBy(o => o.SupplierId))
         {
             var supplier = group.First().Supplier;
             var orders = group.ToList();
