@@ -83,6 +83,30 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
   int get _totalItems =>
       widget.products.fold(0, (sum, product) => sum + _qty(product));
 
+  /// The items at the group price, before delivery: what the minimum amount is measured on.
+  double get _itemsAmount => widget.products.fold(
+    0,
+    (sum, product) => sum + product.discountPrice * _qty(product),
+  );
+
+  /// Taking everything the group buy still needs completes it, so the minimums don't apply.
+  bool get _takesEverythingLeft =>
+      _totalItems >=
+      widget.products.fold(0, (sum, product) => sum + product.remaining);
+
+  /// Both minimums together, e.g. "At least 10 items and R2,000 in total (any mix)".
+  String get _minimumRule {
+    final group = widget.group;
+    if (group.minTotal < 10) {
+      return 'Only ${group.minTotal} items are left. Take them all to complete it.';
+    }
+    final amount = group.minAmount > 0
+        ? ' worth at least ${_rand(group.minAmount)}'
+        : '';
+    return 'At least ${group.minTotal} items$amount in total (delivery not counted). '
+        'Mix products if you like, e.g. 3 of one and 7 of another.';
+  }
+
   List<Map<String, dynamic>> get _items => [
     for (final product in widget.products)
       if (_qty(product) > 0)
@@ -104,6 +128,11 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
       return widget.group.minTotal < 10
           ? 'Only ${widget.group.minTotal} items are left. Take them all.'
           : 'Choose at least ${widget.group.minTotal} items in total (any mix).';
+    }
+    final minAmount = widget.group.minAmount;
+    if (minAmount > 0 && _itemsAmount < minAmount && !_takesEverythingLeft) {
+      return 'The items must come to at least ${_rand(minAmount)}. '
+          'Add ${_rand(minAmount - _itemsAmount)} more.';
     }
     return null;
   }
@@ -185,12 +214,7 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                widget.group.minTotal < 10
-                    ? 'Only ${widget.group.minTotal} items are left. Take them all to complete it.'
-                    : 'At least ${widget.group.minTotal} items in total, any mix, e.g. 3 of one and 7 of another.',
-                style: AppTextStyles.caption,
-              ),
+              child: Text(_minimumRule, style: AppTextStyles.caption),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -247,7 +271,8 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
                     ),
                   _summaryRow(
                     '$_totalItems items',
-                    quote == null ? '—' : _rand(quote.itemsTotal),
+                    // Shown before the server's price comes back, so the minimum can be followed
+                    _rand(quote?.itemsTotal ?? _itemsAmount),
                   ),
                   _summaryRow(
                     'Delivery to your shop',

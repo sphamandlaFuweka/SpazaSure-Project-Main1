@@ -32,7 +32,7 @@ internal static class GroupBuyResponse
     /// A group buy as shops see it: prices include SpazaSure's fee (markup, see ShopPricing).
     /// With <paramref name="shopId"/>, also how much more each product needs and what this shop paid.
     /// </summary>
-    internal static object ProjectShop(GroupBuy groupBuy, decimal markup, Guid? shopId = null)
+    internal static object ProjectShop(GroupBuy groupBuy, decimal markup, Guid? shopId = null, decimal minOrderAmount = 0m)
     {
         var now = DateTime.UtcNow;
         var isExpired = groupBuy.ExpiresAt <= now && groupBuy.Status == "active";
@@ -78,6 +78,8 @@ internal static class GroupBuyResponse
             }).ToList(),
             // The fewest items this shop must buy in total, across products
             MinTotal = GroupBuyPayments.MinimumTotal(groupBuy, now, mine?.Id),
+            // ...and the smallest amount (R, products only), unless the shop takes everything left
+            MinAmount = minOrderAmount,
             Participants = ProjectParticipants(groupBuy),
             My = mine is null || !Counts(mine) ? null : new
             {
@@ -232,8 +234,9 @@ public class ShopGroupBuyController(
         }
 
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
-        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
-        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup, shop.Id)).ToList()));
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var markup = ShopPricing.Markup(rules);
+        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup, shop.Id, rules.MinOrderAmount)).ToList()));
     }
 
     /// <summary>
@@ -272,7 +275,7 @@ public class ShopGroupBuyController(
             .FirstOrDefaultAsync(g => g.Id == id);
         return groupBuy is null
             ? NotFound(ApiResponse.Fail("Group buy not found."))
-            : Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectShop(groupBuy, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)), shop.Id)));
+            : Ok(ApiResponse<object>.Ok(await ProjectAsync(groupBuy.Id, shop.Id)));
     }
 
     /// <summary>What joining with these quantities costs: items at the group price plus delivery.</summary>
@@ -623,7 +626,8 @@ public class ShopGroupBuyController(
     private async Task<object> ProjectAsync(Guid id, Guid shopId)
     {
         var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking()).FirstAsync(g => g.Id == id);
-        return GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db)), shopId);
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        return GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(rules), shopId, rules.MinOrderAmount);
     }
 
     private static bool ValidCoordinates(double? latitude, double? longitude) =>

@@ -85,6 +85,10 @@ class GroupBuy {
   /// The fewest items a shop buys in total, any mix of products: 10, or all that's left when fewer remain.
   final int minTotal;
 
+  /// The smallest amount a shop pays for the items (delivery not counted), alongside the
+  /// item minimum: both apply. 0 = none. Waived when the shop takes everything left.
+  final double minAmount;
+
   const GroupBuy({
     required this.id,
     required this.title,
@@ -103,6 +107,7 @@ class GroupBuy {
     this.myPaymentStatus,
     this.myAmountPaid = 0,
     this.minTotal = 10,
+    this.minAmount = 0,
   });
 
   factory GroupBuy.fromJson(Map<String, dynamic> json) {
@@ -127,6 +132,7 @@ class GroupBuy {
           .toList(),
       participants: json['participants'] as List<dynamic>? ?? const [],
       minTotal: (json['minTotal'] as num?)?.toInt() ?? 10,
+      minAmount: (json['minAmount'] as num?)?.toDouble() ?? 0,
       myPaymentStatus: (json['my'] as Map<String, dynamic>?)?['paymentStatus']
           ?.toString(),
       myAmountPaid:

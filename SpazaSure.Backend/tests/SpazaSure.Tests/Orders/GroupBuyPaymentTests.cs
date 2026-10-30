@@ -202,6 +202,26 @@ public class GroupBuyPaymentTests
     }
 
     [Fact]
+    public async Task BothMinimums_AreMetTogether_TenItemsWorthAtLeastR2000()
+    {
+        var f = Create(targetQty: 100);
+        f.Db.PlatformSettings.Single(s => s.Key == PlatformSettingsStore.MinOrderAmountKey).Value = "2000";
+        f.Db.SaveChanges();
+        var oil = AddProduct(f, "Cooking Oil 20L", price: 250m); // about R236 each to shops
+        JoinGroupBuyRequest Buy(GroupBuyProduct product, int quantity) => new()
+        {
+            Items = [new JoinGroupBuyItemRequest { GroupBuyProductId = product.Id, Quantity = quantity }],
+            PaymentMethod = "wallet",
+        };
+
+        var tenCheap = await f.ShopController().Join(f.GroupBuy.Id, Buy(f.Product, 10)); // 10 items, about R945
+        var tenWorthEnough = await f.ShopController().Join(f.GroupBuy.Id, Buy(oil, 10)); // 10 items, about R2,360
+
+        Message(tenCheap).Should().Contain("minimum order");
+        tenWorthEnough.Should().BeOfType<OkObjectResult>(); // no need to spend more than R2,000
+    }
+
+    [Fact]
     public async Task ATargetThatIsReached_TakesNoMoreShops()
     {
         var f = Create(targetQty: 10);
@@ -375,16 +395,16 @@ public class GroupBuyPaymentTests
         Message(result).Should().Contain("Only 5 more");
     }
 
-    private static GroupBuyProduct AddProduct(Fixture f, string name)
+    private static GroupBuyProduct AddProduct(Fixture f, string name, decimal price = 50m)
     {
         var product = new Product
         {
-            SupplierId = f.Supplier.Id, Name = name, Sku = name[..4], Price = 50m,
+            SupplierId = f.Supplier.Id, Name = name, Sku = name[..4], Price = price,
             StockQty = 500, MinOrderQty = 1, IsApproved = true, IsAvailable = true,
         };
         var gbProduct = new GroupBuyProduct
         {
-            GroupBuyId = f.GroupBuy.Id, ProductId = product.Id, OriginalPrice = 50m, DiscountPct = 10, DiscountPrice = 45m,
+            GroupBuyId = f.GroupBuy.Id, ProductId = product.Id, OriginalPrice = price, DiscountPct = 10, DiscountPrice = price * 0.9m,
             TargetQty = 30, Status = "active",
         };
         f.Db.AddRange(product, gbProduct);
