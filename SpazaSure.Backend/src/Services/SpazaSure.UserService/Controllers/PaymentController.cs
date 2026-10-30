@@ -228,7 +228,8 @@ public class PaymentController(
                 return BadRequest();
             if (onboardingPayment.Status == "completed")
                 return Ok();
-            if (onboardingPayment.Status != "pending")
+            // "cancelled" only means the shop opened a newer checkout; this one was still paid
+            if (onboardingPayment.Status is not ("pending" or "cancelled"))
                 return Conflict();
 
             onboardingPayment.Status = "completed";
