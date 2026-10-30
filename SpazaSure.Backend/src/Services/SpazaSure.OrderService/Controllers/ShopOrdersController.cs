@@ -353,6 +353,92 @@ public class ShopOrdersController(
     }
 
     /// <summary>
+    /// A card order whose payment failed or was abandoned: opens a new Paystack checkout for it
+    /// (and any other unpaid orders from the same checkout, which were paid together).
+    /// </summary>
+    [HttpPost("{id:guid}/pay")]
+    public async Task<IActionResult> PayAgain(Guid id)
+    {
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var order = await db.Orders.Include(o => o.Supplier)
+            .FirstOrDefaultAsync(o => o.Id == id && o.ShopId == shop.Id);
+        if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (order.PaymentStatus == "paid")
+            return Ok(ApiResponse<object>.Ok(new { paid = true, checkoutUrl = (string?)null }, "This order is already paid."));
+        if (!AwaitingCardPayment(order))
+            return BadRequest(ApiResponse.Fail("This order isn't waiting for a card payment."));
+
+        // The last checkout may have gone through after all: never charge twice
+        if (!string.IsNullOrEmpty(order.PaymentProviderReference) &&
+            await paystackPayments.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted))
+            return Ok(ApiResponse<object>.Ok(new { paid = true, checkoutUrl = (string?)null }, "Your earlier payment went through. The order is paid."));
+
+        var orders = string.IsNullOrEmpty(order.PaymentProviderReference)
+            ? [order]
+            : await db.Orders.Include(o => o.Supplier)
+                .Where(o => o.ShopId == shop.Id && o.PaymentProviderReference == order.PaymentProviderReference)
+                .ToListAsync();
+        orders = orders.Where(AwaitingCardPayment).ToList();
+
+        var reference = $"SPZ-{Guid.NewGuid():N}";
+        OrderPaystackCheckout checkout;
+        try
+        {
+            var splitCode = await splitPayments.CreateSplitAsync(orders, reference, HttpContext.RequestAborted);
+            checkout = await paystackPayments.CreateCheckoutAsync(
+                orders, PaymentEmail.For(shop.Email, shop.Phone, shop.UserId), reference, splitCode, HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+        {
+            Console.Error.WriteLine($"[ShopOrders] Paystack retry failed for order {order.Id}: {ex.Message}");
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(
+                "We couldn't open the payment page right now. Please try again in a moment."));
+        }
+        foreach (var o in orders)
+        {
+            o.PaymentProviderReference = checkout.Reference;
+            o.PaystackSplitCode = checkout.SplitCode;
+        }
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            paid = false,
+            orderNumber = order.OrderNumber,
+            checkoutUrl = checkout.AuthorizationUrl,
+            totalAmount = orders.Sum(o => o.TotalAmount),
+        }));
+    }
+
+    /// <summary>The shop cancels a card order it hasn't paid for. Nothing was taken, so nothing is refunded.</summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> CancelUnpaid(Guid id)
+    {
+        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
+        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id && o.ShopId == shop.Id);
+        if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
+        if (!AwaitingCardPayment(order))
+            return BadRequest(ApiResponse.Fail("Only unpaid card orders can be cancelled here. For anything else, contact SpazaSure."));
+
+        // Check Paystack first: a payment that went through can't be cancelled from the app
+        if (!string.IsNullOrEmpty(order.PaymentProviderReference) &&
+            await paystackPayments.ConfirmOrdersAsync(db, events, order.PaymentProviderReference, HttpContext.RequestAborted))
+            return BadRequest(ApiResponse.Fail("This order was paid after all, so it can't be cancelled here. Contact SpazaSure if you need a refund."));
+
+        var heldStock = OrderStock.Holds(order);
+        order.Status = "cancelled";
+        order.RejectionReason = "Cancelled by the shop before paying.";
+        await OrderStock.SyncAsync(db, order, heldStock);
+        await db.SaveChangesAsync();
+        return Ok(ApiResponse<object>.Ok(new { order.Id, order.Status }, "Order cancelled."));
+    }
+
+    /// <summary>A card order still waiting for its payment, before the supplier has done anything with it.</summary>
+    private static bool AwaitingCardPayment(Order order) =>
+        order.PaymentMethod == "paystack" && order.PaymentStatus != "paid" && order.Status == "pending";
+
+    /// <summary>
     /// Get all orders for the logged-in shop owner
     /// </summary>
     [HttpGet]

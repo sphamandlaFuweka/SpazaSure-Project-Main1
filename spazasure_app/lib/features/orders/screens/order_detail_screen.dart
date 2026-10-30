@@ -11,6 +11,7 @@ import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
+import 'package:spazasure_app/features/orders/widgets/unpaid_order_actions.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   const OrderDetailScreen({super.key});
@@ -231,6 +232,9 @@ class OrderDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
+            // A card payment that failed or was abandoned: pay again or cancel
+            if (UnpaidOrderActions.appliesTo(order))
+              UnpaidOrderActions(order: order),
             // Delivery info
             if (order.status == 'dispatched')
               _buildSection(

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/status_badge.dart';
+import 'package:spazasure_app/features/orders/widgets/unpaid_order_actions.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
@@ -102,8 +103,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Widget _buildOrderCard(Order order) {
     return GestureDetector(
-      onTap: () =>
-          Navigator.pushNamed(context, '/order-detail', arguments: order),
+      onTap: () async {
+        // Paying again or cancelling changes the order, so reload when it says so
+        final changed = await Navigator.pushNamed(
+          context,
+          '/order-detail',
+          arguments: order,
+        );
+        if (changed == true && mounted) _load();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -133,6 +141,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 StatusBadge(status: order.status),
               ],
             ),
+            if (UnpaidOrderActions.appliesTo(order))
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Payment not completed. Tap to pay or cancel.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             Row(
               children: [

@@ -98,6 +98,25 @@ class OrderService {
     }
   }
 
+  /// Opens a new Paystack checkout for an unpaid card order. A null checkoutUrl means it was
+  /// paid after all.
+  static Future<OrderCheckout> payAgain(String orderId) async {
+    final res = await ApiService.post('/shop/orders/$orderId/pay', {});
+    final data = res['data'] as Map<String, dynamic>? ?? const {};
+    return OrderCheckout(
+      orderNumber: data['orderNumber']?.toString() ?? '',
+      checkoutUrl: data['paid'] == true
+          ? null
+          : data['checkoutUrl']?.toString(),
+      totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  /// Cancels a card order the shop hasn't paid for.
+  static Future<void> cancelUnpaid(String orderId) async {
+    await ApiService.post('/shop/orders/$orderId/cancel', {});
+  }
+
   /// The delivery fees and shipping branches for the cart, before the shop pays.
   static Future<CheckoutQuote> quote({
     required List<CartItem> items,
