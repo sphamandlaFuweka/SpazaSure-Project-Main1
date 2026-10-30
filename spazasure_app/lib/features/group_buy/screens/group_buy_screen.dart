@@ -7,6 +7,7 @@ import 'package:spazasure_app/features/profile/widgets/onboarding_fee_gate.dart'
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
+import 'package:spazasure_app/core/widgets/full_image_view.dart';
 import 'package:spazasure_app/features/group_buy/widgets/join_group_buy_sheet.dart';
 
 class GroupBuyScreen extends StatefulWidget {
@@ -197,12 +198,41 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (group.bannerImageUrl != null)
-            AspectRatio(
-              aspectRatio: 16 / 7,
-              child: Image.network(
+            // Tap the poster to see all of it, zoomable, so its text can be read
+            GestureDetector(
+              onTap: () => FullImageView.open(
+                context,
                 group.bannerImageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                group.title,
+              ),
+              child: AspectRatio(
+                aspectRatio: 16 / 7,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      group.bannerImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.zoom_out_map,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           Container(
