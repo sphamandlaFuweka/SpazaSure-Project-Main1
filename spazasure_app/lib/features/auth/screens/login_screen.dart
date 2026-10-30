@@ -252,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         _customerLogin
-                            ? 'Customer Sign In'
+                            ? 'Shopper Sign In'
                             : 'Retailer Sign In',
                         style: GoogleFonts.nunito(
                           fontSize: 25,
@@ -496,7 +496,7 @@ class _LoginScreenState extends State<LoginScreen> {
             curve: Curves.easeOutCubic,
           );
 
-  /// Retailer / Customer, with a pill that slides to the chosen side.
+  /// Retailer / Shopper, with a pill that slides to the chosen side.
   Widget _modeSwitch() => Semantics(
     label: 'Sign in as',
     child: Container(
@@ -532,7 +532,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   children: [
                     _modeOption(false, Icons.storefront_outlined, 'Retailer'),
-                    _modeOption(true, Icons.person_outline, 'Customer'),
+                    _modeOption(true, Icons.person_outline, 'Shopper'),
                   ],
                 ),
               ),
@@ -591,7 +591,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           InkWell(
-            onTap: () => Navigator.pushNamed(context, '/register'),
+            // Registers whoever is selected above: a retailer's shop or a shopper
+            onTap: () => Navigator.pushNamed(
+              context,
+              _customerLogin ? '/customer-register' : '/register',
+            ),
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: _compact ? 8 : 12),
               child: Text(
@@ -608,29 +612,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ).animate().fadeIn(delay: 800.ms),
-      Pressable(
-        onTap: () => Navigator.pushNamed(context, '/customer-register'),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: _compact ? 9 : 11,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-          ),
-          child: Text(
-            'I am a customer: create an account',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ).animate().fadeIn(delay: 900.ms),
       // Room for the closing tagline only on taller phones
       if (!_compact) ...[
         const SizedBox(height: 26),

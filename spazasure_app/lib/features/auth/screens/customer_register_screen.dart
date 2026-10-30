@@ -275,7 +275,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BrandAppBar(title: const Text('Create customer account')),
+      appBar: BrandAppBar(title: const Text('Create shopper account')),
       body: Form(
         key: _formKey,
         child: ListView(

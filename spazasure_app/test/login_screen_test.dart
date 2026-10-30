@@ -37,7 +37,7 @@ Future<void> _settle(WidgetTester tester) async {
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  testWidgets('switches between retailer and customer sign in', (tester) async {
+  testWidgets('switches between retailer and shopper sign in', (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(390, 1000);
     tester.view.devicePixelRatio = 1;
@@ -75,16 +75,53 @@ void main() {
     expect(find.text('Retailer Sign In'), findsOneWidget);
     await _shot(tester, 'login_retailer');
 
-    await tester.tap(find.text('Customer'));
+    await tester.tap(find.text('Shopper'));
     await _settle(tester);
-    expect(find.text('Customer Sign In'), findsOneWidget);
-    await _shot(tester, 'login_customer');
+    expect(find.text('Shopper Sign In'), findsOneWidget);
+    await _shot(tester, 'login_shopper');
 
     // An empty phone number is caught before anything is sent
     await tester.tap(find.text('Sign In'));
     await tester.pump();
     expect(find.text('Enter your phone number'), findsOneWidget);
     await _settle(tester);
+  });
+
+  testWidgets('Register opens the sign-up for whoever is selected', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthProvider(),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginScreen(),
+          routes: {
+            '/register': (_) => const Text('retailer sign-up'),
+            '/customer-register': (_) => const Text('shopper sign-up'),
+          },
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(find.textContaining('I am a customer'), findsNothing);
+
+    await tester.tap(find.text('Register'));
+    await _settle(tester);
+    expect(find.text('retailer sign-up'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('retailer sign-up'))).pop();
+    await _settle(tester);
+    await tester.tap(find.text('Shopper'));
+    await _settle(tester);
+    await tester.tap(find.text('Register'));
+    await _settle(tester);
+    expect(find.text('shopper sign-up'), findsOneWidget);
   });
 
   testWidgets(
