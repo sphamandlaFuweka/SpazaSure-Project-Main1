@@ -287,7 +287,10 @@ export default function GroupBuyCreateModal({ onClose, onCreated, editing }: Pro
               <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { pickBanner(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
           )}
-          <p className="text-[11px] text-gray-400 mt-1">Shown on the group buy banner in the shop app. A wide image works best.</p>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Shown on the group buy banner in the shop app; the supplier never sees it. A wide image works best.
+            {!editing && ' You can add it later with Edit deal, once the supplier has set its discount.'}
+          </p>
         </div>
 
         <div className="space-y-2">

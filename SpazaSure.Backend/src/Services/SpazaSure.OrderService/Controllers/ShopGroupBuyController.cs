@@ -100,15 +100,20 @@ internal static class GroupBuyResponse
         };
     }
 
-    internal static object ProjectSupplier(GroupBuy groupBuy, IEnumerable<Order>? orders = null)
+    /// <summary>
+    /// A group buy at supplier prices, for admins and (with <paramref name="forSupplier"/>) the
+    /// supplier. Suppliers don't get the advert: SpazaSure makes the poster and shop-facing text
+    /// after the supplier's discount is known, so they aren't sent.
+    /// </summary>
+    internal static object ProjectSupplier(GroupBuy groupBuy, IEnumerable<Order>? orders = null, bool forSupplier = false)
     {
         var isExpired = groupBuy.ExpiresAt <= DateTime.UtcNow && groupBuy.Status == "active";
         return new
         {
             groupBuy.Id,
             groupBuy.Title,
-            groupBuy.Description,
-            groupBuy.BannerImageUrl,
+            Description = forSupplier ? null : groupBuy.Description,
+            BannerImageUrl = forSupplier ? null : groupBuy.BannerImageUrl,
             groupBuy.SupplierId,
             SupplierName = groupBuy.Supplier.CompanyName,
             CreatedByShopName = groupBuy.CreatedByShop?.ShopName ?? "",
@@ -715,7 +720,7 @@ public class SupplierGroupBuyController(
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         var orders = await LoadOrdersAsync(supplier.Id, campaigns.Select(g => g.Id).ToList());
         return Ok(ApiResponse<object>.Ok(campaigns
-            .Select(g => GroupBuyResponse.ProjectSupplier(g, orders.GetValueOrDefault(g.Id) ?? []))
+            .Select(g => GroupBuyResponse.ProjectSupplier(g, orders.GetValueOrDefault(g.Id) ?? [], forSupplier: true))
             .ToList()));
     }
 
@@ -730,7 +735,7 @@ public class SupplierGroupBuyController(
         if (groupBuy is null) return NotFound(ApiResponse.Fail("Group buy not found."));
 
         var orders = await LoadOrdersAsync(supplier.Id, [id]);
-        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy, orders.GetValueOrDefault(id) ?? [])));
+        return Ok(ApiResponse<object>.Ok(GroupBuyResponse.ProjectSupplier(groupBuy, orders.GetValueOrDefault(id) ?? [], forSupplier: true)));
     }
 
     /// <summary>

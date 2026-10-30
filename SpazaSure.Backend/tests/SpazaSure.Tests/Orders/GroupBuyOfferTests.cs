@@ -169,6 +169,24 @@ public class GroupBuyOfferTests
     }
 
     [Fact]
+    public async Task TheSupplier_NeverGetsTheAdvert_PosterOrShopText()
+    {
+        var f = await Create();
+        var deal = f.Deal();
+        deal.BannerImageUrl = "/uploads/group-buy-banners/maize-poster.jpg";
+        deal.Description = "Save big on maize this month!";
+        f.Db.SaveChanges();
+
+        var offer = Json(await f.SupplierCtrl().Get(deal.Id));
+        var list = Json(await f.SupplierCtrl().List("all"));
+        var adminView = Json(await f.AdminCtrl().Get(deal.Id));
+
+        offer.Should().NotContain("maize-poster").And.NotContain("Save big");
+        list.Should().NotContain("maize-poster").And.NotContain("Save big");
+        adminView.Should().Contain("maize-poster"); // admins still see their advert
+    }
+
+    [Fact]
     public async Task AdminsCanEditALiveDeal_AddingProducts_AndMovingTheEndDate()
     {
         var f = await Create();

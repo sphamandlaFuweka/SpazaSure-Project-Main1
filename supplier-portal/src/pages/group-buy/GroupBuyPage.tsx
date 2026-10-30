@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../components/ui';
-import { groupBuyApi, resolveUploadUrl } from '../../services/api';
+import { groupBuyApi } from '../../services/api';
 import type { GroupBuy, GroupBuyOrder, GroupBuyProduct, SupplierGroupBuyFilter } from '../../types';
 import { groupBuyPlaces } from '../../types';
 import { shortOrderNumber } from '../../utils';
@@ -241,9 +241,10 @@ export default function GroupBuyPage() {
                   <tr key={group.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
                     <td className="p-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {group.bannerImageUrl
-                          ? <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-16 h-7 rounded-md object-cover flex-shrink-0" />
-                          : <div className="w-16 h-7 rounded-md bg-primary/10 flex-shrink-0" />}
+                        {/* No advert poster here: SpazaSure makes the advert once the supplier's discount is known */}
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                          <Package size={16} />
+                        </div>
                         <div className="min-w-0">
                           <p className="font-bold text-gray-900 truncate max-w-[260px]">{group.title}</p>
                           {needsAnswer(group) && <p className="text-[11px] font-bold text-violet-700">New offer: set your discount and answer</p>}
@@ -335,7 +336,6 @@ function GroupDetails({
 
   return (
     <div>
-      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full aspect-[16/7] object-cover" />}
       <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="min-w-0">
@@ -354,7 +354,6 @@ function GroupDetails({
                 </span>
               )}
             </div>
-            {group.description && <p className="text-sm text-gray-500 mt-1 max-w-3xl">{group.description}</p>}
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-gray-500">
               <span>Run by <strong className="text-gray-700">SpazaSure</strong></span>
               <span>{group.participantCount} shop{group.participantCount === 1 ? '' : 's'}</span>
@@ -472,7 +471,6 @@ function OfferAnswer({
 
   return (
     <div>
-      {group.bannerImageUrl && <img src={resolveUploadUrl(group.bannerImageUrl)} alt="" className="w-full aspect-[16/7] object-cover" />}
       <div className="p-5 space-y-4">
         <div>
           <p className="text-sm text-gray-600">
@@ -481,7 +479,6 @@ function OfferAnswer({
             {group.durationDays ? <>, for {group.durationDays} days once it goes live</> : null}.
             Set the discount you can give on each product, then accept or decline.
           </p>
-          {group.description && <p className="text-sm text-gray-500 mt-1">{group.description}</p>}
         </div>
 
         <div className="rounded-xl border border-gray-100 divide-y divide-gray-100">
