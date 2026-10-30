@@ -439,6 +439,13 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setRules({ ...rules, cashOnDeliveryMaxOrderTotal: e.target.value === '' ? 0 : Number(e.target.value) })} />
                 <p className="text-xs text-ink-3 mt-1.5">Largest order total a shop can pay in cash, to limit cash-handling risk. 0 = no limit.</p>
               </div>
+              <div className="max-w-xs">
+                <label className="label" htmlFor="minOrder">Minimum order per supplier (R)</label>
+                <input id="minOrder" type="number" min="0" max="1000000" step="100" className="input"
+                  value={rules.minOrderAmount}
+                  onChange={(e) => setRules({ ...rules, minOrderAmount: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                <p className="text-xs text-ink-3 mt-1.5">Smallest order a shop can place with one supplier, in products (delivery not counted). Applies to group buys too. 0 = no minimum.</p>
+              </div>
               <div className="rounded-2xl border-2 border-brand-blue-light bg-surface p-4 space-y-4">
                 <div>
                   <p className="text-sm font-bold text-gray-900">Direct deposit account</p>

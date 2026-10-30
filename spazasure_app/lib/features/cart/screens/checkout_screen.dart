@@ -85,7 +85,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Stock problems at the branch that delivers to the shop; pickup has none to report here.
   List<String> get _problems => _deliveryOption == 'pickup'
       ? const []
-      : _quotes[_deliveryOption]?.problems ?? const [];
+      : (_quotes[_deliveryOption]?.problems ?? const [])
+            // The minimum order has its own message (see _belowMinimum)
+            .where((p) => !p.startsWith('The minimum order'))
+            .toList();
+
+  /// Suppliers whose part of the cart is below the minimum order (products only), with what's missing.
+  List<String> _belowMinimum(CartProvider cart) {
+    final minimum = cart.settings.minOrderAmount;
+    if (minimum <= 0) return const [];
+    final bySupplier = <String, double>{};
+    final names = <String, String>{};
+    for (final item in cart.items) {
+      bySupplier.update(
+        item.product.supplierId,
+        (sum) => sum + item.total,
+        ifAbsent: () => item.total,
+      );
+      names[item.product.supplierId] = item.product.supplierName;
+    }
+    return [
+      for (final entry in bySupplier.entries)
+        if (entry.value < minimum)
+          '${names[entry.key]!.isEmpty ? 'This supplier' : names[entry.key]}: '
+              'add R${(minimum - entry.value).toStringAsFixed(2)} more',
+    ];
+  }
 
   /// The wallet can pay only when its balance covers the whole order
   bool _walletAllowed(CartProvider cart) =>
@@ -170,6 +195,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                         ],
                       ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (_belowMinimum(cart).isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.redTint,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Minimum order R${cart.settings.minOrderAmount.toStringAsFixed(0)} per supplier',
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: AppColors.error,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Products only; delivery is not counted.',
+                    style: AppTextStyles.caption,
+                  ),
+                  for (final line in _belowMinimum(cart))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(line, style: AppTextStyles.bodySmall),
                     ),
                 ],
               ),
@@ -319,7 +379,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: _placing || cart.isEmpty || _problems.isNotEmpty
+                  onPressed:
+                      _placing ||
+                          cart.isEmpty ||
+                          _problems.isNotEmpty ||
+                          _belowMinimum(cart).isNotEmpty
                       ? null
                       : () => _placeOrder(cart),
                   child: _placing

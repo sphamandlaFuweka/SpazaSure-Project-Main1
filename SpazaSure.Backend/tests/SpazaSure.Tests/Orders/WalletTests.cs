@@ -42,6 +42,8 @@ public class WalletTests
         var supplier = new Supplier { UserId = supplierUser.Id, CompanyName = "Bulk Co", ContactPerson = "Sipho", Phone = "0820008000", Email = "sup@test.com", CommissionRate = 5m, Status = "verified" };
         var product = new Product { SupplierId = supplier.Id, Name = "Maize meal 10kg", Sku = "MM10", Price = 100m, StockQty = 50, IsAvailable = true, IsApproved = true };
         db.AddRange(shopUser, shop, supplierUser, supplier, product);
+        // These tests are about other rules; the minimum order has its own tests
+        db.PlatformSettings.Add(new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" });
         db.SaveChanges();
 
         var http = new DefaultHttpContext
@@ -106,6 +108,23 @@ public class WalletTests
         await f.Db.SaveChangesAsync();
 
         (await f.Admin.ApproveWalletTopUp(topUp.Id)).Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task OrdersBelowTheMinimum_AreRefused_PerSupplier_NotCountingDelivery()
+    {
+        var f = Create();
+        f.Db.PlatformSettings.Single(s => s.Key == PlatformSettingsStore.MinOrderAmountKey).Value = "2000";
+        f.Db.SaveChanges();
+        await AddApprovedTopUp(f, 5000m);
+
+        var tooSmall = await f.Checkout.PlaceOrder(Order(f.Product, 3));   // R315 in products
+        var bigEnough = await f.Checkout.PlaceOrder(Order(f.Product, 20)); // R2,100 in products
+
+        tooSmall.Should().BeOfType<BadRequestObjectResult>();
+        System.Text.Json.JsonSerializer.Serialize(((ObjectResult)tooSmall).Value).Should().Contain("minimum order from Bulk Co");
+        bigEnough.Should().BeOfType<OkObjectResult>();
+        (await f.Db.Orders.CountAsync()).Should().Be(1);
     }
 
     [Fact]

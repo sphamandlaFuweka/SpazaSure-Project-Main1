@@ -54,6 +54,8 @@ public class BranchCheckoutTests
             // 5 in JHB, 20 in Durban, the other 15 at the head office in Cape Town
             new ProductBranchStock { ProductId = tracked.Id, SupplierBranchId = jhb.Id, StockQty = 5 },
             new ProductBranchStock { ProductId = tracked.Id, SupplierBranchId = durban.Id, StockQty = 20 });
+        // These tests are about other rules; the minimum order has its own tests
+        db.PlatformSettings.Add(new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" });
         db.SaveChanges();
 
         var http = new DefaultHttpContext

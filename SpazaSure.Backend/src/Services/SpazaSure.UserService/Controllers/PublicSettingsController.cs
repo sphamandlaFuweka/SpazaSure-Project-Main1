@@ -26,6 +26,7 @@ public class PublicSettingsController(SpazaSureDbContext db) : ControllerBase
             rules.ShopServiceFeePercent,
             rules.CashOnDeliveryEnabled,
             rules.CashOnDeliveryMaxOrderTotal,
+            rules.MinOrderAmount,
             rules.MaintenanceMode,
             rules.MaintenanceMessage,
         }));

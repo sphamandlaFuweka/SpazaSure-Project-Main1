@@ -79,7 +79,8 @@ public class ShopOrdersController(
                 DistanceKm = choice.DistanceKm is { } km ? Math.Round(km, 1) : (double?)null,
                 Subtotal = subtotal,
                 DeliveryFee = choice.From is null ? (decimal?)null : DeliveryFees.For(rules, req.DeliveryType, choice.DistanceKm),
-                choice.Problem,
+                // Shipping problems first, then the minimum order per supplier
+                Problem = choice.Problem ?? MinimumOrder.Problem(rules, supplier.CompanyName, subtotal),
             };
         }).ToList();
 
@@ -184,6 +185,10 @@ public class ShopOrdersController(
                     Product = product
                 });
             }
+
+            // Each supplier's order must reach the minimum, in products at the prices the shop pays
+            if (MinimumOrder.Problem(rules, supplier.CompanyName, orderItems.Sum(i => i.ShopLineTotal)) is { } tooSmall)
+                return BadRequest(ApiResponse.Fail(tooSmall));
 
             // Where the money goes: the supplier is paid the subtotal (their own prices). SpazaSure
             // keeps its platform fee, which shops pay as part of the item prices (never as a

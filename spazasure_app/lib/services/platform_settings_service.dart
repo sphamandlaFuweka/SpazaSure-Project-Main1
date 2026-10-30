@@ -11,12 +11,16 @@ class PlatformSettings {
   /// Largest order total allowed as cash on delivery. 0 = no limit.
   final double cashOnDeliveryMaxOrderTotal;
 
+  /// Smallest order with one supplier, in products (delivery not counted). 0 = no minimum.
+  final double minOrderAmount;
+
   const PlatformSettings({
     this.standardDeliveryFee = 150,
     this.expressDeliveryFee = 250,
     this.shopServiceFeePercent = 0,
     this.cashOnDeliveryEnabled = true,
     this.cashOnDeliveryMaxOrderTotal = 5000,
+    this.minOrderAmount = 2000,
   });
 
   /// Matches the backend defaults, used until (or if) the server can't be reached.
@@ -46,6 +50,7 @@ class PlatformSettings {
         'cashOnDeliveryMaxOrderTotal',
         defaults.cashOnDeliveryMaxOrderTotal,
       ),
+      minOrderAmount: d('minOrderAmount', defaults.minOrderAmount),
     );
   }
 }

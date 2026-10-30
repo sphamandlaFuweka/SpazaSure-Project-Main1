@@ -548,6 +548,13 @@ public class ShopGroupBuyController(
         // At least 10 items in total, from one product or a mix
         if (GroupBuyPayments.TotalProblem(groupBuy, lines.Sum(l => l.Quantity), now, exceptParticipantId) is { } tooFew)
             return (tooFew, null);
+        // And the minimum order amount, unless this shop takes everything still needed (completing the targets)
+        var takesEverythingLeft = lines.Sum(l => l.Quantity) >= groupBuy.Products
+            .Where(p => p.Status is "active" or "qualified")
+            .Sum(p => GroupBuyPayments.Remaining(groupBuy, p, now, exceptParticipantId));
+        if (!takesEverythingLeft &&
+            MinimumOrder.Problem(rules, groupBuy.Supplier.CompanyName, lines.Sum(l => l.LineTotal)) is { } tooSmall)
+            return (tooSmall, null);
 
         // Delivered from the branch the campaign runs from (its area centre), else the head office
         var (fromLatitude, fromLongitude) = groupBuy.AreaLatitude is not null && groupBuy.AreaLongitude is not null

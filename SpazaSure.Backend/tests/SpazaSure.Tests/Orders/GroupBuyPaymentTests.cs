@@ -98,6 +98,8 @@ public class GroupBuyPaymentTests
             TargetQty = targetQty, Status = "active",
         };
         db.AddRange(supplierUser, supplier, product, groupBuy, gbProduct);
+        // These tests are about other rules; the minimum order has its own tests
+        db.PlatformSettings.Add(new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" });
         db.SaveChanges();
         var fixture = new Fixture(db, null!, supplier, supplierUser, groupBuy, gbProduct);
         return fixture with { Shop = fixture.AddShop("Corner Spaza", walletBalance) };
@@ -183,6 +185,20 @@ public class GroupBuyPaymentTests
         Message(tooFew).Should().Contain("take all 6");
         exactlyLeft.Should().BeOfType<OkObjectResult>();
         f.Db.GroupBuyProducts.Single().Status.Should().Be("qualified");
+    }
+
+    [Fact]
+    public async Task GroupBuys_HaveTheMinimumOrderToo_UnlessTheShopCompletesTheTarget()
+    {
+        var f = Create(targetQty: 15);
+        f.Db.PlatformSettings.Single(s => s.Key == PlatformSettingsStore.MinOrderAmountKey).Value = "2000";
+        f.Db.SaveChanges();
+
+        var tooSmall = await f.ShopController().Join(f.GroupBuy.Id, Join(f, 12));          // about R1,100
+        var completesTarget = await f.ShopController().Join(f.GroupBuy.Id, Join(f, 15));   // about R1,400, but everything left
+
+        Message(tooSmall).Should().Contain("minimum order from Bulk Co");
+        completesTarget.Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]

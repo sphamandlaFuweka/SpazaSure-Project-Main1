@@ -45,7 +45,7 @@ public class PlatformRulesTests
             StandardDeliveryFee = 99.5m, ExpressDeliveryFee = 199m, GroupBuyBaseDeliveryFee = 40m,
             GroupBuyPerKmRate = 6.5m, DeliveryPerKmRate = 9m, PlatformFeePercent = 6m, ShopServiceFeePercent = 1.5m, PayoutDelayDays = 7, SupplierReachKm = 80m,
             MaintenanceMode = true, MaintenanceMessage = "Back at 10:00", RequireSupplierApproval = false,
-            AutoApproveVerifiedSupplierProducts = true, CashOnDeliveryEnabled = false, CashOnDeliveryMaxOrderTotal = 2500m,
+            AutoApproveVerifiedSupplierProducts = true, CashOnDeliveryEnabled = false, CashOnDeliveryMaxOrderTotal = 2500m, MinOrderAmount = 1500m,
             DepositBankName = "FNB Business", DepositAccountHolder = "SpazaSure Holdings", DepositAccountNumber = "62000000001", DepositBranchCode = "250655",
         };
 
@@ -53,7 +53,7 @@ public class PlatformRulesTests
         await PlatformSettingsStore.SaveAsync(db, saved); // saving twice updates, never duplicates
 
         (await PlatformSettingsStore.LoadAsync(db)).Should().BeEquivalentTo(saved);
-        (await db.PlatformSettings.CountAsync()).Should().Be(19);
+        (await db.PlatformSettings.CountAsync()).Should().Be(20);
     }
 
     [Theory]

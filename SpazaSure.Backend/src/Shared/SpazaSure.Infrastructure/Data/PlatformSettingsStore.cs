@@ -44,6 +44,11 @@ public sealed record PlatformRules
     public bool CashOnDeliveryEnabled { get; init; } = true;
     /// <summary>Largest checkout total (R) allowed as cash on delivery, to limit cash-handling risk. 0 = no limit.</summary>
     public decimal CashOnDeliveryMaxOrderTotal { get; init; } = 5000m;
+    /// <summary>
+    /// Smallest order a shop may place with one supplier (R, products only, delivery not counted).
+    /// Applies to group buys too. 0 = no minimum.
+    /// </summary>
+    public decimal MinOrderAmount { get; init; } = 2000m;
     /// <summary>SpazaSure's bank account that shops deposit into to top up their wallet.</summary>
     public string DepositBankName { get; init; } = "Capitec Business";
     public string DepositAccountHolder { get; init; } = "GEOTX PTY LTD";
@@ -66,6 +71,7 @@ public sealed record PlatformRules
         if (PayoutDelayDays is < 0 or > 60) return "Payout delay must be between 0 and 60 days.";
         if (SupplierReachKm is < 1 or > 2000) return "Supplier reach must be between 1 and 2,000 km.";
         if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
+        if (MinOrderAmount is < 0 or > 1000000) return "Minimum order must be between R0 and R1,000,000.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
         if (string.IsNullOrWhiteSpace(DepositBankName) || DepositBankName.Length > 80) return "Enter the deposit bank name (up to 80 characters).";
@@ -96,6 +102,7 @@ public static class PlatformSettingsStore
     public const string AutoApproveProductsKey = "auto_approve_verified_supplier_products";
     public const string CashOnDeliveryEnabledKey = "cash_on_delivery_enabled";
     public const string CashOnDeliveryMaxOrderTotalKey = "cash_on_delivery_max_order_total";
+    public const string MinOrderAmountKey = "min_order_amount";
     public const string DepositBankNameKey = "deposit_bank_name";
     public const string DepositAccountHolderKey = "deposit_account_holder";
     public const string DepositAccountNumberKey = "deposit_account_number";
@@ -122,6 +129,7 @@ public static class PlatformSettingsStore
             AutoApproveVerifiedSupplierProducts = Bool(values, AutoApproveProductsKey, d.AutoApproveVerifiedSupplierProducts),
             CashOnDeliveryEnabled = Bool(values, CashOnDeliveryEnabledKey, d.CashOnDeliveryEnabled),
             CashOnDeliveryMaxOrderTotal = Dec(values, CashOnDeliveryMaxOrderTotalKey, d.CashOnDeliveryMaxOrderTotal),
+            MinOrderAmount = Dec(values, MinOrderAmountKey, d.MinOrderAmount),
             DepositBankName = Str(values, DepositBankNameKey, d.DepositBankName),
             DepositAccountHolder = Str(values, DepositAccountHolderKey, d.DepositAccountHolder),
             DepositAccountNumber = Str(values, DepositAccountNumberKey, d.DepositAccountNumber),
@@ -148,6 +156,7 @@ public static class PlatformSettingsStore
             [AutoApproveProductsKey] = rules.AutoApproveVerifiedSupplierProducts ? "true" : "false",
             [CashOnDeliveryEnabledKey] = rules.CashOnDeliveryEnabled ? "true" : "false",
             [CashOnDeliveryMaxOrderTotalKey] = Fmt(rules.CashOnDeliveryMaxOrderTotal),
+            [MinOrderAmountKey] = Fmt(rules.MinOrderAmount),
             [DepositBankNameKey] = rules.DepositBankName.Trim(),
             [DepositAccountHolderKey] = rules.DepositAccountHolder.Trim(),
             [DepositAccountNumberKey] = rules.DepositAccountNumber.Trim(),
