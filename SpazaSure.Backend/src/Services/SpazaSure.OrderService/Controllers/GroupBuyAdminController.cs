@@ -22,7 +22,11 @@ public record NewGroupBuyRequest(
     string? BannerImageUrl = null,
     // Which warehouse supplies the campaign (null = head office) and how far from it shops may join
     Guid? SupplierBranchId = null,
-    decimal? AreaRadiusKm = null);
+    decimal? AreaRadiusKm = null,
+    // Several places at once: the deal is open within AreaRadiusKm of each, and every shop is
+    // served by its nearest. When given, these replace SupplierBranchId.
+    List<Guid>? SupplierBranchIds = null,
+    bool IncludeHeadOffice = false);
 
 public record RejectGroupBuyRequest(string? Note);
 
@@ -50,19 +54,27 @@ internal static class GroupBuyFactory
         var supplier = await db.Suppliers.AsNoTracking().Include(s => s.Branches)
             .FirstOrDefaultAsync(s => s.Id == supplierId);
         if (supplier is null) return (null, "Choose a supplier.");
-        SupplierReach.Location from;
-        if (req.SupplierBranchId is { } branchId)
+        // The places the deal is open around: several branches and/or the head office, or one
+        var headOffice = SupplierReach.Locations(supplier).First();
+        var several = req.SupplierBranchIds is { Count: > 0 } || req.IncludeHeadOffice;
+        var branchIds = several
+            ? (req.SupplierBranchIds ?? []).Distinct().ToList()
+            : req.SupplierBranchId is { } single ? [single] : [];
+        var places = new List<SupplierReach.Location>();
+        if (several ? req.IncludeHeadOffice : branchIds.Count == 0)
+        {
+            if (headOffice.Latitude is null && string.IsNullOrWhiteSpace(headOffice.City))
+                return (null, "The supplier's head office has no address yet. Choose a branch, or ask the supplier to add their address.");
+            places.Add(headOffice);
+        }
+        foreach (var branchId in branchIds)
         {
             var branch = supplier.Branches.FirstOrDefault(b => b.Id == branchId && b.IsActive);
-            if (branch is null) return (null, "Choose one of the supplier's active branches.");
-            from = new SupplierReach.Location(branch.Id, branch.Name, branch.City, branch.Province, branch.Latitude, branch.Longitude);
+            if (branch is null) return (null, "Choose the supplier's active branches.");
+            places.Add(new SupplierReach.Location(branch.Id, branch.Name, branch.City, branch.Province, branch.Latitude, branch.Longitude));
         }
-        else
-        {
-            from = SupplierReach.Locations(supplier).First();
-            if (from.Latitude is null && string.IsNullOrWhiteSpace(from.City))
-                return (null, "The supplier's head office has no address yet. Choose a branch, or ask the supplier to add their address.");
-        }
+        if (places.Count == 0) return (null, "Choose at least one branch (or the head office) for the deal.");
+        var from = places[0];
         var radius = req.AreaRadiusKm ?? (await PlatformSettingsStore.LoadAsync(db)).SupplierReachKm;
         if (radius < 1 || radius > GroupBuyArea.MaxRadiusKm)
             return (null, $"The area radius must be between 1 and {GroupBuyArea.MaxRadiusKm:0} km.");
@@ -92,6 +104,16 @@ internal static class GroupBuyFactory
             AreaLongitude = from.Longitude,
             AreaRadiusKm = Math.Round(radius, 1),
         };
+        foreach (var place in places)
+            groupBuy.Branches.Add(new GroupBuyBranch
+            {
+                SupplierBranchId = place.BranchId,
+                Name = place.BranchId is null ? "Head office" : place.Name,
+                City = string.IsNullOrWhiteSpace(place.City) ? null : place.City.Trim(),
+                Province = string.IsNullOrWhiteSpace(place.Province) ? null : place.Province.Trim(),
+                Latitude = place.Latitude,
+                Longitude = place.Longitude,
+            });
 
         foreach (var input in req.Products)
         {

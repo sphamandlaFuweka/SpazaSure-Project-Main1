@@ -1069,6 +1069,59 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("group_buys", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyBranch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("City")
+                        .HasColumnType("text")
+                        .HasColumnName("city");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("GroupBuyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_buy_id");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Province")
+                        .HasColumnType("text")
+                        .HasColumnName("province");
+
+                    b.Property<Guid?>("SupplierBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_branch_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_group_buy_branches");
+
+                    b.HasIndex("GroupBuyId")
+                        .HasDatabaseName("ix_group_buy_branches_group_buy_id");
+
+                    b.ToTable("group_buy_branches", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyParticipant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1089,6 +1142,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("delivery_fee");
+
+                    b.Property<Guid?>("GroupBuyBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_buy_branch_id");
 
                     b.Property<Guid>("GroupBuyId")
                         .HasColumnType("uuid")
@@ -4170,6 +4227,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("SupplierBranch");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyBranch", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.GroupBuy", "GroupBuy")
+                        .WithMany("Branches")
+                        .HasForeignKey("GroupBuyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_buy_branches_group_buys_group_buy_id");
+
+                    b.Navigation("GroupBuy");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyParticipant", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.GroupBuy", "GroupBuy")
@@ -4712,6 +4781,8 @@ namespace SpazaSure.Infrastructure.Migrations
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuy", b =>
                 {
+                    b.Navigation("Branches");
+
                     b.Navigation("Participants");
 
                     b.Navigation("Products");

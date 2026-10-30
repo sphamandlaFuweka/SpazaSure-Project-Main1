@@ -21,8 +21,9 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   const [supplierId, setSupplierId] = useState('');
   const [products, setProducts] = useState<SupplierProductOption[]>([]);
   const [places, setPlaces] = useState<SupplierBranchOptions | null>(null);
-  /** '' is the head office */
-  const [branchId, setBranchId] = useState('');
+  /** Where the deal is open: any of the supplier's branches and/or its head office */
+  const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [headOffice, setHeadOffice] = useState(false);
   const [radiusKm, setRadiusKm] = useState(40);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -52,14 +53,17 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   useEffect(() => {
     setLines([{ productId: '', targetQty: 50, discountPct: 10 }]);
     setPlaces(null);
-    setBranchId('');
+    setBranchIds([]);
+    setHeadOffice(false);
     if (supplierId) {
       adminGroupBuyApi.supplierBranches(supplierId)
         .then((p) => {
           setPlaces(p);
           setRadiusKm(Math.min(40, p.defaultRadiusKm));
-          // A supplier with warehouses usually runs each campaign from one of them
-          if (p.branches.length > 0 && !p.headOffice.city && p.headOffice.latitude == null) setBranchId(p.branches[0].id);
+          // Start with the head office when it has an address, else the first warehouse
+          const headOfficeKnown = !!p.headOffice.city || p.headOffice.latitude != null;
+          setHeadOffice(headOfficeKnown);
+          if (!headOfficeKnown && p.branches.length > 0) setBranchIds([p.branches[0].id]);
         })
         .catch(() => toast.error("Could not load the supplier's branches"));
       const supplierName = suppliers.find((s) => s.id === supplierId)?.companyName;
@@ -88,15 +92,21 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
   const update = (i: number, patch: Partial<Line>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
-  const chosenBranch = places?.branches.find((b) => b.id === branchId);
-  const areaPlace = chosenBranch
-    ? `${chosenBranch.city}, ${chosenBranch.province}`
-    : [places?.headOffice.city, places?.headOffice.province].filter(Boolean).join(', ');
   const headOfficeMissing = !!places && !places.headOffice.city && places.headOffice.latitude == null;
+  const toggleBranch = (id: string) =>
+    setBranchIds((ids) => (ids.includes(id) ? ids.filter((b) => b !== id) : [...ids, id]));
+  // e.g. "Johannesburg, Durban or Pietermaritzburg"
+  const chosenPlaces = [
+    ...(headOffice ? [places?.headOffice.city || 'the head office'] : []),
+    ...(places?.branches.filter((b) => branchIds.includes(b.id)).map((b) => b.city || b.name) ?? []),
+  ].filter((name, i, all) => all.indexOf(name) === i);
+  const areaPlace = chosenPlaces.length <= 1
+    ? chosenPlaces[0] ?? ''
+    : `${chosenPlaces.slice(0, -1).join(', ')} or ${chosenPlaces[chosenPlaces.length - 1]}`;
 
   const submit = async () => {
     if (!supplierId) { toast.error('Choose a supplier'); return; }
-    if (!branchId && headOfficeMissing) { toast.error('Choose the branch this group buy runs from'); return; }
+    if (!headOffice && branchIds.length === 0) { toast.error('Choose at least one branch (or the head office) for this deal'); return; }
     if (!(radiusKm >= 1 && radiusKm <= (places?.maxRadiusKm ?? 300))) { toast.error(`The area radius must be between 1 and ${places?.maxRadiusKm ?? 300} km`); return; }
     if (title.trim().length < 3) { toast.error('Give the group buy a title'); return; }
     if (lines.some((l) => !l.productId)) { toast.error('Choose a product on every line'); return; }
@@ -113,7 +123,8 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
         bannerImageUrl,
         durationDays: days,
         products: lines,
-        supplierBranchId: branchId || undefined,
+        supplierBranchIds: branchIds,
+        includeHeadOffice: headOffice,
         areaRadiusKm: radiusKm,
       };
       const res = await adminGroupBuyApi.create(body);
@@ -146,24 +157,37 @@ export default function GroupBuyCreateModal({ onClose, onCreated }: Props) {
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="label">Supplied from</label>
-                <select className="input" value={branchId} onChange={(e) => setBranchId(e.target.value)} disabled={!places}>
-                  <option value="" disabled={headOfficeMissing}>
-                    Head office{places?.headOffice.city ? ` (${places.headOffice.city})` : headOfficeMissing ? ' (no address yet)' : ''}
-                  </option>
-                  {places?.branches.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.city})</option>)}
-                </select>
+                <label className="label">Available at</label>
+                {/* Tick every branch the deal runs from; each shop is served by its nearest one */}
+                <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 max-h-44 overflow-y-auto">
+                  <label className={`flex items-center gap-2.5 px-3 py-2 text-sm ${headOfficeMissing ? 'text-gray-400' : 'cursor-pointer'}`}>
+                    <input type="checkbox" checked={headOffice} disabled={!places || headOfficeMissing}
+                      onChange={(e) => setHeadOffice(e.target.checked)} />
+                    <span className="font-semibold">Head office</span>
+                    <span className="text-gray-500 truncate">
+                      {places?.headOffice.city ? places.headOffice.city : headOfficeMissing ? 'no address yet' : ''}
+                    </span>
+                  </label>
+                  {places?.branches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer">
+                      <input type="checkbox" checked={branchIds.includes(b.id)} onChange={() => toggleBranch(b.id)} />
+                      <span className="font-semibold truncate">{b.name}</span>
+                      <span className="text-gray-500 truncate">{b.city}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="label">Area radius (km)</label>
                 <input className="input" type="number" min={1} max={places?.maxRadiusKm ?? 300} value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} />
+                <p className="text-[11px] text-gray-400 mt-1">Around each chosen place</p>
               </div>
             </div>
             <p className="text-xs text-gray-600 flex items-start gap-1.5">
               <MapPin size={13} className="mt-0.5 shrink-0 text-primary" />
               {areaPlace
-                ? <>Only shops within <b>{radiusKm || 0} km</b> of <b>{areaPlace}</b> will see and be able to join this group buy.</>
-                : 'Choose where the stock ships from. Only shops around it can join.'}
+                ? <>Only shops within <b>{radiusKm || 0} km</b> of <b>{areaPlace}</b> will see and be able to join this group buy. Each shop is served, and delivered to, from its nearest one.</>
+                : 'Tick where the stock ships from. Only shops around those places can join.'}
             </p>
             {places && places.branches.length === 0 && (
               <p className="text-[11px] text-gray-400">This supplier hasn't added any branches, so the campaign runs from their head office.</p>

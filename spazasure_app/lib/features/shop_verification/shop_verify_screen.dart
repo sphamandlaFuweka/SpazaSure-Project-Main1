@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
@@ -54,6 +55,32 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Checks as soon as a whole shop number is typed, so there's no need to press Check.
+  void _onTyped(String value) {
+    final code = normalizeShopNumber(value);
+    if (code != null && code != _result?['shopNumber'] && !_loading) _check();
+  }
+
+  /// Scans the QR code on the shop's sticker.
+  Future<void> _scan() async {
+    final scanned = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const _StickerScanScreen()),
+    );
+    if (!mounted || scanned == null) return;
+    final code = normalizeShopNumber(scanned);
+    if (code == null) {
+      setState(() {
+        _result = null;
+        _error =
+            "That QR code isn't a SpazaSure shop sticker. Scan the code on the green sticker, or type the shop number.";
+      });
+      return;
+    }
+    _controller.text = code;
+    _check();
   }
 
   Future<void> _check() async {
@@ -120,11 +147,34 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 20),
+          if (result != null || _error != null) const SizedBox(height: 20),
+          // Scanning is quickest when standing at the shop
+          SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _loading ? null : _scan,
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: Text(
+                result == null
+                    ? 'Scan the sticker\'s QR code'
+                    : 'Scan another shop',
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text('or', style: AppTextStyles.caption),
+              ),
+              const Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
-            result == null
-                ? 'Enter the shop number on the sticker'
-                : 'Check another shop',
+            'Type the shop number on the sticker',
             style: AppTextStyles.bodySmall.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -137,6 +187,7 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
                   controller: _controller,
                   textCapitalization: TextCapitalization.characters,
                   textInputAction: TextInputAction.search,
+                  onChanged: _onTyped,
                   onSubmitted: (_) => _check(),
                   decoration: const InputDecoration(hintText: 'e.g. SS482913'),
                 ),
@@ -144,7 +195,7 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
               const SizedBox(width: 8),
               SizedBox(
                 height: 52,
-                child: ElevatedButton(
+                child: OutlinedButton(
                   onPressed: _loading ? null : _check,
                   child: const Text('Check'),
                 ),
@@ -178,6 +229,12 @@ class ShopVerificationCard extends StatelessWidget {
       result['validUntil']?.toString() ?? '',
     );
     final area = result['area']?.toString() ?? '';
+    final address = result['address']?.toString() ?? '';
+    final rating = (result['ratingAvg'] as num?)?.toDouble();
+    final ratingCount = (result['ratingCount'] as num?)?.toInt() ?? 0;
+    final memberSince = DateTime.tryParse(
+      result['memberSince']?.toString() ?? '',
+    );
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -247,7 +304,23 @@ class ShopVerificationCard extends StatelessWidget {
                   Icons.storefront_outlined,
                   'Shop number ${result['shopNumber'] ?? ''}',
                 ),
-                if (area.isNotEmpty) _row(Icons.place_outlined, area),
+                if (address.isNotEmpty)
+                  _row(Icons.place_outlined, address)
+                else if (area.isNotEmpty)
+                  _row(Icons.place_outlined, area),
+                if (address.isNotEmpty && area.isNotEmpty)
+                  _row(Icons.map_outlined, area),
+                if (rating != null)
+                  _row(
+                    Icons.star_rounded,
+                    '${rating.toStringAsFixed(1)} out of 5 from $ratingCount '
+                    '${ratingCount == 1 ? 'review' : 'reviews'}',
+                  ),
+                if (memberSince != null)
+                  _row(
+                    Icons.calendar_month_outlined,
+                    'On SpazaSure since ${DateFormat('MMMM yyyy').format(memberSince)}',
+                  ),
                 if (verified && validUntil != null)
                   _row(
                     Icons.event_available_outlined,
@@ -316,6 +389,89 @@ class GreenSticker extends StatelessWidget {
               fontSize: size * 0.13,
               fontWeight: FontWeight.w900,
               height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A camera that reads one QR code (the shop's sticker) and returns what it says.
+class _StickerScanScreen extends StatefulWidget {
+  const _StickerScanScreen();
+
+  @override
+  State<_StickerScanScreen> createState() => _StickerScanScreenState();
+}
+
+class _StickerScanScreenState extends State<_StickerScanScreen> {
+  final _camera = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    formats: const [BarcodeFormat.qrCode],
+  );
+  bool _done = false;
+
+  @override
+  void dispose() {
+    _camera.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    final value = capture.barcodes
+        .map((b) => b.rawValue)
+        .whereType<String>()
+        .firstOrNull;
+    if (value == null || _done) return;
+    _done = true;
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: BrandAppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Scan the shop sticker'),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: _camera,
+            onDetect: _onDetect,
+            errorBuilder: (context, error) => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'The camera isn\'t available. Allow camera access, or go back and type the shop number.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
+          ),
+          // A square frame to aim the sticker's QR code into
+          Center(
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 24,
+            right: 24,
+            bottom: 48,
+            child: Text(
+              'Point the camera at the QR code on the green SpazaSure sticker',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 15),
             ),
           ),
         ],

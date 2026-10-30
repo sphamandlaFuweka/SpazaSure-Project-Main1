@@ -55,6 +55,29 @@ public class GroupBuy : BaseEntity
     public SupplierBranch? SupplierBranch { get; set; }
     public ICollection<GroupBuyProduct> Products { get; set; } = [];
     public ICollection<GroupBuyParticipant> Participants { get; set; } = [];
+    /// <summary>
+    /// Where the campaign is open: shops within AreaRadiusKm of any of these places can join, and
+    /// each is served by its nearest one. The Area* fields above mirror the first, for older code.
+    /// </summary>
+    public ICollection<GroupBuyBranch> Branches { get; set; } = [];
+}
+
+/// <summary>
+/// A place a group buy is open around and ships from: one of the supplier's branches, or its
+/// head office (no SupplierBranchId). Copied when the campaign is created, so editing or removing
+/// the branch later doesn't move a running campaign.
+/// </summary>
+public class GroupBuyBranch : BaseEntity
+{
+    public Guid GroupBuyId { get; set; }
+    public Guid? SupplierBranchId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? City { get; set; }
+    public string? Province { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
+    public GroupBuy GroupBuy { get; set; } = null!;
 }
 
 /// <summary>A product offered as part of a group buy.</summary>
@@ -102,6 +125,8 @@ public class GroupBuyParticipant : BaseEntity
     public DateTime? PaidAt { get; set; }
     /// <summary>A card checkout holds its quantities until then, so no other shop takes them meanwhile.</summary>
     public DateTime? ReservedUntil { get; set; }
+    /// <summary>The campaign's place (GroupBuyBranch) nearest the shop: its delivery and stock come from there.</summary>
+    public Guid? GroupBuyBranchId { get; set; }
 
     public GroupBuy GroupBuy { get; set; } = null!;
     public SpazaShop Shop { get; set; } = null!;

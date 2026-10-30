@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { Modal } from '../../components/ui';
 import { groupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyOrder, GroupBuyProduct, SupplierGroupBuyFilter } from '../../types';
+import { groupBuyPlaces } from '../../types';
 import { shortOrderNumber } from '../../utils';
 
 const filters: { value: SupplierGroupBuyFilter; label: string }[] = [
@@ -326,7 +327,7 @@ function GroupDetails({
               <span>{live ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining` : 'Closed to new shops'}</span>
               {group.area && (
                 <span className="inline-flex items-center gap-1">
-                  <MapPin size={12} /> From <strong className="text-gray-700">{group.area.branchName}</strong> to {group.area.description}
+                  <MapPin size={12} /> From <strong className="text-gray-700">{groupBuyPlaces(group.area)}</strong> to {group.area.description} (each shop from its nearest)
                 </span>
               )}
             </div>

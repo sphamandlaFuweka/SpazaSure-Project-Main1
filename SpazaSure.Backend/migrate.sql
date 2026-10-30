@@ -2071,6 +2071,38 @@ ALTER TABLE group_buy_participant_items ADD COLUMN IF NOT EXISTS shop_unit_price
 ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS extension_count integer NOT NULL DEFAULT 0;
 ALTER TABLE group_buys ADD COLUMN IF NOT EXISTS ending_reminder_sent_at timestamp with time zone;
 
+-- A group buy can be open around several branches (and/or the head office); each shop is served
+-- by its nearest one, which its delivery and stock come from.
+CREATE TABLE IF NOT EXISTS group_buy_branches (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    group_buy_id uuid NOT NULL,
+    supplier_branch_id uuid,
+    name text NOT NULL DEFAULT '',
+    city text,
+    province text,
+    latitude double precision,
+    longitude double precision,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_group_buy_branches PRIMARY KEY (id),
+    CONSTRAINT fk_group_buy_branches_group_buys_group_buy_id FOREIGN KEY (group_buy_id) REFERENCES group_buys(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_group_buy_branches_group_buy_id ON group_buy_branches(group_buy_id);
+ALTER TABLE group_buy_participants ADD COLUMN IF NOT EXISTS group_buy_branch_id uuid;
+-- Existing campaigns keep their single area as their one place, and their shops are served by it
+INSERT INTO group_buy_branches (id, group_buy_id, supplier_branch_id, name, city, province, latitude, longitude, created_at, updated_at)
+SELECT gen_random_uuid(), g.id, g.supplier_branch_id,
+       COALESCE((SELECT b.name FROM supplier_branches b WHERE b.id = g.supplier_branch_id), 'Head office'),
+       g.area_city, g.area_province, g.area_latitude, g.area_longitude, g.created_at, NOW()
+FROM group_buys g
+WHERE g.area_radius_km IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM group_buy_branches existing WHERE existing.group_buy_id = g.id);
+UPDATE group_buy_participants p
+SET group_buy_branch_id = b.id
+FROM group_buy_branches b
+WHERE p.group_buy_branch_id IS NULL AND b.group_buy_id = p.group_buy_id
+  AND (SELECT COUNT(*) FROM group_buy_branches only_one WHERE only_one.group_buy_id = p.group_buy_id) = 1;
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

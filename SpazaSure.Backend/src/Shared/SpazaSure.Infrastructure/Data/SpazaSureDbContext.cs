@@ -34,6 +34,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<GroupBuy> GroupBuys => Set<GroupBuy>();
     public DbSet<GroupBuyProduct> GroupBuyProducts => Set<GroupBuyProduct>();
     public DbSet<GroupBuyParticipant> GroupBuyParticipants => Set<GroupBuyParticipant>();
+    public DbSet<GroupBuyBranch> GroupBuyBranches => Set<GroupBuyBranch>();
     public DbSet<GroupBuyParticipantItem> GroupBuyParticipantItems => Set<GroupBuyParticipantItem>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
     public DbSet<Faq> Faqs => Set<Faq>();
@@ -510,6 +511,13 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(p => p.DeliveryFee).HasPrecision(10, 2);
             e.HasOne(p => p.GroupBuy).WithMany(g => g.Participants).HasForeignKey(p => p.GroupBuyId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(p => p.Shop).WithMany().HasForeignKey(p => p.ShopId);
+        });
+
+        model.Entity<GroupBuyBranch>(e =>
+        {
+            e.ToTable("group_buy_branches");
+            e.HasIndex(b => b.GroupBuyId);
+            e.HasOne(b => b.GroupBuy).WithMany(g => g.Branches).HasForeignKey(b => b.GroupBuyId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // GroupBuyParticipantItem

@@ -108,9 +108,10 @@ public static class SupplierReach
 }
 
 /// <summary>
-/// Where a group buy is open: shops in its province and within its radius of the supplying
-/// branch. When either side has no map position, the shop must be in the same city instead.
-/// Campaigns from before areas existed fall back to the supplier's normal reach.
+/// Where a group buy is open: shops within its radius of any of its places (branches or the head
+/// office), in the same province. When either side has no map position, the shop must be in the
+/// place's city instead. Each shop is served by its nearest place. Campaigns from before areas
+/// existed fall back to the supplier's normal reach.
 /// </summary>
 public static class GroupBuyArea
 {
@@ -118,26 +119,87 @@ public static class GroupBuyArea
 
     public static bool HasArea(GroupBuy groupBuy) => groupBuy.AreaRadiusKm is not null;
 
+    /// <summary>
+    /// The campaign's places. Campaigns from before several branches were possible have none
+    /// stored, so their single area stands in (with an empty Id).
+    /// </summary>
+    public static IReadOnlyList<GroupBuyBranch> Places(GroupBuy groupBuy) =>
+        groupBuy.Branches.Count > 0
+            ? groupBuy.Branches.OrderBy(b => b.CreatedAt).ThenBy(b => b.Name).ToList()
+            :
+            [
+                new GroupBuyBranch
+                {
+                    Id = Guid.Empty, GroupBuyId = groupBuy.Id, SupplierBranchId = groupBuy.SupplierBranchId,
+                    Name = groupBuy.SupplierBranch?.Name ?? (groupBuy.SupplierBranchId is null ? "Head office" : "Branch"),
+                    City = groupBuy.AreaCity, Province = groupBuy.AreaProvince,
+                    Latitude = groupBuy.AreaLatitude, Longitude = groupBuy.AreaLongitude,
+                },
+            ];
+
+    /// <summary>The place nearest the shop that it is within range of, or null when it is outside them all.</summary>
+    public static GroupBuyBranch? ServingPlace(GroupBuy groupBuy, SpazaShop shop) =>
+        !HasArea(groupBuy)
+            ? null
+            : Places(groupBuy)
+                .Where(place => Covers(groupBuy, place, shop))
+                .OrderBy(place => Distance(place, shop) ?? double.MaxValue)
+                .FirstOrDefault();
+
     /// <summary>Needs groupBuy.Supplier (with Branches) loaded for campaigns without an area.</summary>
-    public static bool Contains(GroupBuy groupBuy, SpazaShop shop, decimal supplierReachKm)
+    public static bool Contains(GroupBuy groupBuy, SpazaShop shop, decimal supplierReachKm) =>
+        HasArea(groupBuy)
+            ? ServingPlace(groupBuy, shop) is not null
+            : SupplierReach.CanServe(shop, groupBuy.Supplier, supplierReachKm);
+
+    /// <summary>The id a participant served by this place stores (null for the stand-in of older campaigns).</summary>
+    public static Guid? KeyOf(GroupBuyBranch place) => place.Id == Guid.Empty ? null : place.Id;
+
+    /// <summary>Whether a participant is served by this place; shops that joined before places were stored count for the first.</summary>
+    public static bool Serves(GroupBuy groupBuy, GroupBuyBranch place, GroupBuyParticipant participant) =>
+        participant.GroupBuyBranchId == KeyOf(place) ||
+        (participant.GroupBuyBranchId is null && Places(groupBuy)[0] == place);
+
+    /// <summary>The place serving a participant (its own, else the first).</summary>
+    public static GroupBuyBranch PlaceOf(GroupBuy groupBuy, GroupBuyParticipant participant)
     {
-        if (!HasArea(groupBuy)) return SupplierReach.CanServe(shop, groupBuy.Supplier, supplierReachKm);
-        if (!SupplierReach.SameProvince(shop.Province, groupBuy.AreaProvince)) return false;
-
-        if (shop.Latitude is { } shopLat && shop.Longitude is { } shopLng &&
-            groupBuy.AreaLatitude is { } lat && groupBuy.AreaLongitude is { } lng)
-            return SupplierReach.DistanceKm(shopLat, shopLng, lat, lng) <= (double)groupBuy.AreaRadiusKm!.Value;
-
-        var shopCity = SupplierReach.NormalizeCity(shop.City);
-        var areaCity = SupplierReach.NormalizeCity(groupBuy.AreaCity);
-        return shopCity.Length > 0 && shopCity == areaCity;
+        var places = Places(groupBuy);
+        return places.FirstOrDefault(p => KeyOf(p) == participant.GroupBuyBranchId) ?? places[0];
     }
 
-    /// <summary>"shops within 40 km of Durban, KwaZulu-Natal", for messages and the advert page.</summary>
+    private static double? Distance(GroupBuyBranch place, SpazaShop shop) =>
+        shop.Latitude is { } shopLat && shop.Longitude is { } shopLng && place.Latitude is { } lat && place.Longitude is { } lng
+            ? SupplierReach.DistanceKm(shopLat, shopLng, lat, lng)
+            : null;
+
+    private static bool Covers(GroupBuy groupBuy, GroupBuyBranch place, SpazaShop shop)
+    {
+        if (!SupplierReach.SameProvince(shop.Province, place.Province)) return false;
+        if (Distance(place, shop) is { } km) return km <= (double)groupBuy.AreaRadiusKm!.Value;
+        var shopCity = SupplierReach.NormalizeCity(shop.City);
+        return shopCity.Length > 0 && shopCity == SupplierReach.NormalizeCity(place.City);
+    }
+
+    /// <summary>
+    /// "shops within 40 km of Durban, KwaZulu-Natal", or with several places
+    /// "shops within 40 km of Durban, Pietermaritzburg or Newcastle", for messages and the advert page.
+    /// </summary>
     public static string Describe(GroupBuy groupBuy)
     {
         if (!HasArea(groupBuy)) return "shops near the supplier";
-        var place = string.Join(", ", new[] { groupBuy.AreaCity, groupBuy.AreaProvince }.Where(p => !string.IsNullOrWhiteSpace(p)));
-        return $"shops within {groupBuy.AreaRadiusKm:0.#} km of {(place.Length > 0 ? place : "the supplier")}";
+        var places = Places(groupBuy);
+        string where;
+        if (places.Count == 1)
+        {
+            where = string.Join(", ", new[] { places[0].City, places[0].Province }.Where(p => !string.IsNullOrWhiteSpace(p)));
+            if (where.Length == 0) where = "the supplier";
+        }
+        else
+        {
+            var names = places.Select(p => string.IsNullOrWhiteSpace(p.City) ? p.Name : p.City!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            where = names.Count == 1 ? names[0] : string.Join(", ", names[..^1]) + " or " + names[^1];
+        }
+        return $"shops within {groupBuy.AreaRadiusKm:0.#} km of {where}";
     }
 }

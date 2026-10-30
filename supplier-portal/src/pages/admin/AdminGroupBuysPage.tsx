@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Ban, Plus, Users, Loader2, MapPin, Eye } from 'lu
 import { Modal } from '../../components/ui';
 import { adminGroupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter } from '../../types';
+import { groupBuyPlaces } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
 
 const filters: { value: GroupBuyFilter; label: string }[] = [
@@ -222,7 +223,7 @@ function GroupDetails({ g, busy, onApprove, onReject, onCancel }: {
           </p>
           <p className="text-xs text-gray-500 flex items-center gap-1">
             <MapPin size={12} />
-            {g.area ? <>From {g.area.branchName} &middot; open to {g.area.description}</> : 'Open to shops near the supplier (no area set)'}
+            {g.area ? <>From {groupBuyPlaces(g.area)} &middot; open to {g.area.description}</> : 'Open to shops near the supplier (no area set)'}
           </p>
           {g.description && <p className="text-sm text-gray-600">{g.description}</p>}
           {g.rejectionNote && <p className="text-sm text-red-700">Note: {g.rejectionNote}</p>}

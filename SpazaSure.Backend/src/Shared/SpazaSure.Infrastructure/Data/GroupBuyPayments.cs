@@ -38,9 +38,17 @@ public static class GroupBuyPayments
     public static int Remaining(GroupBuy groupBuy, GroupBuyProduct product, DateTime now, Guid? exceptParticipantId = null) =>
         Math.Max(0, product.TargetQty - JoinedQty(product) - ReservedQty(groupBuy, product.Id, now, exceptParticipantId));
 
-    /// <summary>Units of this product taken by shops (joined or paying now): what the supplying branch must have in stock.</summary>
-    public static int Committed(GroupBuy groupBuy, GroupBuyProduct product, DateTime now, Guid? exceptParticipantId = null) =>
-        JoinedQty(product) + ReservedQty(groupBuy, product.Id, now, exceptParticipantId);
+    /// <summary>
+    /// Units of this product taken by the shops one place serves (joined or paying now): what that
+    /// branch must have in stock. Without a place, every shop counts.
+    /// </summary>
+    public static int Committed(
+        GroupBuy groupBuy, GroupBuyProduct product, DateTime now, Guid? exceptParticipantId = null, GroupBuyBranch? place = null) =>
+        groupBuy.Participants
+            .Where(p => p.Id != exceptParticipantId && (place is null || GroupBuyArea.Serves(groupBuy, place, p)))
+            .SelectMany(p => p.Items.Where(i => i.GroupBuyProductId == product.Id &&
+                (i.Status == "joined" || (i.Status == "reserved" && HoldsReservation(p, now)))))
+            .Sum(i => i.Quantity);
 
     /// <summary>The least a shop may take of one product: the product's own minimum, unless less than that is left.</summary>
     public static int MinimumFor(GroupBuyProduct product, int remaining) =>
@@ -277,6 +285,8 @@ public static class GroupBuyPayments
             await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM group_buys WHERE id = {groupBuyId} FOR UPDATE", ct);
         return await db.GroupBuys
             .Include(g => g.Supplier)
+            .Include(g => g.SupplierBranch)
+            .Include(g => g.Branches)
             .Include(g => g.Products).ThenInclude(p => p.Product).ThenInclude(p => p.BranchStock)
             .Include(g => g.Products).ThenInclude(p => p.Items)
             .Include(g => g.Participants).ThenInclude(p => p.Shop)

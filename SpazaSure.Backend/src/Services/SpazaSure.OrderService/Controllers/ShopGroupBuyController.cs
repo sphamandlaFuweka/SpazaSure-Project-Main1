@@ -17,6 +17,7 @@ internal static class GroupBuyResponse
     internal static IQueryable<GroupBuy> WithGraph(IQueryable<GroupBuy> query) => query
         .Include(g => g.Supplier).ThenInclude(s => s.Branches)
         .Include(g => g.SupplierBranch)
+        .Include(g => g.Branches)
         .Include(g => g.CreatedByShop)
         .Include(g => g.Products).ThenInclude(p => p.Product).ThenInclude(p => p.BranchStock)
         .Include(g => g.Products).ThenInclude(p => p.Items)
@@ -162,6 +163,18 @@ internal static class GroupBuyResponse
             Longitude = groupBuy.AreaLongitude,
             RadiusKm = groupBuy.AreaRadiusKm,
             Description = GroupBuyArea.Describe(groupBuy),
+            // e.g. "Within 40 km of Durban or Pietermaritzburg", for the app's deal cards
+            Label = "Within" + GroupBuyArea.Describe(groupBuy)["shops within".Length..],
+            // Every place the deal is open around (branches and/or the head office)
+            Places = GroupBuyArea.Places(groupBuy).Select(place => new
+            {
+                place.SupplierBranchId,
+                place.Name,
+                place.City,
+                place.Province,
+                place.Latitude,
+                place.Longitude,
+            }).ToList(),
         }
         : null;
 
@@ -251,6 +264,11 @@ public class ShopGroupBuyController(
             {
                 Id = g.Id, SupplierId = g.SupplierId, AreaCity = g.AreaCity, AreaProvince = g.AreaProvince,
                 AreaLatitude = g.AreaLatitude, AreaLongitude = g.AreaLongitude, AreaRadiusKm = g.AreaRadiusKm,
+                Branches = g.Branches.Select(b => new GroupBuyBranch
+                {
+                    Id = b.Id, Name = b.Name, City = b.City, Province = b.Province,
+                    Latitude = b.Latitude, Longitude = b.Longitude, CreatedAt = b.CreatedAt,
+                }).ToList(),
             })
             .ToListAsync();
         HashSet<Guid>? reachable = null;
@@ -387,6 +405,7 @@ public class ShopGroupBuyController(
             item.Status = isWallet ? "joined" : "reserved";
         }
         participant.PaymentId = Guid.NewGuid();
+        participant.GroupBuyBranchId = price.Place is null ? null : GroupBuyArea.KeyOf(price.Place);
         participant.PaymentMethod = method;
         participant.AmountPaid = price.Total;
         participant.DeliveryFee = price.DeliveryFee;
@@ -519,7 +538,8 @@ public class ShopGroupBuyController(
     }
 
     private sealed record PricedLine(GroupBuyProduct Product, int Quantity, decimal UnitPrice, decimal LineTotal);
-    private sealed record Price(List<PricedLine> Lines, decimal ItemsTotal, decimal DeliveryFee, decimal Total);
+    /// <summary>What joining costs, and the campaign place (nearest branch) that serves the shop.</summary>
+    private sealed record Price(List<PricedLine> Lines, decimal ItemsTotal, decimal DeliveryFee, decimal Total, GroupBuyBranch? Place);
 
     /// <summary>Checks the quantities (min 10 each, no more than still needed, in stock) and prices them with delivery.</summary>
     private async Task<(string? Error, Price? Price)> PriceAsync(
@@ -529,6 +549,9 @@ public class ShopGroupBuyController(
         var now = DateTime.UtcNow;
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var markup = ShopPricing.Markup(rules);
+        // The shop is served by the campaign's nearest place: stock and delivery come from there
+        var place = GroupBuyArea.ServingPlace(groupBuy, shop);
+        var shipsFrom = place is null ? groupBuy.SupplierBranchId : place.SupplierBranchId;
         var lines = new List<PricedLine>();
         foreach (var input in req.Items)
         {
@@ -538,13 +561,13 @@ public class ShopGroupBuyController(
                 return ($"'{product.Product.Name}' is no longer open in this group buy.", null);
             if (GroupBuyPayments.QuantityProblem(groupBuy, product, input.Quantity, now, exceptParticipantId) is { } problem)
                 return (problem, null);
-            // Stock at the branch the campaign ships from
-            var committed = GroupBuyPayments.Committed(groupBuy, product, now, exceptParticipantId);
-            var available = BranchStock.AvailableAt(product.Product, groupBuy.SupplierBranchId);
+            // Stock at the branch serving this shop, less what its other shops took
+            var committed = GroupBuyPayments.Committed(groupBuy, product, now, exceptParticipantId, place);
+            var available = BranchStock.AvailableAt(product.Product, shipsFrom);
             if (committed + input.Quantity > available)
                 return (available - committed <= 0
-                    ? $"'{product.Product.Name}' is out of stock at the branch supplying this group buy."
-                    : $"Only {available - committed} more of '{product.Product.Name}' can be bought; that is what the supplying branch has left.", null);
+                    ? $"'{product.Product.Name}' is out of stock at the branch supplying your area."
+                    : $"Only {available - committed} more of '{product.Product.Name}' can be bought; that is what the branch supplying your area has left.", null);
             var (unit, total) = ShopPricing.Line(product.DiscountPrice, input.Quantity, markup);
             lines.Add(new PricedLine(product, input.Quantity, unit, total));
         }
@@ -559,9 +582,9 @@ public class ShopGroupBuyController(
             MinimumOrder.Problem(rules, groupBuy.Supplier.CompanyName, lines.Sum(l => l.LineTotal)) is { } tooSmall)
             return (tooSmall, null);
 
-        // Delivered from the branch the campaign runs from (its area centre), else the head office
-        var (fromLatitude, fromLongitude) = groupBuy.AreaLatitude is not null && groupBuy.AreaLongitude is not null
-            ? (groupBuy.AreaLatitude, groupBuy.AreaLongitude)
+        // Delivered from the place serving the shop, else the head office
+        var (fromLatitude, fromLongitude) = place?.Latitude is not null && place.Longitude is not null
+            ? (place.Latitude, place.Longitude)
             : (groupBuy.Supplier.Latitude, groupBuy.Supplier.Longitude);
         if (!ValidCoordinates(shop.Latitude, shop.Longitude) || string.IsNullOrWhiteSpace(shop.Address))
             return ("Add your shop's address and location in your profile so we can work out the delivery fee.", null);
@@ -571,7 +594,7 @@ public class ShopGroupBuyController(
             rules.GroupBuyBaseDeliveryFee, rules.GroupBuyPerKmRate);
 
         var itemsTotal = lines.Sum(l => l.LineTotal);
-        return (null, new Price(lines, itemsTotal, delivery.DeliveryFee, itemsTotal + delivery.DeliveryFee));
+        return (null, new Price(lines, itemsTotal, delivery.DeliveryFee, itemsTotal + delivery.DeliveryFee, place));
     }
 
     /// <summary>Asks Paystack about an open card checkout; null when it isn't paid (yet).</summary>
@@ -886,11 +909,15 @@ public class SupplierGroupBuyController(
                     "New qualified items cannot be added because an affected group buy order is no longer pending.",
                     nonPendingOrders));
 
-            // Orders leave from the branch the campaign runs from (its area centre), else the head office
-            var (fromLatitude, fromLongitude) = groupBuy.AreaLatitude is not null && groupBuy.AreaLongitude is not null
-                ? (groupBuy.AreaLatitude, groupBuy.AreaLongitude)
-                : (supplier.Latitude, supplier.Longitude);
-            if (!ValidCoordinates(fromLatitude, fromLongitude))
+            // Each shop's order leaves from the campaign place serving it (its nearest branch), else the head office
+            (GroupBuyBranch Place, double? Latitude, double? Longitude) Origin(GroupBuyParticipant participant)
+            {
+                var place = GroupBuyArea.PlaceOf(groupBuy, participant);
+                return place.Latitude is not null && place.Longitude is not null
+                    ? (place, place.Latitude, place.Longitude)
+                    : (place, supplier.Latitude, supplier.Longitude);
+            }
+            if (eligible.Any(x => Origin(x.Participant) is var o && !ValidCoordinates(o.Latitude, o.Longitude)))
                 return BadRequest(ApiResponse.Fail("Supplier delivery coordinates are missing or invalid."));
             var invalidShops = eligible
                 .Where(x => string.IsNullOrWhiteSpace(x.Participant.Shop.Address) ||
@@ -914,9 +941,17 @@ public class SupplierGroupBuyController(
             var quantitiesByProduct = eligible.SelectMany(x => x.Items)
                 .GroupBy(i => i.GroupBuyProductId)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-            var insufficientStock = qualified.Values
-                .Where(p => quantitiesByProduct.GetValueOrDefault(p.Id) > BranchStock.AvailableAt(p.Product, groupBuy.SupplierBranchId))
-                .Select(p => $"{p.Product.Name}: requested {quantitiesByProduct.GetValueOrDefault(p.Id)}, available {BranchStock.AvailableAt(p.Product, groupBuy.SupplierBranchId)}")
+            // Stock is taken from the branch serving each shop
+            var quantitiesByBranch = eligible
+                .SelectMany(x => x.Items.Select(i => (i.GroupBuyProductId, Origin(x.Participant).Place.SupplierBranchId, i.Quantity)))
+                .GroupBy(x => (x.GroupBuyProductId, x.SupplierBranchId))
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+            string BranchName(Guid? branchId) =>
+                supplier.Branches.FirstOrDefault(b => b.Id == branchId)?.Name ?? "the head office";
+            var insufficientStock = quantitiesByBranch
+                .Where(q => q.Value > BranchStock.AvailableAt(qualified[q.Key.GroupBuyProductId].Product, q.Key.SupplierBranchId))
+                .Select(q => $"{qualified[q.Key.GroupBuyProductId].Product.Name}: requested {q.Value}, available " +
+                             $"{BranchStock.AvailableAt(qualified[q.Key.GroupBuyProductId].Product, q.Key.SupplierBranchId)} at {BranchName(q.Key.SupplierBranchId)}")
                 .ToList();
             if (insufficientStock.Count > 0)
                 return BadRequest(ApiResponse.Fail("Confirmed quantities exceed available stock.", insufficientStock));
@@ -963,8 +998,9 @@ public class SupplierGroupBuyController(
                 if (!ordersByParticipant.TryGetValue(entry.Participant.Id, out var order))
                 {
                     rules ??= await PlatformSettingsStore.LoadAsync(db);
+                    var origin = Origin(entry.Participant);
                     var delivery = pricing.Calculate(
-                        fromLatitude!.Value, fromLongitude!.Value,
+                        origin.Latitude!.Value, origin.Longitude!.Value,
                         shop.Latitude!.Value, shop.Longitude!.Value,
                         rules.GroupBuyBaseDeliveryFee, rules.GroupBuyPerKmRate);
                     order = new Order
@@ -976,7 +1012,7 @@ public class SupplierGroupBuyController(
                         GroupBuyParticipantId = entry.Participant.Id,
                         GroupBuy = groupBuy,
                         GroupBuyParticipant = entry.Participant,
-                        SupplierBranchId = groupBuy.SupplierBranchId,
+                        SupplierBranchId = origin.Place.SupplierBranchId,
                         Status = "pending",
                         DeliveryType = "standard",
                         DeliveryAddress = shop.Address!.Trim(),
@@ -1018,7 +1054,8 @@ public class SupplierGroupBuyController(
             foreach (var product in qualified.Values)
             {
                 var approvedQuantity = quantitiesByProduct.GetValueOrDefault(product.Id);
-                BranchStock.Take(product.Product, groupBuy.SupplierBranchId, approvedQuantity);
+                foreach (var (key, quantity) in quantitiesByBranch.Where(q => q.Key.GroupBuyProductId == product.Id))
+                    BranchStock.Take(product.Product, key.SupplierBranchId, quantity);
                 if (approvedQuantity > 0 && !product.Items.Any(i => i.Status == "joined"))
                     product.Status = "approved";
             }

@@ -146,6 +146,9 @@ class GroupBuy {
 
   static String? _areaLabel(dynamic area) {
     if (area is! Map<String, dynamic>) return null;
+    // The server names every place, e.g. "Within 40 km of Johannesburg or Durban"
+    final label = area['label']?.toString().trim() ?? '';
+    if (label.isNotEmpty) return label;
     final radius = (area['radiusKm'] as num?)?.toDouble();
     final city = area['city']?.toString().trim() ?? '';
     final place = city.isNotEmpty

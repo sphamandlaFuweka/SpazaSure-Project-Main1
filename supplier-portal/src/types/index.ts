@@ -203,7 +203,10 @@ export interface NewGroupBuyRequest {
   products: { productId: string; targetQty: number; discountPct: number }[];
   /** The branch (warehouse) that supplies the campaign; omitted for the head office. */
   supplierBranchId?: string;
-  /** Shops further than this from the branch can't see or join the campaign. */
+  /** Several places: the deal is open around each, and every shop is served by its nearest. */
+  supplierBranchIds?: string[];
+  includeHeadOffice?: boolean;
+  /** Shops further than this from every chosen place can't see or join the campaign. */
   areaRadiusKm?: number;
 }
 
@@ -231,7 +234,13 @@ export interface GroupBuyArea {
   radiusKm: number;
   /** e.g. "shops within 40 km of Durban, KwaZulu-Natal" */
   description: string;
+  /** Every place the deal is open around (branches and/or the head office); each shop is served by its nearest. */
+  places?: { supplierBranchId?: string | null; name: string; city?: string | null; province?: string | null }[];
 }
+
+/** "Durban warehouse, Head office" — the places a group buy ships from. */
+export const groupBuyPlaces = (area: GroupBuyArea) =>
+  area.places && area.places.length > 0 ? area.places.map((p) => p.name).join(', ') : area.branchName;
 
 export interface GroupBuyProduct {
   id: string;
