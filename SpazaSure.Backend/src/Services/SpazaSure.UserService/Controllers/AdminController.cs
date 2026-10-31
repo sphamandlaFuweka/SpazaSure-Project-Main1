@@ -16,6 +16,37 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
 {
     //  SUPPLIERS 
 
+    /// <summary>
+    /// Where every supplier delivers from (head office and active branches) that is on the map,
+    /// for the Shops Map: suppliers shown beside the shops, with how far each is from a shop.
+    /// </summary>
+    [HttpGet("suppliers/locations")]
+    public async Task<IActionResult> SupplierLocations()
+    {
+        var suppliers = await db.Suppliers.AsNoTracking()
+            .Include(s => s.Branches)
+            .Where(s => s.Status == "verified" || s.Status == "active" || s.Status == "pending")
+            .ToListAsync();
+        var locations = suppliers.SelectMany(s => SupplierReach.Locations(s)
+                .Where(l => l.Latitude is not null && l.Longitude is not null)
+                .Select(l => new
+                {
+                    SupplierId = s.Id,
+                    s.CompanyName,
+                    SupplierStatus = s.Status,
+                    BranchId = l.BranchId,
+                    Name = l.BranchId is null ? "Head office" : l.Name,
+                    l.City,
+                    l.Province,
+                    l.Latitude,
+                    l.Longitude,
+                }))
+            .ToList();
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        // Shops further than this (and in another province) can't order from that location
+        return Ok(ApiResponse<object>.Ok(new { ReachKm = rules.SupplierReachKm, Locations = locations }));
+    }
+
     [HttpGet("suppliers")]
     public async Task<IActionResult> GetSuppliers(
         [FromQuery] string? search,
@@ -131,9 +162,11 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.ToLower();
+            // Shop numbers match however they're typed: "SS482913", "ss 482 913", "482913"
+            var compact = new string(term.Where(char.IsLetterOrDigit).ToArray());
             query = query.Where(s =>
                 s.ShopName.ToLower().Contains(term) ||
-                (s.ShopCode != null && s.ShopCode.ToLower().Contains(term)) ||
+                (s.ShopCode != null && compact.Length > 0 && s.ShopCode.ToLower().Contains(compact)) ||
                 s.OwnerName.ToLower().Contains(term) ||
                 (s.Email != null && s.Email.ToLower().Contains(term)));
         }

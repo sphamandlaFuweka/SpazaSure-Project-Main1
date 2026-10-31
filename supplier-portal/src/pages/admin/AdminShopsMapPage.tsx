@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import { BrandTileLayer, SOUTH_AFRICA_MAP } from '../../components/ui/BrandMap';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
-import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Mail, Navigation, BadgeCheck, ShieldAlert, Search, MapPinned, Warehouse } from 'lucide-react';
 import clsx from 'clsx';
 import 'leaflet/dist/leaflet.css';
-import { adminSpazaOwnersApi, apiErrorMessage } from '../../services/api';
+import { adminSpazaOwnersApi, adminSuppliersApi, apiErrorMessage, type SupplierLocation } from '../../services/api';
 import { openAdminDiditCheck } from '../../services/adminDidit';
 import PageLoader from '../../components/ui/PageLoader';
+import ShopSticker from '../../components/ui/ShopSticker';
 
 interface Shop {
   id: string;
+  shopNumber?: string | null;
   shopName: string;
   ownerName: string;
   email: string;
@@ -64,6 +66,31 @@ function pinIcon(color: string, selected: boolean) {
   });
 }
 
+const NAVY = '#25449A';
+
+/** A navy square pin with a warehouse, for supplier head offices and branches. */
+function supplierIcon(highlighted: boolean) {
+  const size = highlighted ? 34 : 26;
+  return L.divIcon({
+    className: 'shop-pin',
+    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><rect x="2" y="2" width="20" height="20" rx="6" fill="${NAVY}" stroke="white" stroke-width="1.5"/><path d="M6 11.5 12 7l6 4.5V17H6z" fill="white"/><path d="M9 13h6v4H9z" fill="${NAVY}"/><path d="M9 14.4h6M9 15.8h6" stroke="white" stroke-width=".7"/></svg>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/** Straight-line distance in km (the same measure the server uses for supplier reach). */
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+
+/** A supplier's closest location to a shop, with the distance. */
+interface NearbySupplier { location: SupplierLocation; km: number; inReach: boolean }
+
 function whatsAppNumber(phone: string) {
   const digits = phone.replace(/\D/g, '');
   return digits.startsWith('0') ? `27${digits.slice(1)}` : digits;
@@ -100,6 +127,11 @@ export default function AdminShopsMapPage() {
   const [provinceName, setProvinceName] = useState('');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [suppliers, setSuppliers] = useState<SupplierLocation[]>([]);
+  const [reachKm, setReachKm] = useState(50);
+  const [showSuppliers, setShowSuppliers] = useState(true);
+  /** The supplier place under the mouse: a line and its distance are drawn to the selected shop */
+  const [hovered, setHovered] = useState<SupplierLocation | null>(null);
 
   const load = async () => {
     try {
@@ -110,23 +142,50 @@ export default function AdminShopsMapPage() {
     } finally {
       setLoading(false);
     }
+    // Suppliers are extra: the map still works with shops alone
+    adminSuppliersApi.locations()
+      .then((res) => { setSuppliers(res.locations ?? []); setReachKm(res.reachKm ?? 50); })
+      .catch(() => {});
   };
 
   useEffect(() => { load(); }, []);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
+    // Shop numbers match however they're typed: "SS482913", "ss 482 913", "482913"
+    const compact = term.replace(/[^a-z0-9]/g, '');
     const selectedProvince = normalizeProvince(provinceName);
     return shops.filter((s) =>
       (filter === 'all' || (filter === 'verified' ? s.isVerified : !s.isVerified)) &&
       (!selectedProvince || normalizeProvince(s.province) === selectedProvince) &&
-      (!term || [s.shopName, s.ownerName, s.city, s.address, s.province].some((v) => v?.toLowerCase().includes(term))));
+      (!term ||
+        [s.shopName, s.ownerName, s.city, s.address, s.province].some((v) => v?.toLowerCase().includes(term)) ||
+        (compact.length > 0 && !!s.shopNumber?.toLowerCase().includes(compact))));
   }, [shops, filter, provinceName, search]);
 
   const pinned = visible.filter((s) => s.latitude != null && s.longitude != null);
   const points = useMemo(() => pinned.map((s) => [s.latitude!, s.longitude!] as [number, number]), [pinned]);
   const selected = visible.find((s) => s.id === selectedId);
   const selectedProvince = PROVINCES.find((p) => p.name === provinceName);
+
+  // Suppliers in the chosen province (or all), and for a selected shop each supplier's nearest place
+  const visibleSuppliers = useMemo(() => {
+    const province = normalizeProvince(provinceName);
+    return suppliers.filter((l) => !province || normalizeProvince(l.province) === province);
+  }, [suppliers, provinceName]);
+  const nearby = useMemo((): NearbySupplier[] => {
+    if (selected?.latitude == null || selected.longitude == null) return [];
+    const best = new Map<string, NearbySupplier>();
+    for (const location of suppliers) {
+      const km = distanceKm(selected.latitude, selected.longitude, location.latitude, location.longitude);
+      const sameProvince = !selected.province || !location.province ||
+        normalizeProvince(selected.province) === normalizeProvince(location.province);
+      const current = best.get(location.supplierId);
+      if (!current || km < current.km) best.set(location.supplierId, { location, km, inReach: sameProvince && km <= reachKm });
+    }
+    return [...best.values()].sort((a, b) => a.km - b.km);
+  }, [selected, suppliers, reachKm]);
+  const lines = nearby.filter((n) => n.inReach).slice(0, 5);
 
   const verify = async (shop: Shop) => {
     if (shop.identityCheckStatus !== 'Approved') {
@@ -155,10 +214,14 @@ export default function AdminShopsMapPage() {
         <div>
           <h1 className="text-2xl font-black text-gray-900">Shops Map</h1>
           <p className="text-sm text-gray-500">
-            Explore registered shops by province. Green pins are verified; coral pins need verification.
+            Explore registered shops by province. Green pins are verified; coral pins need verification. Navy squares are suppliers: pick a shop to see how far each supplier is.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
+          <label className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2.5 text-xs font-bold text-gray-600 shadow-sm cursor-pointer">
+            <input type="checkbox" checked={showSuppliers} onChange={(e) => setShowSuppliers(e.target.checked)} />
+            <Warehouse size={14} className="text-primary" /> Show suppliers
+          </label>
           <label className="block">
             <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-gray-400">Province</span>
             <select
@@ -207,6 +270,46 @@ export default function AdminShopsMapPage() {
                 eventHandlers={{ click: () => setSelectedId(s.id) }}
               />
             ))}
+            {/* Dashed lines from the selected shop to the suppliers that can deliver to it, with the distance */}
+            {selected?.latitude != null && selected.longitude != null && lines.map((n) => (
+              <Polyline
+                key={`line-${n.location.supplierId}`}
+                positions={[[selected.latitude!, selected.longitude!], [n.location.latitude, n.location.longitude]]}
+                pathOptions={{ color: NAVY, weight: 2, dashArray: '6 6', opacity: 0.8 }}
+              >
+                <Tooltip permanent direction="center" className="!text-[10px] !font-bold">{n.km.toFixed(1)} km</Tooltip>
+              </Polyline>
+            ))}
+            {/* Hovering any supplier draws its line too, even when it's out of reach */}
+            {selected?.latitude != null && selected.longitude != null && hovered &&
+              !lines.some((n) => n.location === hovered) && (
+              <Polyline
+                positions={[[selected.latitude, selected.longitude], [hovered.latitude, hovered.longitude]]}
+                pathOptions={{ color: RED, weight: 2, dashArray: '4 6', opacity: 0.9 }}
+              >
+                <Tooltip permanent direction="center" className="!text-[10px] !font-bold">
+                  {distanceKm(selected.latitude, selected.longitude, hovered.latitude, hovered.longitude).toFixed(1)} km
+                </Tooltip>
+              </Polyline>
+            )}
+            {showSuppliers && visibleSuppliers.map((l) => (
+              <Marker
+                key={`${l.supplierId}-${l.branchId ?? 'hq'}`}
+                position={[l.latitude, l.longitude]}
+                icon={supplierIcon(hovered === l || lines.some((n) => n.location === l))}
+                zIndexOffset={-100}
+                eventHandlers={{ mouseover: () => setHovered(l), mouseout: () => setHovered(null) }}
+              >
+                <Tooltip direction="top" offset={[0, -12]}>
+                  <strong>{l.companyName}</strong><br />
+                  {l.name}{l.city ? ` · ${l.city}` : ''}
+                  <br />
+                  {selected?.latitude != null && selected.longitude != null
+                    ? `${distanceKm(selected.latitude, selected.longitude, l.latitude, l.longitude).toFixed(1)} km from ${selected.shopName}`
+                    : 'Pick a shop to see the distance'}
+                </Tooltip>
+              </Marker>
+            ))}
           </MapContainer>
           <div className="pointer-events-none absolute left-4 top-4 z-[400] flex items-center gap-3 rounded-xl border border-white/80 bg-white/95 px-3.5 py-2.5 shadow-lg shadow-slate-900/10 backdrop-blur">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary">
@@ -220,6 +323,9 @@ export default function AdminShopsMapPage() {
           <div className="pointer-events-none absolute bottom-4 left-4 z-[400] flex items-center gap-4 rounded-xl border border-white/80 bg-white/95 px-3.5 py-2.5 shadow-lg shadow-slate-900/10 backdrop-blur">
             <span className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600"><i className="h-2.5 w-2.5 rounded-full bg-primary" /> Verified</span>
             <span className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600"><i className="h-2.5 w-2.5 rounded-full bg-[#e0523c]" /> Unverified</span>
+            {showSuppliers && (
+              <span className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600"><i className="h-2.5 w-2.5 rounded-[3px] bg-[#25449A]" /> Supplier</span>
+            )}
           </div>
         </div>
 
@@ -269,6 +375,39 @@ export default function AdminShopsMapPage() {
                   {selected.identityCheckStatus === 'Approved' ? 'Verify this shop' : 'Verify with Didit'}
                 </button>
               )}
+              {/* The shop's QR sticker, to view, print or save */}
+              {selected.shopNumber && (
+                <ShopSticker shopNumber={selected.shopNumber} shopName={selected.shopName} verified={selected.isVerified} />
+              )}
+              {/* How far each supplier's nearest place is, and which can deliver here */}
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                  <Warehouse size={13} /> Nearest suppliers
+                </p>
+                {selected.latitude == null || selected.longitude == null ? (
+                  <p className="text-xs text-gray-400">This shop has no map location, so distances can't be worked out.</p>
+                ) : nearby.length === 0 ? (
+                  <p className="text-xs text-gray-400">No suppliers are on the map yet.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {nearby.slice(0, 8).map((n) => (
+                      <li key={n.location.supplierId} className="flex items-center justify-between gap-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-800 truncate">{n.location.companyName}</p>
+                          <p className="text-[11px] text-gray-400 truncate">{n.location.name}{n.location.city ? ` · ${n.location.city}` : ''}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-black tabular-nums text-gray-900">{n.km.toFixed(1)} km</p>
+                          <p className={clsx('text-[10px] font-bold', n.inReach ? 'text-emerald-700' : 'text-gray-400')}>
+                            {n.inReach ? 'Delivers here' : 'Out of reach'}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-[10px] text-gray-400 mt-2">Straight-line distance. Suppliers deliver up to {reachKm} km within the same province.</p>
+              </div>
             </div>
           ) : (
             <>
@@ -278,7 +417,7 @@ export default function AdminShopsMapPage() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search shop, owner or city"
+                    placeholder="Search shop number, name, owner or city"
                     className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-primary"
                   />
                 </div>
@@ -292,7 +431,10 @@ export default function AdminShopsMapPage() {
                     <button onClick={() => setSelectedId(s.id)} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-start gap-3">
                       <MapPin size={18} style={{ color: s.isVerified ? GREEN : RED }} className="flex-shrink-0 mt-0.5" />
                       <div className="min-w-0">
-                        <p className="font-bold text-sm text-gray-900 truncate">{s.shopName}</p>
+                        <p className="font-bold text-sm text-gray-900 truncate">
+                          {s.shopName}
+                          {s.shopNumber && <span className="ml-1.5 font-mono text-[11px] font-bold text-brand-blue">{s.shopNumber}</span>}
+                        </p>
                         <p className="text-xs text-gray-400 truncate">{[s.city, s.province].filter(Boolean).join(', ') || s.address || 'No address'}</p>
                         {(s.latitude == null || s.longitude == null) && (
                           <p className="text-[11px] text-amber-600">No map location</p>

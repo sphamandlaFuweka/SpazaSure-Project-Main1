@@ -1543,7 +1543,8 @@ DECLARE
     shop record;
     candidate text;
 BEGIN
-    FOR shop IN SELECT id FROM spaza_shops WHERE shop_code IS NULL LOOP
+    -- Deleted shops had their number removed on purpose, so they don't get a new one
+    FOR shop IN SELECT id FROM spaza_shops WHERE shop_code IS NULL AND status <> 'deleted' LOOP
         LOOP
             candidate := 'SS' || (100000 + floor(random() * 900000))::int::text;
             EXIT WHEN NOT EXISTS (SELECT 1 FROM spaza_shops WHERE shop_code = candidate);
@@ -1551,6 +1552,8 @@ BEGIN
         UPDATE spaza_shops SET shop_code = candidate WHERE id = shop.id;
     END LOOP;
 END $$;
+-- Earlier deploys gave deleted shops a number again; their sticker must not look them up
+UPDATE spaza_shops SET shop_code = NULL WHERE status = 'deleted' AND shop_code IS NOT NULL;
 
 -- Cash-on-delivery confirmation code: the shop must enter it to confirm delivery.
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_code text;

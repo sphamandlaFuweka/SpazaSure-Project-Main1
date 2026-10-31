@@ -980,9 +980,27 @@ export const paymentApi = {
 };
 
 // Admin Suppliers & Spaza Owners
+/** A place a supplier delivers from (its head office or a branch), for the Shops Map. */
+export interface SupplierLocation {
+  supplierId: string;
+  companyName: string;
+  supplierStatus: string;
+  /** Null for the head office */
+  branchId?: string | null;
+  name: string;
+  city?: string | null;
+  province?: string | null;
+  latitude: number;
+  longitude: number;
+}
+
 export const adminSuppliersApi = {
   list: (params?: { page?: number; pageSize?: number; search?: string; status?: string }) =>
     api.get('/admin/suppliers', { params }).then((r) => r.data),
+  /** Every supplier head office and branch on the map, and how far suppliers reach. */
+  locations: () =>
+    api.get('/admin/suppliers/locations')
+      .then((r) => (r.data?.data ?? r.data) as { reachKm: number; locations: SupplierLocation[] }),
   verify: (id: string) =>
     api.patch(`/admin/suppliers/${id}/verify`).then((r) => r.data),
   suspend: (id: string, reason?: string) =>

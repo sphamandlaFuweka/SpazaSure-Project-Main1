@@ -10,6 +10,7 @@ import BranchesTab from '../profile/BranchesTab';
 import CustomersPanel from './CustomersPanel';
 import { openAdminDiditCheck } from '../../services/adminDidit';
 import { TierBadge, Spinner, Modal } from '../../components/ui';
+import ShopSticker from '../../components/ui/ShopSticker';
 import { Check as CheckIc, X as XIc } from 'lucide-react';
 
 type MainTab = 'suppliers' | 'spaza-owners' | 'customers';
@@ -237,10 +238,12 @@ export default function AdminSuppliersPage() {
     return matchSearch && matchFilter;
   });
 
+  // Shop numbers match however they're typed: "SS482913", "ss 482 913", "482913"
+  const compactSearch = spazaSearch.replace(/[^a-z0-9]/gi, '').toLowerCase();
   const filteredSpazaOwners = spazaOwners.filter((o) => {
     const matchSearch = !spazaSearch ||
       o.shopName.toLowerCase().includes(spazaSearch.toLowerCase()) ||
-      o.shopNumber.toLowerCase().includes(spazaSearch.toLowerCase()) ||
+      (compactSearch.length > 0 && o.shopNumber.toLowerCase().includes(compactSearch)) ||
       o.ownerName.toLowerCase().includes(spazaSearch.toLowerCase()) ||
       o.email.toLowerCase().includes(spazaSearch.toLowerCase());
     const matchFilter = spazaFilter === 'all' ||
@@ -566,7 +569,7 @@ export default function AdminSuppliersPage() {
                   value={spazaSearch}
                   onChange={(e) => setSpazaSearch(e.target.value)}
                   className="w-full border border-gray-200 rounded-2xl pl-11 pr-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all placeholder:text-gray-300 font-medium"
-                  placeholder="Search by shop name, owner or email..."
+                  placeholder="Search by shop number, shop name, owner or email..."
                 />
               </div>
               <div className="flex items-center gap-1.5">
@@ -942,6 +945,10 @@ export default function AdminSuppliersPage() {
 
               {/* Body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* The shop's QR sticker, to view, print or save */}
+                {selectedSpaza.shopNumber && (
+                  <ShopSticker shopNumber={selectedSpaza.shopNumber} shopName={selectedSpaza.shopName} verified={selectedSpaza.isVerified} />
+                )}
                 {/* Contact Info */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center gap-3 p-3.5 bg-gray-50/80 rounded-xl border border-gray-100">
