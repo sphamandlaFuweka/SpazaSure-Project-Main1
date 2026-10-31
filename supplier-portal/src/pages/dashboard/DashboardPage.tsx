@@ -227,7 +227,6 @@ export default function DashboardPage() {
       {/* Brand hero — mirrors the spazasure.co.za hero */}
       <section className="hero-banner p-6 sm:p-8">
         <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full border-[28px] border-white/[0.06]" aria-hidden="true" />
-        <img src="/spazasure_logo.png" alt="" aria-hidden="true" className="hidden md:block absolute right-8 top-1/2 -translate-y-1/2 w-36 h-36 object-contain opacity-[0.12]" />
 
         <div className="relative max-w-3xl">
           <span className="hero-pill">
