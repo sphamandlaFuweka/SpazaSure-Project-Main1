@@ -55,7 +55,19 @@ public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSign
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(s => s.ShopName.Contains(search) || (s.City != null && s.City.Contains(search)));
+        {
+            // A shop number (typed or scanned from the sticker) finds that one shop
+            if (ShopVerification.Normalize(search) is { } shopNumber)
+            {
+                query = query.Where(s => s.ShopCode == shopNumber);
+            }
+            else
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(s => s.ShopName.ToLower().Contains(term) ||
+                                         (s.City != null && s.City.ToLower().Contains(term)));
+            }
+        }
 
         var shops = await query
             .OrderByDescending(s => s.Status == "verified")

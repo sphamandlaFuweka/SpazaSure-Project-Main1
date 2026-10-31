@@ -67,7 +67,7 @@ class _ShopVerifyScreenState extends State<ShopVerifyScreen> {
   Future<void> _scan() async {
     final scanned = await Navigator.push<String>(
       context,
-      MaterialPageRoute(builder: (_) => const _StickerScanScreen()),
+      MaterialPageRoute(builder: (_) => const StickerScanScreen()),
     );
     if (!mounted || scanned == null) return;
     final code = normalizeShopNumber(scanned);
@@ -398,14 +398,15 @@ class GreenSticker extends StatelessWidget {
 }
 
 /// A camera that reads one QR code (the shop's sticker) and returns what it says.
-class _StickerScanScreen extends StatefulWidget {
-  const _StickerScanScreen();
+/// Used by Verify a shop and the Trusted shops search.
+class StickerScanScreen extends StatefulWidget {
+  const StickerScanScreen({super.key});
 
   @override
-  State<_StickerScanScreen> createState() => _StickerScanScreenState();
+  State<StickerScanScreen> createState() => StickerScanScreenState();
 }
 
-class _StickerScanScreenState extends State<_StickerScanScreen> {
+class StickerScanScreenState extends State<StickerScanScreen> {
   final _camera = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     formats: const [BarcodeFormat.qrCode],

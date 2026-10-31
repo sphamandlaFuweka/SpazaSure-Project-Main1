@@ -9,6 +9,7 @@ import 'package:spazasure_app/core/geo/south_africa.dart';
 import 'package:spazasure_app/services/customer_shop_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'customer_shop_detail_screen.dart';
+import 'package:spazasure_app/features/shop_verification/shop_verify_screen.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class CustomerShopsScreen extends StatefulWidget {
@@ -134,16 +135,55 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
     setState(() => _viewLabel = label);
   }
 
+  /// Scans the QR code on a shop's sticker and finds that shop.
+  Future<void> _scan() async {
+    final scanned = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const StickerScanScreen()),
+    );
+    if (!mounted || scanned == null) return;
+    final number = normalizeShopNumber(scanned);
+    if (number == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "That QR code isn't a SpazaSure shop sticker. Scan the code on the shop's sticker.",
+          ),
+        ),
+      );
+      return;
+    }
+    _searchController.text = number;
+    _load();
+  }
+
+  /// A whole shop number typed in is looked up straight away.
+  void _onTyped(String value) {
+    if (normalizeShopNumber(value) != null && !_loading) _load();
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+    // A shop number (typed or scanned) finds one shop, which then opens
+    final number = normalizeShopNumber(_searchController.text);
     try {
       final shops = await CustomerShopService.list(
         search: _searchController.text,
       );
       if (mounted) setState(() => _shops = shops);
+      if (!mounted || number == null) return;
+      if (shops.length == 1) {
+        _openShop(shops.first);
+      } else if (shops.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('There is no SpazaSure shop with number $number.'),
+          ),
+        );
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -163,13 +203,30 @@ class _CustomerShopsScreenState extends State<CustomerShopsScreen> {
         children: [
           TextField(
             controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onChanged: _onTyped,
             onSubmitted: (_) => _load(),
             decoration: InputDecoration(
-              hintText: 'Search by shop or city',
+              hintText: 'Shop number (e.g. SS482913), name or city',
               prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: IconButton(
-                onPressed: _load,
-                icon: const Icon(Icons.arrow_forward_rounded),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Scan the QR code on the shop's sticker
+                  IconButton(
+                    tooltip: 'Scan shop sticker',
+                    onPressed: _loading ? null : _scan,
+                    icon: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Search',
+                    onPressed: _load,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                ],
               ),
             ),
           ),
