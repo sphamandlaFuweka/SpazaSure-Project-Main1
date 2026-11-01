@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse, ChevronDown, Eye, EyeOff, Tag, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { Product, ComplianceDoc } from '../../types';
+import type { Product, ComplianceDoc, ProductFormData } from '../../types';
 import { EmptyState } from '../../components/ui';
 import PageLoader from '../../components/ui/PageLoader';
 import clsx from 'clsx';
@@ -58,6 +58,20 @@ export default function ProductsPage() {
   useEffect(() => {
     productsApi.categories().then(setCategories).catch(() => {});
   }, []);
+  // Ticked products, for the Actions menu
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!actionsRef.current?.contains(e.target as Node)) setActionsOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [actionsOpen]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -191,6 +205,86 @@ export default function ProductsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Actions apply to the ticked products the filters still show
+  const selectedProducts = filtered.filter((p) => selected.has(p.id));
+  const allVisibleSelected = filtered.length > 0 && selectedProducts.length === filtered.length;
+
+  const toggleSelected = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectAllVisible = () => setSelected((prev) => new Set([...prev, ...filtered.map((p) => p.id)]));
+  const deselectAll = () => setSelected(new Set());
+
+  /** Runs one request per product, a few at a time, and reports how many worked. */
+  const runBulk = async (
+    items: Product[],
+    request: (p: Product) => Promise<unknown>,
+    done: string,
+  ): Promise<Set<string>> => {
+    setActionsOpen(false);
+    setBulkBusy(true);
+    const succeeded = new Set<string>();
+    try {
+      for (let i = 0; i < items.length; i += 5) {
+        const batch = items.slice(i, i + 5);
+        const results = await Promise.allSettled(batch.map(request));
+        results.forEach((r, j) => { if (r.status === 'fulfilled') succeeded.add(batch[j].id); });
+      }
+      const failed = items.length - succeeded.size;
+      if (succeeded.size > 0) toast.success(`${succeeded.size} product${succeeded.size === 1 ? '' : 's'} ${done}`);
+      if (failed > 0) toast.error(`${failed} product${failed === 1 ? '' : 's'} could not be updated`);
+    } finally {
+      setBulkBusy(false);
+    }
+    return succeeded;
+  };
+
+  const bulkSetAvailable = async (available: boolean) => {
+    // The API toggles, so only products in the other state are sent
+    const items = selectedProducts.filter((p) => p.isAvailable !== available);
+    if (items.length === 0) {
+      setActionsOpen(false);
+      toast.success(`Already ${available ? 'shown on' : 'hidden from'} the marketplace`);
+      return;
+    }
+    const ok = await runBulk(items, (p) => productsApi.toggleAvailability(p.id),
+      available ? 'shown on the marketplace' : 'hidden from the marketplace');
+    setProducts((prev) => prev.map((p) => ok.has(p.id)
+      ? { ...p, isAvailable: available, status: p.status === 'active' ? 'archived' : p.status === 'archived' ? 'active' : p.status }
+      : p));
+  };
+
+  const bulkSetCategory = async (categoryId: string) => {
+    setBulkCategoryOpen(false);
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) return;
+    const items = selectedProducts.filter((p) => p.categoryId !== categoryId);
+    const updated = new Map<string, Product>();
+    await runBulk(items, async (p) => {
+      // The edit call overwrites every field, so the product's own values go with the new category
+      const result = await productsApi.update(p.id, {
+        name: p.name, description: p.description, sku: p.sku, price: p.price,
+        categoryId, stockQuantity: p.stockQuantity, minOrderQty: p.minOrderQty,
+        isFoodItem: p.isFoodItem, categoryName: category.name,
+      } as Partial<ProductFormData>, p);
+      updated.set(p.id, result);
+    }, `moved to ${category.name}`);
+    setProducts((prev) => prev.map((p) => updated.get(p.id) ?? p));
+  };
+
+  const bulkDelete = async () => {
+    const items = selectedProducts;
+    if (!confirm(`Delete ${items.length} product${items.length === 1 ? '' : 's'}? This cannot be undone.`)) {
+      setActionsOpen(false);
+      return;
+    }
+    const ok = await runBulk(items, (p) => productsApi.delete(p.id), 'deleted');
+    setProducts((prev) => prev.filter((p) => !ok.has(p.id)));
+    setSelected((prev) => new Set([...prev].filter((id) => !ok.has(id))));
   };
 
   const openNewProduct = isCompliant ? () => { setEditing(null); setShowModal(true); } : handleBlockedAction;
@@ -358,15 +452,82 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Selection and bulk actions */}
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-2.5">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-primary cursor-pointer"
+              checked={allVisibleSelected}
+              ref={(el) => { if (el) el.indeterminate = selectedProducts.length > 0 && !allVisibleSelected; }}
+              onChange={allVisibleSelected ? deselectAll : selectAllVisible}
+              aria-label="Select all products"
+            />
+            {selectedProducts.length > 0
+              ? `${selectedProducts.length} selected`
+              : `Select all (${filtered.length})`}
+          </label>
+          {selectedProducts.length > 0 && (
+            <button onClick={deselectAll} className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1">
+              <X size={12} /> Deselect all
+            </button>
+          )}
+
+          <div ref={actionsRef} className="relative ml-auto">
+            <button
+              onClick={() => setActionsOpen((o) => !o)}
+              disabled={selectedProducts.length === 0 || bulkBusy}
+              className="btn-primary text-sm py-1.5 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {bulkBusy && <RefreshCw size={14} className="animate-spin" />}
+              Actions <ChevronDown size={14} />
+            </button>
+            {actionsOpen && (
+              <div className="absolute right-0 mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1 animate-fade-in">
+                <button onClick={() => bulkSetAvailable(true)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                  <Eye size={14} className="text-emerald-600" /> Show on marketplace
+                </button>
+                <button onClick={() => bulkSetAvailable(false)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                  <EyeOff size={14} className="text-gray-500" /> Hide from marketplace
+                </button>
+                <button
+                  onClick={isCompliant ? () => { setActionsOpen(false); setBulkCategoryOpen(true); } : handleBlockedAction}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                >
+                  {isCompliant ? <Tag size={14} className="text-primary" /> : <Lock size={14} />} Change category
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={isCompliant ? bulkDelete : handleBlockedAction}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  {isCompliant ? <Trash2 size={14} /> : <Lock size={14} />} Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Grid View */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.length === 0 ? (
             <div className="col-span-full card">{emptyState}</div>
           ) : filtered.map((p) => (
-            <div key={p.id} className="card overflow-hidden hover:shadow-card-hover transition-all duration-200 group">
+            <div key={p.id} className={clsx('card overflow-hidden hover:shadow-card-hover transition-all duration-200 group', selected.has(p.id) && 'ring-2 ring-primary')}>
               <div className="relative">
                 <ProductImage src={p.imageUrl} alt={p.name} className="w-full h-36" />
+                <label className="absolute top-2 left-2 z-10 bg-white/90 rounded-lg p-1.5 shadow-sm cursor-pointer flex">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-primary cursor-pointer"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleSelected(p.id)}
+                    aria-label={`Select ${p.name}`}
+                  />
+                </label>
                 <div className="absolute top-2 right-2 flex gap-1">
                   <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full capitalize', statusStyle[p.status] ?? 'bg-gray-100 text-gray-500')}>
                     {p.status.replace('_', ' ')}
@@ -421,6 +582,15 @@ export default function ProductsPage() {
             <table className="w-full text-sm min-w-[820px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80">
+                  <th className="table-header w-10">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-primary cursor-pointer"
+                      checked={allVisibleSelected}
+                      onChange={allVisibleSelected ? deselectAll : selectAllVisible}
+                      aria-label="Select all products"
+                    />
+                  </th>
                   <th className="table-header">Product</th>
                   <th className="table-header">SKU</th>
                   <th className="table-header">Category</th>
@@ -433,7 +603,16 @@ export default function ProductsPage() {
               </thead>
               <tbody>
                 {filtered.map((p) => (
-                  <tr key={p.id} className="table-row">
+                  <tr key={p.id} className={clsx('table-row', selected.has(p.id) && 'bg-primary-50/60')}>
+                    <td className="table-cell w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-primary cursor-pointer"
+                        checked={selected.has(p.id)}
+                        onChange={() => toggleSelected(p.id)}
+                        aria-label={`Select ${p.name}`}
+                      />
+                    </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
                         <ProductImage src={p.imageUrl} alt={p.name} className="w-11 h-11 rounded-xl flex-shrink-0" />
@@ -497,6 +676,28 @@ export default function ProductsPage() {
             </table>
             </div>
           )}
+        </div>
+      )}
+
+      {bulkCategoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setBulkCategoryOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in">
+            <h3 className="font-bold text-gray-900">Change category</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Move {selectedProducts.length} product{selectedProducts.length === 1 ? '' : 's'} to:
+            </p>
+            <select
+              defaultValue=""
+              onChange={(e) => e.target.value && bulkSetCategory(e.target.value)}
+              className="select w-full mt-4"
+              aria-label="New category"
+            >
+              <option value="" disabled>Choose a category</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button onClick={() => setBulkCategoryOpen(false)} className="btn-secondary w-full mt-3">Cancel</button>
+          </div>
         </div>
       )}
 
