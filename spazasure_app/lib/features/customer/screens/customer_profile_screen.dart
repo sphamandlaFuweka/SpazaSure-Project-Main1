@@ -446,6 +446,16 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           ),
         ),
         ListTile(
+          leading: const Icon(
+            Icons.credit_card_rounded,
+            color: AppColors.primary,
+          ),
+          title: Text(tr('shop.billing')),
+          subtitle: Text(tr('profile.billingSub')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.pushNamed(context, '/billing'),
+        ),
+        ListTile(
           leading: const Icon(Icons.history_rounded, color: AppColors.primary),
           title: Text(tr('profile.scanHistory')),
           subtitle: Text(tr('profile.scanHistorySub')),

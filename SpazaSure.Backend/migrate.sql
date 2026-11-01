@@ -2114,6 +2114,55 @@ FROM group_buy_branches b
 WHERE p.group_buy_branch_id IS NULL AND b.group_buy_id = p.group_buy_id
   AND (SELECT COUNT(*) FROM group_buy_branches only_one WHERE only_one.group_buy_id = p.group_buy_id) = 1;
 
+-- The app's Billing section: billing info for invoices and the shop's payout bank account
+-- (one row per user), and cards saved through Paystack. A card keeps only Paystack's reusable
+-- authorization and what the card looks like, never the card number.
+CREATE TABLE IF NOT EXISTS billing_profiles (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    billing_name text,
+    company_name text,
+    vat_number text,
+    billing_email text,
+    address_line1 text,
+    address_line2 text,
+    city text,
+    province text,
+    postal_code text,
+    bank_name text,
+    account_holder text,
+    account_number text,
+    branch_code text,
+    account_type text,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_billing_profiles PRIMARY KEY (id),
+    CONSTRAINT fk_billing_profiles_users_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_billing_profiles_user_id ON billing_profiles(user_id);
+CREATE TABLE IF NOT EXISTS saved_cards (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    status character varying(20) NOT NULL DEFAULT 'pending',
+    reference text NOT NULL,
+    email text NOT NULL,
+    authorization_code text,
+    signature text,
+    brand text,
+    last4 text,
+    exp_month text,
+    exp_year text,
+    bank text,
+    is_default boolean NOT NULL DEFAULT false,
+    verified_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_saved_cards PRIMARY KEY (id),
+    CONSTRAINT fk_saved_cards_users_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_saved_cards_reference ON saved_cards(reference);
+CREATE INDEX IF NOT EXISTS ix_saved_cards_user_id ON saved_cards(user_id);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
@@ -2134,7 +2183,16 @@ FROM (VALUES
   ('personal-care', 'Toiletries & personal care', 13),
   ('household-cleaning', 'Household & cleaning', 14),
   ('laundry', 'Laundry', 15),
-  ('fuel-energy', 'Paraffin, gas & candles', 16)
+  ('fuel-energy', 'Paraffin, gas & candles', 16),
+  ('medicine-first-aid', 'Medicine & first aid', 17),
+  ('cold-meats', 'Polony, viennas & cold meats', 18),
+  ('sugar-baking', 'Sugar, salt & baking', 19),
+  ('pasta-noodles', 'Pasta & noodles', 20),
+  ('cereals-porridge', 'Cereals & porridge', 21),
+  ('hair-beauty', 'Hair care & beauty', 22),
+  ('batteries-electrical', 'Batteries, bulbs & electrical', 23),
+  ('stationery', 'Stationery & school', 24),
+  ('pet-care', 'Pet food & care', 25)
 ) AS seed(slug, name, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM categories existing WHERE existing.slug = seed.slug);
 

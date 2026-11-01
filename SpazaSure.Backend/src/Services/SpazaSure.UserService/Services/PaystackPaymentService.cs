@@ -43,6 +43,40 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
             amount, email, reference, callbackUrl, null, cancellationToken);
     }
 
+    /// <summary>
+    /// A small card-only charge used to save a card: Paystack returns a reusable authorization
+    /// once it succeeds, and the charge is refunded straight after.
+    /// </summary>
+    public async Task<PaystackCheckout> CreateCardCheckCheckoutAsync(
+        decimal amount,
+        string email,
+        string reference,
+        string callbackUrl,
+        CancellationToken cancellationToken = default)
+    {
+        return await InitializeTransactionAsync(
+            amount, email, reference, callbackUrl, null, cancellationToken, cardOnly: true);
+    }
+
+    /// <summary>Refunds a transaction in full.</summary>
+    public async Task RefundAsync(string reference, CancellationToken cancellationToken = default)
+    {
+        using var _ = await SendForJsonAsync(
+            HttpMethod.Post, "refund", new { transaction = reference }, cancellationToken);
+    }
+
+    /// <summary>Stops a saved card's authorization from being charged again.</summary>
+    public async Task DeactivateAuthorizationAsync(
+        string authorizationCode,
+        CancellationToken cancellationToken = default)
+    {
+        using var _ = await SendForJsonAsync(
+            HttpMethod.Post,
+            "customer/deactivate_authorization",
+            new { authorization_code = authorizationCode },
+            cancellationToken);
+    }
+
     public async Task<PaystackCheckout> CreateSubscriptionCheckoutAsync(
         decimal amount,
         string email,
@@ -137,7 +171,26 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
             GetOptionalString(plan, "plan_code"),
             GetOptionalString(customer, "customer_code"),
             GetOptionalString(customer, "email"),
-            GetOptionalString(authorization, "authorization_code"));
+            GetOptionalString(authorization, "authorization_code"),
+            ReadCard(authorization));
+    }
+
+    private static PaystackCard? ReadCard(JsonElement authorization)
+    {
+        if (authorization.ValueKind != JsonValueKind.Object ||
+            GetOptionalString(authorization, "authorization_code") is not { Length: > 0 } code)
+            return null;
+        return new PaystackCard(
+            code,
+            GetOptionalString(authorization, "signature"),
+            GetOptionalString(authorization, "channel"),
+            GetOptionalString(authorization, "card_type")?.Trim(),
+            GetOptionalString(authorization, "last4"),
+            GetOptionalString(authorization, "exp_month"),
+            GetOptionalString(authorization, "exp_year"),
+            GetOptionalString(authorization, "bank"),
+            authorization.TryGetProperty("reusable", out var reusable) &&
+            reusable.ValueKind == JsonValueKind.True);
     }
 
     public bool IsValidWebhookSignature(ReadOnlySpan<byte> payload, string signature)
@@ -166,7 +219,8 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
         string reference,
         string callbackUrl,
         string? planCode,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool cardOnly = false)
     {
         EnsureConfigured();
         ValidateCallbackUrl(callbackUrl);
@@ -187,6 +241,8 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
             ["reference"] = reference,
             ["callback_url"] = callbackUrl
         };
+        if (cardOnly)
+            payload["channels"] = new[] { "card" };
         if (!string.IsNullOrWhiteSpace(planCode))
         {
             payload["plan"] = planCode;
@@ -274,4 +330,17 @@ public sealed record PaystackTransaction(
     string? PlanCode,
     string? CustomerCode,
     string? CustomerEmail,
-    string? AuthorizationCode);
+    string? AuthorizationCode,
+    PaystackCard? Card = null);
+
+/// <summary>The card behind a transaction, as Paystack describes it (no card number).</summary>
+public sealed record PaystackCard(
+    string AuthorizationCode,
+    string? Signature,
+    string? Channel,
+    string? Brand,
+    string? Last4,
+    string? ExpMonth,
+    string? ExpYear,
+    string? Bank,
+    bool Reusable);

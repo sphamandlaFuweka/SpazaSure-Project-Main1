@@ -489,6 +489,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const Color(0xFF2196F3),
         () => Navigator.pushNamed(context, '/wallet'),
       ),
+      _menuTile(
+        Icons.credit_card_rounded,
+        tr('shop.billing'),
+        tr('shop.billingSub'),
+        const Color(0xFF25449A),
+        () => Navigator.pushNamed(context, '/billing'),
+      ),
     ]).animate().fadeIn(delay: 175.ms).slideY(begin: 0.03, end: 0);
   }
 

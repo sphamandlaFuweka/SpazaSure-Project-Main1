@@ -37,6 +37,7 @@ import 'features/orders/screens/receipt_screen.dart';
 import 'core/widgets/logo_page_route.dart';
 import 'services/analytics_service.dart';
 import 'services/deep_link_service.dart';
+import 'package:spazasure_app/features/billing/billing_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,6 +133,7 @@ class SpazaSureApp extends StatelessWidget {
           '/notifications': () => const NotificationsScreen(),
           '/notification-settings': () => const NotificationSettingsScreen(),
           '/wallet': () => const WalletScreen(),
+          '/billing': () => const BillingScreen(),
           '/academy': () => const AcademyScreen(),
           // A shared group buy link passes the campaign's id to open it straight away
           '/group-buy': () => GroupBuyScreen(

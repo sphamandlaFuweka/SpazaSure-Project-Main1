@@ -33,6 +33,18 @@ public static class PersonalData
             .OrderBy(f => f.CreatedAt).Select(f => new { f.Type, f.Message, f.Rating, f.Screen, f.CreatedAt }).ToListAsync(ct);
         var emailsSent = await db.EmailSends.AsNoTracking().Where(e => e.UserId == userId)
             .OrderBy(e => e.CreatedAt).Select(e => new { e.Subject, e.Email, e.Status, sentAt = e.CreatedAt }).ToListAsync(ct);
+        var billing = await db.BillingProfiles.AsNoTracking().Where(b => b.UserId == userId)
+            .Select(b => new
+            {
+                b.BillingName, b.CompanyName, b.VatNumber, b.BillingEmail, b.AddressLine1, b.AddressLine2,
+                b.City, b.Province, b.PostalCode, b.BankName, b.AccountHolder, b.AccountNumber, b.BranchCode,
+                b.AccountType, b.UpdatedAt,
+            }).FirstOrDefaultAsync(ct);
+        // What the card looks like only; Paystack's authorization stays out of the export
+        var savedCards = await db.SavedCards.AsNoTracking().Where(c => c.UserId == userId && c.Status == "active")
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => new { c.Brand, c.Last4, c.ExpMonth, c.ExpYear, c.Bank, c.IsDefault, savedAt = c.CreatedAt })
+            .ToListAsync(ct);
 
         return new
         {
@@ -52,6 +64,8 @@ public static class PersonalData
             messagesSent,
             feedback,
             emailsSent,
+            billing,
+            savedCards,
         };
     }
 
@@ -166,6 +180,8 @@ public static class PersonalData
         db.RefreshTokens.RemoveRange(db.RefreshTokens.Where(t => t.UserId == userId));
         db.OtpCodes.RemoveRange(db.OtpCodes.Where(o => o.UserId == userId));
         db.EmailSends.RemoveRange(db.EmailSends.Where(e => e.UserId == userId));
+        db.BillingProfiles.RemoveRange(db.BillingProfiles.Where(b => b.UserId == userId));
+        db.SavedCards.RemoveRange(db.SavedCards.Where(c => c.UserId == userId));
         foreach (var item in await db.FeedbackItems.Where(f => f.UserId == userId).ToListAsync(ct))
         {
             // The feedback itself stays useful; anything identifying goes

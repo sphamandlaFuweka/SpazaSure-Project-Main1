@@ -54,6 +54,8 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<ShopLessonProgress> ShopLessonProgress => Set<ShopLessonProgress>();
     public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<CustomerSubscription> CustomerSubscriptions => Set<CustomerSubscription>();
+    public DbSet<BillingProfile> BillingProfiles => Set<BillingProfile>();
+    public DbSet<SavedCard> SavedCards => Set<SavedCard>();
     public DbSet<CustomerScanEvent> CustomerScanEvents => Set<CustomerScanEvent>();
     public DbSet<CustomerRewardTransaction> CustomerRewardTransactions => Set<CustomerRewardTransaction>();
     public DbSet<CustomerVoucher> CustomerVouchers => Set<CustomerVoucher>();
@@ -351,6 +353,22 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.HasIndex(t => new { t.ShopId, t.CreatedAt });
             e.HasIndex(t => t.SourceId);
             e.HasOne(t => t.Shop).WithMany().HasForeignKey(t => t.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<BillingProfile>(e =>
+        {
+            e.ToTable("billing_profiles");
+            e.HasIndex(b => b.UserId).IsUnique();
+            e.HasOne(b => b.User).WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<SavedCard>(e =>
+        {
+            e.ToTable("saved_cards");
+            e.Property(c => c.Status).HasMaxLength(20);
+            e.HasIndex(c => c.UserId);
+            e.HasIndex(c => c.Reference).IsUnique();
+            e.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ShopDocument

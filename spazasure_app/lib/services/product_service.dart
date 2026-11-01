@@ -220,6 +220,15 @@ class ProductService {
       'fresh-produce': 'eco',
       'hot-drinks': 'coffee',
       'fuel-energy': 'local_fire_department',
+      'medicine-first-aid': 'medical_services',
+      'cold-meats': 'lunch_dining',
+      'sugar-baking': 'cake',
+      'pasta-noodles': 'ramen_dining',
+      'cereals-porridge': 'breakfast_dining',
+      'hair-beauty': 'face',
+      'batteries-electrical': 'battery_charging_full',
+      'stationery': 'edit',
+      'pet-care': 'pets',
     };
     return map[slug] ?? 'category';
   }

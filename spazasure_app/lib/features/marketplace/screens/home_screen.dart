@@ -1033,6 +1033,15 @@ class _HomeScreenState extends State<HomeScreen>
       'eco': Icons.eco,
       'coffee': Icons.coffee,
       'local_fire_department': Icons.local_fire_department,
+      'medical_services': Icons.medical_services,
+      'lunch_dining': Icons.lunch_dining,
+      'cake': Icons.cake,
+      'ramen_dining': Icons.ramen_dining,
+      'breakfast_dining': Icons.breakfast_dining,
+      'face': Icons.face,
+      'battery_charging_full': Icons.battery_charging_full,
+      'edit': Icons.edit,
+      'pets': Icons.pets,
     };
     return SizedBox(
       height: 104,

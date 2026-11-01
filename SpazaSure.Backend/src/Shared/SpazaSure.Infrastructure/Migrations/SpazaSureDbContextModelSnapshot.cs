@@ -119,6 +119,91 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("auth_audit_logs", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.BillingProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountHolder")
+                        .HasColumnType("text")
+                        .HasColumnName("account_holder");
+
+                    b.Property<string>("AccountNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("account_number");
+
+                    b.Property<string>("AccountType")
+                        .HasColumnType("text")
+                        .HasColumnName("account_type");
+
+                    b.Property<string>("AddressLine1")
+                        .HasColumnType("text")
+                        .HasColumnName("address_line1");
+
+                    b.Property<string>("AddressLine2")
+                        .HasColumnType("text")
+                        .HasColumnName("address_line2");
+
+                    b.Property<string>("BankName")
+                        .HasColumnType("text")
+                        .HasColumnName("bank_name");
+
+                    b.Property<string>("BillingEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("billing_email");
+
+                    b.Property<string>("BillingName")
+                        .HasColumnType("text")
+                        .HasColumnName("billing_name");
+
+                    b.Property<string>("BranchCode")
+                        .HasColumnType("text")
+                        .HasColumnName("branch_code");
+
+                    b.Property<string>("City")
+                        .HasColumnType("text")
+                        .HasColumnName("city");
+
+                    b.Property<string>("CompanyName")
+                        .HasColumnType("text")
+                        .HasColumnName("company_name");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PostalCode")
+                        .HasColumnType("text")
+                        .HasColumnName("postal_code");
+
+                    b.Property<string>("Province")
+                        .HasColumnType("text")
+                        .HasColumnName("province");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("VatNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("vat_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_billing_profiles");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_billing_profiles_user_id");
+
+                    b.ToTable("billing_profiles", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2393,6 +2478,90 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SavedCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorizationCode")
+                        .HasColumnType("text")
+                        .HasColumnName("authorization_code");
+
+                    b.Property<string>("Bank")
+                        .HasColumnType("text")
+                        .HasColumnName("bank");
+
+                    b.Property<string>("Brand")
+                        .HasColumnType("text")
+                        .HasColumnName("brand");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email");
+
+                    b.Property<string>("ExpMonth")
+                        .HasColumnType("text")
+                        .HasColumnName("exp_month");
+
+                    b.Property<string>("ExpYear")
+                        .HasColumnType("text")
+                        .HasColumnName("exp_year");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Last4")
+                        .HasColumnType("text")
+                        .HasColumnName("last4");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("Signature")
+                        .HasColumnType("text")
+                        .HasColumnName("signature");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_saved_cards");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("ix_saved_cards_reference");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_saved_cards_user_id");
+
+                    b.ToTable("saved_cards", (string)null);
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopBusinessProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4091,6 +4260,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.ToTable("waitlist_signups", (string)null);
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.BillingProfile", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_billing_profiles_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Category", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.Category", "Parent")
@@ -4513,6 +4694,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.SavedCard", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_saved_cards_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.ShopBusinessProfile", b =>

@@ -5,6 +5,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/billing_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -1349,6 +1350,21 @@ class _WalletScreenState extends State<WalletScreen> {
     final accountCtrl = TextEditingController();
     final branchCtrl = TextEditingController();
     bool submitting = false;
+    // Fill in the payout account saved under Billing, unless they've started typing
+    BillingService.load()
+        .then((billing) {
+          final account = billing.payoutAccount;
+          if (account == null) return;
+          void fill(TextEditingController ctrl, String? value) {
+            if (ctrl.text.isEmpty && value != null) ctrl.text = value;
+          }
+
+          fill(bankCtrl, account.bankName);
+          fill(holderCtrl, account.accountHolder);
+          fill(accountCtrl, account.accountNumber);
+          fill(branchCtrl, account.branchCode);
+        })
+        .catchError((_) {});
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

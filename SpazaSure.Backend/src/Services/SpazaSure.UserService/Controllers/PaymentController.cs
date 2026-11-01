@@ -17,7 +17,8 @@ namespace SpazaSure.UserService.Controllers;
 public class PaymentController(
     SpazaSureDbContext db,
     PaystackPaymentService paystack,
-    EventPublisher events) : ControllerBase
+    EventPublisher events,
+    ILogger<PaymentController> logger) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -180,6 +181,15 @@ public class PaymentController(
     {
         if (!TryGetString(eventData, "reference", out var reference))
             return BadRequest();
+
+        // A R1 card check from the app's Billing section
+        if (reference.StartsWith(SavedCards.ReferencePrefix, StringComparison.Ordinal))
+        {
+            var card = await db.SavedCards.FirstOrDefaultAsync(c => c.Reference == reference, cancellationToken);
+            if (card is not null)
+                await SavedCards.ConfirmAsync(db, paystack, logger, card, cancellationToken);
+            return Ok();
+        }
 
         var onboardingPayment = await db.ShopOnboardingPayments
             .Include(p => p.Shop)
