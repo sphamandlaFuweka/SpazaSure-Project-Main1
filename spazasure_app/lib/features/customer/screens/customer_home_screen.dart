@@ -19,7 +19,7 @@ class CustomerHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
     appBar: BrandAppBar(
-      title: const Text('SpazaSure'),
+      title: const Text('SPAZASURE'),
       actions: [
         // Chats with shops + news & alerts, with a dot for anything unread
         ValueListenableBuilder<int>(

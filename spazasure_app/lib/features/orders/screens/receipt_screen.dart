@@ -102,7 +102,7 @@ class ReceiptScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'SpazaSure',
+            'SPAZASURE',
             style: GoogleFonts.nunito(
               fontSize: 22,
               fontWeight: FontWeight.w700,

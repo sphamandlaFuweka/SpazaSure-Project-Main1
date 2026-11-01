@@ -179,7 +179,7 @@ class _AnimatedLogoState extends State<AnimatedLogo>
   }
 }
 
-/// "SpazaSure" with each letter popping up in turn, like a logo reveal.
+/// "SPAZASURE" with each letter popping up in turn, like a logo reveal.
 class BouncyWordmark extends StatelessWidget {
   final String text;
   final TextStyle style;
@@ -191,7 +191,7 @@ class BouncyWordmark extends StatelessWidget {
 
   const BouncyWordmark({
     super.key,
-    this.text = 'SpazaSure',
+    this.text = 'SPAZASURE',
     required this.style,
     this.highlightFrom = 5,
     this.highlight,

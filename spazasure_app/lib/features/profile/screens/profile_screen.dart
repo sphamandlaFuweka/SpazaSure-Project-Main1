@@ -1684,7 +1684,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              Text('SpazaSure', style: AppTextStyles.h3),
+              Text('SPAZASURE', style: AppTextStyles.h3),
               const SizedBox(height: 4),
               // The installed build's real version
               FutureBuilder<PackageInfo>(
