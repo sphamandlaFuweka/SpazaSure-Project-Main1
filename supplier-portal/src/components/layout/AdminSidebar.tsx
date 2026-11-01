@@ -122,7 +122,7 @@ export default function AdminSidebar({ collapsed, onToggle, mobileOpen, onClose 
         <img src="/spazasure_logo.png" alt="SpazaSure" className="w-10 h-10 object-contain flex-shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SpazaSure</p>
+            <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SPAZASURE</p>
             <p className="mt-1 inline-flex text-[10px] font-extrabold uppercase tracking-wider text-brand-red bg-brand-red-light px-2 py-0.5 rounded-full">
               Admin Console
             </p>

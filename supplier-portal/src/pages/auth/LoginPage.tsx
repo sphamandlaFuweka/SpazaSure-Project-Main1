@@ -170,7 +170,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div style={stagger(0)} className="flex flex-col items-center mb-6 short:mb-3">
             <img src="/spazasure_logo.png" alt="SpazaSure" width={56} height={56} className="w-14 h-14 short:w-10 short:h-10 object-contain mb-3 short:mb-1.5" />
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">SpazaSure</h1>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">SPAZASURE</h1>
             <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-primary-400">{activeRole === 'admin' ? 'Admin Console' : 'Supplier Portal'}</p>
           </div>
 

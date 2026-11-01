@@ -82,7 +82,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onClose }: Si
         <img src="/spazasure_logo.png" alt="SpazaSure" className="w-10 h-10 object-contain flex-shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SpazaSure</p>
+            <p className="text-lg font-black text-brand-blue tracking-tight leading-none">SPAZASURE</p>
             <p className="text-[11px] font-bold text-ink-3 mt-1">Supplier Portal</p>
           </div>
         )}

@@ -46,7 +46,7 @@ export default function VerifyShopPage() {
       <a href="https://spazasure.co.za" className="flex items-center gap-3 mb-8">
         <img src="/spazasure_logo.png" alt="" className="w-11 h-11 object-contain" />
         <span>
-          <span className="block text-lg font-black text-gray-900 leading-tight">SpazaSure</span>
+          <span className="block text-lg font-black text-gray-900 leading-tight">SPAZASURE</span>
           <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-brand-blue">Shop verification</span>
         </span>
       </a>

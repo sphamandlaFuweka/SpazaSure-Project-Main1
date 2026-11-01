@@ -122,7 +122,7 @@ export default function RegisterPage() {
           <div className="flex items-center gap-3.5 mb-12">
             <img src="/spazasure_logo.png" alt="SpazaSure" className="w-12 h-12 object-contain flex-shrink-0" />
             <div>
-              <h1 className="text-xl font-black text-white tracking-tight leading-none">SpazaSure</h1>
+              <h1 className="text-xl font-black text-white tracking-tight leading-none">SPAZASURE</h1>
               <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#4CAF50] mt-0.5">Supplier Portal</p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function RegisterPage() {
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <img src="/spazasure_logo.png" alt="SpazaSure" className="w-10 h-10 object-contain flex-shrink-0" />
             <div>
-              <h1 className="text-lg font-black text-[#1B4332] leading-none">SpazaSure</h1>
+              <h1 className="text-lg font-black text-[#1B4332] leading-none">SPAZASURE</h1>
               <p className="text-[10px] font-bold tracking-widest uppercase text-[#4CAF50]">Supplier Portal</p>
             </div>
           </div>
