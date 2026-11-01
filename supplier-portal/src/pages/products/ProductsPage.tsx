@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse, ChevronDown, Eye, EyeOff, Tag, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse, ChevronDown, Eye, EyeOff, Tag, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Product, ComplianceDoc, ProductFormData } from '../../types';
 import { EmptyState } from '../../components/ui';
@@ -161,29 +161,6 @@ export default function ProductsPage() {
       || (categoryFilter === 'none' ? !p.categoryId : p.categoryId === categoryFilter);
     return matchSearch && matchStatus && matchCategory;
   });
-
-  const handleToggle = async (id: string) => {
-    try {
-      await productsApi.toggleAvailability(id);
-      setProducts((prev) => prev.map((p) => p.id === id
-        ? { ...p, isAvailable: !p.isAvailable, status: p.status === 'active' ? 'archived' : p.status === 'archived' ? 'active' : p.status }
-        : p));
-      toast.success('Availability updated');
-    } catch {
-      toast.error('Failed to update availability');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this product?')) return;
-    try {
-      await productsApi.delete(id);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success('Product deleted');
-    } catch {
-      toast.error('Failed to delete product');
-    }
-  };
 
   const handleSave = async (data: Partial<Product>) => {
     setSaving(true);
@@ -474,17 +451,44 @@ export default function ProductsPage() {
             </button>
           )}
 
-          <div ref={actionsRef} className="relative ml-auto">
+          {/* Only there once something is ticked; the products themselves carry no buttons */}
+          {selectedProducts.length > 0 && (
+          <div ref={actionsRef} className="relative ml-auto animate-fade-in">
             <button
               onClick={() => setActionsOpen((o) => !o)}
-              disabled={selectedProducts.length === 0 || bulkBusy}
+              disabled={bulkBusy}
               className="btn-primary text-sm py-1.5 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {bulkBusy && <RefreshCw size={14} className="animate-spin" />}
-              Actions <ChevronDown size={14} />
+              Actions ({selectedProducts.length}) <ChevronDown size={14} />
             </button>
             {actionsOpen && (
               <div className="absolute right-0 mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1 animate-fade-in">
+                {/* Things that only make sense for one product */}
+                {selectedProducts.length === 1 && (() => {
+                  const only = selectedProducts[0];
+                  const open = (action: () => void) => () => { setActionsOpen(false); action(); };
+                  return (
+                    <>
+                      <button
+                        onClick={isCompliant ? open(() => { setEditing(only); setShowModal(true); }) : handleBlockedAction}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        {isCompliant ? <Edit2 size={14} className="text-primary" /> : <Lock size={14} />} Edit
+                      </button>
+                      <button onClick={open(() => setBarcodeProduct(only))} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                        <QrCode size={14} className="text-emerald-600" /> QR code & barcode
+                      </button>
+                      <button onClick={open(() => setStockProduct(only))} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                        <Warehouse size={14} className="text-gray-500" /> Stock per branch
+                      </button>
+                      <button onClick={open(() => setCodesProduct(only))} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-primary" /> Authenticity codes
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                    </>
+                  );
+                })()}
                 <button onClick={() => bulkSetAvailable(true)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
                   <Eye size={14} className="text-emerald-600" /> Show on marketplace
                 </button>
@@ -507,6 +511,7 @@ export default function ProductsPage() {
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -516,10 +521,14 @@ export default function ProductsPage() {
           {filtered.length === 0 ? (
             <div className="col-span-full card">{emptyState}</div>
           ) : filtered.map((p) => (
-            <div key={p.id} className={clsx('card overflow-hidden hover:shadow-card-hover transition-all duration-200 group', selected.has(p.id) && 'ring-2 ring-primary')}>
+            <div
+              key={p.id}
+              onClick={() => toggleSelected(p.id)}
+              className={clsx('card overflow-hidden hover:shadow-card-hover transition-all duration-200 group cursor-pointer', selected.has(p.id) && 'ring-2 ring-primary')}
+            >
               <div className="relative">
                 <ProductImage src={p.imageUrl} alt={p.name} className="w-full h-36" />
-                <label className="absolute top-2 left-2 z-10 bg-white/90 rounded-lg p-1.5 shadow-sm cursor-pointer flex">
+                <label onClick={(e) => e.stopPropagation()} className="absolute top-2 left-2 z-10 bg-white/90 rounded-lg p-1.5 shadow-sm cursor-pointer flex">
                   <input
                     type="checkbox"
                     className="w-4 h-4 accent-primary cursor-pointer"
@@ -547,26 +556,6 @@ export default function ProductsPage() {
                   <span className={clsx('text-xs font-semibold', p.stockQuantity === 0 ? 'text-red-500' : p.stockQuantity < 50 ? 'text-amber-600' : 'text-gray-500')}>
                     {p.stockQuantity === 0 ? 'Out of stock' : `${p.stockQuantity} units`}
                   </span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                  <button onClick={isCompliant ? () => { setEditing(p); setShowModal(true); } : handleBlockedAction} className="flex-1 btn-secondary text-xs py-1.5 flex items-center justify-center gap-1">
-                    {isCompliant ? <Edit2 size={12} /> : <Lock size={12} />} Edit
-                  </button>
-                  <button onClick={() => setBarcodeProduct(p)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="View QR & Barcode">
-                    <QrCode size={16} />
-                  </button>
-                  <button onClick={() => setStockProduct(p)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Stock per branch" aria-label="Stock per branch">
-                    <Warehouse size={14} />
-                  </button>
-                  <button onClick={() => setCodesProduct(p)} className="p-1.5 text-primary hover:bg-primary-50 rounded-lg transition-colors" title="Authenticity codes">
-                    <ShieldCheck size={16} />
-                  </button>
-                  <button onClick={() => handleToggle(p.id)} title={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} aria-label={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} className={clsx('p-1.5 rounded-lg transition-colors', p.isAvailable ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100')}>
-                    {p.isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                  </button>
-                  <button onClick={isCompliant ? () => handleDelete(p.id) : handleBlockedAction} title="Delete" aria-label="Delete product" className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
             </div>
@@ -598,13 +587,16 @@ export default function ProductsPage() {
                   <th className="table-header text-right">Stock</th>
                   <th className="table-header text-center">Status</th>
                   <th className="table-header text-center">Available</th>
-                  <th className="table-header text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((p) => (
-                  <tr key={p.id} className={clsx('table-row', selected.has(p.id) && 'bg-primary-50/60')}>
-                    <td className="table-cell w-10">
+                  <tr
+                    key={p.id}
+                    onClick={() => toggleSelected(p.id)}
+                    className={clsx('table-row cursor-pointer', selected.has(p.id) && 'bg-primary-50/60')}
+                  >
+                    <td className="table-cell w-10" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="w-4 h-4 accent-primary cursor-pointer"
@@ -647,28 +639,9 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td className="table-cell text-center">
-                      <button onClick={() => handleToggle(p.id)} title={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} aria-label={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'} className={clsx('transition-colors', p.isAvailable ? 'text-emerald-600' : 'text-gray-300')}>
-                        {p.isAvailable ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
-                      </button>
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={isCompliant ? () => { setEditing(p); setShowModal(true); } : handleBlockedAction} className="btn-icon hover:text-primary hover:bg-primary-50" title={isCompliant ? "Edit" : "Documents required"}>
-                          {isCompliant ? <Edit2 size={14} /> : <Lock size={14} />}
-                        </button>
-                        <button onClick={() => setBarcodeProduct(p)} className="btn-icon hover:text-emerald-600 hover:bg-emerald-50" title="View QR & Barcode">
-                          <QrCode size={14} />
-                        </button>
-                        <button onClick={() => setStockProduct(p)} className="btn-icon hover:text-primary hover:bg-primary-50" title="Stock per branch" aria-label="Stock per branch">
-                          <Warehouse size={14} />
-                        </button>
-                        <button onClick={() => setCodesProduct(p)} className="btn-icon hover:text-primary hover:bg-primary-50" title="Authenticity codes">
-                          <ShieldCheck size={14} />
-                        </button>
-                        <button onClick={isCompliant ? () => handleDelete(p.id) : handleBlockedAction} className="btn-icon hover:text-red-500 hover:bg-red-50" title={isCompliant ? "Delete" : "Documents required"}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      <span className={clsx('text-xs font-semibold', p.isAvailable ? 'text-emerald-600' : 'text-gray-400')}>
+                        {p.isAvailable ? 'Shown' : 'Hidden'}
+                      </span>
                     </td>
                   </tr>
                 ))}
