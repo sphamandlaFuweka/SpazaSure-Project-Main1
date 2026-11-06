@@ -170,7 +170,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
                 children: [
                   Text(
                     widget.title,
-                    style: AppTextStyles.subtitle,
+                    style: AppTextStyles.subtitle.copyWith(color: Colors.white),
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (widget.verified)
@@ -179,13 +179,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen>
                         const Icon(
                           Icons.verified_rounded,
                           size: 13,
-                          color: AppColors.success,
+                          color: AppColors.secondaryLight,
                         ),
                         const SizedBox(width: 3),
                         Text(
                           'SpazaSure Verified',
                           style: AppTextStyles.caption.copyWith(
-                            color: AppColors.success,
+                            color: AppColors.secondaryLight,
                           ),
                         ),
                       ],

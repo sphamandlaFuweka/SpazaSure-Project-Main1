@@ -53,7 +53,7 @@ class CustomerHomeScreen extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.primary, Color(0xFF3F5DB0)],
+              colors: [AppColors.primary, AppColors.primaryDark],
             ),
           ),
           child: Stack(

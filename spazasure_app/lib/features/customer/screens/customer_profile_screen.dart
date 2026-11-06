@@ -288,7 +288,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
+          colors: [Color(0xFF1A3278), Color(0xFF25449A)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),

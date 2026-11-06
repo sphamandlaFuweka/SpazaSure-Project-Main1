@@ -62,12 +62,6 @@ class _ReportScreenState extends State<ReportScreen> {
   DeviceFix? _fix;
   bool _locating = false;
 
-  // Product reports without a scanned barcode must identify the item by serial or PIN.
-  bool get _needsSerial =>
-      (widget.barcode ?? '').trim().isEmpty &&
-      (_selectedType == 'Fake / Counterfeit Product' ||
-          _selectedType == 'Expired Goods');
-
   static const _reportTypes = [
     _ReportType(
       Icons.gpp_bad_rounded,
@@ -267,8 +261,7 @@ class _ReportScreenState extends State<ReportScreen> {
         return _selectedType != null;
       case 1:
         return _shopNameController.text.trim().isNotEmpty &&
-            _descriptionController.text.trim().isNotEmpty &&
-            (!_needsSerial || _serialController.text.trim().length >= 4);
+            _descriptionController.text.trim().isNotEmpty;
       case 2:
         return _isAnonymous != null;
       default:
@@ -314,7 +307,10 @@ class _ReportScreenState extends State<ReportScreen> {
           centerTitle: true,
           title: Text(
             _step == 3 ? 'Report submitted' : 'Report a concern',
-            style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.w800),
+            style: AppTextStyles.subtitle.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           bottom: _step < 3
               ? PreferredSize(
@@ -362,8 +358,8 @@ class _ReportScreenState extends State<ReportScreen> {
                     height: 5,
                     decoration: BoxDecoration(
                       color: done || active
-                          ? AppColors.primary
-                          : AppColors.primaryTint,
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -376,7 +372,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           child: Icon(
                             Icons.check_circle_rounded,
                             size: 14,
-                            color: AppColors.primary,
+                            color: Colors.white,
                           ),
                         ),
                       Text(
@@ -385,9 +381,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           fontWeight: active
                               ? FontWeight.w800
                               : FontWeight.w600,
-                          color: done || active
-                              ? AppColors.textPrimary
-                              : AppColors.textHint,
+                          color: done || active ? Colors.white : Colors.white70,
                         ),
                       ),
                     ],
@@ -625,14 +619,13 @@ class _ReportScreenState extends State<ReportScreen> {
               const SizedBox(height: 12),
               _field(
                 _serialController,
-                'Serial or PIN code',
+                'Serial or PIN code (optional)',
                 'Code on the pack or scratch panel',
                 Icons.pin_outlined,
-                required: _needsSerial,
-                helper: _needsSerial
-                    ? 'Needed so we can identify the exact item (at least 4 characters).'
-                    : null,
-                onChanged: () => setState(() {}),
+                helper:
+                    'The serial is the code printed on the pack. The PIN is '
+                    'under the silver scratch panel. Not all products have '
+                    'these, so leave this blank if you can\'t find one.',
               ),
             ],
             if (_isProductIssue || _selectedType == 'Misleading Pricing') ...[
@@ -1355,7 +1348,7 @@ class _ReportScreenState extends State<ReportScreen> {
           decoration: InputDecoration(
             hintText: hint,
             helperText: helper,
-            helperMaxLines: 2,
+            helperMaxLines: 3,
             prefixText: prefixText,
             filled: true,
             fillColor: AppColors.background,

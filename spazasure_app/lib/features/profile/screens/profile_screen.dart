@@ -1,6 +1,5 @@
 import 'package:spazasure_app/features/feedback/send_feedback_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/services/feedback_service.dart';
 import 'package:spazasure_app/core/widgets/privacy_widgets.dart';
 import 'package:spazasure_app/services/privacy_service.dart';
@@ -9,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/core/widgets/editable_avatar.dart';
@@ -180,23 +180,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A3278), Color(0xFF25449A), Color(0xFF3F5DB0)],
+          colors: [Color(0xFF1A3278), Color(0xFF25449A)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Stack(
         children: [
-          // Soft brand shapes in the blue: a yellow glow, a light leaf, rings and dots
-          Positioned.fill(
-            child: CustomPaint(
-              painter: BrandPattern([
-                const Color(0xFFF8B217).withValues(alpha: 0.16),
-                Colors.white.withValues(alpha: 0.07),
-                Colors.white.withValues(alpha: 0.35),
-              ]),
-            ),
-          ),
-          const Positioned.fill(child: CustomPaint(painter: _HeaderGlow())),
+          const Positioned.fill(child: CustomPaint(painter: BrandPattern())),
           SafeArea(
             bottom: false,
             child: Padding(
@@ -1777,34 +1767,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-}
-
-/// The SpazaSure logo's colours as soft glows in the profile header (green on the left,
-/// red at the top right) and a fine dotted band along the bottom.
-class _HeaderGlow extends CustomPainter {
-  const _HeaderGlow();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    void glow(Offset centre, double radius, Color colour) => canvas.drawCircle(
-      centre,
-      radius,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [colour, colour.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: centre, radius: radius)),
-    );
-    glow(Offset(w * 0.08, h * 0.55), w * 0.35, const Color(0x2E1E9E5A));
-    glow(Offset(w * 0.92, h * 0.12), w * 0.28, const Color(0x24E0523C));
-    final dot = Paint()..color = Colors.white.withValues(alpha: 0.12);
-    for (var x = 12.0; x < w; x += 18) {
-      for (var y = h * 0.82; y < h; y += 14) {
-        canvas.drawCircle(Offset(x, y), 1.2, dot);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_HeaderGlow old) => false;
 }

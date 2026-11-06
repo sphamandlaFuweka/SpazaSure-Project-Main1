@@ -131,13 +131,7 @@ class _FeeSheet extends StatelessWidget {
                 child: Stack(
                   children: [
                     const Positioned.fill(
-                      child: CustomPaint(
-                        painter: BrandPattern([
-                          AppColors.accent,
-                          AppColors.primaryDark,
-                          Colors.white,
-                        ]),
-                      ),
+                      child: CustomPaint(painter: BrandPattern()),
                     ),
                     Center(
                       child: Container(

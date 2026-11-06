@@ -210,7 +210,7 @@ class _PageBody extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                Colors.white.withValues(alpha: 0.18),
+                Colors.white.withValues(alpha: 0.08),
                 Colors.white.withValues(alpha: 0),
               ],
             ),
@@ -223,7 +223,7 @@ class _PageBody extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.25),
+                  color: Colors.white.withValues(alpha: 0.1),
                   blurRadius: 30,
                   spreadRadius: 6,
                 ),

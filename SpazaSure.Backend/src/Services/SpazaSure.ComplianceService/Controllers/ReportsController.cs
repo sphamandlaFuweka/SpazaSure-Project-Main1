@@ -165,11 +165,6 @@ public class ReportsController(SpazaSureDbContext db, IFileStorageService storag
         if (string.IsNullOrWhiteSpace(req.Description))
             return BadRequest(ApiResponse.Fail("A description of the issue is required."));
 
-        // Product reports without a scanned barcode must identify the item by serial or PIN.
-        var isProductReport = req.ReportType is "Fake / Counterfeit Product" or "Expired Goods";
-        if (isProductReport && string.IsNullOrWhiteSpace(req.Barcode) && string.IsNullOrWhiteSpace(req.SerialCode))
-            return BadRequest(ApiResponse.Fail("Enter the product's serial or PIN code."));
-
         var locationError = SpazaSure.Shared.Helpers.AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (locationError is not null) req = req with { Latitude = null, Longitude = null };
 

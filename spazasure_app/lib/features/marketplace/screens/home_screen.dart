@@ -461,9 +461,8 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: Stack(
               children: [
-                // Two soft circles, kept quiet behind the numbers
+                // One soft circle, kept quiet behind the numbers
                 Positioned(right: -40, top: -40, child: _softCircle(140)),
-                Positioned(right: 50, bottom: -50, child: _softCircle(110)),
                 // Card content
                 Padding(
                   padding: const EdgeInsets.all(22),
@@ -594,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen>
     height: size,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: Colors.white.withValues(alpha: 0.06),
+      color: Colors.white.withValues(alpha: 0.05),
     ),
   );
 
