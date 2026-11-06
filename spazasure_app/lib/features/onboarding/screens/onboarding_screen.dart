@@ -3,11 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 
-/// The first screen a new user sees: a few simple pages on brand blue, each
-/// with a glowing icon, a title and a line or two of text.
+/// The first screen a new user sees: a few simple pages on green, each
+/// with a coloured icon in soft rings, a title and a line or two of text.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -22,21 +21,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _pages = [
     _PageData(
       Icons.storefront_rounded,
+      Color(0xFF4CAF50),
       'Order from Verified Suppliers',
       'Browse products from trusted, verified suppliers.\nGet wholesale prices delivered to your shop.',
     ),
     _PageData(
       Icons.verified_user_rounded,
+      Color(0xFF00897B),
       'Stay Compliant',
       'Upload your permits and documents.\nWe help you stay compliant and verified.',
     ),
     _PageData(
       Icons.local_shipping_rounded,
+      Color(0xFFEF7C00),
       'Track Deliveries',
       'Real-time delivery tracking.\nKnow exactly when your stock arrives.',
     ),
     _PageData(
       Icons.qr_code_scanner_rounded,
+      Color(0xFF1565C0),
       'Authentic Products',
       'Every product has a QR code.\nYour customers can verify authenticity.',
     ),
@@ -59,14 +62,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Container(
-      decoration: const BoxDecoration(
-        image: brandPatternImage,
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
-      ),
+      decoration: const BoxDecoration(gradient: AppColors.landingGradient),
       child: SafeArea(
         child: Column(
           children: [
@@ -105,33 +101,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 44,
       child: Align(
         alignment: Alignment.centerRight,
-        child: AnimatedOpacity(
-          duration: 250.ms,
-          opacity: _isLast ? 0 : 1,
-          child: IgnorePointer(
-            ignoring: _isLast,
-            child: Pressable(
-              onTap: _start,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Text(
-                  'Skip',
-                  style: GoogleFonts.nunito(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+        child: Pressable(
+          onTap: _start,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+            ),
+            child: Text(
+              'Skip',
+              style: GoogleFonts.nunito(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -164,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Text(
               _isLast ? 'Get Started' : 'Next',
               style: GoogleFonts.nunito(
-                color: AppColors.primary,
+                color: AppColors.landingGreen,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
               ),
@@ -174,7 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _isLast
                   ? Icons.rocket_launch_rounded
                   : Icons.arrow_forward_rounded,
-              color: AppColors.primary,
+              color: AppColors.landingGreen,
               size: 20,
             ),
           ],
@@ -186,13 +170,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _PageData {
   final IconData icon;
+  final Color color;
   final String title;
   final String description;
 
-  const _PageData(this.icon, this.title, this.description);
+  const _PageData(this.icon, this.color, this.title, this.description);
 }
 
-/// One page: the icon in a soft white halo, then the title and text.
+/// One page: the icon on its colour, in two soft rings, then the title and text.
 class _PageBody extends StatelessWidget {
   final _PageData data;
 
@@ -204,34 +189,21 @@ class _PageBody extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 170,
-          height: 170,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [
-                Colors.white.withValues(alpha: 0.08),
-                Colors.white.withValues(alpha: 0),
-              ],
+        _ring(
+          216,
+          0.12,
+          _ring(
+            172,
+            0.2,
+            Container(
+              width: 128,
+              height: 128,
+              decoration: BoxDecoration(
+                color: data.color,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(data.icon, size: 56, color: Colors.white),
             ),
-          ),
-          child: Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  spreadRadius: 6,
-                ),
-              ],
-            ),
-            child: Icon(data.icon, size: 46, color: AppColors.primary),
           ),
         ).animate().scaleXY(
           begin: 0.8,
@@ -244,9 +216,10 @@ class _PageBody extends StatelessWidget {
           data.title,
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
-            fontSize: 24,
+            fontSize: 28,
             fontWeight: FontWeight.w800,
             color: Colors.white,
+            height: 1.2,
           ),
         ),
         const SizedBox(height: 12),
@@ -254,12 +227,23 @@ class _PageBody extends StatelessWidget {
           data.description,
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
-            fontSize: 14.5,
-            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 16,
+            color: Colors.white.withValues(alpha: 0.8),
             height: 1.6,
           ),
         ),
       ],
     ).animate().fadeIn(duration: 400.ms),
+  );
+
+  Widget _ring(double size, double alpha, Widget child) => Container(
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: data.color.withValues(alpha: alpha),
+      shape: BoxShape.circle,
+    ),
+    child: child,
   );
 }

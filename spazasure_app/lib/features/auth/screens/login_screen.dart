@@ -4,8 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
-import 'package:spazasure_app/core/widgets/animated_logo.dart';
+import 'package:spazasure_app/core/widgets/brand_logo.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
 
@@ -91,14 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // Retailers and customers both sign in on brand blue
-  Color get _modeColor => AppColors.primary;
+  Color get _modeColor => AppColors.landingGreen;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(color: _modeColor, image: brandPatternImage),
+      decoration: const BoxDecoration(gradient: AppColors.landingGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(
@@ -157,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ),
   );
 
-  /// The logo builds itself on top of a fanned hand of brand cards.
+  /// The logo on its soft rings.
   Widget _hero() => Padding(
     padding: EdgeInsets.only(top: _compact ? 4 : 18),
     child: Column(
@@ -180,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 duration: 700.ms,
                 curve: Curves.easeOutBack,
               ),
-            AnimatedLogo(size: _compact ? 74 : 122, delay: 150.ms),
+            BrandLogo(size: _compact ? 74 : 122),
           ],
         ),
         SizedBox(height: _compact ? 6 : 14),
@@ -444,8 +443,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: _compact ? 52 : 56,
                     decoration: BoxDecoration(
                       color: _isLoading
-                          ? AppColors.primary.withValues(alpha: 0.6)
-                          : AppColors.primary,
+                          ? _modeColor.withValues(alpha: 0.6)
+                          : _modeColor,
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Center(

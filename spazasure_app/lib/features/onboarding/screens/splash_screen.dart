@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
-import 'package:spazasure_app/core/widgets/brand_pattern.dart';
-import 'package:spazasure_app/core/widgets/animated_logo.dart';
+import 'package:spazasure_app/core/widgets/brand_logo.dart';
 import 'package:spazasure_app/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -67,20 +66,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          image: brandPatternImage,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1A3278),
-              Color(0xFF25449A),
-              Color(0xFF3F5DB0),
-              Color(0xFF25449A),
-            ],
-            stops: [0.0, 0.3, 0.7, 1.0],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.landingGradient),
         child: Stack(
           children: [
             // Animated floating particles
@@ -133,8 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // The pinwheel builds itself from its four pieces
-                  const AnimatedLogo(size: 150),
+                  const BrandLogo(size: 150),
 
                   const SizedBox(height: 28),
 
@@ -198,7 +183,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 alpha: 0.15,
                               ),
                               valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF078C50),
+                                Colors.white,
                               ),
                               minHeight: 5,
                             ),

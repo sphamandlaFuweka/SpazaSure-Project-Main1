@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spazasure_app/core/widgets/brand_logo.dart';
 
 /// Use instead of Navigator.pushNamed / pushReplacementNamed to get logo transition.
 /// Example: LogoPageRoute.push(context, '/home', const MainShell());
@@ -83,14 +84,7 @@ class _LogoOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
-                      width: 100,
-                      height: 100,
-                      child: Image.asset(
-                        'assets/images/spazasure_logo.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+                    const BrandLogo(size: 100),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisSize: MainAxisSize.min,

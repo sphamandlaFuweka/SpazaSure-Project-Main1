@@ -48,6 +48,14 @@ class AppColors {
   static const statusDelivered = Color(0xFF078C50);
   static const statusCancelled = Color(0xFFE02526);
 
+  /// The green of the screens a person sees before signing in, and its accent.
+  static const landingGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF0E3D0F), Color(0xFF1B5E20), Color(0xFF2E7D32)],
+  );
+  static const landingGreen = Color(0xFF1B5E20);
+
   /// Signature hero gradient (deep brand blue), used for headers and banners.
   static const heroGradient = LinearGradient(
     begin: Alignment.topLeft,

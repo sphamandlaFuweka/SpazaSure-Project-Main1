@@ -50,12 +50,14 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pump(const Duration(milliseconds: 250));
       if (i == 2) await _shot(tester, 'mid-swipe');
-      await tester.pump(const Duration(seconds: 1));
+      for (var f = 0; f < 20; f++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
       expect(tester.takeException(), isNull);
       await _shot(tester, 'page$i');
     }
 
-    expect(find.text('Skip'), findsNothing);
+    expect(find.text('Skip'), findsOneWidget);
     await tester.tap(find.text('Get Started'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));

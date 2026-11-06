@@ -6,5 +6,5 @@ import 'package:flutter/material.dart';
 const brandPatternImage = DecorationImage(
   image: AssetImage('assets/images/brand_pattern.png'),
   fit: BoxFit.cover,
-  opacity: 0.08,
+  opacity: 0.04,
 );
