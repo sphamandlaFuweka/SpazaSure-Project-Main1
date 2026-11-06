@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/custom_button.dart';
 import 'package:spazasure_app/features/cart/screens/checkout_screen.dart';
+import 'package:spazasure_app/features/cart/widgets/group_buy_cart_card.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/platform_settings_service.dart';
@@ -34,6 +35,8 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
+    final groupBuy = cart.groupBuy;
+    final nothingInCart = cart.isEmpty && groupBuy == null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -43,26 +46,30 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             const Text('Your cart'),
             Text(
-              '${cart.count} ${cart.count == 1 ? 'item' : 'items'}',
+              '${cart.badgeCount} ${cart.badgeCount == 1 ? 'item' : 'items'}',
               style: AppTextStyles.caption.copyWith(color: Colors.white70),
             ),
           ],
         ),
         actions: [
-          if (!cart.isEmpty)
+          if (!nothingInCart)
             IconButton(
               tooltip: 'Clear cart',
-              onPressed: () => cart.clear(),
+              onPressed: () {
+                cart.clear();
+                cart.clearGroupBuy();
+              },
               icon: const Icon(Icons.delete_outline),
             ),
         ],
       ),
-      body: cart.isEmpty
+      body: nothingInCart
           ? _buildEmptyCart()
           : ListView(
               padding: const EdgeInsets.only(top: 8, bottom: 24),
               children: [
-                _buildBasketHeading(cart),
+                if (groupBuy != null) GroupBuyCartCard(entry: groupBuy),
+                if (!cart.isEmpty) _buildBasketHeading(cart),
                 ...cart.items.indexed.map(
                   (e) =>
                       Entrance(index: e.$1, child: _buildCartItem(cart, e.$2)),

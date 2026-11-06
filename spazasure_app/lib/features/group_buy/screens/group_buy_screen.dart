@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/features/profile/widgets/onboarding_fee_gate.dart';
-import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
+import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 import 'package:spazasure_app/core/widgets/full_image_view.dart';
+import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
 import 'package:spazasure_app/features/group_buy/widgets/join_group_buy_sheet.dart';
 import 'package:spazasure_app/features/group_buy/widgets/request_group_buy_sheet.dart';
 
@@ -681,76 +683,22 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
       );
       return;
     }
-    // Quantities, the total with delivery and the payment choice, all in one sheet
-    final choice = await JoinGroupBuySheet.show(
+    // Quantities here; delivery and payment happen in the cart
+    final entry = await JoinGroupBuySheet.show(
       context,
       group,
       joinableProducts,
     );
-    if (choice == null || !mounted) return;
-    await _pay(group, choice.items, choice.paymentMethod);
+    if (entry == null || !mounted) return;
+    context.read<CartProvider>().setGroupBuy(entry);
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
+    if (mounted) await _loadData();
   }
 
   static String _rand(double amount) => 'R${amount.toStringAsFixed(2)}';
-
-  Future<void> _pay(
-    GroupBuy group,
-    List<Map<String, dynamic>> items,
-    String method,
-  ) async {
-    try {
-      final result = await GroupBuyService.join(group.id, items, method);
-      if (!mounted) return;
-      if (result.checkoutUrl == null) {
-        _showMessage(
-          result.message ?? 'You joined the group buy!',
-          AppColors.success,
-        );
-        await _loadData();
-        return;
-      }
-      await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OnboardingFeeCheckoutScreen(
-            checkoutUrl: result.checkoutUrl!,
-            title: 'Pay for group buy',
-          ),
-        ),
-      );
-      if (!mounted) return;
-      // Paystack tells SpazaSure a moment after the payment, so check a few times
-      var status = 'pending';
-      for (var i = 0; i < 5 && status == 'pending'; i++) {
-        status = await GroupBuyService.confirmPayment(group.id);
-        if (status == 'pending') {
-          await Future.delayed(const Duration(seconds: 2));
-        }
-      }
-      if (!mounted) return;
-      switch (status) {
-        case 'joined':
-          _showMessage(
-            'Payment received. You joined the group buy!',
-            AppColors.success,
-          );
-        case 'refunded':
-          _showMessage(
-            'The group buy filled up while you paid, so the money is in your wallet.',
-            AppColors.warning,
-          );
-        default:
-          _showMessage(
-            'Payment not confirmed yet. If you paid, you will be added shortly; '
-            'otherwise tap Join to try again.',
-            AppColors.warning,
-          );
-      }
-      await _loadData();
-    } catch (error) {
-      if (mounted) _showMessage(error.toString(), AppColors.error);
-    }
-  }
 
   Future<void> _leaveGroup(GroupBuy group) async {
     try {

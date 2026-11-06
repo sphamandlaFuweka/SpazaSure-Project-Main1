@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/group_buy_service.dart';
 import '../services/platform_settings_service.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartItem> _items = [];
   PlatformSettings _settings = PlatformSettings.defaults;
+  GroupBuyCartEntry? _groupBuy;
 
   PlatformSettings get settings => _settings;
+
+  /// The group buy waiting to be paid, kept apart from the normal order. One at a time.
+  GroupBuyCartEntry? get groupBuy => _groupBuy;
+
+  void setGroupBuy(GroupBuyCartEntry entry) {
+    _groupBuy = entry;
+    notifyListeners();
+  }
+
+  void clearGroupBuy() {
+    _groupBuy = null;
+    notifyListeners();
+  }
 
   /// Use the admin-configured fees so the cart total matches the server's charge.
   void applySettings(PlatformSettings settings) {
@@ -17,6 +32,9 @@ class CartProvider extends ChangeNotifier {
   List<CartItem> get items => List.unmodifiable(_items);
   int get count => _items.fold(0, (s, i) => s + i.quantity);
   bool get isEmpty => _items.isEmpty;
+
+  /// Everything in the cart, the group buy included.
+  int get badgeCount => count + (_groupBuy?.itemCount ?? 0);
 
   double get subtotal => _items.fold(0, (s, i) => s + i.total);
 

@@ -6,16 +6,8 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/group_buy_service.dart';
 
-/// What the shop chose in the join sheet: the quantities and how it pays ('wallet' or 'paystack').
-class GroupBuyJoinChoice {
-  final List<Map<String, dynamic>> items;
-  final String paymentMethod;
-
-  const GroupBuyJoinChoice(this.items, this.paymentMethod);
-}
-
-/// One sheet to join a group buy: quantities per product, the total with delivery, and how to
-/// pay. Problems (too few items, no shop location, out of stock) show inside the sheet.
+/// Chooses the quantities for a group buy and adds them to the cart, where the shop adds
+/// delivery and pays. Problems (too few items, no shop location, out of stock) show inside the sheet.
 class JoinGroupBuySheet extends StatefulWidget {
   final GroupBuy group;
   final List<GroupBuyProduct> products;
@@ -26,11 +18,11 @@ class JoinGroupBuySheet extends StatefulWidget {
     required this.products,
   });
 
-  static Future<GroupBuyJoinChoice?> show(
+  static Future<GroupBuyCartEntry?> show(
     BuildContext context,
     GroupBuy group,
     List<GroupBuyProduct> products,
-  ) => showModalBottomSheet<GroupBuyJoinChoice>(
+  ) => showModalBottomSheet<GroupBuyCartEntry>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -175,8 +167,10 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
     }
   }
 
-  void _pay(String method) =>
-      Navigator.pop(context, GroupBuyJoinChoice(_items, method));
+  void _addToCart(GroupBuyQuote quote) => Navigator.pop(
+    context,
+    GroupBuyCartEntry(group: widget.group, items: _items, quote: quote),
+  );
 
   static String _rand(double amount) => 'R${amount.toStringAsFixed(2)}';
 
@@ -184,7 +178,6 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
   Widget build(BuildContext context) {
     final problem = _error ?? _localProblem;
     final quote = _quote;
-    final canUseWallet = quote != null && quote.walletBalance >= quote.total;
 
     return Padding(
       // Stay above the keyboard while typing a quantity
@@ -291,27 +284,13 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton.icon(
-                    onPressed: canUseWallet ? () => _pay('wallet') : null,
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    label: Text(
-                      quote == null
-                          ? 'Pay from wallet'
-                          : 'Pay from wallet (${_rand(quote.walletBalance)})',
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  OutlinedButton.icon(
-                    onPressed: quote == null ? null : () => _pay('paystack'),
-                    icon: const Icon(Icons.credit_card),
-                    label: Text(
-                      quote == null
-                          ? 'Pay by card'
-                          : 'Pay ${_rand(quote.total)} by card',
-                    ),
+                    onPressed: quote == null ? null : () => _addToCart(quote),
+                    icon: const Icon(Icons.shopping_cart_outlined),
+                    label: const Text('Add to cart'),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Payment is final. If a product doesn\'t reach its target, its money goes back to your wallet.',
+                    'You add delivery and pay in your cart. You join the deal when you pay.',
                     style: AppTextStyles.caption,
                     textAlign: TextAlign.center,
                   ),

@@ -50,7 +50,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = context.watch<CartProvider>().count;
+    final cartCount = context.watch<CartProvider>().badgeCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,

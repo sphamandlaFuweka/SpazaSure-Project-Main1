@@ -167,6 +167,21 @@ class GroupBuy {
   }
 }
 
+/// A group buy waiting in the cart: the quantities chosen and their last price.
+class GroupBuyCartEntry {
+  final GroupBuy group;
+  final List<Map<String, dynamic>> items;
+  final GroupBuyQuote quote;
+
+  const GroupBuyCartEntry({
+    required this.group,
+    required this.items,
+    required this.quote,
+  });
+
+  int get itemCount => quote.lines.fold(0, (sum, line) => sum + line.quantity);
+}
+
 /// A group buy this shop asked SpazaSure to arrange.
 class GroupBuyRequest {
   final String id;
