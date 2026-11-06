@@ -4,6 +4,7 @@ import 'package:spazasure_app/core/widgets/cart_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/product_card.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
@@ -35,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _rating = '--';
   double? _walletBalance;
   int _unreadNotifications = 0;
+
   /// Open group buys with a poster, shown as the swipeable banner
   List<GroupBuy> _bannerGroups = [];
   final _bannerController = PageController();
@@ -440,6 +442,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
+              image: brandPatternImage,
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -459,121 +462,113 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                // One soft circle, kept quiet behind the numbers
-                Positioned(right: -40, top: -40, child: _softCircle(140)),
-                // Card content
-                Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.account_balance_wallet_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'SpazaSure Wallet',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          GestureDetector(
-                            onTap: () => setState(
-                              () => _walletVisible = !_walletVisible,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(
-                              _walletVisible
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: Colors.white60,
+                            child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.white,
                               size: 18,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _walletVisible && _walletBalance != null
-                          ? TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0, end: _walletBalance!),
-                              duration: const Duration(milliseconds: 900),
-                              curve: Curves.easeOutCubic,
-                              builder: (_, value, __) => Text(
-                                'R ${value.toStringAsFixed(2)}',
-                                style: _balanceStyle,
-                              ),
-                            )
-                          : Text(
-                              _walletVisible ? 'R --' : 'R ••••••',
-                              style: _balanceStyle,
-                            ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Available Balance',
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _walletAction(Icons.add_rounded, 'Top Up'),
-                          const SizedBox(width: 10),
-                          _walletAction(Icons.send_rounded, 'Transfer'),
-                          const SizedBox(width: 10),
-                          _walletAction(Icons.history_rounded, 'History'),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              children: [
-                                Text(
-                                  'Manage',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: AppColors.primary,
-                                  size: 14,
-                                ),
-                              ],
+                          const SizedBox(width: 8),
+                          const Text(
+                            'SpazaSure Wallet',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _walletVisible = !_walletVisible),
+                        child: Icon(
+                          _walletVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.white60,
+                          size: 18,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  _walletVisible && _walletBalance != null
+                      ? TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: _walletBalance!),
+                          duration: const Duration(milliseconds: 900),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, value, __) => Text(
+                            'R ${value.toStringAsFixed(2)}',
+                            style: _balanceStyle,
+                          ),
+                        )
+                      : Text(
+                          _walletVisible ? 'R --' : 'R ••••••',
+                          style: _balanceStyle,
+                        ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Available Balance',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _walletAction(Icons.add_rounded, 'Top Up'),
+                      const SizedBox(width: 10),
+                      _walletAction(Icons.send_rounded, 'Transfer'),
+                      const SizedBox(width: 10),
+                      _walletAction(Icons.history_rounded, 'History'),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          children: [
+                            Text(
+                              'Manage',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: AppColors.primary,
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         )
@@ -587,15 +582,6 @@ class _HomeScreenState extends State<HomeScreen>
           curve: Curves.easeOutBack,
         );
   }
-
-  Widget _softCircle(double size) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: Colors.white.withValues(alpha: 0.05),
-    ),
-  );
 
   static const _balanceStyle = TextStyle(
     color: Colors.white,
@@ -1112,11 +1098,8 @@ class _HomeScreenState extends State<HomeScreen>
     final current = groups.isEmpty
         ? null
         : groups[_bannerPage.clamp(0, groups.length - 1)];
-    void open() => Navigator.pushNamed(
-      context,
-      '/group-buy',
-      arguments: current?.id,
-    );
+    void open() =>
+        Navigator.pushNamed(context, '/group-buy', arguments: current?.id);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -1142,8 +1125,7 @@ class _HomeScreenState extends State<HomeScreen>
                   PageView.builder(
                     controller: _bannerController,
                     itemCount: groups.length,
-                    onPageChanged: (page) =>
-                        setState(() => _bannerPage = page),
+                    onPageChanged: (page) => setState(() => _bannerPage = page),
                     itemBuilder: (_, index) => GestureDetector(
                       onTap: open,
                       child: Image.network(

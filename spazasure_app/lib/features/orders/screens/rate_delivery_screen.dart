@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/api_service.dart';
@@ -100,6 +101,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
+          image: brandPatternImage,
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

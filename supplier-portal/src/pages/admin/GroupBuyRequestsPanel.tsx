@@ -17,6 +17,8 @@ const statusStyle: Record<ShopGroupBuyRequest['status'], string> = {
   declined: 'bg-red-50 text-red-700 border-red-200',
 };
 
+const date = (value: string | null) => (value ? new Date(value).toLocaleDateString() : '-');
+
 /** What shops asked SpazaSure to arrange. Each answer notifies the shop; the deal itself is made with New offer. */
 export default function GroupBuyRequestsPanel() {
   const [requests, setRequests] = useState<ShopGroupBuyRequest[]>([]);
@@ -63,7 +65,9 @@ export default function GroupBuyRequestsPanel() {
           <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
             <th className="p-3">Product</th>
             <th className="p-3">Shop</th>
-            <th className="p-3 text-right">Quantity</th>
+            <th className="p-3 text-right">Per shop</th>
+            <th className="p-3 text-right">Shops</th>
+            <th className="p-3">Runs</th>
             <th className="p-3">Requested</th>
             <th className="p-3">Status</th>
             <th className="p-3 text-right">Answer</th>
@@ -75,15 +79,25 @@ export default function GroupBuyRequestsPanel() {
             return (
               <tr key={r.id} className="border-b border-gray-50 align-top">
                 <td className="p-3">
-                  <p className="font-bold text-gray-900">{r.productName}</p>
+                  {r.items.length > 0 ? (
+                    r.items.map((item) => (
+                      <p key={item.productName} className="font-bold text-gray-900">{item.quantity} x {item.productName}</p>
+                    ))
+                  ) : (
+                    <p className="font-bold text-gray-900">{r.productName}</p>
+                  )}
+                  {r.supplierName && <p className="text-xs text-gray-500 mt-0.5">{r.supplierName}</p>}
+                  {r.targetDiscountPct != null && <p className="text-xs text-gray-500 mt-0.5">Hopes for {r.targetDiscountPct}% off</p>}
                   {r.note && <p className="text-xs text-gray-500 mt-0.5 max-w-[280px]">{r.note}</p>}
                   {r.adminNote && <p className="text-xs text-primary mt-0.5 max-w-[280px]">You said: {r.adminNote}</p>}
                 </td>
                 <td className="p-3">
                   <p className="font-semibold text-gray-800">{r.shopName}</p>
-                  <p className="text-xs text-gray-500">{[r.city, r.province].filter(Boolean).join(', ')}</p>
+                  <p className="text-xs text-gray-500">{r.area ?? [r.city, r.province].filter(Boolean).join(', ')}</p>
                 </td>
                 <td className="p-3 text-right tabular-nums">{r.quantity ?? '-'}</td>
+                <td className="p-3 text-right tabular-nums">{r.shopsWanted ?? '-'}</td>
+                <td className="p-3 whitespace-nowrap">{date(r.opensOn)} to {date(r.closesOn)}</td>
                 <td className="p-3 whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString()}</td>
                 <td className="p-3">
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${statusStyle[r.status]}`}>

@@ -177,6 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
+        image: brandPatternImage,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -184,123 +185,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
-      child: Stack(
-        children: [
-          const Positioned.fill(child: CustomPaint(painter: BrandPattern())),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              child: Column(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: Column(
+            children: [
+              // Top bar
+              Row(
                 children: [
-                  // Top bar
-                  Row(
-                    children: [
-                      const SizedBox(width: 48),
-                      const Spacer(),
-                      const Text(
-                        'My Profile',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: _loadProfile,
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: Colors.white70,
-                          size: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Avatar
-                  EditableAvatar(
-                    initials: initials,
-                    photoUrl: _profile?.profilePhotoUrl,
-                    uploadPath: '/shop/profile/photo',
-                    onUploaded: (_) => _loadProfile(),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    displayName,
-                    style: const TextStyle(
+                  const SizedBox(width: 48),
+                  const Spacer(),
+                  const Text(
+                    'My Profile',
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (ownerName.isNotEmpty && shopName != ownerName)
-                    Text(
-                      shopName,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
-                  const SizedBox(height: 6),
-                  if (phone.isNotEmpty)
-                    Text(
-                      phone,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
-                    ),
-                  const SizedBox(height: 10),
-                  // Status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isVerified
-                          ? Colors.white.withValues(alpha: 0.2)
-                          : const Color(0xFFF8B217).withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isVerified
-                            ? const Color(0xFF4DD898)
-                            : const Color(0xFFFFD54F),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isVerified ? Icons.verified : Icons.pending_outlined,
-                          size: 16,
-                          color: isVerified
-                              ? const Color(0xFF4DD898)
-                              : const Color(0xFFFFD54F),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isVerified
-                              ? 'Verified Account'
-                              : 'Pending Verification',
-                          style: TextStyle(
-                            color: isVerified
-                                ? const Color(0xFF4DD898)
-                                : const Color(0xFFFFD54F),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _loadProfile,
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white70,
+                      size: 22,
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 20),
+              // Avatar
+              EditableAvatar(
+                initials: initials,
+                photoUrl: _profile?.profilePhotoUrl,
+                uploadPath: '/shop/profile/photo',
+                onUploaded: (_) => _loadProfile(),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                displayName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (ownerName.isNotEmpty && shopName != ownerName)
+                Text(
+                  shopName,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              const SizedBox(height: 6),
+              if (phone.isNotEmpty)
+                Text(
+                  phone,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              const SizedBox(height: 10),
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isVerified
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : const Color(0xFFF8B217).withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isVerified
+                        ? const Color(0xFF4DD898)
+                        : const Color(0xFFFFD54F),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isVerified ? Icons.verified : Icons.pending_outlined,
+                      size: 16,
+                      color: isVerified
+                          ? const Color(0xFF4DD898)
+                          : const Color(0xFFFFD54F),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isVerified ? 'Verified Account' : 'Pending Verification',
+                      style: TextStyle(
+                        color: isVerified
+                            ? const Color(0xFF4DD898)
+                            : const Color(0xFFFFD54F),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     ).animate().fadeIn(duration: 400.ms);
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/address_autocomplete_field.dart';
 import 'package:spazasure_app/services/address_service.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
@@ -645,6 +646,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        image: brandPatternImage,
         gradient: const LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,

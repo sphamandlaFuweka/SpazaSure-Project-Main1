@@ -193,6 +193,10 @@ class GroupBuyRequest {
   final String status;
   final String? adminNote;
   final DateTime? createdAt;
+  final String? supplierName;
+  final int? shopsWanted;
+  final DateTime? opensOn;
+  final DateTime? closesOn;
 
   const GroupBuyRequest({
     required this.id,
@@ -202,6 +206,10 @@ class GroupBuyRequest {
     this.note,
     this.adminNote,
     this.createdAt,
+    this.supplierName,
+    this.shopsWanted,
+    this.opensOn,
+    this.closesOn,
   });
 
   factory GroupBuyRequest.fromJson(Map<String, dynamic> json) =>
@@ -213,6 +221,10 @@ class GroupBuyRequest {
         status: json['status']?.toString() ?? 'new',
         adminNote: json['adminNote']?.toString(),
         createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+        supplierName: json['supplierName']?.toString(),
+        shopsWanted: (json['shopsWanted'] as num?)?.toInt(),
+        opensOn: DateTime.tryParse(json['opensOn']?.toString() ?? ''),
+        closesOn: DateTime.tryParse(json['closesOn']?.toString() ?? ''),
       );
 }
 
@@ -227,13 +239,22 @@ class GroupBuyService {
   }
 
   static Future<void> createRequest({
-    required String productName,
-    int? quantity,
+    required List<Map<String, dynamic>> items,
+    required int shopsWanted,
+    required DateTime opensOn,
+    required DateTime closesOn,
+    required String area,
+    int? targetDiscountPct,
     String? note,
   }) async {
+    String day(DateTime date) => date.toIso8601String().substring(0, 10);
     await ApiService.post('/shop/group-buy/requests', {
-      'productName': productName,
-      'quantity': quantity,
+      'items': items,
+      'shopsWanted': shopsWanted,
+      'opensOn': day(opensOn),
+      'closesOn': day(closesOn),
+      'area': area,
+      'targetDiscountPct': targetDiscountPct,
       'note': note,
     });
   }

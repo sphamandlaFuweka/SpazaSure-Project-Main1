@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 
-/// The app's top bar in the welcome pages' style: SpazaSure blue with a faint
-/// brand shape, white text and rounded bottom corners. A screen that passes
-/// its own [backgroundColor] (the camera screens, say) keeps it, without the shape.
+/// The app's top bar in the welcome pages' style: SpazaSure blue with the faint
+/// brand pattern, white text and rounded bottom corners. A screen that passes
+/// its own [backgroundColor] (the camera screens, say) keeps it, without the pattern.
 class BrandAppBar extends AppBar {
   BrandAppBar({
     super.key,
@@ -84,15 +84,11 @@ class _BarPattern extends StatelessWidget {
   const _BarPattern();
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-    // The shape sits at the right end, at a fixed size, however wide the bar is
-    child: Align(
-      alignment: Alignment.centerRight,
-      child: SizedBox(
-        width: 170,
-        height: double.infinity,
-        child: const CustomPaint(painter: BrandPattern()),
+  Widget build(BuildContext context) => const SizedBox.expand(
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        image: brandPatternImage,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
     ),
   );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
 import 'package:spazasure_app/features/academy/screens/academy_report_screen.dart';
@@ -308,6 +309,7 @@ class _OverviewTabState extends State<_OverviewTab>
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
+        image: brandPatternImage,
         gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.primaryLight],
         ),

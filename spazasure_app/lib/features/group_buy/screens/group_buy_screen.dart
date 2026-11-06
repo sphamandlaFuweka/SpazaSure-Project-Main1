@@ -12,7 +12,7 @@ import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 import 'package:spazasure_app/core/widgets/full_image_view.dart';
 import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
 import 'package:spazasure_app/features/group_buy/widgets/join_group_buy_sheet.dart';
-import 'package:spazasure_app/features/group_buy/widgets/request_group_buy_sheet.dart';
+import 'package:spazasure_app/features/group_buy/screens/request_group_buy_screen.dart';
 
 class GroupBuyScreen extends StatefulWidget {
   /// Set when a shared group buy link opened the app: show that deal straight away.
@@ -63,7 +63,10 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
   }
 
   Future<void> _requestDeal() async {
-    final sent = await RequestGroupBuySheet.show(context);
+    final sent = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RequestGroupBuyScreen()),
+    );
     if (sent != true || !mounted) return;
     _tabController.animateTo(2);
     _showMessage('Request sent', AppColors.success);
@@ -203,10 +206,15 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
       _ => ('Received', AppColors.textSecondary),
     };
     final details = [
-      if (request.quantity != null) '${request.quantity} units',
+      if (request.quantity != null) '${request.quantity} items per shop',
+      if (request.shopsWanted != null) '${request.shopsWanted} shops',
       if (request.createdAt != null)
-        DateFormat('d MMM yyyy').format(request.createdAt!.toLocal()),
+        'Sent ${DateFormat('d MMM yyyy').format(request.createdAt!.toLocal())}',
     ].join(' • ');
+    final runs = request.opensOn != null && request.closesOn != null
+        ? '${DateFormat('d MMM').format(request.opensOn!)} to '
+              '${DateFormat('d MMM yyyy').format(request.closesOn!)}'
+        : null;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -242,6 +250,14 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
           if (details.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(details, style: AppTextStyles.caption),
+          ],
+          if (request.supplierName != null) ...[
+            const SizedBox(height: 4),
+            Text(request.supplierName!, style: AppTextStyles.caption),
+          ],
+          if (runs != null) ...[
+            const SizedBox(height: 4),
+            Text('Runs $runs', style: AppTextStyles.caption),
           ],
           if (request.note != null) ...[
             const SizedBox(height: 8),

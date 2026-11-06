@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/widgets/animated_logo.dart';
 import 'package:spazasure_app/core/widgets/motion.dart';
 import 'package:spazasure_app/providers/auth_provider.dart';
@@ -97,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOutCubic,
-      color: _modeColor,
+      decoration: BoxDecoration(color: _modeColor, image: brandPatternImage),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Stack(
@@ -251,9 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _customerLogin
-                            ? 'Shopper Sign In'
-                            : 'Retailer Sign In',
+                        _customerLogin ? 'Shopper Sign In' : 'Retailer Sign In',
                         style: GoogleFonts.nunito(
                           fontSize: 25,
                           fontWeight: FontWeight.w900,

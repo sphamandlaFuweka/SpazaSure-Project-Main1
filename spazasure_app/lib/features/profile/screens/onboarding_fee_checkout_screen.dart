@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class OnboardingFeeCheckoutScreen extends StatefulWidget {
@@ -96,6 +97,7 @@ class _OnboardingFeeCheckoutScreenState
       backgroundColor: AppColors.primaryDark,
       body: DecoratedBox(
         decoration: const BoxDecoration(
+          image: brandPatternImage,
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

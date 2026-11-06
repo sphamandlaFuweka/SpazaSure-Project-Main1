@@ -85,7 +85,7 @@ public static class PersonalData
             .ToListAsync(ct),
         groupBuyRequests = await db.GroupBuyRequests.AsNoTracking().Where(r => r.ShopId == shop.Id)
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new { r.CreatedAt, r.ProductName, r.Quantity, r.Note, r.Status, r.AdminNote })
+            .Select(r => new { r.CreatedAt, r.ProductName, r.Quantity, r.ShopsWanted, r.OpensOn, r.ClosesOn, r.Area, r.TargetDiscountPct, r.Note, r.Status, r.AdminNote })
             .ToListAsync(ct),
     };
 
@@ -231,7 +231,10 @@ public static class PersonalData
             }
             // What was asked for stays useful; the shop's own words go
             foreach (var request in await db.GroupBuyRequests.Where(r => r.ShopId == shop.Id).ToListAsync(ct))
+            {
                 request.Note = null;
+                request.Area = null;
+            }
         }
 
         if (await db.Suppliers.Include(s => s.Documents).FirstOrDefaultAsync(s => s.UserId == userId, ct) is { } supplier)

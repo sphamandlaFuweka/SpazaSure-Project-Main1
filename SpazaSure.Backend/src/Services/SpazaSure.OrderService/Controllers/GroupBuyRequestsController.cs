@@ -9,11 +9,23 @@ using System.Security.Claims;
 
 namespace SpazaSure.OrderService.Controllers;
 
-public record CreateGroupBuyRequest(string? ProductName, int? Quantity, string? Note);
+public record GroupBuyRequestLine(Guid ProductId, int Quantity);
+
+public record CreateGroupBuyRequest(
+    List<GroupBuyRequestLine>? Items,
+    int? ShopsWanted,
+    DateOnly? OpensOn,
+    DateOnly? ClosesOn,
+    string? Area,
+    int? TargetDiscountPct,
+    string? Note);
 
 public record UpdateGroupBuyRequestStatus(string? Status, string? Note);
 
-/// <summary>Shops ask for a group buy they would like to see, and follow what happens to the request.</summary>
+/// <summary>
+/// Shops ask for a group buy they would like to see, from products already on the marketplace,
+/// and follow what happens to the request. A request has to meet the same standards as a deal.
+/// </summary>
 [ApiController]
 [Route("api/shop/group-buy/requests")]
 [Authorize(Roles = "spaza_owner")]
@@ -21,6 +33,8 @@ public class ShopGroupBuyRequestsController(SpazaSureDbContext db) : ControllerB
 {
     /// <summary>Requests still waiting for an answer, so one shop can't flood the admins.</summary>
     private const int MaxOpenRequests = 10;
+    /// <summary>The longest a deal can run (see GroupBuyFactory).</summary>
+    private const int MaxDays = 60;
 
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -34,7 +48,12 @@ public class ShopGroupBuyRequestsController(SpazaSureDbContext db) : ControllerB
             .Where(r => r.ShopId == shop.Id)
             .OrderByDescending(r => r.CreatedAt)
             .Take(50)
-            .Select(r => new { r.Id, r.ProductName, r.Quantity, r.Note, r.Status, r.AdminNote, r.CreatedAt })
+            .Select(r => new
+            {
+                r.Id, r.ProductName, r.Quantity, r.Note, r.Status, r.AdminNote, r.CreatedAt,
+                r.SupplierName, r.ShopsWanted, r.OpensOn, r.ClosesOn, r.Area, r.TargetDiscountPct,
+                Items = r.Items.Select(i => new { i.ProductName, i.Quantity }).ToList(),
+            })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(requests));
     }
@@ -42,16 +61,9 @@ public class ShopGroupBuyRequestsController(SpazaSureDbContext db) : ControllerB
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateGroupBuyRequest req)
     {
-        var productName = req.ProductName?.Trim();
-        if (string.IsNullOrEmpty(productName))
-            return BadRequest(ApiResponse.Fail("Tell us which product you want."));
-        if (productName.Length > 120)
-            return BadRequest(ApiResponse.Fail("Keep the product name under 120 characters."));
-        if (req.Quantity is < 1 or > 100_000)
-            return BadRequest(ApiResponse.Fail("Enter a quantity between 1 and 100,000."));
-        var note = string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim();
-        if (note?.Length > 500)
-            return BadRequest(ApiResponse.Fail("Keep the note under 500 characters."));
+        var rules = await PlatformSettingsStore.LoadAsync(db);
+        var (error, products) = await CheckAsync(req, rules);
+        if (error is not null) return BadRequest(ApiResponse.Fail(error));
 
         var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
@@ -60,15 +72,69 @@ public class ShopGroupBuyRequestsController(SpazaSureDbContext db) : ControllerB
         if (open >= MaxOpenRequests)
             return BadRequest(ApiResponse.Fail("You have 10 requests waiting for an answer. Please wait for us to review them."));
 
-        db.GroupBuyRequests.Add(new GroupBuyRequest
+        var lines = req.Items!.Select(l => (Line: l, Product: products[l.ProductId])).ToList();
+        var first = lines[0].Product;
+        var request = new GroupBuyRequest
         {
             ShopId = shop.Id,
-            ProductName = productName,
-            Quantity = req.Quantity,
-            Note = note,
-        });
+            // The admin list and notifications name the request by its products
+            ProductName = lines.Count == 1 ? first.Name : $"{first.Name} +{lines.Count - 1} more",
+            Quantity = lines.Sum(l => l.Line.Quantity),
+            SupplierId = first.SupplierId,
+            SupplierName = await db.Suppliers.Where(s => s.Id == first.SupplierId).Select(s => s.CompanyName).FirstOrDefaultAsync(),
+            ShopsWanted = req.ShopsWanted,
+            OpensOn = req.OpensOn,
+            ClosesOn = req.ClosesOn,
+            Area = req.Area!.Trim(),
+            TargetDiscountPct = req.TargetDiscountPct,
+            Note = string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim(),
+        };
+        foreach (var (line, product) in lines)
+            request.Items.Add(new GroupBuyRequestItem { ProductId = product.Id, ProductName = product.Name, Quantity = line.Quantity });
+        db.GroupBuyRequests.Add(request);
         await db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Request sent. We'll let you know what happens."));
+    }
+
+    /// <summary>Why this request can't be sent, or the products it asks for.</summary>
+    private async Task<(string? Error, Dictionary<Guid, Product> Products)> CheckAsync(CreateGroupBuyRequest req, PlatformRules rules)
+    {
+        var none = new Dictionary<Guid, Product>();
+        if (req.Items is null) return ("Please update the SpazaSure app to request a group buy.", none);
+        if (req.Items.Count == 0) return ("Choose at least one product.", none);
+        var ids = req.Items.Select(l => l.ProductId).ToList();
+        if (ids.Distinct().Count() != ids.Count) return ("Each product can only be added once.", none);
+        if (req.Items.Any(l => l.Quantity is < 1 or > 100_000)) return ("Enter a quantity between 1 and 100,000 for each product.", none);
+        var totalItems = req.Items.Sum(l => l.Quantity);
+        if (totalItems < GroupBuyPayments.MinPerShop)
+            return ($"Each shop must buy not less than {GroupBuyPayments.MinPerShop} items. You can mix products.", none);
+
+        var products = await db.Products.AsNoTracking()
+            .Where(p => ids.Contains(p.Id) && p.IsApproved && p.IsAvailable)
+            .ToDictionaryAsync(p => p.Id);
+        if (products.Count != ids.Count) return ("One of these products is no longer available. Choose it again.", none);
+        if (products.Values.Select(p => p.SupplierId).Distinct().Count() > 1)
+            return ("A group buy is with one supplier, so choose products from the same supplier.", none);
+
+        var spend = req.Items.Sum(l => l.Quantity * ShopPricing.ShopPrice(products[l.ProductId].Price, rules));
+        if (rules.MinOrderAmount > 0 && spend < rules.MinOrderAmount)
+            return ($"Each shop must spend not less than R{rules.MinOrderAmount:N0}. This comes to R{spend:N0}.", none);
+
+        if (req.ShopsWanted is not { } shops || shops < rules.GroupBuyMinShops || shops > 1000)
+            return ($"Enter the number of shops, not less than {rules.GroupBuyMinShops}.", none);
+
+        if (req.OpensOn is not { } opens || req.ClosesOn is not { } closes) return ("Choose the opening and closing dates.", none);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(2)); // South African time
+        if (opens < today) return ("The opening date can't be in the past.", none);
+        if (closes <= opens) return ("The closing date must be after the opening date.", none);
+        if (closes.DayNumber - opens.DayNumber > MaxDays) return ($"A group buy can run for {MaxDays} days at most.", none);
+
+        var area = req.Area?.Trim();
+        if (string.IsNullOrEmpty(area)) return ("Tell us the area the deal is for.", none);
+        if (area.Length > 120) return ("Keep the area under 120 characters.", none);
+        if (req.TargetDiscountPct is < 1 or > 99) return ("Enter a discount between 1 and 99 percent.", none);
+        if (req.Note?.Trim().Length > 500) return ("Keep the note under 500 characters.", none);
+        return (null, products);
     }
 }
 
@@ -89,6 +155,8 @@ public class AdminGroupBuyRequestsController(SpazaSureDbContext db, EventPublish
             {
                 r.Id, r.ProductName, r.Quantity, r.Note, r.Status, r.AdminNote, r.CreatedAt,
                 r.Shop.ShopName, r.Shop.City, r.Shop.Province,
+                r.SupplierName, r.ShopsWanted, r.OpensOn, r.ClosesOn, r.Area, r.TargetDiscountPct,
+                Items = r.Items.Select(i => new { i.ProductName, i.Quantity }).ToList(),
             })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(requests));

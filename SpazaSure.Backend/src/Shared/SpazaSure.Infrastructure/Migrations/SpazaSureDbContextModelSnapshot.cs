@@ -1433,6 +1433,15 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("admin_note");
 
+                    b.Property<string>("Area")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("area");
+
+                    b.Property<DateOnly?>("ClosesOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closes_on");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1441,6 +1450,10 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("note");
+
+                    b.Property<DateOnly?>("OpensOn")
+                        .HasColumnType("date")
+                        .HasColumnName("opens_on");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
@@ -1456,11 +1469,27 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("shop_id");
 
+                    b.Property<int?>("ShopsWanted")
+                        .HasColumnType("integer")
+                        .HasColumnName("shops_wanted");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierName")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<int?>("TargetDiscountPct")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_discount_pct");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1476,6 +1505,48 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasDatabaseName("ix_group_buy_requests_status");
 
                     b.ToTable("group_buy_requests", (string)null);
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyRequestItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("product_name");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_group_buy_request_items");
+
+                    b.HasIndex("RequestId")
+                        .HasDatabaseName("ix_group_buy_request_items_request_id");
+
+                    b.ToTable("group_buy_request_items", (string)null);
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Order", b =>
@@ -4564,6 +4635,18 @@ namespace SpazaSure.Infrastructure.Migrations
                     b.Navigation("Shop");
                 });
 
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyRequestItem", b =>
+                {
+                    b.HasOne("SpazaSure.Infrastructure.Entities.GroupBuyRequest", "Request")
+                        .WithMany("Items")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_buy_request_items_group_buy_requests_request_id");
+
+                    b.Navigation("Request");
+                });
+
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.Order", b =>
                 {
                     b.HasOne("SpazaSure.Infrastructure.Entities.Driver", "Driver")
@@ -5068,6 +5151,11 @@ namespace SpazaSure.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyProduct", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SpazaSure.Infrastructure.Entities.GroupBuyRequest", b =>
                 {
                     b.Navigation("Items");
                 });

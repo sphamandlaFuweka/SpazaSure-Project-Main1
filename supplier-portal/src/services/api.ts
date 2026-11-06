@@ -353,6 +353,13 @@ export interface ShopGroupBuyRequest {
   shopName: string;
   city: string | null;
   province: string | null;
+  supplierName: string | null;
+  shopsWanted: number | null;
+  opensOn: string | null;
+  closesOn: string | null;
+  area: string | null;
+  targetDiscountPct: number | null;
+  items: { productName: string; quantity: number }[];
 }
 
 export interface EditGroupBuyRequest {

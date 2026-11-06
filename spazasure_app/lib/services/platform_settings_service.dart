@@ -14,6 +14,9 @@ class PlatformSettings {
   /// Smallest order with one supplier, in products (delivery not counted). 0 = no minimum.
   final double minOrderAmount;
 
+  /// Fewest shops a group buy must have.
+  final int groupBuyMinShops;
+
   const PlatformSettings({
     this.standardDeliveryFee = 150,
     this.expressDeliveryFee = 250,
@@ -21,6 +24,7 @@ class PlatformSettings {
     this.cashOnDeliveryEnabled = true,
     this.cashOnDeliveryMaxOrderTotal = 5000,
     this.minOrderAmount = 2000,
+    this.groupBuyMinShops = 3,
   });
 
   /// Matches the backend defaults, used until (or if) the server can't be reached.
@@ -51,6 +55,8 @@ class PlatformSettings {
         defaults.cashOnDeliveryMaxOrderTotal,
       ),
       minOrderAmount: d('minOrderAmount', defaults.minOrderAmount),
+      groupBuyMinShops:
+          (j['groupBuyMinShops'] as num?)?.toInt() ?? defaults.groupBuyMinShops,
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
 import 'package:spazasure_app/features/notifications/screens/report_screen.dart';
@@ -50,6 +51,7 @@ class CustomerHomeScreen extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
+            image: brandPatternImage,
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

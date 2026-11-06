@@ -155,8 +155,32 @@ public class GroupBuyRequest : BaseEntity
     public string Status { get; set; } = "new";
     /// <summary>What the admin told the shop about this request.</summary>
     public string? AdminNote { get; set; }
+    // Filled in by the full request form; empty on requests sent before it
+    public Guid? SupplierId { get; set; }
+    public string? SupplierName { get; set; }
+    /// <summary>How many shops the requester expects to join.</summary>
+    public int? ShopsWanted { get; set; }
+    public DateOnly? OpensOn { get; set; }
+    public DateOnly? ClosesOn { get; set; }
+    /// <summary>The area the deal should serve.</summary>
+    public string? Area { get; set; }
+    /// <summary>The discount the shop hopes for, if it said.</summary>
+    public int? TargetDiscountPct { get; set; }
 
     public SpazaShop Shop { get; set; } = null!;
+    public List<GroupBuyRequestItem> Items { get; set; } = [];
+}
+
+/// <summary>A marketplace product on a group buy request, and how many each shop would buy.</summary>
+public class GroupBuyRequestItem : BaseEntity
+{
+    public Guid RequestId { get; set; }
+    /// <summary>The product when the request was sent; its name is kept in case it's removed later.</summary>
+    public Guid ProductId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+
+    public GroupBuyRequest Request { get; set; } = null!;
 }
 
 /// <summary>A participant's quantity for one product in a group buy.</summary>

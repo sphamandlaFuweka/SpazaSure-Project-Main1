@@ -118,6 +118,7 @@ class _FeeSheet extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
+                  image: brandPatternImage,
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(color: Colors.white, width: 4),
                   boxShadow: [
@@ -128,27 +129,20 @@ class _FeeSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Stack(
-                  children: [
-                    const Positioned.fill(
-                      child: CustomPaint(painter: BrandPattern()),
+                child: Center(
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
                     ),
-                    Center(
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.groups_rounded,
-                          color: AppColors.secondary,
-                          size: 28,
-                        ),
-                      ),
+                    child: const Icon(
+                      Icons.groups_rounded,
+                      color: AppColors.secondary,
+                      size: 28,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

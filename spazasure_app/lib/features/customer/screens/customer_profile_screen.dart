@@ -5,6 +5,7 @@ import 'package:spazasure_app/services/privacy_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/editable_avatar.dart';
 import 'package:spazasure_app/features/customer/screens/customer_rewards_screen.dart';
@@ -285,6 +286,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   Widget _buildHeader(String initials, String displayName, String phone) {
     return Container(
       decoration: const BoxDecoration(
+        image: brandPatternImage,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

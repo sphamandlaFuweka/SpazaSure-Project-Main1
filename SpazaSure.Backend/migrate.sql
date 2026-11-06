@@ -2179,6 +2179,26 @@ CREATE TABLE IF NOT EXISTS group_buy_requests (
 );
 CREATE INDEX IF NOT EXISTS ix_group_buy_requests_shop_id ON group_buy_requests(shop_id);
 CREATE INDEX IF NOT EXISTS ix_group_buy_requests_status ON group_buy_requests(status);
+-- The full request form: the products chosen from the marketplace and how the deal should run.
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS supplier_id uuid;
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS supplier_name text;
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS shops_wanted integer;
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS opens_on date;
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS closes_on date;
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS area character varying(120);
+ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS target_discount_pct integer;
+CREATE TABLE IF NOT EXISTS group_buy_request_items (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    request_id uuid NOT NULL,
+    product_id uuid NOT NULL,
+    product_name character varying(255) NOT NULL,
+    quantity integer NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_group_buy_request_items PRIMARY KEY (id),
+    CONSTRAINT fk_group_buy_request_items_group_buy_requests_request_id FOREIGN KEY (request_id) REFERENCES group_buy_requests(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_group_buy_request_items_request_id ON group_buy_request_items(request_id);
 
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
+import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
@@ -141,6 +142,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildWalletHeader() {
     return Container(
       decoration: const BoxDecoration(
+        image: brandPatternImage,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
