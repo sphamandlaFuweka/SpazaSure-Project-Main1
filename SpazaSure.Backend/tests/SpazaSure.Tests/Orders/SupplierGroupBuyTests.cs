@@ -62,7 +62,8 @@ public class SupplierGroupBuyTests
         };
         var participant = new GroupBuyParticipant { GroupBuyId = groupBuy.Id, ShopId = shop.Id, Quantity = joinedQty, Status = "joined" };
         var item = new GroupBuyParticipantItem { ParticipantId = participant.Id, GroupBuyProductId = gbProduct.Id, Quantity = joinedQty, Status = "joined" };
-        db.AddRange(supplierUser, supplier, shopUser, shop, product, groupBuy, gbProduct, participant, item);
+        db.AddRange(supplierUser, supplier, shopUser, shop, product, groupBuy, gbProduct, participant, item,
+            new PlatformSetting { Key = PlatformSettingsStore.GroupBuyMinShopsKey, Value = "1" });
         db.SaveChanges();
 
         var ctrl = new SupplierGroupBuyController(

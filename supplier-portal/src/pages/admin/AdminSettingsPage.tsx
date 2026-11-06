@@ -446,6 +446,13 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setRules({ ...rules, minOrderAmount: e.target.value === '' ? 0 : Number(e.target.value) })} />
                 <p className="text-xs text-ink-3 mt-1.5">Smallest order a shop can place with one supplier, in products (delivery not counted). Applies to group buys too. 0 = no minimum.</p>
               </div>
+              <div className="max-w-xs">
+                <label className="label" htmlFor="groupBuyMinShops">Minimum shops per group buy</label>
+                <input id="groupBuyMinShops" type="number" min="1" max="100" step="1" className="input"
+                  value={rules.groupBuyMinShops}
+                  onChange={(e) => setRules({ ...rules, groupBuyMinShops: e.target.value === '' ? 1 : Number(e.target.value) })} />
+                <p className="text-xs text-ink-3 mt-1.5">A supplier can only accept a group buy once this many shops have joined. Each shop still buys at least 10 items and meets the minimum order. No single shop can fill a deal alone.</p>
+              </div>
               <div className="rounded-2xl border-2 border-brand-blue-light bg-surface p-4 space-y-4">
                 <div>
                   <p className="text-sm font-bold text-gray-900">Direct deposit account</p>

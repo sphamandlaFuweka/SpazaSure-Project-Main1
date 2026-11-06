@@ -104,7 +104,8 @@ class _JoinGroupBuySheetState extends State<JoinGroupBuySheet> {
         ? ' worth at least ${_rand(group.minAmount)}'
         : '';
     return 'At least ${group.minTotal} items$amount in total (delivery not counted). '
-        'Mix products if you like, e.g. 3 of one and 7 of another.';
+        'Mix products if you like, e.g. 3 of one and 7 of another. '
+        'The deal needs at least ${group.minShops} shops to go through.';
   }
 
   List<Map<String, dynamic>> get _items => [

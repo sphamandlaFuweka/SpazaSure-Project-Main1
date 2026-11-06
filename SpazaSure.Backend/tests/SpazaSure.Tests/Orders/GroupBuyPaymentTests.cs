@@ -98,8 +98,9 @@ public class GroupBuyPaymentTests
             TargetQty = targetQty, Status = "active",
         };
         db.AddRange(supplierUser, supplier, product, groupBuy, gbProduct);
-        // These tests are about other rules; the minimum order has its own tests
+        // These tests are about other rules; the minimum order and minimum shops have their own tests
         db.PlatformSettings.Add(new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" });
+        db.PlatformSettings.Add(new PlatformSetting { Key = PlatformSettingsStore.GroupBuyMinShopsKey, Value = "1" });
         db.SaveChanges();
         var fixture = new Fixture(db, null!, supplier, supplierUser, groupBuy, gbProduct);
         return fixture with { Shop = fixture.AddShop("Corner Spaza", walletBalance) };
@@ -393,6 +394,67 @@ public class GroupBuyPaymentTests
         var result = await f.ShopController(other).Join(f.GroupBuy.Id, Join(f, 10));
 
         Message(result).Should().Contain("Only 5 more");
+    }
+
+    private static void NeedThreeShops(Fixture f)
+    {
+        f.Db.PlatformSettings.Single(s => s.Key == PlatformSettingsStore.GroupBuyMinShopsKey).Value = "3";
+        f.Db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task OneShopCantFillADeal_ThatNeedsThreeShops()
+    {
+        var f = Create(targetQty: 30);
+        NeedThreeShops(f);
+
+        var result = await f.ShopController().Join(f.GroupBuy.Id, Join(f, 30));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        Message(result).Should().Contain("leave room for 2 more");
+        f.Db.GroupBuyParticipants.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ThreeShopsCanFillADeal_AndTheSupplierCanAcceptIt()
+    {
+        var f = Create(targetQty: 30);
+        NeedThreeShops(f);
+
+        (await f.ShopController().Join(f.GroupBuy.Id, Join(f, 10))).Should().BeOfType<OkObjectResult>();
+        (await f.ShopController(f.AddShop("Second", 10_000m)).Join(f.GroupBuy.Id, Join(f, 10))).Should().BeOfType<OkObjectResult>();
+        (await f.ShopController(f.AddShop("Third", 10_000m)).Join(f.GroupBuy.Id, Join(f, 10))).Should().BeOfType<OkObjectResult>();
+
+        (await f.SupplierController().Accept(f.GroupBuy.Id)).Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task TheSupplierCantAccept_BeforeEnoughShopsJoined()
+    {
+        var f = Create(targetQty: 10);
+        await f.ShopController().Join(f.GroupBuy.Id, Join(f, 10)); // joined while one shop was enough
+        NeedThreeShops(f);
+
+        var result = await f.SupplierController().Accept(f.GroupBuy.Id);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        Message(result).Should().Contain("at least 3 shops");
+        f.Db.Orders.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ADeal_MustBeBigEnoughToShareBetweenTheMinimumShops()
+    {
+        var f = Create(targetQty: 29);
+        f.GroupBuy.Products = [f.Product];
+        var rules = new PlatformRules { GroupBuyMinShops = 3, MinOrderAmount = 0m };
+
+        GroupBuyPayments.SizeProblem(f.GroupBuy, rules).Should().Contain("add up to 30 items");
+
+        f.Product.TargetQty = 30;
+        GroupBuyPayments.SizeProblem(f.GroupBuy, rules).Should().BeNull();
+        GroupBuyPayments.SizeProblem(f.GroupBuy, new PlatformRules { GroupBuyMinShops = 3, MinOrderAmount = 2000m })
+            .Should().Contain("3 shops spending");
     }
 
     private static GroupBuyProduct AddProduct(Fixture f, string name, decimal price = 50m)

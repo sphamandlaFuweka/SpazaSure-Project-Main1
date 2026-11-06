@@ -413,6 +413,8 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
 
         var (error, termsChanged) = await GroupBuyFactory.ApplyEditAsync(db, groupBuy, req);
         if (error is not null) return BadRequest(ApiResponse.Fail(error));
+        if (groupBuy.Status == "active" && GroupBuyPayments.SizeProblem(groupBuy, await PlatformSettingsStore.LoadAsync(db)) is { } tooSmall)
+            return BadRequest(ApiResponse.Fail(tooSmall));
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
@@ -454,6 +456,8 @@ public class AdminGroupBuyController(SpazaSureDbContext db, EventPublisher event
         if (groupBuy.Products.FirstOrDefault(p => p.DiscountPct < 1) is { } noDiscount)
             return BadRequest(ApiResponse.Fail(
                 $"'{noDiscount.Product.Name}' has no discount yet. Wait for the supplier, or set one when editing the deal."));
+        if (GroupBuyPayments.SizeProblem(groupBuy, await PlatformSettingsStore.LoadAsync(db)) is { } tooSmall)
+            return BadRequest(ApiResponse.Fail(tooSmall));
 
         var now = DateTime.UtcNow;
         // The countdown starts when the deal goes live

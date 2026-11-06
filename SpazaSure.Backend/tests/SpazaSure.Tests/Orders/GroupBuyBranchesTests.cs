@@ -95,7 +95,8 @@ public class GroupBuyBranchesTests
         };
         db.AddRange(supplierUser, admin, supplier, durban, product,
             new ProductBranchStock { ProductId = product.Id, SupplierBranchId = durban.Id, StockQty = 15 },
-            new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" });
+            new PlatformSetting { Key = PlatformSettingsStore.MinOrderAmountKey, Value = "0" },
+            new PlatformSetting { Key = PlatformSettingsStore.GroupBuyMinShopsKey, Value = "1" });
         db.SaveChanges();
 
         var created = await new AdminGroupBuyController(db, Events) { ControllerContext = As(admin.Id) }

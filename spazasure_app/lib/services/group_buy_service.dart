@@ -89,6 +89,9 @@ class GroupBuy {
   /// item minimum: both apply. 0 = none. Waived when the shop takes everything left.
   final double minAmount;
 
+  /// How many shops must join before the deal can go through.
+  final int minShops;
+
   const GroupBuy({
     required this.id,
     required this.title,
@@ -108,6 +111,7 @@ class GroupBuy {
     this.myAmountPaid = 0,
     this.minTotal = 10,
     this.minAmount = 0,
+    this.minShops = 1,
   });
 
   factory GroupBuy.fromJson(Map<String, dynamic> json) {
@@ -133,6 +137,7 @@ class GroupBuy {
       participants: json['participants'] as List<dynamic>? ?? const [],
       minTotal: (json['minTotal'] as num?)?.toInt() ?? 10,
       minAmount: (json['minAmount'] as num?)?.toDouble() ?? 0,
+      minShops: (json['minShops'] as num?)?.toInt() ?? 1,
       myPaymentStatus: (json['my'] as Map<String, dynamic>?)?['paymentStatus']
           ?.toString(),
       myAmountPaid:

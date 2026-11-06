@@ -49,6 +49,8 @@ public sealed record PlatformRules
     /// Applies to group buys too. 0 = no minimum.
     /// </summary>
     public decimal MinOrderAmount { get; init; } = 2000m;
+    /// <summary>Fewest shops a group buy must have before the supplier can accept it.</summary>
+    public int GroupBuyMinShops { get; init; } = 3;
     /// <summary>SpazaSure's bank account that shops deposit into to top up their wallet.</summary>
     public string DepositBankName { get; init; } = "Capitec Business";
     public string DepositAccountHolder { get; init; } = "GEOTX PTY LTD";
@@ -72,6 +74,7 @@ public sealed record PlatformRules
         if (SupplierReachKm is < 1 or > 2000) return "Supplier reach must be between 1 and 2,000 km.";
         if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
         if (MinOrderAmount is < 0 or > 1000000) return "Minimum order must be between R0 and R1,000,000.";
+        if (GroupBuyMinShops is < 1 or > 100) return "Group buy minimum shops must be between 1 and 100.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
         if (string.IsNullOrWhiteSpace(DepositBankName) || DepositBankName.Length > 80) return "Enter the deposit bank name (up to 80 characters).";
@@ -103,6 +106,7 @@ public static class PlatformSettingsStore
     public const string CashOnDeliveryEnabledKey = "cash_on_delivery_enabled";
     public const string CashOnDeliveryMaxOrderTotalKey = "cash_on_delivery_max_order_total";
     public const string MinOrderAmountKey = "min_order_amount";
+    public const string GroupBuyMinShopsKey = "group_buy_min_shops";
     public const string DepositBankNameKey = "deposit_bank_name";
     public const string DepositAccountHolderKey = "deposit_account_holder";
     public const string DepositAccountNumberKey = "deposit_account_number";
@@ -130,6 +134,7 @@ public static class PlatformSettingsStore
             CashOnDeliveryEnabled = Bool(values, CashOnDeliveryEnabledKey, d.CashOnDeliveryEnabled),
             CashOnDeliveryMaxOrderTotal = Dec(values, CashOnDeliveryMaxOrderTotalKey, d.CashOnDeliveryMaxOrderTotal),
             MinOrderAmount = Dec(values, MinOrderAmountKey, d.MinOrderAmount),
+            GroupBuyMinShops = values.TryGetValue(GroupBuyMinShopsKey, out var minShops) && int.TryParse(minShops, NumberStyles.Integer, CultureInfo.InvariantCulture, out var shops) ? shops : d.GroupBuyMinShops,
             DepositBankName = Str(values, DepositBankNameKey, d.DepositBankName),
             DepositAccountHolder = Str(values, DepositAccountHolderKey, d.DepositAccountHolder),
             DepositAccountNumber = Str(values, DepositAccountNumberKey, d.DepositAccountNumber),
@@ -157,6 +162,7 @@ public static class PlatformSettingsStore
             [CashOnDeliveryEnabledKey] = rules.CashOnDeliveryEnabled ? "true" : "false",
             [CashOnDeliveryMaxOrderTotalKey] = Fmt(rules.CashOnDeliveryMaxOrderTotal),
             [MinOrderAmountKey] = Fmt(rules.MinOrderAmount),
+            [GroupBuyMinShopsKey] = rules.GroupBuyMinShops.ToString(CultureInfo.InvariantCulture),
             [DepositBankNameKey] = rules.DepositBankName.Trim(),
             [DepositAccountHolderKey] = rules.DepositAccountHolder.Trim(),
             [DepositAccountNumberKey] = rules.DepositAccountNumber.Trim(),

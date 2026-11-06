@@ -460,7 +460,9 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${group.participantCount} shops',
+                      group.participantCount < group.minShops
+                          ? '${group.participantCount} of ${group.minShops} shops'
+                          : '${group.participantCount} shops',
                       style: AppTextStyles.caption,
                     ),
                   ],

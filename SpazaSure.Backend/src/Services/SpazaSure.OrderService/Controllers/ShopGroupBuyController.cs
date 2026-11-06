@@ -33,7 +33,7 @@ internal static class GroupBuyResponse
     /// A group buy as shops see it: prices include SpazaSure's fee (markup, see ShopPricing).
     /// With <paramref name="shopId"/>, also how much more each product needs and what this shop paid.
     /// </summary>
-    internal static object ProjectShop(GroupBuy groupBuy, decimal markup, Guid? shopId = null, decimal minOrderAmount = 0m)
+    internal static object ProjectShop(GroupBuy groupBuy, decimal markup, Guid? shopId = null, decimal minOrderAmount = 0m, int minShops = 1)
     {
         var now = DateTime.UtcNow;
         var isExpired = groupBuy.ExpiresAt <= now && groupBuy.Status == "active";
@@ -81,6 +81,8 @@ internal static class GroupBuyResponse
             MinTotal = GroupBuyPayments.MinimumTotal(groupBuy, now, mine?.Id),
             // ...and the smallest amount (R, products only), unless the shop takes everything left
             MinAmount = minOrderAmount,
+            // ...and how many shops the deal needs before it can go through
+            MinShops = minShops,
             Participants = ProjectParticipants(groupBuy),
             My = mine is null || !Counts(mine) ? null : new
             {
@@ -258,7 +260,7 @@ public class ShopGroupBuyController(
         var campaigns = await query.OrderByDescending(g => g.CreatedAt).Take(50).ToListAsync();
         var rules = await PlatformSettingsStore.LoadAsync(db);
         var markup = ShopPricing.Markup(rules);
-        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup, shop.Id, rules.MinOrderAmount)).ToList()));
+        return Ok(ApiResponse<object>.Ok(campaigns.Select(g => GroupBuyResponse.ProjectShop(g, markup, shop.Id, rules.MinOrderAmount, rules.GroupBuyMinShops)).ToList()));
     }
 
     /// <summary>
@@ -583,6 +585,9 @@ public class ShopGroupBuyController(
         // At least 10 items in total, from one product or a mix
         if (GroupBuyPayments.TotalProblem(groupBuy, lines.Sum(l => l.Quantity), now, exceptParticipantId) is { } tooFew)
             return (tooFew, null);
+        // Leave room for the other shops the deal still needs
+        if (GroupBuyPayments.RoomProblem(groupBuy, rules, lines.Sum(l => l.Quantity), lines.Sum(l => l.LineTotal), now, exceptParticipantId) is { } noRoom)
+            return (noRoom, null);
         // And the minimum order amount, unless this shop takes everything still needed (completing the targets)
         var takesEverythingLeft = lines.Sum(l => l.Quantity) >= groupBuy.Products
             .Where(p => p.Status is "active" or "qualified")
@@ -659,7 +664,7 @@ public class ShopGroupBuyController(
     {
         var refreshed = await GroupBuyResponse.WithGraph(db.GroupBuys.AsNoTracking()).FirstAsync(g => g.Id == id);
         var rules = await PlatformSettingsStore.LoadAsync(db);
-        return GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(rules), shopId, rules.MinOrderAmount);
+        return GroupBuyResponse.ProjectShop(refreshed, ShopPricing.Markup(rules), shopId, rules.MinOrderAmount, rules.GroupBuyMinShops);
     }
 
     private static bool ValidCoordinates(double? latitude, double? longitude) =>
@@ -905,6 +910,11 @@ public class SupplierGroupBuyController(
             }
             if (groupBuy.Status is not ("active" or "completed"))
                 return BadRequest(ApiResponse.Fail("Only an active, unexpired group buy can be accepted."));
+
+            rules ??= await PlatformSettingsStore.LoadAsync(db);
+            var shopsIn = groupBuy.Participants.Count(p => p.Status is "joined" or "confirmed");
+            if (shopsIn < rules.GroupBuyMinShops)
+                return BadRequest(ApiResponse.Fail($"This deal needs at least {rules.GroupBuyMinShops} shops before it can be accepted. {shopsIn} joined so far."));
 
             foreach (var product in groupBuy.Products.Where(p => p.Status is "active" or "qualified"))
             {

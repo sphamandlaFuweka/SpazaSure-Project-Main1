@@ -73,6 +73,40 @@ public static class GroupBuyPayments
             : $"Buy at least {MinPerShop} items in total. You can mix products, for example 3 of one and 7 of another.";
     }
 
+    /// <summary>Shops in the deal: joined, already ordered, or paying now.</summary>
+    public static int ShopsIn(GroupBuy groupBuy, DateTime now, Guid? exceptParticipantId = null) =>
+        groupBuy.Participants.Count(p => p.Id != exceptParticipantId &&
+            (p.Status is "joined" or "confirmed" || HoldsReservation(p, now)));
+
+    /// <summary>
+    /// Why this purchase leaves too little for the other shops the deal still needs, or null when
+    /// it doesn't. Keeping that room means no one shop can fill a deal alone.
+    /// </summary>
+    public static string? RoomProblem(
+        GroupBuy groupBuy, PlatformRules rules, int totalQuantity, decimal itemsTotal, DateTime now, Guid? exceptParticipantId = null)
+    {
+        var othersNeeded = rules.GroupBuyMinShops - ShopsIn(groupBuy, now, exceptParticipantId) - 1;
+        if (othersNeeded <= 0) return null;
+        var open = groupBuy.Products.Where(p => p.Status is "active" or "qualified").ToList();
+        var itemsLeft = open.Sum(p => Remaining(groupBuy, p, now, exceptParticipantId)) - totalQuantity;
+        var valueLeft = open.Sum(p => Remaining(groupBuy, p, now, exceptParticipantId) * ShopPricing.ShopPrice(p.DiscountPrice, rules)) - itemsTotal;
+        if (itemsLeft >= othersNeeded * MinPerShop && valueLeft >= othersNeeded * rules.MinOrderAmount) return null;
+        return $"This deal needs at least {rules.GroupBuyMinShops} shops, so leave room for {othersNeeded} more. Choose fewer items.";
+    }
+
+    /// <summary>Why the deal's targets are too small to share between the minimum number of shops, or null.</summary>
+    public static string? SizeProblem(GroupBuy groupBuy, PlatformRules rules)
+    {
+        var shops = rules.GroupBuyMinShops;
+        var items = groupBuy.Products.Sum(p => p.TargetQty);
+        if (items < shops * MinPerShop)
+            return $"A deal needs at least {shops} shops buying {MinPerShop} items each, so its targets must add up to {shops * MinPerShop} items. This one has {items}.";
+        var value = groupBuy.Products.Sum(p => p.TargetQty * ShopPricing.ShopPrice(p.DiscountPrice, rules));
+        if (value < shops * rules.MinOrderAmount)
+            return $"A deal needs at least {shops} shops spending R{rules.MinOrderAmount:N0} each, so its targets must be worth R{shops * rules.MinOrderAmount:N0} at the group price. This one is worth R{value:N0}.";
+        return null;
+    }
+
     /// <summary>Why a shop can't take this quantity, or null when it can.</summary>
     public static string? QuantityProblem(GroupBuy groupBuy, GroupBuyProduct product, int quantity, DateTime now, Guid? exceptParticipantId = null)
     {

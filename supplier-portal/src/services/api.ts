@@ -1091,6 +1091,7 @@ export interface PlatformRules {
   cashOnDeliveryMaxOrderTotal: number;
   /** Smallest order (R, products only) a shop may place with one supplier, group buys included. 0 = no minimum. */
   minOrderAmount: number;
+  groupBuyMinShops: number;
   /** SpazaSure's bank account that shops deposit into to top up their wallet */
   depositBankName: string;
   depositAccountHolder: string;
