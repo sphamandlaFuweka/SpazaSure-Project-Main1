@@ -9,7 +9,7 @@ import 'package:spazasure_app/core/widgets/app_bottom_nav.dart';
 import 'package:spazasure_app/features/marketplace/screens/home_screen.dart';
 import 'package:spazasure_app/features/orders/screens/orders_screen.dart';
 import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
-import 'package:spazasure_app/features/compliance/screens/compliance_screen.dart';
+import 'package:spazasure_app/features/group_buy/screens/group_buy_screen.dart';
 import 'package:spazasure_app/features/profile/screens/profile_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
@@ -44,7 +44,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     OrdersScreen(),
     CartScreen(),
-    ComplianceScreen(),
+    GroupBuyScreen(),
     ProfileScreen(),
   ];
 
@@ -76,9 +76,9 @@ class _MainShellState extends State<MainShell> {
             badge: cartCount,
           ),
           AppNavItem(
-            Icons.verified_user_outlined,
-            Icons.verified_user_rounded,
-            tr('nav.docs'),
+            Icons.groups_outlined,
+            Icons.groups_rounded,
+            tr('shop.groupBuys'),
           ),
           AppNavItem(
             Icons.person_outline_rounded,

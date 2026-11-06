@@ -2163,6 +2163,23 @@ CREATE TABLE IF NOT EXISTS saved_cards (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_saved_cards_reference ON saved_cards(reference);
 CREATE INDEX IF NOT EXISTS ix_saved_cards_user_id ON saved_cards(user_id);
 
+-- Group buys shops ask SpazaSure to arrange. Admins review them; a request never creates a deal itself.
+CREATE TABLE IF NOT EXISTS group_buy_requests (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    shop_id uuid NOT NULL,
+    product_name character varying(120) NOT NULL,
+    quantity integer,
+    note character varying(500),
+    status character varying(20) NOT NULL DEFAULT 'new',
+    admin_note character varying(500),
+    created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+    updated_at timestamp with time zone DEFAULT NOW(),
+    CONSTRAINT pk_group_buy_requests PRIMARY KEY (id),
+    CONSTRAINT fk_group_buy_requests_spaza_shops_shop_id FOREIGN KEY (shop_id) REFERENCES spaza_shops(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_group_buy_requests_shop_id ON group_buy_requests(shop_id);
+CREATE INDEX IF NOT EXISTS ix_group_buy_requests_status ON group_buy_requests(status);
+
 -- Product categories shops browse and filter by. Seeded once by slug; admins rename,
 -- reorder or hide them from the admin console afterwards, so existing rows are never touched.
 INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)

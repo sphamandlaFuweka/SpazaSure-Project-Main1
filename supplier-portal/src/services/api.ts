@@ -342,6 +342,19 @@ export const groupBuyApi = {
     api.post(`/supplier/group-buy/${id}/dispatch`).then((r) => r.data?.data ?? r.data),
 };
 
+export interface ShopGroupBuyRequest {
+  id: string;
+  productName: string;
+  quantity: number | null;
+  note: string | null;
+  status: 'new' | 'planned' | 'created' | 'declined';
+  adminNote: string | null;
+  createdAt: string;
+  shopName: string;
+  city: string | null;
+  province: string | null;
+}
+
 export interface EditGroupBuyRequest {
   title: string;
   description?: string;
@@ -388,6 +401,11 @@ export const adminGroupBuyApi = {
   approve: (id: string) => api.post(`/admin/group-buy/${id}/approve`).then((r) => r.data),
   reject: (id: string, note: string) => api.post(`/admin/group-buy/${id}/reject`, { note }).then((r) => r.data),
   cancel: (id: string, note?: string) => api.post(`/admin/group-buy/${id}/cancel`, { note }).then((r) => r.data),
+  /** What shops asked SpazaSure to arrange, newest unanswered first. */
+  requests: () => api.get('/admin/group-buy/requests').then((r) => unwrap<ShopGroupBuyRequest[]>(r)),
+  /** Moves a request on; the shop is told. */
+  updateRequest: (id: string, status: 'planned' | 'created' | 'declined', note?: string) =>
+    api.post(`/admin/group-buy/requests/${id}/status`, { status, note }).then((r) => r.data),
 };
 
 // Product categories. Admins manage them; suppliers file products under them; shops filter by them.

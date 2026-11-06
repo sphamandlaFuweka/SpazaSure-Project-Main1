@@ -36,6 +36,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
     public DbSet<GroupBuyParticipant> GroupBuyParticipants => Set<GroupBuyParticipant>();
     public DbSet<GroupBuyBranch> GroupBuyBranches => Set<GroupBuyBranch>();
     public DbSet<GroupBuyParticipantItem> GroupBuyParticipantItems => Set<GroupBuyParticipantItem>();
+    public DbSet<GroupBuyRequest> GroupBuyRequests => Set<GroupBuyRequest>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
     public DbSet<Faq> Faqs => Set<Faq>();
     public DbSet<FeedbackItem> FeedbackItems => Set<FeedbackItem>();
@@ -546,6 +547,18 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(i => i.ShopUnitPrice).HasPrecision(10, 2);
             e.HasOne(i => i.Participant).WithMany(p => p.Items).HasForeignKey(i => i.ParticipantId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(i => i.GroupBuyProduct).WithMany(p => p.Items).HasForeignKey(i => i.GroupBuyProductId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        model.Entity<GroupBuyRequest>(e =>
+        {
+            e.ToTable("group_buy_requests");
+            e.HasIndex(r => r.ShopId);
+            e.HasIndex(r => r.Status);
+            e.Property(r => r.ProductName).HasMaxLength(120);
+            e.Property(r => r.Note).HasMaxLength(500);
+            e.Property(r => r.Status).HasMaxLength(20);
+            e.Property(r => r.AdminNote).HasMaxLength(500);
+            e.HasOne(r => r.Shop).WithMany().HasForeignKey(r => r.ShopId).OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<PlatformSetting>(e =>

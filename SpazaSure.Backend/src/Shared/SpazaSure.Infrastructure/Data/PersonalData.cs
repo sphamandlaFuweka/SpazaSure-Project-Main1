@@ -83,6 +83,10 @@ public static class PersonalData
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new { t.CreatedAt, t.Type, t.Amount, t.Status, t.Method, t.Reference, t.BankName, t.AccountHolder, t.AccountNumber })
             .ToListAsync(ct),
+        groupBuyRequests = await db.GroupBuyRequests.AsNoTracking().Where(r => r.ShopId == shop.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new { r.CreatedAt, r.ProductName, r.Quantity, r.Note, r.Status, r.AdminNote })
+            .ToListAsync(ct),
     };
 
     private static async Task<object> SupplierExportAsync(SpazaSureDbContext db, Supplier supplier, CancellationToken ct) => new
@@ -225,6 +229,9 @@ public static class PersonalData
                 t.AccountHolder = t.AccountHolder is null ? null : DeletedName;
                 t.AccountNumber = LastDigits(t.AccountNumber);
             }
+            // What was asked for stays useful; the shop's own words go
+            foreach (var request in await db.GroupBuyRequests.Where(r => r.ShopId == shop.Id).ToListAsync(ct))
+                request.Note = null;
         }
 
         if (await db.Suppliers.Include(s => s.Documents).FirstOrDefaultAsync(s => s.UserId == userId, ct) is { } supplier)

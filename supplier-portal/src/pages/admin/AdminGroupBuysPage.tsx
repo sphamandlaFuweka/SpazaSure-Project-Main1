@@ -6,6 +6,7 @@ import { adminGroupBuyApi, resolveUploadUrl } from '../../services/api';
 import type { GroupBuy, GroupBuyFilter } from '../../types';
 import { groupBuyPlaces } from '../../types';
 import GroupBuyCreateModal from '../group-buy/GroupBuyCreateModal';
+import GroupBuyRequestsPanel from './GroupBuyRequestsPanel';
 
 // In the order a deal moves: offered, answered, published, finished
 const filters: { value: GroupBuyFilter; label: string }[] = [
@@ -60,6 +61,7 @@ const overallProgress = (g: GroupBuy) => {
 
 export default function AdminGroupBuysPage() {
   const [filter, setFilter] = useState<GroupBuyFilter>('offers');
+  const [showRequests, setShowRequests] = useState(false);
   const [groups, setGroups] = useState<GroupBuy[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -126,12 +128,20 @@ export default function AdminGroupBuysPage() {
       </div>
 
       <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+        <button
+          onClick={() => setShowRequests(true)}
+          className={`px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors ${
+            showRequests ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Shop requests
+        </button>
         {filters.map((f) => (
           <button
             key={f.value}
-            onClick={() => setFilter(f.value)}
+            onClick={() => { setShowRequests(false); setFilter(f.value); }}
             className={`px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors ${
-              filter === f.value ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
+              !showRequests && filter === f.value ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             {f.label}
@@ -139,7 +149,9 @@ export default function AdminGroupBuysPage() {
         ))}
       </div>
 
-      {loading ? (
+      {showRequests ? (
+        <GroupBuyRequestsPanel />
+      ) : loading ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary" /></div>
       ) : groups.length === 0 ? (
         <div className="card py-16 text-center text-gray-400">No group buys here.</div>

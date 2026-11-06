@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/services/api_service.dart';
@@ -9,6 +10,7 @@ import 'package:spazasure_app/services/group_buy_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 import 'package:spazasure_app/core/widgets/full_image_view.dart';
 import 'package:spazasure_app/features/group_buy/widgets/join_group_buy_sheet.dart';
+import 'package:spazasure_app/features/group_buy/widgets/request_group_buy_sheet.dart';
 
 class GroupBuyScreen extends StatefulWidget {
   /// Set when a shared group buy link opened the app: show that deal straight away.
@@ -25,13 +27,15 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
   late final TabController _tabController;
   List<GroupBuy> _activeGroups = [];
   List<GroupBuy> _myGroups = [];
+  List<GroupBuyRequest> _requests = [];
+  bool _requestsFailed = false;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
   }
 
@@ -41,8 +45,32 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
     super.dispose();
   }
 
+  // Loaded on its own so deals still show if requests can't be reached
+  Future<void> _loadRequests() async {
+    try {
+      final requests = await GroupBuyService.getRequests();
+      if (mounted) {
+        setState(() {
+          _requests = requests;
+          _requestsFailed = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _requestsFailed = true);
+    }
+  }
+
+  Future<void> _requestDeal() async {
+    final sent = await RequestGroupBuySheet.show(context);
+    if (sent != true || !mounted) return;
+    _tabController.animateTo(2);
+    _showMessage('Request sent', AppColors.success);
+    await _loadRequests();
+  }
+
   Future<void> _loadData() async {
     if (mounted) setState(() => _loading = true);
+    _loadRequests();
     try {
       final groups = await Future.wait([
         GroupBuyService.getGroupBuys('other'),
@@ -99,8 +127,17 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
           tabs: const [
             Tab(text: 'Available Deals'),
             Tab(text: 'My Group Buys'),
+            Tab(text: 'Requests'),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'request-group-buy',
+        onPressed: _requestDeal,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Request a deal'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -111,8 +148,114 @@ class _GroupBuyScreenState extends State<GroupBuyScreen>
               children: [
                 _buildGroupList(_activeGroups, showJoin: true),
                 _buildGroupList(_myGroups, showJoin: false),
+                _buildRequestList(),
               ],
             ),
+    );
+  }
+
+  Widget _buildRequestList() => RefreshIndicator(
+    onRefresh: _loadRequests,
+    child: _requests.isEmpty
+        ? ListView(
+            padding: const EdgeInsets.fromLTRB(32, 96, 32, 96),
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 64,
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _requestsFailed
+                    ? 'Unable to load your requests'
+                    : 'Is there a deal you want to see?',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _requestsFailed
+                    ? 'Pull down to try again'
+                    : 'Tell us the product and we will try to arrange it with suppliers',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption,
+              ),
+            ],
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+            itemCount: _requests.length,
+            itemBuilder: (context, index) =>
+                _buildRequestCard(_requests[index]),
+          ),
+  );
+
+  Widget _buildRequestCard(GroupBuyRequest request) {
+    final (label, color) = switch (request.status) {
+      'planned' => ('Being arranged', AppColors.info),
+      'created' => ('Deal arranged', AppColors.success),
+      'declined' => ('Not possible now', AppColors.error),
+      _ => ('Received', AppColors.textSecondary),
+    };
+    final details = [
+      if (request.quantity != null) '${request.quantity} units',
+      if (request.createdAt != null)
+        DateFormat('d MMM yyyy').format(request.createdAt!.toLocal()),
+    ].join(' • ');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  request.productName,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(details, style: AppTextStyles.caption),
+          ],
+          if (request.note != null) ...[
+            const SizedBox(height: 8),
+            Text(request.note!, style: AppTextStyles.bodySmall),
+          ],
+          if (request.adminNote != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'SpazaSure: ${request.adminNote}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

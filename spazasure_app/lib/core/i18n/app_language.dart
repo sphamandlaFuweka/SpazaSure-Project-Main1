@@ -89,7 +89,6 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Profile',
     'nav.orders': 'Orders',
     'nav.cart': 'Cart',
-    'nav.docs': 'Docs',
     // Customer home
     'home.taglineShop': 'Shop smarter. ',
     'home.taglineSafe': 'Stay safe.',
@@ -193,7 +192,6 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Iphrofayela',
     'nav.orders': 'Ama-oda',
     'nav.cart': 'Inqola',
-    'nav.docs': 'Imibhalo',
     'home.taglineShop': 'Thenga ngobuhlakani. ',
     'home.taglineSafe': 'Hlala uphephile.',
     'home.intro':
@@ -286,7 +284,6 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Profaele',
     'nav.orders': 'Diodara',
     'nav.cart': 'Kariki',
-    'nav.docs': 'Ditokomane',
     'home.taglineShop': 'Reka ka bohlale. ',
     'home.taglineSafe': 'Dula o sireletsehile.',
     'home.intro':

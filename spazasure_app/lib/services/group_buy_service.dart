@@ -162,7 +162,62 @@ class GroupBuy {
   }
 }
 
+/// A group buy this shop asked SpazaSure to arrange.
+class GroupBuyRequest {
+  final String id;
+  final String productName;
+  final int? quantity;
+  final String? note;
+
+  /// new, planned, created or declined.
+  final String status;
+  final String? adminNote;
+  final DateTime? createdAt;
+
+  const GroupBuyRequest({
+    required this.id,
+    required this.productName,
+    required this.status,
+    this.quantity,
+    this.note,
+    this.adminNote,
+    this.createdAt,
+  });
+
+  factory GroupBuyRequest.fromJson(Map<String, dynamic> json) =>
+      GroupBuyRequest(
+        id: json['id']?.toString() ?? '',
+        productName: json['productName']?.toString() ?? '',
+        quantity: (json['quantity'] as num?)?.toInt(),
+        note: json['note']?.toString(),
+        status: json['status']?.toString() ?? 'new',
+        adminNote: json['adminNote']?.toString(),
+        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      );
+}
+
 class GroupBuyService {
+  static Future<List<GroupBuyRequest>> getRequests() async {
+    final response = await ApiService.get('/shop/group-buy/requests');
+    final data = response['data'];
+    return (data is List<dynamic> ? data : const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(GroupBuyRequest.fromJson)
+        .toList();
+  }
+
+  static Future<void> createRequest({
+    required String productName,
+    int? quantity,
+    String? note,
+  }) async {
+    await ApiService.post('/shop/group-buy/requests', {
+      'productName': productName,
+      'quantity': quantity,
+      'note': note,
+    });
+  }
+
   static Future<List<GroupBuy>> getGroupBuys(String status) async {
     final response = await ApiService.get('/shop/group-buy?status=$status');
     final data = response['data'];

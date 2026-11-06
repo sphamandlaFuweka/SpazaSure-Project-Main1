@@ -143,6 +143,22 @@ public class GroupBuyParticipant : BaseEntity
     public ICollection<GroupBuyParticipantItem> Items { get; set; } = [];
 }
 
+/// <summary>A shop asking SpazaSure to arrange a group buy. Only a suggestion: admins still create the deal.</summary>
+public class GroupBuyRequest : BaseEntity
+{
+    public Guid ShopId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    /// <summary>Roughly how many units the shop would buy, if it said.</summary>
+    public int? Quantity { get; set; }
+    public string? Note { get; set; }
+    /// <summary>Status: new, planned, created, declined</summary>
+    public string Status { get; set; } = "new";
+    /// <summary>What the admin told the shop about this request.</summary>
+    public string? AdminNote { get; set; }
+
+    public SpazaShop Shop { get; set; } = null!;
+}
+
 /// <summary>A participant's quantity for one product in a group buy.</summary>
 public class GroupBuyParticipantItem : BaseEntity
 {
