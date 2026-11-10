@@ -62,7 +62,7 @@ builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, Sp
 builder.Services.AddSingleton<SpazaSure.Infrastructure.Data.DocumentReader>();
 builder.Services.AddScoped<SpazaSure.Infrastructure.Data.DocumentChecks>();
 
-var jwtSecret = builder.Configuration["Jwt:Secret"]!;
+var jwtSecret = SpazaSure.Shared.Helpers.JwtSecret.Require(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {

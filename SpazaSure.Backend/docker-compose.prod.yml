@@ -103,7 +103,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       Jwt__AccessExpiryMinutes:             "30"
       Jwt__RefreshExpiryDays:               "14"
       # Password-reset email over SMTP. Optional: when unset, resets are logged as
@@ -136,7 +136,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,7 +158,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
       # Pay suppliers automatically through Paystack Transfers (needs Transfers enabled and OTP off)
@@ -186,7 +186,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       Paystack__SecretKey:                  ${PROD_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${PROD_PAYSTACK_SHOP_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
       Paystack__CallbackUrls__CustomerSubscription: ${PROD_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
@@ -232,7 +232,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       # Phone push notifications. Put the Firebase service account key on the server at
       # /opt/spazasure/secrets/firebase-service-account.json (never in git). Without it,
       # push is simply off and in-app notifications still work.
@@ -276,7 +276,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
     depends_on:
       postgres:
         condition: service_healthy
@@ -299,7 +299,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       # Didit identity checks (shop owners: KYC workflow, suppliers: KYB workflow)
       Didit__ApiKey:                        ${PROD_DIDIT_API_KEY:-}
       Didit__WebhookSecret:                 ${PROD_DIDIT_WEBHOOK_SECRET:-}
@@ -343,7 +343,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
       Storage__Provider:                    ${PROD_STORAGE_PROVIDER:-local}
       Storage__Local__UrlPrefix:            /delivery-uploads
@@ -376,7 +376,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
       PublicApiUrl:                         ${PROD_PUBLIC_API_URL:-https://api.spazasure.co.za}
     depends_on:
       postgres:
@@ -399,7 +399,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${PROD_RABBITMQ_PASSWORD:?PROD_RABBITMQ_PASSWORD must be set in .env.prod}
-      Jwt__Secret:                          ${PROD_JWT_SECRET}
+      Jwt__Secret:                          ${PROD_JWT_SECRET:?PROD_JWT_SECRET must be set in .env.prod}
     depends_on:
       postgres:
         condition: service_healthy

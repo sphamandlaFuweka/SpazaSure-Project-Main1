@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Edit2, Trash2, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse, ChevronDown, Eye, EyeOff, Tag, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, QrCode, LayoutGrid, List, Package, Filter, RefreshCw, Upload, ShieldAlert, FileText, ArrowRight, Lock, ShieldCheck, Warehouse, ChevronDown, Eye, EyeOff, Tag, X, CheckSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Product, ComplianceDoc, ProductFormData } from '../../types';
 import { EmptyState } from '../../components/ui';
@@ -60,6 +60,8 @@ export default function ProductsPage() {
   }, []);
   // Ticked products, for the Actions menu
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Checkboxes stay hidden until the supplier chooses "Select" (or something is already ticked)
+  const [selectMode, setSelectMode] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -194,7 +196,73 @@ export default function ProductsPage() {
     return next;
   });
   const selectAllVisible = () => setSelected((prev) => new Set([...prev, ...filtered.map((p) => p.id)]));
-  const deselectAll = () => setSelected(new Set());
+  const deselectAll = () => { setSelected(new Set()); setSelectMode(false); setActionsOpen(false); };
+  const selecting = selectMode || selectedProducts.length > 0;
+
+  const toggleOneAvailable = async (p: Product) => {
+    try {
+      await productsApi.toggleAvailability(p.id);
+      const available = !p.isAvailable;
+      setProducts((prev) => prev.map((x) => x.id === p.id
+        ? { ...x, isAvailable: available, status: x.status === 'active' ? 'archived' : x.status === 'archived' ? 'active' : x.status }
+        : x));
+      toast.success(available ? 'Shown on the marketplace' : 'Hidden from the marketplace');
+    } catch {
+      toast.error('Could not update the product');
+    }
+  };
+
+  const deleteOne = async (p: Product) => {
+    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    try {
+      await productsApi.delete(p.id);
+      setProducts((prev) => prev.filter((x) => x.id !== p.id));
+      setSelected((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
+      toast.success('Product deleted');
+    } catch {
+      toast.error('Could not delete the product');
+    }
+  };
+
+  /** The buttons every product carries, in both the list and the grid. */
+  const rowActions = (p: Product) => {
+    const btn = 'p-1.5 rounded-lg transition-colors';
+    return (
+      <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={isCompliant ? () => { setEditing(p); setShowModal(true); } : handleBlockedAction}
+          className={clsx(btn, 'text-gray-400 hover:text-primary hover:bg-primary-50')}
+          title="Edit" aria-label={`Edit ${p.name}`}
+        >
+          {isCompliant ? <Edit2 size={15} /> : <Lock size={15} />}
+        </button>
+        <button onClick={() => setBarcodeProduct(p)} className={clsx(btn, 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50')} title="QR code & barcode" aria-label={`QR code and barcode for ${p.name}`}>
+          <QrCode size={15} />
+        </button>
+        <button onClick={() => setStockProduct(p)} className={clsx(btn, 'text-gray-400 hover:text-gray-700 hover:bg-gray-100')} title="Stock per branch" aria-label={`Stock per branch for ${p.name}`}>
+          <Warehouse size={15} />
+        </button>
+        <button onClick={() => setCodesProduct(p)} className={clsx(btn, 'text-gray-400 hover:text-primary hover:bg-primary-50')} title="Authenticity codes" aria-label={`Authenticity codes for ${p.name}`}>
+          <ShieldCheck size={15} />
+        </button>
+        <button
+          onClick={() => toggleOneAvailable(p)}
+          className={clsx(btn, 'text-gray-400 hover:text-gray-700 hover:bg-gray-100')}
+          title={p.isAvailable ? 'Hide from marketplace' : 'Show on marketplace'}
+          aria-label={p.isAvailable ? `Hide ${p.name} from marketplace` : `Show ${p.name} on marketplace`}
+        >
+          {p.isAvailable ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+        <button
+          onClick={isCompliant ? () => deleteOne(p) : handleBlockedAction}
+          className={clsx(btn, 'text-gray-400 hover:text-red-600 hover:bg-red-50')}
+          title="Delete" aria-label={`Delete ${p.name}`}
+        >
+          {isCompliant ? <Trash2 size={15} /> : <Lock size={15} />}
+        </button>
+      </div>
+    );
+  };
 
   /** Runs one request per product, a few at a time, and reports how many worked. */
   const runBulk = async (
@@ -419,7 +487,13 @@ export default function ProductsPage() {
           <option value="none">No category</option>
         </select>
 
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 ml-auto">
+        {filtered.length > 0 && !selecting && (
+          <button onClick={() => setSelectMode(true)} className="btn-secondary text-sm ml-auto flex items-center gap-1.5">
+            <CheckSquare size={14} /> Select
+          </button>
+        )}
+
+        <div className={clsx('flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1', selecting || filtered.length === 0 ? 'ml-auto' : '')}>
           <button onClick={() => setViewMode('list')} className={clsx('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-600')}>
             <List size={15} />
           </button>
@@ -430,8 +504,8 @@ export default function ProductsPage() {
       </div>
 
       {/* Selection and bulk actions */}
-      {filtered.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-2.5">
+      {filtered.length > 0 && selecting && (
+        <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-2.5 animate-fade-in">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -445,13 +519,11 @@ export default function ProductsPage() {
               ? `${selectedProducts.length} selected`
               : `Select all (${filtered.length})`}
           </label>
-          {selectedProducts.length > 0 && (
-            <button onClick={deselectAll} className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1">
-              <X size={12} /> Deselect all
-            </button>
-          )}
+          <button onClick={deselectAll} className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1">
+            <X size={12} /> {selectedProducts.length > 0 ? 'Deselect all' : 'Cancel'}
+          </button>
 
-          {/* Only there once something is ticked; the products themselves carry no buttons */}
+          {/* Bulk actions, once something is ticked */}
           {selectedProducts.length > 0 && (
           <div ref={actionsRef} className="relative ml-auto animate-fade-in">
             <button
@@ -523,20 +595,22 @@ export default function ProductsPage() {
           ) : filtered.map((p) => (
             <div
               key={p.id}
-              onClick={() => toggleSelected(p.id)}
-              className={clsx('card overflow-hidden hover:shadow-card-hover transition-all duration-200 group cursor-pointer', selected.has(p.id) && 'ring-2 ring-primary')}
+              onClick={selecting ? () => toggleSelected(p.id) : undefined}
+              className={clsx('card overflow-hidden hover:shadow-card-hover transition-all duration-200 group', selecting && 'cursor-pointer', selected.has(p.id) && 'ring-2 ring-primary')}
             >
               <div className="relative">
                 <ProductImage src={p.imageUrl} alt={p.name} className="w-full h-36" />
-                <label onClick={(e) => e.stopPropagation()} className="absolute top-2 left-2 z-10 bg-white/90 rounded-lg p-1.5 shadow-sm cursor-pointer flex">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 accent-primary cursor-pointer"
-                    checked={selected.has(p.id)}
-                    onChange={() => toggleSelected(p.id)}
-                    aria-label={`Select ${p.name}`}
-                  />
-                </label>
+                {selecting && (
+                  <label onClick={(e) => e.stopPropagation()} className="absolute top-2 left-2 z-10 bg-white/90 rounded-lg p-1.5 shadow-sm cursor-pointer flex">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-primary cursor-pointer"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggleSelected(p.id)}
+                      aria-label={`Select ${p.name}`}
+                    />
+                  </label>
+                )}
                 <div className="absolute top-2 right-2 flex gap-1">
                   <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full capitalize', statusStyle[p.status] ?? 'bg-gray-100 text-gray-500')}>
                     {p.status.replace('_', ' ')}
@@ -557,6 +631,7 @@ export default function ProductsPage() {
                     {p.stockQuantity === 0 ? 'Out of stock' : `${p.stockQuantity} units`}
                   </span>
                 </div>
+                <div className="mt-2 pt-2 border-t border-gray-100">{rowActions(p)}</div>
               </div>
             </div>
           ))}
@@ -571,15 +646,17 @@ export default function ProductsPage() {
             <table className="w-full text-sm min-w-[820px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="table-header w-10">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 accent-primary cursor-pointer"
-                      checked={allVisibleSelected}
-                      onChange={allVisibleSelected ? deselectAll : selectAllVisible}
-                      aria-label="Select all products"
-                    />
-                  </th>
+                  {selecting && (
+                    <th className="table-header w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-primary cursor-pointer"
+                        checked={allVisibleSelected}
+                        onChange={allVisibleSelected ? () => setSelected(new Set()) : selectAllVisible}
+                        aria-label="Select all products"
+                      />
+                    </th>
+                  )}
                   <th className="table-header">Product</th>
                   <th className="table-header">SKU</th>
                   <th className="table-header">Category</th>
@@ -587,24 +664,27 @@ export default function ProductsPage() {
                   <th className="table-header text-right">Stock</th>
                   <th className="table-header text-center">Status</th>
                   <th className="table-header text-center">Available</th>
+                  <th className="table-header text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((p) => (
                   <tr
                     key={p.id}
-                    onClick={() => toggleSelected(p.id)}
-                    className={clsx('table-row cursor-pointer', selected.has(p.id) && 'bg-primary-50/60')}
+                    onClick={selecting ? () => toggleSelected(p.id) : undefined}
+                    className={clsx('table-row', selecting && 'cursor-pointer', selected.has(p.id) && 'bg-primary-50/60')}
                   >
-                    <td className="table-cell w-10" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-primary cursor-pointer"
-                        checked={selected.has(p.id)}
-                        onChange={() => toggleSelected(p.id)}
-                        aria-label={`Select ${p.name}`}
-                      />
-                    </td>
+                    {selecting && (
+                      <td className="table-cell w-10" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-primary cursor-pointer"
+                          checked={selected.has(p.id)}
+                          onChange={() => toggleSelected(p.id)}
+                          aria-label={`Select ${p.name}`}
+                        />
+                      </td>
+                    )}
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
                         <ProductImage src={p.imageUrl} alt={p.name} className="w-11 h-11 rounded-xl flex-shrink-0" />
@@ -643,6 +723,7 @@ export default function ProductsPage() {
                         {p.isAvailable ? 'Shown' : 'Hidden'}
                       </span>
                     </td>
+                    <td className="table-cell text-right">{rowActions(p)}</td>
                   </tr>
                 ))}
               </tbody>

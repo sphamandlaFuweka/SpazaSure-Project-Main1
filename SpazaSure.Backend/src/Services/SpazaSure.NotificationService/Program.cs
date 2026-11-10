@@ -19,8 +19,7 @@ builder.Services.AddDbContext<SpazaSure.Infrastructure.Data.SpazaSureDbContext>(
 
 // JWT Authentication
 // Must match the auth service's signing secret, or every token is rejected with 401.
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? throw new InvalidOperationException("Jwt:Secret is not configured for the notification service.");
+var jwtSecret = SpazaSure.Shared.Helpers.JwtSecret.Require(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

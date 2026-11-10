@@ -183,6 +183,46 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task Refresh_ReplayingRotatedToken_RevokesEverySession()
+    {
+        var svc = CreateService(out var db);
+        await svc.RegisterAsync(new RegisterRequest("supplier", "reuse@test.com",
+            "0820000014", "Password123!", "R Co", "Carol", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
+        var (_, _, loginData) = await svc.LoginAsync(
+            new LoginRequest("reuse@test.com", null, "Password123!"), "127.0.0.1");
+        var (_, _, rotated) = await svc.RefreshAsync(loginData!.RefreshToken, "127.0.0.1");
+
+        // Pretend the old token was rotated out a while ago, then gets replayed by a thief
+        var oldHash = SpazaSure.Shared.Helpers.JwtHelper.HashToken(loginData.RefreshToken);
+        db.RefreshTokens.Single(r => r.TokenHash == oldHash).RevokedAt = DateTime.UtcNow.AddMinutes(-5);
+        await db.SaveChangesAsync();
+
+        var (replayed, _, _) = await svc.RefreshAsync(loginData.RefreshToken, "10.0.0.9");
+        var (newerStillWorks, _, _) = await svc.RefreshAsync(rotated!.RefreshToken, "127.0.0.1");
+
+        replayed.Should().BeFalse();
+        newerStillWorks.Should().BeFalse();
+        db.AuthAuditLogs.Should().Contain(l => l.Event == "refresh_token_reuse");
+    }
+
+    [Fact]
+    public async Task Refresh_ConcurrentDoubleRefresh_DoesNotRevokeSessions()
+    {
+        var svc = CreateService(out _);
+        await svc.RegisterAsync(new RegisterRequest("supplier", "double@test.com",
+            "0820000015", "Password123!", "R Co", "Carol", null, null, null, AcceptedPrivacyNotice: true), "127.0.0.1");
+        var (_, _, loginData) = await svc.LoginAsync(
+            new LoginRequest("double@test.com", null, "Password123!"), "127.0.0.1");
+
+        var (_, _, first) = await svc.RefreshAsync(loginData!.RefreshToken, "127.0.0.1");
+        var (second, _, _) = await svc.RefreshAsync(loginData.RefreshToken, "127.0.0.1");
+        var (firstStillWorks, _, _) = await svc.RefreshAsync(first!.RefreshToken, "127.0.0.1");
+
+        second.Should().BeFalse();
+        firstStillWorks.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Refresh_WithInvalidToken_ReturnsError()
     {
         var svc = CreateService(out _);

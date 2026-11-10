@@ -155,8 +155,26 @@ public class AuthenticationService(
                         .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(r => r.TokenHash == hash);
 
-        if (stored is null || !stored.IsActive)
+        if (stored is null || stored.IsExpired)
             return (false, "Invalid or expired refresh token.", null);
+
+        if (stored.IsRevoked)
+        {
+            // A rotated-out token being replayed means it was copied: whoever holds the newer
+            // token may be an attacker. End every session so the real user has to sign in again.
+            // A short grace window covers the app firing two refreshes at once.
+            if (stored.RevokedAt < DateTime.UtcNow.AddSeconds(-60))
+            {
+                var active = await db.RefreshTokens
+                    .Where(r => r.UserId == stored.UserId && r.RevokedAt == null)
+                    .ToListAsync();
+                foreach (var t in active) t.RevokedAt = DateTime.UtcNow;
+                db.AuthAuditLogs.Add(new AuthAuditLog { UserId = stored.UserId, Event = "refresh_token_reuse" });
+                await db.SaveChangesAsync();
+                logger?.LogWarning("Refresh token reuse detected for user {UserId}; all sessions revoked", stored.UserId);
+            }
+            return (false, "Invalid or expired refresh token.", null);
+        }
 
         stored.RevokedAt = DateTime.UtcNow;
         // The apps refresh every half hour while open, so this is the "still using it" signal

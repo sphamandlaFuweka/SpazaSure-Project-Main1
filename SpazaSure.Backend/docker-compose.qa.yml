@@ -67,7 +67,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
       Jwt__AccessExpiryMinutes:             "60"
       Jwt__RefreshExpiryDays:               "30"
     depends_on:
@@ -93,7 +93,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +117,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
       Paystack__SecretKey:                  ${QA_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${QA_PAYSTACK_SHOP_CALLBACK_URL:-https://qa.example.com/?payment=success}
       DeliveryPricing__BaseFee:             "50"
@@ -147,7 +147,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
       Paystack__SecretKey:                  ${QA_PAYSTACK_SECRET_KEY:-}
       Paystack__CallbackUrls__ShopCheckout: ${QA_PAYSTACK_SHOP_CALLBACK_URL:-https://qa.example.com/?payment=success}
       Paystack__CallbackUrls__CustomerSubscription: ${QA_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://qa.example.com/?payment=success}
@@ -181,7 +181,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
     depends_on:
       postgres:
         condition: service_healthy
@@ -204,7 +204,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
     depends_on:
       postgres:
         condition: service_healthy
@@ -229,7 +229,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
     depends_on:
       postgres:
         condition: service_healthy
@@ -255,7 +255,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
       PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
     depends_on:
       postgres:
@@ -280,7 +280,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
       PublicApiUrl:                         ${QA_PUBLIC_API_URL:-}
     depends_on:
       postgres:
@@ -305,7 +305,7 @@ services:
       RabbitMQ__Host:                       rabbitmq
       RabbitMQ__Username:                   spazasure
       RabbitMQ__Password:                   ${QA_RABBITMQ_PASSWORD:-SpazaRabbitQA2026}
-      Jwt__Secret:                          ${QA_JWT_SECRET}
+      Jwt__Secret:                          ${QA_JWT_SECRET:?QA_JWT_SECRET must be set in .env.qa}
     depends_on:
       postgres:
         condition: service_healthy
