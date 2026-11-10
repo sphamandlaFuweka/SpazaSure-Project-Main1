@@ -35,7 +35,11 @@ class CustomerSubscriptionPlan {
 class CustomerSubscriptionOverview {
   final String currentPlan;
   final String status;
+  /// Plus features are on: from Plus itself, or included in Bulk Buyer.
   final bool isPlusActive;
+
+  /// The Bulk Buyer plan is active: the bulk marketplace is unlocked.
+  final bool isBulkActive;
   // False when Plus was paid once-off for a month and has to be paid again
   final bool autoRenews;
   final bool cancelAtPeriodEnd;
@@ -46,6 +50,7 @@ class CustomerSubscriptionOverview {
     required this.currentPlan,
     required this.status,
     required this.isPlusActive,
+    this.isBulkActive = false,
     required this.autoRenews,
     required this.cancelAtPeriodEnd,
     required this.currentPeriodEnd,
@@ -57,6 +62,7 @@ class CustomerSubscriptionOverview {
         currentPlan: json['currentPlan']?.toString() ?? 'free',
         status: json['status']?.toString() ?? 'active',
         isPlusActive: json['isPlusActive'] == true,
+        isBulkActive: json['isBulkActive'] == true,
         autoRenews: json['autoRenews'] == true,
         cancelAtPeriodEnd: json['cancelAtPeriodEnd'] == true,
         currentPeriodEnd: DateTime.tryParse(

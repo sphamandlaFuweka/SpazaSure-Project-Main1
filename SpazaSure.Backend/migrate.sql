@@ -2187,6 +2187,9 @@ ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS opens_on date;
 ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS closes_on date;
 ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS area character varying(120);
 ALTER TABLE group_buy_requests ADD COLUMN IF NOT EXISTS target_discount_pct integer;
+
+-- Bulk Buyer shoppers order through a buyer account in spaza_shops; real shops are 'shop'
+ALTER TABLE spaza_shops ADD COLUMN IF NOT EXISTS account_type character varying(20) NOT NULL DEFAULT 'shop';
 CREATE TABLE IF NOT EXISTS group_buy_request_items (
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     request_id uuid NOT NULL,

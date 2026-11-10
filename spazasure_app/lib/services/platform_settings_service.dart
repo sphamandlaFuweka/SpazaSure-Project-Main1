@@ -14,6 +14,9 @@ class PlatformSettings {
   /// Smallest order with one supplier, in products (delivery not counted). 0 = no minimum.
   final double minOrderAmount;
 
+  /// Smallest order a Bulk Buyer shopper may place with one supplier (products only).
+  final double bulkBuyerMinOrderAmount;
+
   /// Fewest shops a group buy must have.
   final int groupBuyMinShops;
 
@@ -24,6 +27,7 @@ class PlatformSettings {
     this.cashOnDeliveryEnabled = true,
     this.cashOnDeliveryMaxOrderTotal = 5000,
     this.minOrderAmount = 2000,
+    this.bulkBuyerMinOrderAmount = 1000,
     this.groupBuyMinShops = 3,
   });
 
@@ -55,6 +59,10 @@ class PlatformSettings {
         defaults.cashOnDeliveryMaxOrderTotal,
       ),
       minOrderAmount: d('minOrderAmount', defaults.minOrderAmount),
+      bulkBuyerMinOrderAmount: d(
+        'bulkBuyerMinOrderAmount',
+        defaults.bulkBuyerMinOrderAmount,
+      ),
       groupBuyMinShops:
           (j['groupBuyMinShops'] as num?)?.toInt() ?? defaults.groupBuyMinShops,
     );

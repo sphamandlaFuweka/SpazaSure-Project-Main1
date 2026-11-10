@@ -3489,6 +3489,14 @@ namespace SpazaSure.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("shop")
+                        .HasColumnName("account_type");
+
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text")

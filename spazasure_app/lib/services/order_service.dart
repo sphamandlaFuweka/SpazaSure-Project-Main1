@@ -84,12 +84,25 @@ class OrderService {
   static const cashOnDelivery = 'cash_on_delivery';
   static const wallet = 'wallet';
 
+  /// True for a shopper on the Bulk Buyer plan: their orders go through the Bulk Buyer
+  /// endpoints (card only, bulk prices). Set from the signed-in role.
+  static bool forBulkBuyer = false;
+
+  static String get _base => basePath;
+
+  /// The orders API for the signed-in buyer.
+  static String get basePath =>
+      forBulkBuyer ? '/customer/bulk/orders' : '/shop/orders';
+
+  /// The home screen for the signed-in buyer: the shopper app or the shop app.
+  static String get homeRoute => forBulkBuyer ? '/customer-home' : '/home';
+
   /// Asks the server to check with Paystack that this order was paid, so it's confirmed straight
   /// away instead of waiting for Paystack's webhook. Returns true when it's paid.
   static Future<bool> confirmPayment(String orderNumber) async {
     if (orderNumber.isEmpty) return false;
     try {
-      final res = await ApiService.post('/shop/orders/confirm-payment', {
+      final res = await ApiService.post('$_base/confirm-payment', {
         'orderNumber': orderNumber,
       });
       return (res['data'] as Map<String, dynamic>?)?['paid'] == true;
@@ -101,7 +114,7 @@ class OrderService {
   /// Opens a new Paystack checkout for an unpaid card order. A null checkoutUrl means it was
   /// paid after all.
   static Future<OrderCheckout> payAgain(String orderId) async {
-    final res = await ApiService.post('/shop/orders/$orderId/pay', {});
+    final res = await ApiService.post('$_base/$orderId/pay', {});
     final data = res['data'] as Map<String, dynamic>? ?? const {};
     return OrderCheckout(
       orderNumber: data['orderNumber']?.toString() ?? '',
@@ -114,7 +127,7 @@ class OrderService {
 
   /// Cancels a card order the shop hasn't paid for.
   static Future<void> cancelUnpaid(String orderId) async {
-    await ApiService.post('/shop/orders/$orderId/cancel', {});
+    await ApiService.post('$_base/$orderId/cancel', {});
   }
 
   /// The delivery fees and shipping branches for the cart, before the shop pays.
@@ -122,7 +135,7 @@ class OrderService {
     required List<CartItem> items,
     required String deliveryOption,
   }) async {
-    final res = await ApiService.post('/shop/orders/quote', {
+    final res = await ApiService.post('$_base/quote', {
       'deliveryType': deliveryOption,
       'items': [
         for (final i in items)
@@ -142,7 +155,7 @@ class OrderService {
     String paymentMethod = paystack,
     required String deliveryAddress,
   }) async {
-    final res = await ApiService.post('/shop/orders', {
+    final res = await ApiService.post(_base, {
       'deliveryType': deliveryOption,
       'paymentMethod': paymentMethod,
       'deliveryAddress': deliveryAddress,
@@ -184,7 +197,7 @@ class OrderService {
 
   static Future<List<Order>> getOrders({String? status}) async {
     final query = status != null ? '?status=$status' : '';
-    final res = await ApiService.get('/shop/orders$query');
+    final res = await ApiService.get('$_base$query');
     final rawData = res['data'];
     final items = rawData is List
         ? rawData
@@ -195,12 +208,12 @@ class OrderService {
   }
 
   static Future<Order> getOrder(String id) async {
-    final res = await ApiService.get('/shop/orders/$id');
+    final res = await ApiService.get('$_base/$id');
     return _mapOrder(res['data'] as Map<String, dynamic>);
   }
 
   static Future<void> confirmDelivery(String orderId, {String? code}) async {
-    await ApiService.patch('/shop/orders/$orderId/confirm-delivery', {
+    await ApiService.patch('$_base/$orderId/confirm-delivery', {
       if (code != null && code.trim().isNotEmpty) 'code': code.trim(),
     });
   }

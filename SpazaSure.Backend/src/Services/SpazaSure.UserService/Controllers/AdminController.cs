@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
+using SpazaSure.Infrastructure.Entities;
 using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
@@ -154,9 +155,11 @@ public class AdminController(SpazaSureDbContext db, AddressGeocodingSignal geoco
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
+        // Bulk Buyer accounts belong to shoppers; they're managed under customers
         var query = db.SpazaShops
             .Include(s => s.User)
             .Include(s => s.Documents)
+            .Where(s => s.AccountType == ShopAccountTypes.Shop)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))

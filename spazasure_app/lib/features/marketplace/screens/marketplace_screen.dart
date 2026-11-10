@@ -13,7 +13,17 @@ import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({super.key});
+  /// The Bulk Buyer marketplace reuses this screen with its own title, actions and header.
+  final String title;
+  final List<Widget> extraActions;
+  final Widget? header;
+
+  const MarketplaceScreen({
+    super.key,
+    this.title = 'Marketplace',
+    this.extraActions = const [],
+    this.header,
+  });
 
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -112,12 +122,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BrandAppBar(
-        title: const Text('Marketplace'),
+        title: Text(widget.title),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterSheet,
           ),
+          ...widget.extraActions,
         ],
       ),
       body: RefreshIndicator(
@@ -125,6 +136,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         color: AppColors.primary,
         child: Column(
           children: [
+            ?widget.header,
             // Search
             Container(
               color: AppColors.surface,

@@ -1114,6 +1114,10 @@ export interface PlatformRules {
   /** Smallest order (R, products only) a shop may place with one supplier, group buys included. 0 = no minimum. */
   minOrderAmount: number;
   groupBuyMinShops: number;
+  /** Bulk Buyer shoppers pay the shop price plus this % */
+  bulkBuyerMarkupPercent: number;
+  /** Smallest order (R, products only) a Bulk Buyer shopper may place with one supplier. 0 = no minimum. */
+  bulkBuyerMinOrderAmount: number;
   /** SpazaSure's bank account that shops deposit into to top up their wallet */
   depositBankName: string;
   depositAccountHolder: string;

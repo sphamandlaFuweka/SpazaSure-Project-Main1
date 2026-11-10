@@ -446,6 +446,31 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setRules({ ...rules, minOrderAmount: e.target.value === '' ? 0 : Number(e.target.value) })} />
                 <p className="text-xs text-ink-3 mt-1.5">Smallest order a shop can place with one supplier, in products (delivery not counted). Applies to group buys too. 0 = no minimum.</p>
               </div>
+              <div className="rounded-2xl border-2 border-brand-blue-light bg-surface p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Bulk Buyer shoppers</p>
+                  <p className="text-xs text-ink-2 mt-0.5">
+                    Shoppers on the Bulk Buyer plan (R150 a month) buy from suppliers in the app, pay by card,
+                    and choose delivery or collection.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label" htmlFor="bulkMarkup">Markup on shop prices (%)</label>
+                    <input id="bulkMarkup" type="number" min="0" max="50" step="0.5" className="input"
+                      value={rules.bulkBuyerMarkupPercent}
+                      onChange={(e) => setRules({ ...rules, bulkBuyerMarkupPercent: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                    <p className="text-xs text-ink-3 mt-1.5">Added on top of the price shops pay, so spaza shops keep a better price. SpazaSure keeps the difference.</p>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="bulkMin">Minimum order per supplier (R)</label>
+                    <input id="bulkMin" type="number" min="0" max="1000000" step="100" className="input"
+                      value={rules.bulkBuyerMinOrderAmount}
+                      onChange={(e) => setRules({ ...rules, bulkBuyerMinOrderAmount: e.target.value === '' ? 0 : Number(e.target.value) })} />
+                    <p className="text-xs text-ink-3 mt-1.5">Smallest order a Bulk Buyer can place with one supplier, in products (delivery not counted).</p>
+                  </div>
+                </div>
+              </div>
               <div className="max-w-xs">
                 <label className="label" htmlFor="groupBuyMinShops">Minimum shops per group buy</label>
                 <input id="groupBuyMinShops" type="number" min="1" max="100" step="1" className="input"

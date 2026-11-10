@@ -51,6 +51,13 @@ public sealed record PlatformRules
     public decimal MinOrderAmount { get; init; } = 2000m;
     /// <summary>Fewest shops a group buy must have before the supplier can accept it.</summary>
     public int GroupBuyMinShops { get; init; } = 3;
+    /// <summary>
+    /// Bulk Buyer shoppers pay the shop price plus this % (so spaza shops keep a price advantage).
+    /// SpazaSure keeps the difference, like its platform fee.
+    /// </summary>
+    public decimal BulkBuyerMarkupPercent { get; init; } = 10m;
+    /// <summary>Smallest order a Bulk Buyer shopper may place with one supplier (R, products only, delivery not counted).</summary>
+    public decimal BulkBuyerMinOrderAmount { get; init; } = 1000m;
     /// <summary>SpazaSure's bank account that shops deposit into to top up their wallet.</summary>
     public string DepositBankName { get; init; } = "Capitec Business";
     public string DepositAccountHolder { get; init; } = "GEOTX PTY LTD";
@@ -75,6 +82,8 @@ public sealed record PlatformRules
         if (CashOnDeliveryMaxOrderTotal is < 0 or > 1000000) return "Cash on delivery limit must be between R0 and R1,000,000.";
         if (MinOrderAmount is < 0 or > 1000000) return "Minimum order must be between R0 and R1,000,000.";
         if (GroupBuyMinShops is < 1 or > 100) return "Group buy minimum shops must be between 1 and 100.";
+        if (BulkBuyerMarkupPercent is < 0 or > 50) return "Bulk Buyer markup must be between 0% and 50%.";
+        if (BulkBuyerMinOrderAmount is < 0 or > 1000000) return "Bulk Buyer minimum order must be between R0 and R1,000,000.";
         if (string.IsNullOrWhiteSpace(MaintenanceMessage) || MaintenanceMessage.Length > 300)
             return "Maintenance message must be between 1 and 300 characters.";
         if (string.IsNullOrWhiteSpace(DepositBankName) || DepositBankName.Length > 80) return "Enter the deposit bank name (up to 80 characters).";
@@ -107,6 +116,8 @@ public static class PlatformSettingsStore
     public const string CashOnDeliveryMaxOrderTotalKey = "cash_on_delivery_max_order_total";
     public const string MinOrderAmountKey = "min_order_amount";
     public const string GroupBuyMinShopsKey = "group_buy_min_shops";
+    public const string BulkBuyerMarkupPercentKey = "bulk_buyer_markup_percent";
+    public const string BulkBuyerMinOrderAmountKey = "bulk_buyer_min_order_amount";
     public const string DepositBankNameKey = "deposit_bank_name";
     public const string DepositAccountHolderKey = "deposit_account_holder";
     public const string DepositAccountNumberKey = "deposit_account_number";
@@ -135,6 +146,8 @@ public static class PlatformSettingsStore
             CashOnDeliveryMaxOrderTotal = Dec(values, CashOnDeliveryMaxOrderTotalKey, d.CashOnDeliveryMaxOrderTotal),
             MinOrderAmount = Dec(values, MinOrderAmountKey, d.MinOrderAmount),
             GroupBuyMinShops = values.TryGetValue(GroupBuyMinShopsKey, out var minShops) && int.TryParse(minShops, NumberStyles.Integer, CultureInfo.InvariantCulture, out var shops) ? shops : d.GroupBuyMinShops,
+            BulkBuyerMarkupPercent = Dec(values, BulkBuyerMarkupPercentKey, d.BulkBuyerMarkupPercent),
+            BulkBuyerMinOrderAmount = Dec(values, BulkBuyerMinOrderAmountKey, d.BulkBuyerMinOrderAmount),
             DepositBankName = Str(values, DepositBankNameKey, d.DepositBankName),
             DepositAccountHolder = Str(values, DepositAccountHolderKey, d.DepositAccountHolder),
             DepositAccountNumber = Str(values, DepositAccountNumberKey, d.DepositAccountNumber),
@@ -163,6 +176,8 @@ public static class PlatformSettingsStore
             [CashOnDeliveryMaxOrderTotalKey] = Fmt(rules.CashOnDeliveryMaxOrderTotal),
             [MinOrderAmountKey] = Fmt(rules.MinOrderAmount),
             [GroupBuyMinShopsKey] = rules.GroupBuyMinShops.ToString(CultureInfo.InvariantCulture),
+            [BulkBuyerMarkupPercentKey] = Fmt(rules.BulkBuyerMarkupPercent),
+            [BulkBuyerMinOrderAmountKey] = Fmt(rules.BulkBuyerMinOrderAmount),
             [DepositBankNameKey] = rules.DepositBankName.Trim(),
             [DepositAccountHolderKey] = rules.DepositAccountHolder.Trim(),
             [DepositAccountNumberKey] = rules.DepositAccountNumber.Trim(),

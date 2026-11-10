@@ -39,11 +39,11 @@ class OrderSuccessScreen extends StatelessWidget {
   };
 
   void _goHome(BuildContext context) =>
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil(OrderService.homeRoute, (_) => false);
 
   void _trackOrder(BuildContext context) {
     final navigator = Navigator.of(context);
-    navigator.pushNamedAndRemoveUntil('/home', (_) => false);
+    navigator.pushNamedAndRemoveUntil(OrderService.homeRoute, (_) => false);
     navigator.pushNamed('/orders');
   }
 

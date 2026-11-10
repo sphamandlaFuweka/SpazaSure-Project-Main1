@@ -151,6 +151,8 @@ export interface Order {
   createdAt: string;
   estimatedDelivery?: string;
   groupBuyId?: string;
+  /** Placed by a shopper on the Bulk Buyer plan (a household), not a spaza shop */
+  isBulkBuyer?: boolean;
   isGroupBuy: boolean;
   deliveryDistanceKm?: number;
   deliveryLatitude?: number;

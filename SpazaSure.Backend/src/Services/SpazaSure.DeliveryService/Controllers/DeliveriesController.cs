@@ -95,7 +95,7 @@ public class DeliveriesController(SpazaSureDbContext db, EventPublisher events, 
     private static object Project(Order o) => new
     {
         o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.DeliveryType, o.CreatedAt,
-        ShopName = o.Shop.ShopName, ShopPhone = o.Shop.Phone, o.DeliveryAddress, o.DeliveryLatitude, o.DeliveryLongitude,
+        ShopName = o.Shop.ShopName, BuyerType = o.Shop.AccountType, ShopPhone = o.Shop.Phone, o.DeliveryAddress, o.DeliveryLatitude, o.DeliveryLongitude,
         SupplierName = o.Supplier.CompanyName,
         Pickup = Tracking.Pickup(o),
         o.DeliveryDistanceKm,

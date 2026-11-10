@@ -55,7 +55,7 @@ public static class OrderPayments
                 supplierId: order.Supplier.UserId.ToString(),
                 type: "order",
                 title: "New Order Received",
-                message: $"{order.Shop.ShopName} placed order {order.OrderNumber}. Product share: R{order.Subtotal:F2}."
+                message: $"{order.Shop.ShopName}{(order.Shop.AccountType == ShopAccountTypes.BulkBuyer ? " (Bulk Buyer)" : "")} placed order {order.OrderNumber}. Product share: R{order.Subtotal:F2}."
                     + (string.IsNullOrWhiteSpace(order.PaystackSplitCode)
                         ? ""
                         : " Your share was allocated to your Paystack subaccount."),

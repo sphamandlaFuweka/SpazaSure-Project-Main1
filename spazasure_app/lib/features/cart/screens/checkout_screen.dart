@@ -10,6 +10,8 @@ import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/services/profile_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
+import 'package:spazasure_app/features/customer/screens/bulk_address_screen.dart';
+import 'package:spazasure_app/services/customer_bulk_service.dart';
 
 /// Checkout: where the order goes, how the shop pays, what it costs, and one button to pay.
 class CheckoutScreen extends StatefulWidget {
@@ -30,6 +32,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double? _walletBalance;
   ShopProfile? _profile;
 
+  /// A Bulk Buyer shopper: card only, their own address, the Bulk Buyer minimum order.
+  final bool _bulk = OrderService.forBulkBuyer;
+  BulkAccount? _bulkAccount;
+
   /// Server quotes per delivery option: real per-km fees from the branch that ships each order.
   final Map<String, CheckoutQuote> _quotes = {};
   String _quotedCart = '';
@@ -37,12 +43,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    if (_bulk) {
+      _loadBulkAccount();
+      return;
+    }
     _loadWalletBalance();
     ProfileService.getProfile()
         .then((p) {
           if (mounted) setState(() => _profile = p);
         })
         .catchError((_) {});
+  }
+
+  Future<void> _loadBulkAccount() async {
+    try {
+      final account = await CustomerBulkService.getAccount();
+      if (mounted) setState(() => _bulkAccount = account);
+    } catch (_) {
+      // The address card offers to add it, and the server checks again at checkout
+    }
+  }
+
+  Future<void> _changeBulkAddress() async {
+    final saved = await Navigator.push<BulkAddress>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BulkAddressScreen(current: _bulkAccount?.address),
+      ),
+    );
+    if (saved == null || !mounted) return;
+    // A new address can change the branch and delivery fee, so quote again
+    setState(() => _quotedCart = '');
+    await _loadBulkAccount();
   }
 
   Future<void> _loadWalletBalance() async {
@@ -92,7 +124,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   /// Suppliers whose part of the cart is below the minimum order (products only), with what's missing.
   List<String> _belowMinimum(CartProvider cart) {
-    final minimum = cart.settings.minOrderAmount;
+    final minimum = _bulk
+        ? (_bulkAccount?.minOrderAmount ?? cart.settings.bulkBuyerMinOrderAmount)
+        : cart.settings.minOrderAmount;
     if (minimum <= 0) return const [];
     final bySupplier = <String, double>{};
     final names = <String, String>{};
@@ -295,7 +329,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   subtitle:
                       'Visa, Mastercard, instant EFT · secured by Paystack',
                 ),
-                if (_walletBalance != null) ...[
+                if (!_bulk && _walletBalance != null) ...[
                   _divider(),
                   _paymentRow(
                     method: OrderService.wallet,
@@ -309,7 +343,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     enabled: _walletAllowed(cart),
                   ),
                 ],
-                _divider(),
+                if (!_bulk) _divider(),
+                if (!_bulk)
                 _paymentRow(
                   method: OrderService.cashOnDelivery,
                   selected: method == OrderService.cashOnDelivery,
@@ -473,6 +508,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.8));
 
   Widget _addressCard() {
+    if (_bulk) return _bulkAddressCard();
     final pickup = _deliveryOption == 'pickup';
     final profile = _profile;
     return _card(
@@ -548,6 +584,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulkAddressCard() {
+    final pickup = _deliveryOption == 'pickup';
+    final address = _bulkAccount?.address;
+    return _card(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _radioDot(true),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pickup ? 'Collect from suppliers' : 'Deliver to your address',
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  pickup
+                      ? 'You collect each supplier\'s order from their branch nearest to you. No delivery fee.'
+                      : address == null
+                      ? 'No address yet: tap to add it'
+                      : address.fullLine,
+                  style: AppTextStyles.caption.copyWith(
+                    color: !pickup && address == null
+                        ? AppColors.error
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                if (!pickup && address != null && address.phone.isNotEmpty)
+                  Text(
+                    address.phone,
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Change address',
+            icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.textSecondary),
+            onPressed: _changeBulkAddress,
+          ),
         ],
       ),
     );
@@ -718,12 +802,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (cart.isEmpty) return;
     setState(() => _placing = true);
     try {
-      final profile = _profile ?? await ProfileService.getProfile();
-      final deliveryAddress = profile.address.trim();
-      if (_deliveryOption != 'pickup' && deliveryAddress.isEmpty) {
-        throw StateError(
-          'Add a delivery address to your shop profile before ordering.',
-        );
+      final String deliveryAddress;
+      if (_bulk) {
+        final account = _bulkAccount ?? await CustomerBulkService.getAccount();
+        if (account.address == null) {
+          throw StateError('Add your delivery address before ordering.');
+        }
+        deliveryAddress = account.address!.fullLine;
+      } else {
+        final profile = _profile ?? await ProfileService.getProfile();
+        deliveryAddress = profile.address.trim();
+        if (_deliveryOption != 'pickup' && deliveryAddress.isEmpty) {
+          throw StateError(
+            'Add a delivery address to your shop profile before ordering.',
+          );
+        }
       }
 
       final method = _effectiveMethod(cart);

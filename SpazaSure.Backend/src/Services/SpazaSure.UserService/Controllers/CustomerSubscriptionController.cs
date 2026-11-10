@@ -30,8 +30,9 @@ public sealed class CustomerSubscriptionController(
         [FromBody] CustomerSubscriptionCheckoutRequest request,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(request.PlanKey, "plus", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Fail("Only the SpazaSure Plus plan is currently available for checkout."));
+        var planKey = request.PlanKey?.Trim().ToLowerInvariant();
+        if (!CustomerPlus.IsPaidPlan(planKey))
+            return BadRequest(ApiResponse.Fail("Choose SpazaSure Plus or Bulk Buyer."));
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == UserId, cancellationToken);
         if (user is null) return NotFound(ApiResponse.Fail("Customer account not found."));
@@ -46,30 +47,42 @@ public sealed class CustomerSubscriptionController(
                 ApiResponse.Fail("Card payments are not switched on yet. Please try again later."));
 
         var subscription = await CustomerPlus.LatestAsync(db, UserId, cancellationToken);
-        if (CustomerPlus.IsActive(subscription))
-            return Conflict(ApiResponse.Fail("Your SpazaSure Plus subscription is already active."));
-        if (subscription?.PlanKey == "plus" &&
-            (subscription.Status is "past_due" or "unpaid" or "incomplete" or "trialing" or "paused" ||
+        // Plus members can move up to Bulk Buyer; their Plus is ended once Bulk Buyer is paid
+        var upgrading = planKey == BulkBuying.PlanKey && subscription?.PlanKey == CustomerPlus.PlusPlanKey;
+        if (CustomerPlus.IsActive(subscription) && !upgrading)
+            return Conflict(ApiResponse.Fail(subscription!.PlanKey == planKey
+                ? $"Your {PlanName(planKey)} subscription is already active."
+                : "Your Bulk Buyer plan already includes SpazaSure Plus."));
+        if (CustomerPlus.IsPaidPlan(subscription?.PlanKey) && !upgrading &&
+            (subscription!.Status is "past_due" or "unpaid" or "incomplete" or "trialing" or "paused" ||
              subscription.Status == "active" && CustomerPlus.AutoRenews(subscription)))
-            return Conflict(ApiResponse.Fail("Your SpazaSure Plus renewal is being processed by Paystack. Check the email Paystack sent you."));
+            return Conflict(ApiResponse.Fail($"Your {PlanName(subscription.PlanKey)} renewal is being processed by Paystack. Check the email Paystack sent you."));
 
         // Someone who paid and closed the page before coming back is switched on, not charged twice
         if (subscription?.Status == "pending" && await TryActivatePendingAsync(subscription, cancellationToken))
-            return Ok(ApiResponse<object>.Ok(new { subscriptionId = subscription.Id, alreadyActive = true }));
+        {
+            if (subscription.PlanKey == planKey)
+                return Ok(ApiResponse<object>.Ok(new { subscriptionId = subscription.Id, alreadyActive = true }));
+            // The earlier checkout was for the other plan and went through; start a new one for this plan
+            subscription = null;
+        }
 
         if (subscription is null || subscription.Status != "pending")
         {
             subscription = new CustomerSubscription
             {
                 CustomerUserId = UserId,
-                PlanKey = "plus",
+                PlanKey = planKey!,
                 Status = "pending"
             };
             db.CustomerSubscriptions.Add(subscription);
         }
+        // An abandoned checkout for another plan is reused for the one chosen now
+        subscription.PlanKey = planKey!;
 
         // A fresh Paystack page each time: an old link may have expired or been abandoned
-        var planCode = paystack.GetPlanCode("CustomerPlusMonthly");
+        var price = CustomerPlus.PriceOf(planKey);
+        var planCode = paystack.GetPlanCode(CustomerPlus.PaystackPlanSetting(planKey!));
         var reference = $"CUS-{subscription.Id:N}-{Guid.NewGuid():N}";
         var callbackUrl = paystack.GetCallbackUrl("CustomerSubscription");
         PaystackCheckout checkout;
@@ -78,9 +91,9 @@ public sealed class CustomerSubscriptionController(
             checkout = string.IsNullOrWhiteSpace(planCode)
                 // No renewing plan set up in Paystack: pay for one month at a time
                 ? await paystack.CreateOnceOffCheckoutAsync(
-                    CustomerPlus.MonthlyPrice, email, reference, callbackUrl, cancellationToken)
+                    price, email, reference, callbackUrl, cancellationToken)
                 : await paystack.CreateSubscriptionCheckoutAsync(
-                    CustomerPlus.MonthlyPrice, email, reference, callbackUrl, planCode, "monthly", cancellationToken);
+                    price, email, reference, callbackUrl, planCode, "monthly", cancellationToken);
         }
         catch (Exception error) when (error is HttpRequestException or InvalidOperationException)
         {
@@ -119,13 +132,13 @@ public sealed class CustomerSubscriptionController(
     {
         var subscription = await db.CustomerSubscriptions
             .Where(s => s.CustomerUserId == UserId &&
-                        s.PlanKey == "plus" &&
+                        (s.PlanKey == CustomerPlus.PlusPlanKey || s.PlanKey == BulkBuying.PlanKey) &&
                         (s.Status == "active" || s.Status == "past_due" || s.Status == "unpaid") &&
                         !s.CancelAtPeriodEnd)
             .OrderByDescending(s => s.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
         if (subscription is null)
-            return NotFound(ApiResponse.Fail("There is no active SpazaSure Plus subscription to cancel."));
+            return NotFound(ApiResponse.Fail("There is no active subscription to cancel."));
         if (!CustomerPlus.AutoRenews(subscription))
             return Conflict(ApiResponse.Fail("This month was paid once-off and won't renew, so there is nothing to cancel."));
         if (string.IsNullOrWhiteSpace(subscription.PaymentProviderSubscriptionCode) ||
@@ -175,18 +188,22 @@ public sealed class CustomerSubscriptionController(
             // Not paid yet, or Paystack is unreachable: the webhook still switches Plus on later
             return false;
         }
-        if (!CustomerPlus.IsExpectedPayment(transaction, reference)) return false;
+        if (!CustomerPlus.IsExpectedPayment(transaction, reference, subscription.PlanKey)) return false;
 
         CustomerPlus.Activate(subscription, transaction);
+        await CustomerPlus.RetireOlderPlansAsync(db, paystack, subscription, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    private static string PlanName(string? planKey) =>
+        planKey == BulkBuying.PlanKey ? "Bulk Buyer" : "SpazaSure Plus";
 
     private static object Overview(CustomerSubscription? subscription)
     {
         var isPlusActive = CustomerPlus.IsActive(subscription);
         var currentPlan = isPlusActive ||
-                          subscription?.PlanKey == "plus" &&
+                          CustomerPlus.IsPaidPlan(subscription?.PlanKey) &&
                           subscription.Status is "pending" or "past_due" or "unpaid" ||
                           subscription?.Status == "active" && !CustomerPlus.IsLapsed(subscription)
             ? subscription!.PlanKey
@@ -198,6 +215,7 @@ public sealed class CustomerSubscriptionController(
             currentPlan,
             status,
             isPlusActive,
+            isBulkActive = BulkBuying.IsActive(subscription),
             autoRenews = CustomerPlus.AutoRenews(subscription),
             cancelAtPeriodEnd = subscription?.CancelAtPeriodEnd ?? false,
             currentPeriodEnd = subscription?.CurrentPeriodEnd,
@@ -236,6 +254,22 @@ public sealed class CustomerSubscriptionController(
                         "Product comparison and shopping guidance",
                         "Cashback and participating-shop rewards, where available",
                         "Priority customer support"
+                    }
+                },
+                new
+                {
+                    key = BulkBuying.PlanKey,
+                    name = "Bulk Buyer",
+                    monthlyPrice = BulkBuying.MonthlyPrice,
+                    isAvailable = true,
+                    description = "Buy in bulk straight from suppliers, delivered or collected.",
+                    features = new[]
+                    {
+                        "Everything in SpazaSure Plus",
+                        "Shop the bulk marketplace of verified suppliers",
+                        "Orders from R1,000 per supplier",
+                        "Home delivery or collect from the supplier",
+                        "Pay safely by card with Paystack"
                     }
                 },
                 new

@@ -49,7 +49,7 @@ public class DriverPortalController(SpazaSureDbContext db, DriverAlerts? alerts 
             {
                 o.OrderNumber, o.Status,
                 Date = o.DeliveredAt ?? o.UpdatedAt ?? o.CreatedAt,
-                ShopName = o.Shop.ShopName,
+                ShopName = o.Shop.ShopName, BuyerType = o.Shop.AccountType,
                 Pickup = o.SupplierBranch != null ? o.Supplier.CompanyName + " - " + o.SupplierBranch.Name : o.Supplier.CompanyName,
                 o.DeliveryDistanceKm,
                 o.DriverPay, o.DriverPaidAt,

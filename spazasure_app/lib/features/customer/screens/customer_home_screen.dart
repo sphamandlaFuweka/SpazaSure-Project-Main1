@@ -12,6 +12,7 @@ import 'package:spazasure_app/features/customer/screens/safety_basics_screen.dar
 import 'package:spazasure_app/core/i18n/app_language.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 import 'package:spazasure_app/features/customer/plus_gate.dart';
+import 'package:spazasure_app/features/customer/screens/bulk_shop_screen.dart';
 
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({super.key});
@@ -139,6 +140,18 @@ class CustomerHomeScreen extends StatelessWidget {
             context,
             feature: tr('home.rewards'),
             builder: (_) => const CustomerRewardsScreen(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _action(
+          context,
+          Icons.inventory_2_outlined,
+          tr('home.bulk'),
+          tr('home.bulkSub'),
+          AppColors.accent,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const BulkShopScreen()),
           ),
         ),
         const SizedBox(height: 12),

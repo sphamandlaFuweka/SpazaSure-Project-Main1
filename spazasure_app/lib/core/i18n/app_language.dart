@@ -99,6 +99,8 @@ const _strings = <String, Map<String, String>>{
     'home.verifyShopSub': 'Scan the shop sticker or enter its shop number',
     'home.rewards': 'My rewards',
     'home.rewardsSub': 'Earn 5 points per scan and redeem R20 vouchers',
+    'home.bulk': 'Bulk buying',
+    'home.bulkSub': 'Buy in bulk from suppliers, from R1,000 · Bulk Buyer plan',
     'home.report': 'Report a concern',
     'home.reportSub': 'Flag fake, expired, or unsafe goods',
     'home.learn': 'Learn before you buy',

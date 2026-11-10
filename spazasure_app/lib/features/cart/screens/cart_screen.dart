@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/core/widgets/custom_button.dart';
 import 'package:spazasure_app/features/cart/screens/checkout_screen.dart';
+import 'package:spazasure_app/services/order_service.dart';
 import 'package:spazasure_app/features/cart/widgets/group_buy_cart_card.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
@@ -190,7 +191,10 @@ class _CartScreenState extends State<CartScreen> {
           CustomButton(
             text: 'Browse marketplace',
             width: 230,
-            onPressed: () => Navigator.pushNamed(context, '/marketplace'),
+            // Bulk Buyers came from the bulk marketplace, so go back to it
+            onPressed: () => OrderService.forBulkBuyer
+                ? Navigator.pop(context)
+                : Navigator.pushNamed(context, '/marketplace'),
           ),
         ],
       ),

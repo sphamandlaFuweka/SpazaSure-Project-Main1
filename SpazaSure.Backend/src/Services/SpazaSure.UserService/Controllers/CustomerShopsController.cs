@@ -50,8 +50,9 @@ public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSign
     [HttpGet]
     public async Task<IActionResult> GetShops([FromQuery] string? search)
     {
+        // Bulk Buyer accounts are shoppers' homes, never listed as shops
         var query = db.SpazaShops
-            .Where(s => !HiddenStatuses.Contains(s.Status))
+            .Where(s => s.AccountType == ShopAccountTypes.Shop && !HiddenStatuses.Contains(s.Status))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -84,7 +85,7 @@ public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSign
     public async Task<IActionResult> GetById(Guid id)
     {
         var shop = await db.SpazaShops
-            .FirstOrDefaultAsync(s => s.Id == id && !HiddenStatuses.Contains(s.Status));
+            .FirstOrDefaultAsync(s => s.Id == id && s.AccountType == ShopAccountTypes.Shop && !HiddenStatuses.Contains(s.Status));
 
         if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
         return Ok(ApiResponse<object>.Ok(ToDto(shop)));
@@ -106,7 +107,7 @@ public class CustomerShopsController(SpazaSureDbContext db, AddressGeocodingSign
     {
         if (req.Rating is < 1 or > 5) return BadRequest(ApiResponse.Fail("Rating must be between 1 and 5."));
         if (!await db.SpazaShops.AnyAsync(s =>
-                s.Id == id && !HiddenStatuses.Contains(s.Status)))
+                s.Id == id && s.AccountType == ShopAccountTypes.Shop && !HiddenStatuses.Contains(s.Status)))
             return NotFound(ApiResponse.Fail("Shop not found."));
 
         var review = await db.ShopReviews.FirstOrDefaultAsync(r => r.ShopId == id && r.ReviewerUserId == UserId);

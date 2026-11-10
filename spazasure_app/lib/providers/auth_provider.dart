@@ -1,3 +1,4 @@
+import '../services/order_service.dart';
 import 'package:flutter/material.dart';
 import '../core/i18n/app_language.dart';
 import '../services/auth_service.dart';
@@ -179,6 +180,8 @@ class AuthProvider extends ChangeNotifier {
   void _track({Future<void> Function(String role)? event}) {
     final s = _session;
     AnalyticsService.setUser(userId: s?.userId, role: s?.role);
+    // Shoppers order through the Bulk Buyer endpoints; shops through their own
+    OrderService.forBulkBuyer = s?.role == 'customer';
     if (s != null && event != null) event(s.role);
   }
 

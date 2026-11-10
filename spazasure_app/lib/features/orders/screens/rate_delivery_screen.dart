@@ -6,6 +6,7 @@ import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/api_service.dart';
+import 'package:spazasure_app/services/order_service.dart';
 
 class RateDeliveryScreen extends StatefulWidget {
   const RateDeliveryScreen({super.key});
@@ -59,7 +60,7 @@ class _RateDeliveryScreenState extends State<RateDeliveryScreen>
 
     setState(() => _submitting = true);
     try {
-      await ApiService.post('/shop/orders/${order.id}/rate', {
+      await ApiService.post('${OrderService.basePath}/${order.id}/rate', {
         'deliveryRating': _deliveryRating,
         'supplierRating': _supplierRating,
         'comment': _commentController.text.trim(),

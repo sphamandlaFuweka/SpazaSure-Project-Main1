@@ -106,6 +106,9 @@ export default function OrderDetailModal({
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase mb-0.5">Delivery To</p>
             <p className="font-bold text-gray-900">{order.shopName}</p>
+            {order.isBulkBuyer && (
+              <p className="text-xs font-semibold text-amber-700 mt-0.5">Bulk Buyer shopper (a household, not a spaza shop)</p>
+            )}
             <p className="text-sm text-gray-500">{order.shopAddress}</p>
             {order.deliveryDistanceKm != null && (
               <p className="text-xs text-gray-500 font-semibold mt-1">

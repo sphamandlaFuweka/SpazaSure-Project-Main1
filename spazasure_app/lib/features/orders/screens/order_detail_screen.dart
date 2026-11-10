@@ -747,7 +747,7 @@ class OrderDetailScreen extends StatelessWidget {
                 Navigator.pop(ctx);
                 try {
                   await ApiService.post(
-                    '/shop/orders/${order.id}/report-issue',
+                    '${OrderService.basePath}/${order.id}/report-issue',
                     {
                       'issueType': selectedType,
                       'description': descController.text.trim().isNotEmpty

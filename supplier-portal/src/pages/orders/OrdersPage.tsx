@@ -55,6 +55,7 @@ function mapOrder(o: any): Order {
     shopId: o.shop?.id ?? o.shopId ?? '',
     shopName: o.shop?.shopName ?? o.shopName ?? '',
     shopAddress: o.shop?.address ?? o.shopAddress ?? '',
+    isBulkBuyer: o.buyerType === 'bulk_buyer',
     items,
     originalSubtotal,
     totalDiscount: Number(o.totalDiscount ?? Math.max(0, originalSubtotal - subtotal)),
@@ -361,7 +362,10 @@ export default function OrdersPage() {
                   </td>
                   <td className="table-cell">
                     <div>
-                      <p className="font-semibold text-gray-900">{order.shopName}</p>
+                      <p className="font-semibold text-gray-900 flex items-center gap-1.5">
+                        {order.shopName}
+                        {order.isBulkBuyer && <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Bulk Buyer</span>}
+                      </p>
                       <p className="text-xs text-gray-400">{order.shopAddress}</p>
                     </div>
                   </td>

@@ -21,7 +21,9 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Submit a delivery rating for an order
     /// </summary>
     [HttpPost("{orderId:guid}/rate")]
-    [Authorize(Roles = "spaza_owner")]
+    // Bulk Buyer shoppers rate their deliveries too; their buyer account is found the same way
+    [HttpPost("~/api/customer/bulk/orders/{orderId:guid}/rate")]
+    [Authorize(Roles = "spaza_owner,customer")]
     public async Task<IActionResult> RateDelivery(Guid orderId, [FromBody] RateDeliveryRequest req)
     {
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
@@ -63,7 +65,8 @@ public class ShopOrderRatingController(SpazaSureDbContext db, EventPublisher eve
     /// Report an issue with a delivery
     /// </summary>
     [HttpPost("{orderId:guid}/report-issue")]
-    [Authorize(Roles = "spaza_owner")]
+    [HttpPost("~/api/customer/bulk/orders/{orderId:guid}/report-issue")]
+    [Authorize(Roles = "spaza_owner,customer")]
     public async Task<IActionResult> ReportIssue(Guid orderId, [FromBody] ReportIssueRequest req)
     {
         var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);

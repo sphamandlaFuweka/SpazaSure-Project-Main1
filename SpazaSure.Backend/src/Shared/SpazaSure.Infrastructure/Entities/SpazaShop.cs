@@ -32,6 +32,12 @@ public class SpazaShop : BaseEntity, IHasIdentityCheck
     /// <summary>Didit's warnings for the admin, one per line.</summary>
     public string? IdentityCheckNotes { get; set; }
     public DateTime? IdentityCheckUpdatedAt { get; set; }
+    /// <summary>
+    /// "shop" for a spaza shop. "bulk_buyer" for a shopper on the Bulk Buyer plan: their buyer
+    /// account holds the delivery address so they can order through the same checkout, delivery
+    /// and payout flow as shops. Shop listings leave bulk buyers out (see ShopAccountTypes).
+    /// </summary>
+    public string AccountType { get; set; } = ShopAccountTypes.Shop;
 
     public User User { get; set; } = null!;
     public ICollection<ShopDocument> Documents { get; set; } = [];

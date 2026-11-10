@@ -1,4 +1,4 @@
-﻿using SpazaSure.ProductService.Services;
+using SpazaSure.ProductService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +34,20 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             ? db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId)
             : Task.FromResult<SpazaSure.Infrastructure.Entities.SpazaShop?>(null);
 
+    /// <summary>
+    /// Shoppers only see the bulk marketplace on the Bulk Buyer plan, and once they've added the
+    /// address their orders go to (it decides which suppliers deliver to them). Null when allowed.
+    /// </summary>
+    private async Task<IActionResult?> ShopperRefusalAsync(SpazaSure.Infrastructure.Entities.SpazaShop? shop)
+    {
+        if (User?.IsInRole("customer") != true) return null;
+        if (!await BulkBuying.IsActiveAsync(db, UserId))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail(BulkBuying.RequiredMessage));
+        if (!BulkBuying.IsBulkBuyer(shop))
+            return Conflict(ApiResponse.Fail(BulkBuying.AddressRequiredMessage));
+        return null;
+    }
+
     [HttpGet("products")]
     public async Task<IActionResult> Products(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
@@ -42,6 +56,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     {
         // Get the shop's location for proximity sorting
         var shop = await CurrentShopAsync();
+        if (await ShopperRefusalAsync(shop) is { } refused) return refused;
         var shopCity = shop?.City?.ToLower() ?? "";
         var shopProvince = shop?.Province?.ToLower() ?? "";
         var reachable = await ReachableSuppliersAsync(shop);
@@ -89,8 +104,9 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var stable = ordered.ThenBy(p => p.Name).ThenBy(p => p.Id);
 
         var total = await query.CountAsync();
-        // Shops see prices with SpazaSure's fee built in, never the supplier's own price
-        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
+        // Shops see prices with SpazaSure's fee built in, never the supplier's own price;
+        // Bulk Buyer shoppers pay the shop price plus the Bulk Buyer markup
+        var markup = BulkBuying.Markup(shop, await PlatformSettingsStore.LoadAsync(db));
         var apiBase = PublicApi.Base(Request);
         var items = await stable.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new {
@@ -164,11 +180,12 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.IsAvailable && x.IsApproved
                 && (x.Supplier.Status == "active" || x.Supplier.Status == "verified"));
         if (p is null) return NotFound(ApiResponse.Fail("Product not found."));
-        if (await ReachableSuppliersAsync(await CurrentShopAsync()) is { } reachable && !reachable.Contains(p.SupplierId))
-            return NotFound(ApiResponse.Fail("This supplier doesn't deliver to your area."));
         var shopForAvailability = await CurrentShopAsync();
+        if (await ShopperRefusalAsync(shopForAvailability) is { } refused) return refused;
+        if (await ReachableSuppliersAsync(shopForAvailability) is { } reachable && !reachable.Contains(p.SupplierId))
+            return NotFound(ApiResponse.Fail("This supplier doesn't deliver to your area."));
         var availability = (await AvailabilityAsync(shopForAvailability, [p.Id])).GetValueOrDefault(p.Id);
-        var markup = ShopPricing.Markup(await PlatformSettingsStore.LoadAsync(db));
+        var markup = BulkBuying.Markup(shopForAvailability, await PlatformSettingsStore.LoadAsync(db));
         return Ok(ApiResponse<object>.Ok(new {
             Availability = availability,
             p.Id, p.Name, p.Description, p.Sku, Price = ShopPricing.ShopPrice(p.Price, markup), p.MinOrderQty,
@@ -184,7 +201,9 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     [HttpGet("categories")]
     public async Task<IActionResult> Categories()
     {
-        var reachable = await ReachableSuppliersAsync(await CurrentShopAsync());
+        var current = await CurrentShopAsync();
+        if (await ShopperRefusalAsync(current) is { } refused) return refused;
+        var reachable = await ReachableSuppliersAsync(current);
         var limited = reachable is not null;
         var supplierIds = reachable ?? [];
         var items = await db.Set<SpazaSure.Infrastructure.Entities.Category>()
@@ -202,6 +221,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
     {
         // Get shop location for nearby indicator
         var shop = await CurrentShopAsync();
+        if (await ShopperRefusalAsync(shop) is { } refused) return refused;
         var shopCity = shop?.City?.ToLower() ?? "";
         var shopProvince = shop?.Province?.ToLower() ?? "";
         var reachable = await ReachableSuppliersAsync(shop);
@@ -264,7 +284,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
             ScanType = qr is null ? (p.Barcode == code ? "barcode" : "sku") : "qr",
             QrToken = qr?.QrCode,
             p.Id, p.Name, p.Description, p.Sku, p.Barcode,
-            Price = ShopPricing.ShopPrice(p.Price, await PlatformSettingsStore.LoadAsync(db)), p.MinOrderQty,
+            Price = ShopPricing.ShopPrice(p.Price, BulkBuying.Markup(await CurrentShopAsync(), await PlatformSettingsStore.LoadAsync(db))), p.MinOrderQty,
             p.StockQty, p.Unit, Images = ProductImages.WithLinks(PublicApi.Base(Request), p.Id, p.Images), p.IsAvailable, p.IsApproved,
             CategoryName = p.Category?.Name,
             SupplierId = p.SupplierId, SupplierName = p.Supplier.CompanyName,

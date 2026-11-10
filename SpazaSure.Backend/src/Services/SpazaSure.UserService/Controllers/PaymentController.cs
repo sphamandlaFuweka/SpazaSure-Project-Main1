@@ -318,9 +318,11 @@ public class PaymentController(
 
         if (customerSubscription is not null)
         {
-            if (!IsExpectedAmount(transaction, CustomerPlus.MonthlyPrice))
+            if (!IsExpectedAmount(transaction, CustomerPlus.PriceOf(customerSubscription.PlanKey)))
                 return BadRequest();
             CustomerPlus.Activate(customerSubscription, transaction);
+            // Moving from Plus to Bulk Buyer: stop the old plan so it isn't billed again
+            await CustomerPlus.RetireOlderPlansAsync(db, paystack, customerSubscription, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             return Ok();
         }
@@ -356,7 +358,7 @@ public class PaymentController(
                      s.Status == "active",
                 cancellationToken);
         if (customerSubscription is not null &&
-            IsExpectedAmount(transaction, CustomerPlus.MonthlyPrice))
+            IsExpectedAmount(transaction, CustomerPlus.PriceOf(customerSubscription.PlanKey)))
         {
             customerSubscription.PaymentReference = transaction.Reference;
             customerSubscription.CurrentPeriodEnd = DateTime.UtcNow.AddMonths(1);

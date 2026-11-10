@@ -4,6 +4,7 @@ import 'package:spazasure_app/core/constants/app_text_styles.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/customer_subscription_service.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
+import 'package:spazasure_app/features/customer/screens/bulk_shop_screen.dart';
 
 class CustomerSubscriptionScreen extends StatefulWidget {
   const CustomerSubscriptionScreen({super.key});
@@ -45,10 +46,13 @@ class _CustomerSubscriptionScreenState
     }
   }
 
-  Future<void> _checkout() async {
+  static String _planName(String key) =>
+      key == 'bulk' ? 'Bulk Buyer' : key == 'plus' ? 'SpazaSure Plus' : 'SpazaSure Free';
+
+  Future<void> _checkout(String planKey) async {
     setState(() => _working = true);
     try {
-      final url = await CustomerSubscriptionService.createCheckout('plus');
+      final url = await CustomerSubscriptionService.createCheckout(planKey);
       if (!mounted) return;
       if (url != null) {
         await Navigator.push<bool>(
@@ -56,7 +60,7 @@ class _CustomerSubscriptionScreenState
           MaterialPageRoute(
             builder: (_) => OnboardingFeeCheckoutScreen(
               checkoutUrl: url,
-              title: 'Subscribe to SpazaSure Plus',
+              title: 'Subscribe to ${_planName(planKey)}',
             ),
           ),
         );
@@ -65,6 +69,19 @@ class _CustomerSubscriptionScreenState
       final overview = await CustomerSubscriptionService.verifyPayment();
       if (!mounted) return;
       setState(() => _overview = overview);
+      if (planKey == 'bulk' && overview.isBulkActive) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome to Bulk Buyer! The bulk marketplace is unlocked.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BulkShopScreen()),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -97,9 +114,10 @@ class _CustomerSubscriptionScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel SpazaSure Plus?'),
+        title: Text('Cancel ${_planName(_overview?.currentPlan ?? 'plus')}?'),
         content: const Text(
-          'Cancelling ends your Plus benefits immediately and stops future renewals.',
+          'Cancelling ends your membership benefits immediately and stops future renewals. '
+          'Orders you already placed are not affected.',
         ),
         actions: [
           TextButton(
@@ -176,11 +194,20 @@ class _CustomerSubscriptionScreenState
                         color: AppColors.primary,
                       ),
                       title: Text(
-                        overview.currentPlan == 'plus'
-                            ? 'SpazaSure Plus'
-                            : 'SpazaSure Free',
+                        _planName(overview.currentPlan),
                         style: AppTextStyles.subtitle,
                       ),
+                      trailing: overview.isBulkActive
+                          ? TextButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const BulkShopScreen(),
+                                ),
+                              ),
+                              child: const Text('Shop bulk'),
+                            )
+                          : null,
                       subtitle: Text(
                         _statusLabel(overview),
                         style: AppTextStyles.bodySmall,
@@ -209,14 +236,23 @@ class _CustomerSubscriptionScreenState
     CustomerSubscriptionOverview overview,
   ) {
     final isCurrent = overview.currentPlan == plan.key;
+    final isPaid = plan.key == 'plus' || plan.key == 'bulk';
     final isPlus = plan.key == 'plus';
+    final isBulk = plan.key == 'bulk';
     final isFamily = plan.key == 'family';
+    // Bulk Buyer includes Plus, so Plus can't be bought on top of it
+    final includedInBulk = isPlus && overview.isBulkActive;
     final canCancel =
-        isPlus &&
+        isPaid &&
         isCurrent &&
         overview.autoRenews &&
         !overview.cancelAtPeriodEnd &&
         const {'active', 'past_due', 'unpaid'}.contains(overview.status);
+    final activeOnceOff = isCurrent &&
+        isPaid &&
+        overview.isPlusActive &&
+        !overview.autoRenews;
+    final upgrade = isBulk && overview.currentPlan == 'plus' && overview.isPlusActive;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -228,7 +264,7 @@ class _CustomerSubscriptionScreenState
             Row(
               children: [
                 Expanded(child: Text(plan.name, style: AppTextStyles.h3)),
-                if (isPlus)
+                if (isPlus && !includedInBulk && !isCurrent)
                   const Chip(
                     label: Text('Recommended'),
                     visualDensity: VisualDensity.compact,
@@ -236,6 +272,11 @@ class _CustomerSubscriptionScreenState
                 if (isCurrent)
                   const Chip(
                     label: Text('Current'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                if (includedInBulk)
+                  const Chip(
+                    label: Text('Included'),
                     visualDensity: VisualDensity.compact,
                   ),
                 if (isFamily && !plan.isAvailable)
@@ -271,7 +312,13 @@ class _CustomerSubscriptionScreenState
                   ],
                 ),
               ),
-            if (canCancel)
+            const SizedBox(height: 8),
+            if (includedInBulk)
+              Text(
+                'Your Bulk Buyer plan includes every Plus feature.',
+                style: AppTextStyles.bodySmall,
+              )
+            else if (canCancel)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -279,39 +326,49 @@ class _CustomerSubscriptionScreenState
                   child: const Text('Cancel subscription'),
                 ),
               )
-            else if (isPlus && isCurrent && overview.cancelAtPeriodEnd)
+            else if (isPaid && isCurrent && overview.cancelAtPeriodEnd)
               Text(
                 'Ends ${_dateLabel(overview.currentPeriodEnd)}',
                 style: AppTextStyles.bodySmall,
               )
-            else if (isPlus && overview.isPlusActive && !overview.autoRenews)
+            else if (activeOnceOff)
               Text(
                 'Paid until ${_dateLabel(overview.currentPeriodEnd)}. '
                 'It does not renew by itself, so pay again here when it ends.',
                 style: AppTextStyles.bodySmall,
               )
-            else if (isPlus && !isCurrent)
+            else if (isPaid && isCurrent && overview.status == 'pending')
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _working ? null : _checkout,
-                  child: Text(
-                    _working
-                        ? 'Please wait...'
-                        : overview.status == 'expired'
-                        ? 'Renew Plus'
-                        : 'Choose Plus',
-                  ),
-                ),
-              )
-            else if (isPlus && overview.status == 'pending')
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _working ? null : _checkout,
+                  onPressed: _working ? null : () => _checkout(plan.key),
                   child: Text(
                     _working ? 'Please wait...' : 'Continue checkout',
                   ),
+                ),
+              )
+            else if (isPaid && (!isCurrent || overview.status == 'expired'))
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _working ? null : () => _checkout(plan.key),
+                  child: Text(
+                    _working
+                        ? 'Please wait...'
+                        : upgrade
+                        ? 'Upgrade to Bulk Buyer'
+                        : isCurrent && overview.status == 'expired'
+                        ? 'Renew ${_planName(plan.key)}'
+                        : 'Choose ${_planName(plan.key)}',
+                  ),
+                ),
+              ),
+            if (upgrade)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Your Plus subscription stops once Bulk Buyer is paid, so you are never billed for both.',
+                  style: AppTextStyles.bodySmall,
                 ),
               ),
           ],
@@ -330,7 +387,9 @@ class _CustomerSubscriptionScreenState
     if (overview.status == 'past_due' || overview.status == 'unpaid') {
       return 'Payment needs attention';
     }
-    if (overview.status == 'expired') return 'Plus has ended. Renew to unlock it again';
+    if (overview.status == 'expired') {
+      return '${_planName(overview.currentPlan)} has ended. Renew to unlock it again';
+    }
     return 'Free plan';
   }
 

@@ -10,9 +10,14 @@ using System.Security.Claims;
 
 namespace SpazaSure.OrderService.Controllers;
 
+/// <summary>
+/// Checkout and orders for buyers: spaza shops, and Bulk Buyer shoppers (on
+/// api/customer/bulk/orders), who order through their buyer account with the same flow (see BulkBuying).
+/// </summary>
 [ApiController]
 [Route("api/shop/orders")]
-[Authorize(Roles = "spaza_owner")]
+[Route("api/customer/bulk/orders")]
+[Authorize(Roles = "spaza_owner,customer")]
 public class ShopOrdersController(
     SpazaSureDbContext db,
     OrderPaystackPaymentService paystackPayments,
@@ -21,6 +26,25 @@ public class ShopOrdersController(
 {
     public const string CashOnDelivery = "cash_on_delivery";
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private bool IsShopper => User.IsInRole("customer");
+
+    /// <summary>
+    /// The caller's buyer account: their shop, or a shopper's Bulk Buyer account. Shoppers need an
+    /// active Bulk Buyer plan to start new orders, but can always see, pay and confirm earlier ones.
+    /// </summary>
+    private async Task<(SpazaShop? Buyer, IActionResult? Refusal)> BuyerAsync(bool forNewOrder = false, bool tracked = true)
+    {
+        if (IsShopper)
+        {
+            if (forNewOrder && !await BulkBuying.IsActiveAsync(db, UserId))
+                return (null, StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail(BulkBuying.RequiredMessage)));
+            var account = await BulkBuying.BuyerAccountAsync(db, UserId, tracked);
+            return account is null ? (null, Conflict(ApiResponse.Fail(BulkBuying.AddressRequiredMessage))) : (account, null);
+        }
+        var shops = tracked ? db.SpazaShops : db.SpazaShops.AsNoTracking();
+        var shop = await shops.FirstOrDefaultAsync(s => s.UserId == UserId && s.AccountType == ShopAccountTypes.Shop);
+        return shop is null ? (null, NotFound(ApiResponse.Fail("Shop not found."))) : (shop, null);
+    }
 
     /// <summary>Approved, listed products from active suppliers, with what checkout needs to pick a branch.</summary>
     private Task<List<Product>> LoadOrderableAsync(List<Guid> productIds) =>
@@ -48,8 +72,8 @@ public class ShopOrdersController(
     [HttpPost("quote")]
     public async Task<IActionResult> Quote([FromBody] QuoteOrderRequest req)
     {
-        var shop = await db.SpazaShops.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync(forNewOrder: true, tracked: false);
+        if (shop is null) return refusal!;
         if (req.Items is null || req.Items.Count == 0) return BadRequest(ApiResponse.Fail("Add at least one item."));
 
         var lines = req.Items.GroupBy(i => i.ProductId)
@@ -58,6 +82,8 @@ public class ShopOrdersController(
         var missing = lines.Where(l => products.All(p => p.Id != l.ProductId)).Select(l => l.ProductId).ToList();
         lines = lines.Where(l => !missing.Contains(l.ProductId)).ToList();
         var rules = await PlatformSettingsStore.LoadAsync(db);
+        var markup = BulkBuying.Markup(shop, rules);
+        var minimum = BulkBuying.MinOrderAmount(shop, rules);
 
         var suppliers = Plan(shop, products, lines, rules).Select(entry =>
         {
@@ -65,7 +91,7 @@ public class ShopOrdersController(
             var supplier = products.First(p => p.SupplierId == supplierId).Supplier;
             // What the shop pays for the goods: prices with SpazaSure's fee built in
             var subtotal = lines.Where(l => products.First(p => p.Id == l.ProductId).SupplierId == supplierId)
-                .Sum(l => ShopPricing.Line(products.First(p => p.Id == l.ProductId).Price, l.Quantity, ShopPricing.Markup(rules)).ShopLineTotal);
+                .Sum(l => ShopPricing.Line(products.First(p => p.Id == l.ProductId).Price, l.Quantity, markup).ShopLineTotal);
             return new
             {
                 SupplierId = supplierId,
@@ -80,7 +106,7 @@ public class ShopOrdersController(
                 Subtotal = subtotal,
                 DeliveryFee = choice.From is null ? (decimal?)null : DeliveryFees.For(rules, req.DeliveryType, choice.DistanceKm),
                 // Shipping problems first, then the minimum order per supplier
-                Problem = choice.Problem ?? MinimumOrder.Problem(rules, supplier.CompanyName, subtotal),
+                Problem = choice.Problem ?? MinimumOrder.Problem(minimum, supplier.CompanyName, subtotal),
             };
         }).ToList();
 
@@ -99,8 +125,8 @@ public class ShopOrdersController(
     [HttpPost]
     public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderRequest req)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync(forNewOrder: true);
+        if (shop is null) return refusal!;
 
         if (req.Items is null || req.Items.Count == 0)
             return BadRequest(ApiResponse.Fail("Order must have at least one item."));
@@ -121,6 +147,10 @@ public class ShopOrdersController(
         };
         if (paymentMethod is null)
             return BadRequest(ApiResponse.Fail("Choose Paystack, your SpazaSure wallet or cash on delivery."));
+        // Bulk Buyer shoppers pay upfront by card: there's no wallet, and no cash on large home orders
+        var isBulkBuyer = BulkBuying.IsBulkBuyer(shop);
+        if (isBulkBuyer && paymentMethod != "paystack")
+            return BadRequest(ApiResponse.Fail("Bulk orders are paid by card with Paystack."));
 
         // Load products and validate
         var productIds = lines.Select(i => i.ProductId).ToList();
@@ -133,6 +163,8 @@ public class ShopOrdersController(
         // Group items by supplier (one order per supplier)
         var grouped = lines.GroupBy(i => products.First(p => p.Id == i.ProductId).SupplierId);
         var rules = await PlatformSettingsStore.LoadAsync(db);
+        var markup = BulkBuying.Markup(shop, rules);
+        var minimum = BulkBuying.MinOrderAmount(shop, rules);
         // Each supplier's order ships from its nearest branch that has everything in stock. Shops
         // only buy from suppliers near them (also enforced here, not just hidden in the marketplace).
         var shipping = Plan(shop, products, lines, rules);
@@ -170,7 +202,7 @@ public class ShopOrdersController(
                 var unitPrice = product.Price;
                 var lineTotal = unitPrice * item.Quantity;
                 subtotal += lineTotal;
-                var (shopUnitPrice, shopLineTotal) = ShopPricing.Line(unitPrice, item.Quantity, ShopPricing.Markup(rules));
+                var (shopUnitPrice, shopLineTotal) = ShopPricing.Line(unitPrice, item.Quantity, markup);
 
                 orderItems.Add(new OrderItem
                 {
@@ -187,7 +219,7 @@ public class ShopOrdersController(
             }
 
             // Each supplier's order must reach the minimum, in products at the prices the shop pays
-            if (MinimumOrder.Problem(rules, supplier.CompanyName, orderItems.Sum(i => i.ShopLineTotal)) is { } tooSmall)
+            if (MinimumOrder.Problem(minimum, supplier.CompanyName, orderItems.Sum(i => i.ShopLineTotal)) is { } tooSmall)
                 return BadRequest(ApiResponse.Fail(tooSmall));
 
             // Where the money goes: the supplier is paid the subtotal (their own prices). SpazaSure
@@ -307,8 +339,9 @@ public class ShopOrdersController(
         {
             // Nothing is kept: the orders are rolled back with the transaction.
             Console.Error.WriteLine($"[ShopOrders] Paystack checkout failed for shop {shop.Id}: {ex.Message}");
-            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(
-                "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse.Fail(isBulkBuyer
+                ? "We couldn't open the payment page right now. Please try again in a moment."
+                : "We couldn't open the payment page right now. Please try again in a moment, or pay from your SpazaSure wallet."));
         }
         foreach (var order in createdOrders)
         {
@@ -342,8 +375,8 @@ public class ShopOrdersController(
     [HttpPost("confirm-payment")]
     public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentRequest req)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
         var order = await db.Orders.FirstOrDefaultAsync(o => o.ShopId == shop.Id && o.OrderNumber == req.OrderNumber);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
         if (order.PaymentStatus == "paid")
@@ -364,8 +397,8 @@ public class ShopOrdersController(
     [HttpPost("{id:guid}/pay")]
     public async Task<IActionResult> PayAgain(Guid id)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
         var order = await db.Orders.Include(o => o.Supplier)
             .FirstOrDefaultAsync(o => o.Id == id && o.ShopId == shop.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
@@ -419,8 +452,8 @@ public class ShopOrdersController(
     [HttpPost("{id:guid}/cancel")]
     public async Task<IActionResult> CancelUnpaid(Guid id)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id && o.ShopId == shop.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));
         if (!AwaitingCardPayment(order))
@@ -450,8 +483,8 @@ public class ShopOrdersController(
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? status = null)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
 
         var apiBase = PublicApi.Base(Request);
         var query = db.Orders
@@ -537,8 +570,8 @@ public class ShopOrdersController(
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
 
         var apiBase = PublicApi.Base(Request);
         var order = await db.Orders
@@ -615,8 +648,8 @@ public class ShopOrdersController(
     [HttpPatch("{id:guid}/confirm-delivery")]
     public async Task<IActionResult> ConfirmDelivery(Guid id, [FromBody] ConfirmDeliveryRequest? req = null)
     {
-        var shop = await db.SpazaShops.FirstOrDefaultAsync(s => s.UserId == UserId);
-        if (shop is null) return NotFound(ApiResponse.Fail("Shop not found."));
+        var (shop, refusal) = await BuyerAsync();
+        if (shop is null) return refusal!;
 
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id && o.ShopId == shop.Id);
         if (order is null) return NotFound(ApiResponse.Fail("Order not found."));

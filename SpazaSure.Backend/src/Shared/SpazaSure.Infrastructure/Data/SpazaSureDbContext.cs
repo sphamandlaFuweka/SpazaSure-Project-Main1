@@ -311,6 +311,7 @@ public class SpazaSureDbContext(DbContextOptions<SpazaSureDbContext> options) : 
             e.Property(s => s.IdentityCheckStatus).HasMaxLength(30);
             e.Property(s => s.IdentityCheckNotes).HasMaxLength(2000);
             e.HasIndex(s => s.IdentityCheckSessionId);
+            e.Property(s => s.AccountType).HasMaxLength(20).HasDefaultValue(ShopAccountTypes.Shop);
         });
 
         model.Entity<ShopReview>(e =>
