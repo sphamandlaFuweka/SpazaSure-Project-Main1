@@ -315,7 +315,22 @@ export const adminProductsApi = {
     api.patch(`/admin/products/${id}/toggle`).then((r) => r.data),
   getInfo: (id: string) =>
     api.get(`/admin/products/${id}`).then((r) => mapProductInfo((r.data?.data ?? r.data)?.info)),
+  /** Fill empty product information from the open product databases (dryRun only reports). */
+  startEnrichment: (dryRun: boolean) =>
+    api.post('/admin/products/enrich', null, { params: { dryRun } }).then((r) => (r.data?.data ?? r.data) as EnrichmentProgress),
+  enrichmentStatus: () =>
+    api.get('/admin/products/enrich').then((r) => (r.data?.data ?? r.data) as EnrichmentProgress),
 };
+
+export type EnrichmentStatus = 'filled' | 'up_to_date' | 'mismatch' | 'not_found' | 'no_barcode' | 'lookup_failed' | 'invalid';
+export interface EnrichmentResult {
+  productId: string; name: string; supplier?: string | null; code?: string | null;
+  status: EnrichmentStatus; filled: string[]; note?: string | null; source?: string | null;
+}
+export interface EnrichmentProgress {
+  running: boolean; dryRun: boolean; startedAt?: string | null; finishedAt?: string | null;
+  total: number; processed: number; counts: Partial<Record<EnrichmentStatus, number>>; results: EnrichmentResult[];
+}
 
 // Group buys
 const uploadGroupBuyBanner = (url: string, file: File): Promise<string> => {

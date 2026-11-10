@@ -31,6 +31,8 @@ builder.Services.AddHttpClient<SpazaSure.ProductService.Services.OpenFoodFactsSe
 });
 // Reads packaging photos with Claude; off until Anthropic:ApiKey (or ANTHROPIC_API_KEY) is set
 builder.Services.AddSingleton<SpazaSure.ProductService.Services.PackagingVisionService>();
+// Fills products' empty information from the open product databases (admin console)
+builder.Services.AddSingleton<SpazaSure.ProductService.Services.ProductEnrichmentJob>();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo

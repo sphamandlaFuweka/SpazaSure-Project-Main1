@@ -14,6 +14,8 @@ public sealed class OpenFoodFactsProductSnapshot
     public string? GenericName { get; set; }
     public string? Description { get; set; }
     public string? Ingredients { get; set; }
+    /// <summary>The ingredients in English only (null when the record has them in another language only).</summary>
+    public string? IngredientsEnglish { get; set; }
     public string? ImageUrl { get; set; }
     public List<string> Allergens { get; set; } = [];
     public string? Brands { get; set; }
@@ -31,6 +33,8 @@ public sealed class OpenFoodFactsProductSnapshot
     public int? NovaGroup { get; set; }
     /// <summary>Per 100 g (or 100 ml): energy-kcal, fat, saturated-fat, sugars, salt, proteins, fiber.</summary>
     public Dictionary<string, double> Nutrition { get; set; } = [];
+    /// <summary>The same nutrients per serving, where the database has them.</summary>
+    public Dictionary<string, double> NutritionPerServing { get; set; } = [];
     /// <summary>fat, saturated-fat, sugars, salt → low, moderate or high.</summary>
     public Dictionary<string, string> NutrientLevels { get; set; } = [];
     /// <summary>E-numbers in lower case, e.g. "e330".</summary>
@@ -66,7 +70,7 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
     ];
 
     private const string Fields =
-        "code,product_name,product_name_en,generic_name,generic_name_en,brands,quantity,product_type," +
+        "code,lang,product_name,product_name_en,generic_name,generic_name_en,brands,quantity,product_type," +
         "categories,manufacturing_places,origins,countries,labels,nutriscore_grade,nutrition_grades," +
         "ingredients_text,ingredients_text_en,allergens_tags,traces_tags,additives_tags," +
         "ingredients_analysis_tags,nova_group,nutriments,nutrient_levels,serving_size,packaging,stores," +
@@ -189,6 +193,8 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
                 GenericName = GetString(productEl, "generic_name", "generic_name_en"),
                 Description = description,
                 Ingredients = ingredients,
+                IngredientsEnglish = GetString(productEl, "ingredients_text_en")
+                    ?? (GetString(productEl, "lang") == "en" ? GetString(productEl, "ingredients_text") : null),
                 ImageUrl = imageUrl,
                 Allergens = GetTags(productEl, "allergens_tags"),
                 Brands = GetString(productEl, "brands"),
@@ -201,6 +207,7 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
                 ProductType = GetString(productEl, "product_type") ?? "food",
                 NovaGroup = GetNumber(productEl, "nova_group") is { } nova ? (int)nova : null,
                 Nutrition = GetNutrition(productEl),
+                NutritionPerServing = GetNutrition(productEl, "_serving"),
                 NutrientLevels = GetStringMap(productEl, "nutrient_levels"),
                 Additives = GetTags(productEl, "additives_tags").Select(a => a.ToLowerInvariant()).ToList(),
                 IngredientAnalysis = GetTags(productEl, "ingredients_analysis_tags"),
@@ -234,15 +241,15 @@ public class OpenFoodFactsService(HttpClient httpClient, IMemoryCache cache, ILo
     }
 
     private static readonly string[] NutritionKeys =
-        ["energy-kcal", "fat", "saturated-fat", "sugars", "salt", "proteins", "fiber"];
+        ["energy", "energy-kj", "energy-kcal", "fat", "saturated-fat", "carbohydrates", "sugars", "salt", "sodium", "proteins", "fiber"];
 
-    private static Dictionary<string, double> GetNutrition(JsonElement product)
+    private static Dictionary<string, double> GetNutrition(JsonElement product, string suffix = "_100g")
     {
         var result = new Dictionary<string, double>();
         if (!product.TryGetProperty("nutriments", out var n) || n.ValueKind != JsonValueKind.Object)
             return result;
         foreach (var key in NutritionKeys)
-            if (GetNumber(n, key + "_100g") is { } value && value >= 0)
+            if (GetNumber(n, key + suffix) is { } value && value >= 0)
                 result[key] = value;
         return result;
     }

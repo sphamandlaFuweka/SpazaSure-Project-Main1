@@ -12,6 +12,7 @@ import { adminProductsApi, resolveUploadUrl } from '../../services/api';
 import type { Product, ProductInfo } from '../../types';
 import ProductInfoView from '../products/ProductInfoView';
 import CategoriesModal from './CategoriesModal';
+import ProductEnrichmentModal from './ProductEnrichmentModal';
 import { adminCategoriesApi, type AdminCategory } from '../../services/api';
 import { Copy } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export default function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [showCategories, setShowCategories] = useState(false);
+  const [showEnrich, setShowEnrich] = useState(false);
   const loadCategories = useCallback(() => {
     adminCategoriesApi.list().then(setCategories).catch(() => {});
   }, []);
@@ -394,6 +396,9 @@ export default function AdminProductsPage() {
             <option value="none">No category</option>
           </select>
           <button className="btn-secondary text-xs whitespace-nowrap" onClick={() => setShowCategories(true)}>Manage categories</button>
+          <button className="btn-secondary text-xs whitespace-nowrap flex items-center gap-1.5" onClick={() => setShowEnrich(true)}>
+            <Zap size={13} /> Fill product info
+          </button>
         </div>
 
         {/* View Mode Toggle */}
@@ -608,6 +613,7 @@ export default function AdminProductsPage() {
       {showCategories && (
         <CategoriesModal onClose={() => setShowCategories(false)} onChanged={() => { loadCategories(); fetchProducts(); }} />
       )}
+      {showEnrich && <ProductEnrichmentModal onClose={() => setShowEnrich(false)} onFinished={fetchProducts} />}
 
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">

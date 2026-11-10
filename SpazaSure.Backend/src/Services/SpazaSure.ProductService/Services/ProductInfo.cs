@@ -133,7 +133,7 @@ public static class ProductInfo
     /// <summary>The supplier's own counterfeit checks, for the verification result.</summary>
     public static List<string> Tips(Product p) => Read<List<string>>(p.AuthenticityTips) ?? [];
 
-    private static T? Read<T>(string? json) where T : class
+    internal static T? Read<T>(string? json) where T : class
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try { return JsonSerializer.Deserialize<T>(json, Json); }
