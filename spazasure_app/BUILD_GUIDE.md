@@ -45,11 +45,13 @@ storeFile=/absolute/path/to/spazasure-release.jks
 ## Cloud builds — no Flutter/Android Studio install required
 
 The repo already includes `.github/workflows/build-mobile.yml`, which builds
-both the Android APK/AAB and an unsigned iOS IPA entirely on GitHub's runners.
+the Android APK/AAB and checks both the iOS Simulator and iOS device builds on
+GitHub's runners.
 
 1. Push the repo to GitHub
-2. **Actions → "Build Mobile Apps (Android APK + iOS IPA)" → Run workflow**
-3. Download the built APK/AAB/IPA from the workflow's Artifacts section
+2. **Actions → "Build Mobile Apps (Android + iOS)" → Run workflow**
+3. Download the APK/AAB and the unsigned iOS app from the workflow's Artifacts section.
+   The unsigned iOS app is for build verification only; it cannot be installed on an iPhone.
 
 For a **release-signed** Android build from CI, add these as repository secrets
 (Settings → Secrets and variables → Actions):
@@ -63,20 +65,53 @@ For a **release-signed** Android build from CI, add these as repository secrets
 > its history, treat the key as compromised: generate a fresh keystore, update
 > the GitHub secrets above, and re-sign future releases with the new key.
 
-### iOS (requires a Mac, or use CI above)
-iOS apps can't be built on Windows/Linux directly.
-- **Local:** `cd ios && pod install && cd .. && flutter build ipa --release` on a Mac with Xcode
-- **Cloud, no Mac needed:** the GitHub Actions workflow above builds it on
-  `macos-latest` runners automatically (unsigned — add your own signing/
-  provisioning step if you need an App Store build)
+### iOS and TestFlight
+iOS apps cannot be built or signed for iPhone from Windows/Linux. Use a Mac
+with Xcode, or the macOS GitHub Actions runner for unsigned build verification.
+
+The project has an iOS Podfile and targets **iOS 15.5 or later**. On a Mac:
+
+```bash
+cd spazasure_app
+flutter pub get
+cd ios
+pod install
+cd ..
+flutter run
+```
+
+Test on a physical iPhone, especially QR scanning, photo upload, location,
+OCR, deep links, and notifications. The CI artifact is unsigned and is not an
+installable IPA.
+
+To distribute through TestFlight:
+
+1. Enroll in the Apple Developer Program and create an App Store Connect app
+   with bundle ID `com.spazasure.spazasureapp`.
+2. In Xcode, select your Apple Developer team and enable automatic signing for
+   the Runner target. Create an App Store distribution build with
+   `flutter build ipa --release`, then upload it to App Store Connect.
+3. For push notifications, enable the Push Notifications capability for the
+   App ID, create an APNs authentication key, and upload it in Firebase
+   Console → Project settings → Cloud Messaging. Test on a real iPhone.
+4. Complete the App Store privacy disclosures, age rating, screenshots, and
+   review details before submitting. The privacy notice URL is
+   `https://portal.spazasure.co.za/privacy`; confirm its content is final and
+   published before using it as the store privacy-policy URL. The disclosures
+   should reflect the app's actual Firebase Analytics, account, location, order,
+   and document-upload behavior; verify the data collected by the backend and
+   SDKs before submitting.
+
+Apple signing credentials and App Store Connect access must remain with the
+app owner; do not commit certificates, profiles, API keys, or passwords.
 
 ---
 
 ## App Details
 - **App Name**: SpazaSure
-- **Bundle ID**: com.spazasure.spazasure_app
+- **Bundle ID**: com.spazasure.spazasureapp
 - **Min Android**: SDK 21 (Android 5.0)
-- **Min iOS**: 12.0
+- **Min iOS**: 15.5
 - **Backend**: release builds default to `https://api.spazasure.co.za/api`;
   local development can override it with `--dart-define=API_URL=...`
   (see `lib/services/api_service.dart`); defaults to `localhost`/`10.0.2.2`

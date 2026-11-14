@@ -1,4 +1,4 @@
-name: Build Mobile Apps (Android APK + iOS IPA)
+name: Build Mobile Apps (Android + iOS)
 
 on:
   workflow_dispatch:  # Manual trigger from GitHub UI
@@ -107,7 +107,7 @@ jobs:
           path: spazasure_app/build/app/outputs/bundle/release/app-release.aab
 
   build-ios:
-    name: Build iOS IPA
+    name: Build iOS (unsigned)
     needs: test
     runs-on: macos-latest
     steps:
@@ -122,21 +122,20 @@ jobs:
         working-directory: spazasure_app
         run: flutter pub get
 
-      - name: Build iOS (No Signing)
+      - name: Install iOS pods
+        working-directory: spazasure_app/ios
+        run: pod install
+
+      - name: Build iOS simulator
+        working-directory: spazasure_app
+        run: flutter build ios --simulator --debug --no-codesign
+
+      - name: Build iOS device app (No Signing)
         working-directory: spazasure_app
         run: flutter build ios --release --no-codesign
 
-      - name: Create IPA
-        working-directory: spazasure_app
-        run: |
-          mkdir -p build/ios/ipa/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
-          cd build/ios/ipa
-          zip -r SpazaSure.ipa Payload
-          mv SpazaSure.ipa ../
-
-      - name: Upload IPA
+      - name: Upload unsigned iOS app
         uses: actions/upload-artifact@v4
         with:
-          name: SpazaSure-iOS-IPA
-          path: spazasure_app/build/ios/SpazaSure.ipa
+          name: SpazaSure-iOS-unsigned-app
+          path: spazasure_app/build/ios/iphoneos/Runner.app
