@@ -26,6 +26,10 @@ only the Gateway publicly.
   data is wanted. The production `db-init` service reruns this idempotent
   migration before the application services start. (Sign-in is by password
   only; the `otp_codes` table now just holds password-reset tokens.)
+- Production also runs a daily PostgreSQL and local-upload backup. Configure
+  the encrypted Hetzner Storage Box copy using
+  `SpazaSure.Backend/DATABASE_BACKUPS.md`; do not rely on the same-server
+  backup alone for disaster recovery.
 - A hosted RabbitMQ instance, such as CloudAMQP. Set `RabbitMQ:Host`,
   `RabbitMQ:Username`, and `RabbitMQ:Password` on the services that publish or
   consume events.

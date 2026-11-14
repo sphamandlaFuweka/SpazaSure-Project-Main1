@@ -44,6 +44,9 @@ keystore_base64.txt
 # Uploads (user data)
 **/uploads/
 
+# Database dumps, upload archives, and off-site SSH credentials
+/backups/
+
 # IDE
 .idea/
 .vscode/

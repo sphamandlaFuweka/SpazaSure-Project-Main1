@@ -8,6 +8,7 @@ set -eu
 : "${PGPASSWORD:?PGPASSWORD is required}"
 : "${BACKUP_RETENTION_DAYS:=14}"
 : "${BACKUP_INTERVAL_SECONDS:=86400}"
+: "${OFFSITE_AGE_RECIPIENT:=}"
 
 case "$BACKUP_RETENTION_DAYS" in
   ''|*[!0-9]*|0) echo "BACKUP_RETENTION_DAYS must be a positive integer." >&2; exit 1 ;;
@@ -19,9 +20,18 @@ esac
 umask 077
 mkdir -p /backups
 
-# The off-site copy needs rsync and ssh, which the postgres image doesn't include.
-if [ -n "${OFFSITE_TARGET:-}" ] && ! command -v rsync >/dev/null 2>&1; then
-  apk add --no-cache rsync openssh-client >/dev/null || echo "Could not install rsync; off-site copies will fail." >&2
+offsite_enabled=0
+if [ -n "${OFFSITE_TARGET:-}" ]; then
+  key_file="${OFFSITE_SSH_KEY_FILE:-/backups/offsite_key}"
+  if [ -z "$OFFSITE_AGE_RECIPIENT" ]; then
+    echo "Off-site backup disabled: OFFSITE_AGE_RECIPIENT is required to encrypt archives." >&2
+  elif [ ! -r "$key_file" ]; then
+    echo "Off-site backup disabled: SSH key $key_file is missing or unreadable." >&2
+  elif apk add --no-cache age rsync openssh-client >/dev/null; then
+    offsite_enabled=1
+  else
+    echo "Off-site backup disabled: could not install age, rsync, and openssh-client." >&2
+  fi
 fi
 
 while :; do
@@ -53,38 +63,65 @@ while :; do
   dropdb --maintenance-db=postgres "$restore_database"
   restore_database=""
   mv "$temporary" "$archive"
+  offsite_sources="$archive"
   find /backups -maxdepth 1 -type f -name "${PGDATABASE}-*.dump" \
     -mtime "+${BACKUP_RETENTION_DAYS}" -delete
   echo "Backup and restore check succeeded: $archive ($table_count public tables)"
 
   # Uploaded files (documents, report photos, product images) live outside the database.
+  upload_backup_failed=0
   for dir in ${UPLOADS_DIRS:-}; do
     if [ -d "$dir" ]; then
       upload_archive="/backups/uploads-$(basename "$dir")-${timestamp}.tar.gz"
       if tar -czf "${upload_archive}.tmp" -C "$dir" . && mv "${upload_archive}.tmp" "$upload_archive"; then
         echo "Uploads backed up: $upload_archive"
+        offsite_sources="$offsite_sources $upload_archive"
       else
         rm -f "${upload_archive}.tmp"
         echo "Uploads backup failed for $dir" >&2
+        upload_backup_failed=1
       fi
     fi
   done
   find /backups -maxdepth 1 -type f -name "uploads-*.tar.gz" \
     -mtime "+${BACKUP_RETENTION_DAYS}" -delete
 
-  # Off-site copy (e.g. a Hetzner Storage Box), so losing this server doesn't lose the backups.
-  # Copies only; it never deletes off-site files, so wiping this server can't wipe them too.
-  if [ -n "${OFFSITE_TARGET:-}" ]; then
-    key_file="${OFFSITE_SSH_KEY_FILE:-/backups/offsite_key}"
-    if [ ! -r "$key_file" ]; then
-      echo "Off-site copy skipped: SSH key $key_file not found." >&2
-    elif rsync -a --ignore-existing \
-        -e "ssh -p ${OFFSITE_SSH_PORT:-23} -i $key_file -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/backups/.known_hosts" \
-        --include="${PGDATABASE}-*.dump" --include="uploads-*.tar.gz" --exclude="*" \
-        /backups/ "${OFFSITE_TARGET%/}/"; then
-      echo "Off-site copy succeeded: $OFFSITE_TARGET"
+  # Encrypt with the public age key before sending archives off this server.
+  if [ "$offsite_enabled" -eq 1 ]; then
+    offsite_staging=/backups/offsite-staging
+    mkdir -p "$offsite_staging"
+    offsite_ok=1
+    if [ "$upload_backup_failed" -eq 1 ]; then
+      echo "Off-site copy skipped because at least one uploads archive failed." >&2
+      offsite_ok=0
     else
-      echo "Off-site copy to $OFFSITE_TARGET failed." >&2
+      for source in $offsite_sources; do
+        encrypted="$offsite_staging/$(basename "$source").age"
+        encrypted_temporary="${encrypted}.tmp"
+        rm -f "$encrypted_temporary"
+        if age --encrypt --recipient "$OFFSITE_AGE_RECIPIENT" \
+            --output "$encrypted_temporary" "$source" &&
+            mv "$encrypted_temporary" "$encrypted"; then
+          :
+        else
+          rm -f "$encrypted_temporary"
+          echo "Off-site encryption failed for $source." >&2
+          offsite_ok=0
+          break
+        fi
+      done
+    fi
+
+    if [ "$offsite_ok" -eq 1 ]; then
+      if rsync -a --partial \
+          -e "ssh -p ${OFFSITE_SSH_PORT:-23} -i $key_file -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/backups/.known_hosts" \
+          --include='*.age' --exclude='*' \
+          "$offsite_staging/" "${OFFSITE_TARGET%/}/"; then
+        rm -f "$offsite_staging"/*.age
+        echo "Encrypted off-site copy succeeded: $OFFSITE_TARGET"
+      else
+        echo "Encrypted off-site copy to $OFFSITE_TARGET failed; staged archives will be retried." >&2
+      fi
     fi
   fi
 

@@ -50,6 +50,8 @@ services:
     image: postgres:16-alpine
     container_name: spazasure-prod-db-backup
     restart: unless-stopped
+    # Writes to the host's mode-700 backup directory and installs off-site tools.
+    user: "0:0"
     environment:
       PGHOST: postgres
       PGPORT: "5432"
@@ -63,6 +65,7 @@ services:
       # Optional off-site copy, e.g. u12345@u12345.your-storagebox.de:spazasure (key: backups/offsite_key)
       OFFSITE_TARGET: ${PROD_BACKUP_OFFSITE_TARGET:-}
       OFFSITE_SSH_PORT: ${PROD_BACKUP_OFFSITE_PORT:-23}
+      OFFSITE_AGE_RECIPIENT: ${PROD_BACKUP_AGE_RECIPIENT:-}
     volumes:
       - ./backups:/backups
       - ./backup-postgres.sh:/scripts/backup-postgres.sh:ro
