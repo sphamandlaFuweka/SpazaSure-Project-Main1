@@ -68,6 +68,29 @@ public class AdminIdentityDecisionTests
     }
 
     [Fact]
+    public async Task AdminCanManuallyVerifyAndApproveDocumentsWhenDiditHasNotStarted()
+    {
+        var (db, admin, shop) = Setup(status: null);
+        var doc = new ShopDocument
+        {
+            ShopId = shop.Id,
+            DocType = "business_permit",
+            DocUrl = "/uploads/shop-docs/permit.pdf",
+            Status = "pending",
+        };
+        db.ShopDocuments.Add(doc);
+        await db.SaveChangesAsync();
+
+        var decision = await admin.DecideForAdmin(
+            "shop", shop.Id, new AdminDecisionBody(true, "Reviewed original documents in person"), CancellationToken.None);
+        var approval = await new ComplianceController(db, new EventPublisher("__nonexistent__", "x", "x")).Approve(doc.Id);
+
+        decision.Should().BeOfType<OkObjectResult>();
+        approval.Should().BeOfType<OkObjectResult>();
+        (await db.ShopDocuments.SingleAsync()).Status.Should().Be("approved");
+    }
+
+    [Fact]
     public async Task AdminDeclines_AndTheShopIsNotVerified()
     {
         var (db, admin, shop) = Setup();

@@ -88,9 +88,9 @@ function CheckFindings({ doc }: { doc: SupplierDoc }) {
   );
 }
 
-/** Didit is the first step: documents can only be approved once it has passed. */
+/** Documents can only be approved once Didit or an admin has verified the account. */
 const awaitingDidit = (doc: SupplierDoc) => doc.identityCheckStatus !== 'Approved';
-const awaitingDiditHint = 'Start Didit verification; the account owner must pass it before approval.';
+const awaitingDiditHint = 'Verify with Didit, or use the manual identity decision above if Didit is unavailable.';
 
 const identityBadge: Record<string, { label: string; className: string }> = {
   'Approved':  { label: 'Didit verified',   className: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
@@ -534,25 +534,26 @@ export default function DocumentVerificationPage() {
                 {/* ── Document List ── */}
                 {isExpanded && (
                   <div className="border-t border-gray-100" style={{ animation: 'expandIn 0.25s ease-out' }}>
-                    {(group.identityNotes || needsAdminDecision(group.identityStatus)) && (
+                    {(group.identityNotes || group.identityStatus !== 'Approved') && (
                       <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Didit verification details</p>
+                        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5"><AlertTriangle size={12} /> Identity verification details</p>
                         {group.identityNotes && (
                           <ul className="mt-1 list-disc pl-5 text-xs text-amber-700 space-y-0.5">
                             {group.identityNotes.split('\n').map((note) => <li key={note}>{note}</li>)}
                           </ul>
                         )}
-                        {needsAdminDecision(group.identityStatus) && (
+                        {group.identityStatus !== 'Approved' && (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <p className="text-xs text-amber-800 flex-1 min-w-[200px]">
-                              Didit {group.identityStatus === 'In Review' ? 'needs a person to review this' : 'did not pass this'}.
-                              Check the details yourself, then decide.
+                              {group.identityStatus === 'In Progress'
+                                ? 'A Didit check is marked as running. Wait for it to finish, or decide manually if it is no longer active.'
+                                : 'Review the account details and submitted documents yourself. Your decision and reason will be recorded.'}
                             </p>
                             <button
                               onClick={() => decideIdentity(supplierId, group.name, true, group.identityNotes)}
                               className="text-xs font-bold bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700"
                             >
-                              Approve identity
+                              Verify manually
                             </button>
                             <button
                               onClick={() => decideIdentity(supplierId, group.name, false, group.identityNotes)}

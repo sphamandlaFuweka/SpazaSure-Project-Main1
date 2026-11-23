@@ -3,8 +3,8 @@ using SpazaSure.Infrastructure.Entities;
 namespace SpazaSure.Infrastructure.Data;
 
 /// <summary>
-/// Didit is the first verification step: an admin can only approve a shop's or supplier's
-/// documents, or verify the account, once Didit has passed the owner (shop) or business (supplier).
+/// An admin can only approve a shop's or supplier's documents, or verify the account, after Didit
+/// passes the owner (shop) or business (supplier), or the admin records a manual decision.
 /// </summary>
 public static class IdentityChecks
 {
@@ -16,8 +16,8 @@ public static class IdentityChecks
     public static string? AdminBlockReason(IHasIdentityCheck subject) => HasPassed(subject)
         ? null
         : subject is SpazaShop
-            ? "The owner hasn't passed the Didit identity check yet. Approve after it passes."
-            : "The supplier hasn't passed the Didit business check yet. Approve after it passes.";
+            ? "The shop owner must pass Didit or be manually verified by an admin before approval."
+            : "The supplier must pass Didit or be manually verified by an admin before approval.";
 
     /// <summary>Starts the check over, e.g. after the ID number or company details change.</summary>
     public static void Reset(IHasIdentityCheck subject)
