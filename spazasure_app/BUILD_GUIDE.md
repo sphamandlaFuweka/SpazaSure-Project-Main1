@@ -12,8 +12,23 @@ See `lib/services/api_service.dart` for the full list of `--dart-define=API_URL=
 options (local, emulator, physical device, or the shared QA server).
 
 ## Android APK/AAB — local release build
-`flutter build apk --release` and `flutter build appbundle --release` now work
-on any machine out of the box: if no release keystore is configured
+Build smaller, device-specific APKs with:
+```bash
+flutter build apk --release --split-per-abi
+```
+This creates separate APKs for `armeabi-v7a`, `arm64-v8a`, and `x86_64` in
+`build/app/outputs/flutter-apk/`. Install only the APK matching the device;
+most modern Android phones use `app-arm64-v8a-release.apk`. Avoid sending the
+same universal APK to every device, as it includes native libraries for every
+supported CPU architecture.
+
+For Google Play, prefer an App Bundle:
+```bash
+flutter build appbundle --release
+```
+Google Play delivers an optimized install for each device automatically.
+
+Both build commands work on any machine out of the box: if no release keystore is configured
 (`android/key.properties` doesn't exist), the build automatically falls back
 to debug signing so it still produces an installable APK for local testing.
 It just won't be signed with your Play Store release key.
@@ -32,7 +47,7 @@ storeFile=/absolute/path/to/spazasure-release.jks
 ```
 
 ### To install an APK on a phone
-1. Transfer the `.apk` (from `build/app/outputs/flutter-apk/`) to the phone
+1. Transfer the matching architecture APK from `build/app/outputs/flutter-apk/` to the phone
 2. Open the file, allow "install from unknown sources" if prompted, tap Install
 
 ### To publish to Google Play
