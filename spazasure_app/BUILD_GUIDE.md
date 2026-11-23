@@ -28,32 +28,52 @@ flutter build appbundle --release
 ```
 Google Play delivers an optimized install for each device automatically.
 
-Both build commands work on any machine out of the box: if no release keystore is configured
-(`android/key.properties` doesn't exist), the build automatically falls back
-to debug signing so it still produces an installable APK for local testing.
-It just won't be signed with your Play Store release key.
+Both build commands work without a release key for local testing. In that case
+Gradle signs them with the debug key; **never upload those test builds to Google
+Play**.
 
-To produce a **Play Store-signed** build locally, you need your own keystore:
-```bash
-keytool -genkey -v -keystore ~/spazasure-release.jks -keyalg RSA \
-  -keysize 2048 -validity 10000 -alias spazasure
+### Play Store signing
+
+Use Google Play App Signing and keep the upload key backed up somewhere secure
+outside the repository. If the app has already been published, use the upload
+key registered in Play Console; do not generate a replacement without first
+checking the existing app's signing setup.
+
+On Windows PowerShell, create an upload key and a Base64 copy outside the repo:
+```powershell
+keytool -genkeypair -v -keystore "$env:USERPROFILE\spazasure-upload.jks" `
+  -keyalg RSA -keysize 2048 -validity 10000 -alias spazasure
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\spazasure-upload.jks")) |
+  Set-Content -NoNewline "$env:USERPROFILE\spazasure-upload-base64.txt"
 ```
-Then create `android/key.properties` (gitignored — never commit this file):
-```properties
-storePassword=<your password>
-keyPassword=<your password>
-keyAlias=spazasure
-storeFile=/absolute/path/to/spazasure-release.jks
-```
+Never commit or share the `.jks`, its Base64 copy, or its passwords. Back up
+the original key securely. Play App Signing manages the app-signing key; this
+key is only used to authenticate uploads.
+
+For CI signing, add these **repository Actions secrets**:
+- `ANDROID_KEYSTORE_BASE64` — contents of `spazasure-upload-base64.txt`
+- `KEYSTORE_PASSWORD` — the upload key's keystore password
+- `KEY_PASSWORD` — the alias key password
+- `KEY_ALIAS` — the alias used when creating the upload key
+
+In **Actions → Build Mobile Apps (Android + iOS) → Run workflow**, select
+**Require upload-key signing and produce a Play Store AAB**. This option fails
+if any signing secret is missing and uploads the AAB as
+`SpazaSure-Play-Store-AAB`. The regular CI artifacts are debug-signed
+test builds and are explicitly marked `CI-TEST-ONLY`. The workflow builds an
+artifact only; it does not publish to Play Console.
 
 ### To install an APK on a phone
 1. Transfer the matching architecture APK from `build/app/outputs/flutter-apk/` to the phone
 2. Open the file, allow "install from unknown sources" if prompted, tap Install
 
 ### To publish to Google Play
-1. Go to https://play.google.com/console
-2. Create the app listing, upload the `.aab` from `build/app/outputs/bundle/release/`
-3. Fill in store listing details, submit for review
+1. Run the workflow with Play Store signing enabled and download
+   `SpazaSure-Play-Store-AAB`.
+2. Upload that signed AAB to the app's internal testing track in
+   [Google Play Console](https://play.google.com/console).
+3. Finish the listing and policy declarations, test the release, then promote
+   it manually. The workflow does not publish to the store.
 
 ---
 
@@ -64,15 +84,25 @@ the Android APK/AAB and checks both the iOS Simulator and iOS device builds on
 GitHub's runners.
 
 1. Push the repo to GitHub
-2. **Actions → "Build Mobile Apps (Android + iOS)" → Run workflow**
-3. Download the APK/AAB and the unsigned iOS app from the workflow's Artifacts section.
-   The unsigned iOS app is for build verification only; it cannot be installed on an iPhone.
+2. **Actions → "Build Mobile Apps (Android + iOS)" → Run workflow** for a test build.
+3. For a Play-signed AAB, configure the upload-key secrets above and select the
+   Play Store release option before running the workflow.
+4. Download the appropriate artifact. The unsigned iOS app is for build
+   verification only; it cannot be installed on an iPhone.
 
-For a **release-signed** Android build from CI, add these as repository secrets
-(Settings → Secrets and variables → Actions):
-- `ANDROID_KEYSTORE_BASE64` — your keystore, base64-encoded (`base64 -w0 your.jks`)
-- `KEYSTORE_PASSWORD`
-- `KEY_PASSWORD`
+### Before submitting to Play Console
+
+- Confirm the package ID is the intended permanent listing ID:
+  `com.spazasure.spazasure_app`.
+- Test the signed AAB through an internal testing track before production.
+- Complete the store listing, content rating, target-audience, ads, app-access,
+  and Data safety declarations accurately in Play Console.
+- Provide reviewer access instructions and a working test account if login is
+  required to review the app.
+- The repository privacy notice has the company and contact details supplied
+  for the approved notice. Deploy the portal changes and verify the live
+  `https://portal.spazasure.co.za/privacy` page before entering that URL in
+  Play Console.
 
 > A previous version of this repo had a keystore committed as a plaintext file
 > (`SpazaSure.Backend/keystore_base64.txt`). That file has been removed and
@@ -124,8 +154,11 @@ app owner; do not commit certificates, profiles, API keys, or passwords.
 
 ## App Details
 - **App Name**: SpazaSure
-- **Bundle ID**: com.spazasure.spazasureapp
-- **Min Android**: SDK 21 (Android 5.0)
+- **Android application ID**: `com.spazasure.spazasure_app`
+- **Minimum Android API**: 24 (Android 7.0)
+- **Target Android API**: 36 (from the pinned Flutter 3.47.3 SDK)
+- **Current version**: `1.0.24+26` (`+26` is the Play version code)
+- **iOS bundle ID**: `com.spazasure.spazasureapp`
 - **Min iOS**: 15.5
 - **Backend**: release builds default to `https://api.spazasure.co.za/api`;
   local development can override it with `--dart-define=API_URL=...`

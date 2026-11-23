@@ -6,7 +6,7 @@ namespace SpazaSure.Shared.Helpers;
 /// </summary>
 public static class PrivacyNotice
 {
-    public const string Version = "2026-10-20-draft";
+    public const string Version = "2026-11-23";
     public const string Url = "https://portal.spazasure.co.za/privacy";
     public const string NotAcceptedMessage = "Please read and accept the SpazaSure privacy notice to register.";
 }

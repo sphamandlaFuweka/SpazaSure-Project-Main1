@@ -1,20 +1,15 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 
-/*
- * DRAFT privacy notice (POPIA s18). Have it reviewed by someone with legal expertise before launch.
- * Fill in the company details below, and change PRIVACY_NOTICE_VERSION here and
- * PrivacyNotice.Version in the backend (SpazaSure.Shared/Helpers/PrivacyNotice.cs) whenever the
- * wording changes, so recorded consents show which version people agreed to.
- */
-const PRIVACY_NOTICE_VERSION = '2026-10-20-draft';
+// Keep this version in sync with PrivacyNotice.Version in the backend whenever the notice changes.
+const PRIVACY_NOTICE_VERSION = '2026-11-23';
 const COMPANY = {
-  legalName: '[Registered company name – to be confirmed]',
-  registrationNumber: '[CIPC registration number – to be confirmed]',
-  address: '[Physical address – to be confirmed]',
-  informationOfficer: '[Information Officer name – to be confirmed]',
-  email: '[privacy@spazasure.co.za – to be confirmed]',
-  phone: '[Phone number – to be confirmed]',
+  legalName: 'GEOTX',
+  registrationNumber: '2023/871914/07',
+  address: '2556 Greenfield Ave, Quarry Heights, Durban, KwaZulu-Natal, 4359',
+  informationOfficer: 'SpazaSure',
+  email: 'info@spazasure.co.za',
+  phone: '0764403803',
 };
 
 const sections: { title: string; body: (string | string[])[] }[] = [

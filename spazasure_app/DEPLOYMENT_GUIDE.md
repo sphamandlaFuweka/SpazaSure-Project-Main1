@@ -67,52 +67,35 @@ When you change your API or dashboard code:
 
 ## Publishing to Google Play Store
 
-### Prerequisites
+Before starting, confirm the Android package ID
+`com.spazasure.spazasure_app` is the permanent ID for this listing. It cannot
+be changed after publishing.
 
-- Google Play Developer account ($25 one-time fee) at [play.google.com/console](https://play.google.com/console)
-- Identity verification (takes a few days)
-- A signing keystore (created once, used forever)
-- Privacy policy URL (host on your Hetzner server)
+1. Create and verify a Google Play Developer account.
+2. Set up **Play App Signing** in Play Console. Keep a secure backup of the
+   upload key; if this app is already listed, use the upload key associated
+   with that listing.
+3. Configure the signing secrets and run the Play Store release workflow in
+   [BUILD_GUIDE.md](BUILD_GUIDE.md). This produces a signed AAB artifact but
+   does not publish it.
+4. Upload the AAB to an **internal testing** track first. Test install,
+   sign-in, notifications, camera/OCR, location, deep links, and account
+   deletion before moving to a wider track.
+5. Complete the Play Console store listing and App content declarations:
+   privacy policy, Data safety, ads, app access/reviewer instructions, target
+   audience, content rating, and any applicable financial-features
+   declarations.
 
-### Step 1: Create a Signing Key
+The repository privacy notice now contains the approved company and contact
+details, with its version synchronized to backend consent tracking. Deploy the
+portal update and verify the public notice before entering its URL in Play
+Console. The app also collects sensitive data (including identity documents,
+location, and financial details); base Data safety answers on the actual app,
+backend, and SDK behavior.
 
-```bash
-keytool -genkey -v -keystore spazasure-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias spazasure
-```
-
-**SAVE THIS KEY SAFELY. Lose it and you can NEVER update your app.**
-
-### Step 2: Configure Signing in Android
-
-Add your keystore details to `android/app/build.gradle` so release builds are signed.
-
-### Step 3: Build the Release
-
-```bash
-flutter build appbundle --release
-```
-
-Output file: `build/app/outputs/bundle/release/app-release.aab`
-
-### Step 4: Create App Listing on Google Play Console
-
-Fill in:
-- App name and description
-- Screenshots (phone and tablet)
-- Privacy policy URL
-- Content rating questionnaire
-- Target audience and category
-
-### Step 5: Upload and Publish
-
-1. Go to **Production** → **Create new release**
-2. Upload the `app-release.aab`
-3. Add release notes
-4. Click **Review release** → **Start rollout to production**
-
-### Step 6: Wait for Review
-
-Google reviews new apps (typically 1–7 days for first submission).
+The project targets Android API 36 via its pinned Flutter SDK, meeting Google
+Play's current target API requirement. Recheck that requirement before each
+submission.
 
 ---
 
@@ -127,157 +110,39 @@ Every time you update the app:
 # NAME = what users see
 # CODE = must increase every time (Google rejects otherwise)
 
-version: 1.0.0+1   # First release
-version: 1.0.1+2   # Bug fix
-version: 1.1.0+3   # New feature
-version: 2.0.0+4   # Major update
+version: 1.0.24+26  # Current project version
 ```
 
-### 2. Build the new release
+Keep the package ID unchanged and increase the build number after `+` for
+every Play upload.
 
-```bash
-flutter build appbundle --release
-```
+### 2. Build and test a signed AAB
 
-### 3. Upload to Google Play Console
+Run the workflow's **Play Store release** option, then download
+`SpazaSure-Play-Store-AAB`. Do not upload CI artifacts labelled
+`CI-TEST-ONLY`; those may be debug-signed.
 
-1. Go to [play.google.com/console](https://play.google.com/console)
-2. Select SpazaSure
-3. **Production** → **Create new release**
-4. Upload the new `.aab` file
-5. Add release notes (what changed)
-6. **Review release** → **Start rollout to production**
+### 3. Upload the update in Play Console
 
-### 4. Wait for review
+Upload it to internal testing, verify the release, then promote it to the
+appropriate track and add release notes. The workflow does not automatically
+publish or roll out releases.
 
-Updates are usually reviewed faster (few hours to 2 days).
+### How users get updates
 
-### How Users Get Updates
-
-- Auto-update ON → updates automatically
-- Auto-update OFF → they see "Update available" in Play Store
-- You can add an in-app version check to prompt users or block old versions
+- Users with automatic updates enabled receive the update automatically.
+- Other users can update from the Play Store listing.
 
 ---
 
 ## GitHub + CI/CD Automation
 
-GitHub automates the entire build and publish process so you just push code and it handles the rest.
-
-### The Automated Flow
-
-```
-You write code locally
-       │
-       ▼
-git push to GitHub
-       │
-       ▼
-GitHub Actions automatically:
-  - Builds the .aab
-  - Signs it with your key
-  - Uploads it to Google Play
-       │
-       ▼
-Google reviews → Users get the update
-```
-
-### One-Time Setup
-
-#### 1. Push your project to GitHub
-
-```bash
-git init
-git remote add origin https://github.com/your-username/spazasure-app.git
-git add .
-git commit -m "initial commit"
-git push -u origin main
-```
-
-#### 2. Add Secrets to GitHub
-
-Go to your GitHub repo → Settings → Secrets and variables → Actions
-
-| Secret Name | Value |
-|-------------|-------|
-| `KEYSTORE_BASE64` | Your `.jks` file encoded as base64 |
-| `KEYSTORE_PASSWORD` | Your keystore password |
-| `KEY_ALIAS` | Your key alias (e.g., `spazasure`) |
-| `KEY_PASSWORD` | Your key password |
-| `PLAY_SERVICE_ACCOUNT_JSON` | Google Play service account JSON |
-
-To encode your keystore as base64 (run locally):
-```bash
-base64 spazasure-key.jks > keystore-base64.txt
-```
-
-Copy the contents of `keystore-base64.txt` into the `KEYSTORE_BASE64` secret.
-
-#### 3. Create a Google Play Service Account
-
-1. Go to Google Cloud Console → Create a service account
-2. Go to Google Play Console → Settings → API access
-3. Link the service account and grant "Release manager" permissions
-4. Download the JSON key file
-5. Paste the JSON content into the `PLAY_SERVICE_ACCOUNT_JSON` GitHub secret
-
-#### 4. Create the GitHub Actions Workflow
-
-Create the file `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to Google Play
-
-on:
-  push:
-    tags:
-      - 'v*'  # Triggers when you push a tag like v1.1.0
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-
-      - run: flutter pub get
-
-      - run: flutter build appbundle --release
-
-      - name: Sign AAB
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
-          jarsigner -keystore keystore.jks \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -keypass "${{ secrets.KEY_PASSWORD }}" \
-            build/app/outputs/bundle/release/app-release.aab \
-            "${{ secrets.KEY_ALIAS }}"
-
-      - name: Upload to Google Play
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.spazasure.app
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: production
-```
-
-### Pushing an Update (After Setup)
-
-Once everything is configured, updating your app is just:
-
-```bash
-# Make your code changes, then:
-git add .
-git commit -m "Added new feature X"
-git tag v1.1.0
-git push origin main --tags
-```
-
-GitHub Actions handles building, signing, and uploading automatically.
+The existing **Build Mobile Apps (Android + iOS)** workflow runs analysis and
+tests on pushes to `qa` and `main`. Regular workflow runs create test-only
+artifacts. A manual run with **Require upload-key signing and produce a Play
+Store AAB** checked requires the upload-key secrets and creates the signed
+Play artifact. Nothing is uploaded to Google Play automatically; this avoids
+publishing before the listing, policy declarations, and testing are complete.
 
 ---
 
@@ -299,41 +164,46 @@ version: MAJOR.MINOR.PATCH+BUILD_NUMBER
 ## Important Rules & Warnings
 
 ### Signing Key
-- **NEVER lose your signing keystore file** — without it, you can never update your app on Google Play
-- Keep backups in multiple secure locations
-- Use the SAME key for every update
+- Use Play App Signing. Keep the upload key and its passwords backed up securely
+  and outside the repository.
+- If this app is already on Play, use its existing upload key. If that key is
+  lost, follow Play Console's upload-key reset process; do not change the app ID.
 
 ### Version Code
 - The build number after `+` MUST increase with every upload
 - Google Play rejects uploads if the version code isn't higher than the last one
 
 ### Testing
-- Always test on a real device before uploading
-- Run `flutter build appbundle --release` and install the release build to verify
+- Run analysis and tests, then test the signed AAB through an internal testing
+  track before promoting it.
 
 ### Privacy Policy
-- Google requires a privacy policy URL before publishing
-- Host it on your Hetzner server (e.g., `https://spazasure.co.za/privacy-policy`)
+- Google requires a publicly accessible privacy policy at
+  `https://portal.spazasure.co.za/privacy`, both in the listing and in the app.
+- The current notice still has draft placeholders for the legal entity and
+  Information Officer. Do not submit until those details are confirmed and the
+  notice has been reviewed.
 
 ### Google Play Requirements
-- App must target latest Android API level
-- Must have proper content ratings
-- Must comply with Google Play policies
-- Screenshots required for store listing
+- The project currently targets Android API 36. Recheck Google's target API
+  deadline before each submission.
+- Complete Data safety, ads, app access, target audience, content rating, and
+  applicable financial-features declarations.
+- Prepare the required store listing assets, including app icon, feature
+  graphic, and screenshots.
 
 ---
 
 ## Quick Reference: Update Checklist
 
 - [ ] Make code changes
-- [ ] Bump version in `pubspec.yaml` (increase build number)
-- [ ] Test on real device
+- [ ] Run `flutter analyze` and `flutter test`
+- [ ] Bump `pubspec.yaml` version and increase build number
 - [ ] Commit and push to GitHub
-- [ ] Tag the release (`git tag v1.x.x`)
-- [ ] Push tags (`git push origin main --tags`)
-- [ ] GitHub Actions builds and uploads automatically
-- [ ] Verify in Google Play Console that the release is processing
-- [ ] Add release notes in Play Console if not automated
+- [ ] Run the Play Store release workflow with upload-key signing enabled
+- [ ] Test the signed AAB through Play internal testing
+- [ ] Complete declarations, reviewer access, and release notes in Play Console
+- [ ] Manually promote the tested release in Play Console
 
 ---
 
