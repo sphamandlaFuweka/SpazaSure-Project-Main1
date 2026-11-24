@@ -21,7 +21,7 @@ using Xunit;
 namespace SpazaSure.Tests.Orders;
 
 /// <summary>
-/// Shoppers on the Bulk Buyer plan (R150 a month) order from suppliers at the shop price plus the
+/// Shoppers on the Bulk Buyer plan (R20 a month) order from suppliers at the shop price plus the
 /// Bulk Buyer markup, from R1,000 per supplier, paying by card, delivered or collected.
 /// </summary>
 public class BulkBuyerTests
@@ -215,7 +215,7 @@ public class BulkBuyerTests
         CustomerPlus.IsActive(bulk).Should().BeTrue();
         BulkBuying.IsActive(bulk).Should().BeTrue();
         BulkBuying.IsActive(new CustomerSubscription { PlanKey = CustomerPlus.PlusPlanKey, Status = "active" }).Should().BeFalse();
-        CustomerPlus.PriceOf(BulkBuying.PlanKey).Should().Be(150m);
+        CustomerPlus.PriceOf(BulkBuying.PlanKey).Should().Be(20m);
     }
 
     /// <summary>Paystack: creates a split, then a checkout page for the reference it was given.</summary>

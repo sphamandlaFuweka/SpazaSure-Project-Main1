@@ -450,7 +450,7 @@ export default function AdminSettingsPage() {
                 <div>
                   <p className="text-sm font-bold text-gray-900">Bulk Buyer shoppers</p>
                   <p className="text-xs text-ink-2 mt-0.5">
-                    Shoppers on the Bulk Buyer plan (R150 a month) buy from suppliers in the app, pay by card,
+                    Shoppers on the Bulk Buyer plan (R20 a month) buy from suppliers in the app, pay by card,
                     and choose delivery or collection.
                   </p>
                 </div>

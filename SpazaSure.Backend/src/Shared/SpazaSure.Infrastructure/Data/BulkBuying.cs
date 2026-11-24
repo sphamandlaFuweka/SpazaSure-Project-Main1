@@ -4,7 +4,7 @@ using SpazaSure.Infrastructure.Entities;
 namespace SpazaSure.Infrastructure.Data;
 
 /// <summary>
-/// The Bulk Buyer plan for shoppers: R150 a month to see the bulk marketplace and order from
+/// The Bulk Buyer plan for shoppers: R20 a month to see the bulk marketplace and order from
 /// suppliers, at the shop price plus <see cref="PlatformRules.BulkBuyerMarkupPercent"/>, with at least
 /// <see cref="PlatformRules.BulkBuyerMinOrderAmount"/> per supplier order. It includes SpazaSure Plus.
 /// A shopper orders through a buyer account (a spaza_shops row of type bulk_buyer) that holds their
@@ -13,12 +13,12 @@ namespace SpazaSure.Infrastructure.Data;
 public static class BulkBuying
 {
     public const string PlanKey = "bulk";
-    public const decimal MonthlyPrice = 150m;
+    public const decimal MonthlyPrice = 20m;
     /// <summary>The Paystack plan code setting (Paystack:PlanCodes:...) for a renewing Bulk Buyer plan.</summary>
     public const string PaystackPlanSetting = "CustomerBulkMonthly";
 
     public const string RequiredMessage =
-        "Bulk buying is part of the Bulk Buyer plan (R150 a month). Subscribe under Profile > Membership.";
+        "Bulk buying is part of the Bulk Buyer plan (R20 a month). Subscribe under Profile > Membership.";
     public const string AddressRequiredMessage =
         "Add the address your bulk orders go to first, so we can show suppliers that deliver to you.";
 
