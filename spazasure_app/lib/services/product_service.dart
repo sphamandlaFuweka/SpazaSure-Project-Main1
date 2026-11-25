@@ -200,6 +200,12 @@ class ProductService {
   static String _slugToIcon(String slug) {
     final map = {
       'food-beverages': 'shopping_basket',
+      'beauty-personal-care': 'spa',
+      'home-cleaning': 'home',
+      'baby-kids': 'child_care',
+      'health-first-aid': 'medical_services',
+      'fashion-accessories': 'shopping_basket',
+      'other-essentials': 'shopping_basket',
       'cooking-oil': 'shopping_basket',
       'maize-flour': 'shopping_basket',
       'canned-goods': 'shopping_basket',

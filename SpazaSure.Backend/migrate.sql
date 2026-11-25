@@ -2241,4 +2241,85 @@ INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updat
 SELECT gen_random_uuid(), 'Groceries', 'groceries', 1, true, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM categories WHERE slug = 'groceries');
 
+-- Group related product categories so shops can browse by department while suppliers
+-- continue assigning each product to a specific subcategory.
+INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
+SELECT gen_random_uuid(), seed.name, seed.slug, seed.sort_order, true, NOW(), NOW()
+FROM (VALUES
+  ('food-beverages', 'Food & Beverages', 1),
+  ('beauty-personal-care', 'Beauty & Personal Care', 2),
+  ('home-cleaning', 'Home & Cleaning', 3),
+  ('baby-kids', 'Baby & Kids', 4),
+  ('health-first-aid', 'Health & First Aid', 5),
+  ('fashion-accessories', 'Fashion & Accessories', 6),
+  ('other-essentials', 'Other Essentials', 7)
+) AS seed(slug, name, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM categories existing WHERE existing.slug = seed.slug);
+
+INSERT INTO categories (id, name, slug, sort_order, is_active, created_at, updated_at)
+SELECT gen_random_uuid(), seed.name, seed.slug, seed.sort_order, true, NOW(), NOW()
+FROM (VALUES
+  ('skincare', 'Skin care', 26),
+  ('cosmetics-makeup', 'Cosmetics & makeup', 27),
+  ('nail-care', 'Nail care', 28),
+  ('fragrance', 'Fragrance', 29),
+  ('jewellery-accessories', 'Jewellery', 30),
+  ('bags-wallets', 'Bags & wallets', 31),
+  ('clothing-accessories', 'Clothing accessories', 32)
+) AS seed(slug, name, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM categories existing WHERE existing.slug = seed.slug);
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'food-beverages'
+  AND child.slug IN (
+    'groceries', 'maize-flour', 'cooking-oil', 'canned-goods', 'spices-condiments',
+    'bread-bakery', 'dairy-eggs', 'meat-frozen', 'fresh-produce', 'snacks', 'beverages',
+    'hot-drinks', 'cold-meats', 'sugar-baking', 'pasta-noodles', 'cereals-porridge'
+  )
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'beauty-personal-care'
+  AND child.slug IN ('hair-beauty', 'personal-care', 'skincare', 'cosmetics-makeup', 'nail-care', 'fragrance')
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'home-cleaning'
+  AND child.slug IN ('household-cleaning', 'laundry')
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'baby-kids'
+  AND child.slug = 'baby-infant'
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'health-first-aid'
+  AND child.slug = 'medicine-first-aid'
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'fashion-accessories'
+  AND child.slug IN ('jewellery-accessories', 'bags-wallets', 'clothing-accessories')
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
+UPDATE categories child
+SET parent_id = parent.id, updated_at = NOW()
+FROM categories parent
+WHERE parent.slug = 'other-essentials'
+  AND child.slug IN ('fuel-energy', 'batteries-electrical', 'stationery', 'pet-care')
+  AND child.parent_id IS DISTINCT FROM parent.id;
+
 COMMIT;

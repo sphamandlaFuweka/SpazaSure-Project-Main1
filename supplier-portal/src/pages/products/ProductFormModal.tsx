@@ -102,7 +102,7 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
     return () => { cancelled = true; };
   }, [product]);
 
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; label: string }[]>([]);
   useEffect(() => {
     let cancelled = false;
     productsApi.categories()
@@ -407,7 +407,7 @@ export default function ProductFormModal({ product, onSave, onClose }: Props) {
               onChange={(e) => { setValue('categoryId', e.target.value); const cat = categories.find((c) => c.id === e.target.value); if (cat) setValue('categoryName', cat.name); }}
               className={`select ${errors.categoryId ? 'input-error' : ''}`}>
               <option value="">Select category</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               {/* Keep a category an admin has since hidden, so editing doesn't silently clear it. */}
               {product?.categoryId && !categories.some((c) => c.id === product.categoryId) && (
                 <option value={product.categoryId}>{product.categoryName || 'Current category'} (no longer listed)</option>

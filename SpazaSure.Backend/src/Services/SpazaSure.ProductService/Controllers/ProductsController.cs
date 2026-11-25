@@ -356,8 +356,9 @@ public class ProductsController(SpazaSureDbContext db, EventPublisher events) : 
                 return $"You already have a product with barcode {barcode}.";
         }
         if (req.CategoryId is { } categoryId && categoryId != existing?.CategoryId &&
-            !await db.Categories.AnyAsync(c => c.Id == categoryId && c.IsActive))
-            return "Choose one of the listed categories.";
+            !await db.Categories.AnyAsync(c => c.Id == categoryId && c.IsActive
+                && !db.Categories.Any(child => child.ParentId == c.Id)))
+            return "Choose one of the listed subcategories.";
         return null;
     }
 

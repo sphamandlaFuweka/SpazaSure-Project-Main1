@@ -98,20 +98,42 @@ public class OrderStockAndCategoryTests
     }
 
     [Fact]
+    public async Task Categories_CanBeGroupedOneLevelDeep()
+    {
+        var db = DbContextHelper.CreateInMemoryDb();
+        var ctrl = new AdminCategoriesController(db);
+
+        (await ctrl.Create(new CategoryRequest("Beauty & Personal Care", null, null)))
+            .Should().BeOfType<OkObjectResult>();
+        var parent = db.Categories.Single();
+        (await ctrl.Create(new CategoryRequest("Hair care", null, null, parent.Id)))
+            .Should().BeOfType<OkObjectResult>();
+        db.Categories.Single(c => c.Name == "Hair care").ParentId.Should().Be(parent.Id);
+
+        var child = db.Categories.Single(c => c.Name == "Hair care");
+        (await ctrl.Create(new CategoryRequest("Shampoo", null, null, child.Id)))
+            .Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public void CategoryFilter_HandlesAllNoneAndIds()
     {
         var a = Guid.NewGuid();
+        var parent = new Category { Id = Guid.NewGuid(), Name = "Food & Beverages" };
+        var child = new Category { Id = Guid.NewGuid(), Name = "Rice", ParentId = parent.Id, Parent = parent };
         var products = new[]
         {
             new Product { Name = "A", CategoryId = a },
             new Product { Name = "B", CategoryId = Guid.NewGuid() },
+            new Product { Name = "Rice", CategoryId = child.Id, Category = child },
             new Product { Name = "C", CategoryId = null },
         }.AsQueryable();
 
-        ProductCategoryFilter.Apply(products, null).Should().HaveCount(3);
-        ProductCategoryFilter.Apply(products, "all").Should().HaveCount(3);
+        ProductCategoryFilter.Apply(products, null).Should().HaveCount(4);
+        ProductCategoryFilter.Apply(products, "all").Should().HaveCount(4);
         ProductCategoryFilter.Apply(products, "none").Single().Name.Should().Be("C");
         ProductCategoryFilter.Apply(products, a.ToString()).Single().Name.Should().Be("A");
+        ProductCategoryFilter.Apply(products, parent.Id.ToString()).Single().Name.Should().Be("Rice");
         ProductCategoryFilter.Apply(products, "not-a-guid").Should().BeEmpty();
     }
 }

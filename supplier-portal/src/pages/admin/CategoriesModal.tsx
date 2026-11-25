@@ -14,6 +14,7 @@ export default function CategoriesModal({ onClose, onChanged }: { onClose: () =>
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [newParentId, setNewParentId] = useState('');
   const [names, setNames] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -47,7 +48,10 @@ export default function CategoriesModal({ onClose, onChanged }: { onClose: () =>
   const add = () => {
     const name = newName.trim();
     if (name.length < 2) { toast.error('Give the category a name'); return; }
-    run('new', () => adminCategoriesApi.create({ name }), 'Category added').then(() => setNewName(''));
+    run('new', () => adminCategoriesApi.create({
+      name,
+      ...(newParentId ? { parentId: newParentId } : {}),
+    }), 'Category added').then(() => { setNewName(''); setNewParentId(''); });
   };
 
   const rename = (c: AdminCategory) => {
@@ -82,13 +86,21 @@ export default function CategoriesModal({ onClose, onChanged }: { onClose: () =>
     <Modal title="Product categories" onClose={onClose} size="lg">
       <div className="p-6 space-y-4">
         <p className="text-sm text-gray-500">
-          Suppliers pick one of these for each product, and shops filter the marketplace by them. The order here is the order shops see.
+          Organize categories into top-level groups and subcategories. Suppliers choose a specific subcategory for each product; shops can filter by either level.
           Hiding a category removes it from the shop app and supplier form without changing any products.
         </p>
 
         <div className="flex gap-2">
-          <input className="input flex-1" value={newName} maxLength={60} placeholder="New category, e.g. Pet food"
-            onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+          <div className="flex-1 space-y-2">
+            <input className="input w-full" value={newName} maxLength={60} placeholder="New category, e.g. Skin care"
+              onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+            <select className="select w-full" value={newParentId} onChange={(e) => setNewParentId(e.target.value)}>
+              <option value="">Top-level category</option>
+              {items.filter((c) => c.parentId == null).map((c) => (
+                <option key={c.id} value={c.id}>Subcategory of {c.name}</option>
+              ))}
+            </select>
+          </div>
           <button className="btn-primary flex items-center gap-1.5" onClick={add} disabled={busyId === 'new'}>
             {busyId === 'new' ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
           </button>
@@ -108,6 +120,9 @@ export default function CategoriesModal({ onClose, onChanged }: { onClose: () =>
                   <button className="text-gray-300 hover:text-gray-600 disabled:opacity-30" aria-label={`Move ${c.name} down`}
                     onClick={() => move(i, 1)} disabled={i === items.length - 1 || busyId !== null}><ArrowDown size={13} /></button>
                 </div>
+                <span className="text-[11px] text-gray-400 max-w-32 truncate">
+                  {c.parentName ? `${c.parentName} ›` : 'Top level'}
+                </span>
                 <input
                   className={clsx('input flex-1 h-9 text-sm', !c.isActive && 'text-gray-400')}
                   value={names[c.id] ?? c.name}

@@ -118,6 +118,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
     final categories = productProvider.categories;
+    final topLevelCategories = categories
+        .where((category) => category.parentId == null)
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -213,7 +216,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: categories.length + 1,
+                itemCount: topLevelCategories.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return Padding(
@@ -232,7 +235,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                     );
                   }
-                  final cat = categories[index - 1];
+                  final cat = topLevelCategories[index - 1];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: FilterChip(
@@ -434,26 +437,48 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       const SizedBox(height: 8),
                       Text('Categories', style: AppTextStyles.subtitle),
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final cat in categories)
+                      for (final parent in categories.where(
+                        (candidate) => candidate.parentId == null,
+                      )) ...[
+                        Text(parent.name, style: AppTextStyles.caption),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
                             FilterChip(
                               label: Text(
-                                cat.productCount > 0
-                                    ? '${cat.name} (${cat.productCount})'
-                                    : cat.name,
+                                parent.productCount > 0
+                                    ? 'All ${parent.name} (${parent.productCount})'
+                                    : 'All ${parent.name}',
                               ),
-                              selected: category == cat.id,
+                              selected: category == parent.id,
                               onSelected: (_) => setSheet(
-                                () => category = category == cat.id
+                                () => category = category == parent.id
                                     ? null
-                                    : cat.id,
+                                    : parent.id,
                               ),
                             ),
-                        ],
-                      ),
+                            for (final child in categories.where(
+                              (candidate) => candidate.parentId == parent.id,
+                            ))
+                              FilterChip(
+                                label: Text(
+                                  child.productCount > 0
+                                      ? '${child.name} (${child.productCount})'
+                                      : child.name,
+                                ),
+                                selected: category == child.id,
+                                onSelected: (_) => setSheet(
+                                  () => category = category == child.id
+                                      ? null
+                                      : child.id,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       const SizedBox(height: 24),
                       Text('Suppliers', style: AppTextStyles.subtitle),
                       const SizedBox(height: 12),

@@ -53,7 +53,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; label: string }[]>([]);
   useEffect(() => { productsApi.categories().then(setCategories).catch(() => {}); }, []);
 
   // Download CSV template
@@ -108,7 +108,9 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
 
       const categoryText = catIdx >= 0 ? (cells[catIdx]?.trim() ?? '') : '';
       const category = categories.find((c) =>
-        c.id === categoryText || c.name.toLowerCase() === categoryText.toLowerCase());
+        c.id === categoryText
+        || c.name.toLowerCase() === categoryText.toLowerCase()
+        || c.label.toLowerCase() === categoryText.toLowerCase());
       const imageUrl = imgIdx >= 0 ? (cells[imgIdx]?.trim() ?? '') : '';
 
       let error: string | undefined;
@@ -292,7 +294,7 @@ export default function BulkUploadModal({ onClose, onComplete }: Props) {
               <div className="mt-2 bg-gray-50 rounded-lg p-3 grid grid-cols-2 gap-1.5">
                 {categories.length === 0 && <span className="text-gray-400">Categories could not be loaded.</span>}
                 {categories.map((c) => (
-                  <code key={c.id} className="bg-white px-1.5 py-0.5 rounded border border-gray-200 text-primary font-bold">{c.name}</code>
+                  <code key={c.id} className="bg-white px-1.5 py-0.5 rounded border border-gray-200 text-primary font-bold">{c.label}</code>
                 ))}
               </div>
             </details>

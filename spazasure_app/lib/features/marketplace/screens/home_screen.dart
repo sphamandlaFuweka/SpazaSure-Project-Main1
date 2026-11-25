@@ -995,7 +995,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ─── PIECE 6: CATEGORIES ─────────────────────────────────────────────────────
   Widget _buildCategories() {
-    final categories = context.read<ProductProvider>().categories;
+    final categories = context
+        .read<ProductProvider>()
+        .categories
+        .where((category) => category.parentId == null)
+        .toList();
     final colors = [
       AppColors.primary,
       AppColors.secondary,

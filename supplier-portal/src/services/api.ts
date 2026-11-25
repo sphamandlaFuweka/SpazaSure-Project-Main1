@@ -264,10 +264,20 @@ export const productsApi = {
       reviewCount: existing?.reviewCount ?? updated.reviewCount,
     };
   },
-  categories: async (): Promise<{ id: string; name: string }[]> => {
+  categories: async (): Promise<{ id: string; name: string; label: string }[]> => {
     const res = await api.get('/shop/marketplace/categories');
     const d = res.data?.data ?? res.data;
-    return Array.isArray(d) ? d.map((c: any) => ({ id: c.id, name: c.name })) : [];
+    if (!Array.isArray(d)) return [];
+    const leaves = d.filter((category: any) =>
+      !d.some((candidate: any) => candidate.parentId === category.id));
+    return leaves.map((category: any) => {
+      const parent = d.find((candidate: any) => candidate.id === category.parentId);
+      return {
+        id: category.id,
+        name: category.name,
+        label: parent ? `${parent.name} › ${category.name}` : category.name,
+      };
+    });
   },
   delete: (id: string) =>
     productApi.delete(`/supplier/products/${id}`).then((r) => r.data),
@@ -433,12 +443,13 @@ export const adminGroupBuyApi = {
 // Product categories. Admins manage them; suppliers file products under them; shops filter by them.
 export interface AdminCategory {
   id: string; name: string; slug: string; sortOrder: number; isActive: boolean;
+  parentId?: string | null; parentName?: string | null;
   productCount: number; liveProductCount: number;
 }
 
 export const adminCategoriesApi = {
   list: () => api.get('/admin/categories').then((r) => ((r.data?.data ?? r.data ?? []) as AdminCategory[])),
-  create: (body: { name: string; sortOrder?: number }) => api.post('/admin/categories', body).then((r) => r.data),
+  create: (body: { name: string; sortOrder?: number; parentId?: string }) => api.post('/admin/categories', body).then((r) => r.data),
   update: (id: string, body: { name?: string; sortOrder?: number; isActive?: boolean }) =>
     api.put(`/admin/categories/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.delete(`/admin/categories/${id}`).then((r) => r.data),

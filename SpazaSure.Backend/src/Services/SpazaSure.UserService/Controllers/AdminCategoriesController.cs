@@ -8,7 +8,7 @@ using SpazaSure.Shared.Models;
 
 namespace SpazaSure.UserService.Controllers;
 
-public record CategoryRequest(string? Name, short? SortOrder, bool? IsActive);
+public record CategoryRequest(string? Name, short? SortOrder, bool? IsActive, Guid? ParentId = null);
 
 /// <summary>
 /// Product categories that suppliers file products under and shops browse and filter by.
@@ -27,8 +27,13 @@ public partial class AdminCategoriesController(SpazaSureDbContext db) : Controll
             .Select(c => new
             {
                 c.Id, c.Name, c.Slug, c.SortOrder, c.IsActive,
-                ProductCount = c.Products.Count(),
-                LiveProductCount = c.Products.Count(p => p.IsAvailable && p.IsApproved)
+                c.ParentId, ParentName = c.Parent == null ? null : c.Parent.Name,
+                ProductCount = db.Products.Count(p => p.CategoryId == c.Id
+                    || db.Categories.Any(child => child.ParentId == c.Id && child.Id == p.CategoryId)),
+                LiveProductCount = db.Products.Count(p =>
+                    (p.CategoryId == c.Id
+                        || db.Categories.Any(child => child.ParentId == c.Id && child.Id == p.CategoryId))
+                    && p.IsAvailable && p.IsApproved)
             })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
@@ -41,16 +46,22 @@ public partial class AdminCategoriesController(SpazaSureDbContext db) : Controll
         if (name.Length is < 2 or > 60) return BadRequest(ApiResponse.Fail("Give the category a name (2 to 60 characters)."));
         if (await db.Categories.AnyAsync(c => c.Name.ToLower() == name.ToLower()))
             return BadRequest(ApiResponse.Fail("A category with that name already exists."));
+        if (req.ParentId is { } parentId && !await db.Categories.AnyAsync(c => c.Id == parentId && c.IsActive && c.ParentId == null))
+            return BadRequest(ApiResponse.Fail("Choose an active top-level category."));
 
         var baseSlug = Slugify(name);
         var slug = baseSlug;
         for (var i = 2; await db.Categories.AnyAsync(c => c.Slug == slug); i++) slug = $"{baseSlug}-{i}";
 
         var sort = req.SortOrder ?? (short)((await db.Categories.MaxAsync(c => (short?)c.SortOrder) ?? 0) + 1);
-        var category = new Category { Name = name, Slug = slug, SortOrder = sort, IsActive = req.IsActive ?? true };
+        var category = new Category {
+            Name = name, Slug = slug, SortOrder = sort, IsActive = req.IsActive ?? true, ParentId = req.ParentId
+        };
         db.Categories.Add(category);
         await db.SaveChangesAsync();
-        return Ok(ApiResponse<object>.Ok(new { category.Id, category.Name, category.Slug, category.SortOrder, category.IsActive }, "Category added."));
+        return Ok(ApiResponse<object>.Ok(new {
+            category.Id, category.Name, category.Slug, category.SortOrder, category.IsActive, category.ParentId
+        }, "Category added."));
     }
 
     /// <summary>Renames, reorders or hides a category. The slug stays the same so app icons keep working.</summary>

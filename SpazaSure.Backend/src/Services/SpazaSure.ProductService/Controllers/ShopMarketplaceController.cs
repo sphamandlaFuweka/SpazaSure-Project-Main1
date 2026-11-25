@@ -78,7 +78,7 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
                 || p.Supplier.CompanyName.ToLower().Contains(term)
                 || (p.Barcode != null && p.Barcode == term) || p.Sku.ToLower() == term);
         if (categoryId.HasValue)
-            query = query.Where(p => p.CategoryId == categoryId);
+            query = query.Where(p => p.CategoryId == categoryId || p.Category!.ParentId == categoryId);
         if (supplierId.HasValue)
             query = query.Where(p => p.SupplierId == supplierId);
 
@@ -208,10 +208,15 @@ public class ShopMarketplaceController(SpazaSureDbContext db) : ControllerBase
         var supplierIds = reachable ?? [];
         var items = await db.Set<SpazaSure.Infrastructure.Entities.Category>()
             .Where(c => c.IsActive).OrderBy(c => c.SortOrder)
-            .Select(c => new { c.Id, c.Name, c.Slug, c.ParentId, c.IconUrl,
-                ProductCount = c.Products.Count(p => p.IsAvailable && p.IsApproved && p.StockQty > 0
+            .Select(c => new {
+                c.Id, c.Name, c.Slug, c.ParentId, c.IconUrl,
+                ParentName = c.Parent == null ? null : c.Parent.Name,
+                ProductCount = db.Products.Count(p =>
+                    (p.CategoryId == c.Id || db.Categories.Any(child => child.Id == p.CategoryId && child.ParentId == c.Id))
+                    && p.IsAvailable && p.IsApproved && p.StockQty > 0
                     && (p.Supplier.Status == "active" || p.Supplier.Status == "verified")
-                    && (!limited || supplierIds.Contains(p.SupplierId))) })
+                    && (!limited || supplierIds.Contains(p.SupplierId)))
+            })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
