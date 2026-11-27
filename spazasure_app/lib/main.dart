@@ -22,6 +22,7 @@ import 'features/orders/screens/order_detail_screen.dart';
 import 'features/delivery/screens/delivery_tracking_screen.dart';
 import 'features/compliance/screens/compliance_screen.dart';
 import 'core/widgets/notification_popup_host.dart';
+import 'core/widgets/play_store_update_prompt.dart';
 import 'features/chat/screens/inbox_screen.dart';
 import 'features/shop_verification/my_sticker_screen.dart';
 import 'features/shop_verification/shop_verify_screen.dart';
@@ -109,9 +110,12 @@ class SpazaSureApp extends StatelessWidget {
       navigatorKey: appNavigatorKey,
       navigatorObservers: AnalyticsService.observers,
       // New notifications pop up over every screen while someone is signed in
-      builder: (context, child) => NotificationPopupHost(
+      builder: (context, child) => PlayStoreUpdatePrompt(
         navigatorKey: appNavigatorKey,
-        child: child ?? const SizedBox.shrink(),
+        child: NotificationPopupHost(
+          navigatorKey: appNavigatorKey,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       initialRoute: '/splash',
       onGenerateRoute: (settings) {

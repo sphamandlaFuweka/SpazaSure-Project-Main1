@@ -1,7 +1,7 @@
 name: spazasure_app
 description: SpazaSure - Connecting suppliers, spaza shops, and consumers.
 publish_to: 'none'
-version: 1.0.24+26
+version: 1.0.25+27
 
 environment:
   sdk: ^3.11.0
@@ -45,6 +45,7 @@ dependencies:
   firebase_analytics: ^12.6.1
   package_info_plus: ^9.0.1
   app_links: ^7.2.2
+  in_app_update: ^5.0.0
 
 dev_dependencies:
   flutter_test:

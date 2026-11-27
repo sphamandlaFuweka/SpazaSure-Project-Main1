@@ -82,6 +82,13 @@ String tr(String key) =>
 const _strings = <String, Map<String, String>>{
   AppLanguage.english: {
     // Navigation
+    'update.available.title': 'Update available',
+    'update.available.message':
+        'A newer version of SpazaSure is ready. Update now to get the latest improvements.',
+    'update.action.later': 'Not now',
+    'update.action.install': 'Update',
+    'update.error':
+        'Could not start the update. Please try again from Google Play.',
     'nav.home': 'Home',
     'nav.shops': 'Shops',
     'nav.verify': 'Verify',
