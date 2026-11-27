@@ -96,6 +96,7 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Profile',
     'nav.orders': 'Orders',
     'nav.cart': 'Cart',
+    'nav.news': 'News',
     // Customer home
     'home.taglineShop': 'Shop smarter. ',
     'home.taglineSafe': 'Stay safe.',
@@ -201,6 +202,7 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Iphrofayela',
     'nav.orders': 'Ama-oda',
     'nav.cart': 'Inqola',
+    'nav.news': 'Izindaba',
     'home.taglineShop': 'Thenga ngobuhlakani. ',
     'home.taglineSafe': 'Hlala uphephile.',
     'home.intro':
@@ -253,7 +255,8 @@ const _strings = <String, Map<String, String>>{
     'shop.wallet': 'I-wallet ye-SpazaSure',
     'shop.walletSub': 'Ibhalansi nokuthengiselana',
     'shop.billing': 'Ukukhokha',
-    'shop.billingSub': 'Amakhadi, imininingwane yokukhokha ne-akhawunti yasebhange',
+    'shop.billingSub':
+        'Amakhadi, imininingwane yokukhokha ne-akhawunti yasebhange',
     'profile.billingSub': 'Amakhadi agciniwe nemininingwane yokukhokha',
     'shop.academy': 'I-Shop Academy',
     'shop.academySub': 'Isitoko, incwadi yemali, izifundo noxhaso',
@@ -293,6 +296,7 @@ const _strings = <String, Map<String, String>>{
     'nav.profile': 'Profaele',
     'nav.orders': 'Diodara',
     'nav.cart': 'Kariki',
+    'nav.news': 'Litaba',
     'home.taglineShop': 'Reka ka bohlale. ',
     'home.taglineSafe': 'Dula o sireletsehile.',
     'home.intro':

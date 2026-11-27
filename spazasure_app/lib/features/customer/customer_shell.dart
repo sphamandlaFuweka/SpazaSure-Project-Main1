@@ -8,6 +8,7 @@ import 'package:spazasure_app/features/customer/screens/customer_shops_screen.da
 import 'package:spazasure_app/features/customer/screens/customer_reports_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_home_screen.dart';
 import 'package:spazasure_app/features/customer/screens/customer_profile_screen.dart';
+import 'package:spazasure_app/features/news/screens/news_screen.dart';
 import 'package:spazasure_app/features/marketplace/screens/qr_scanner_screen.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
 
@@ -20,6 +21,7 @@ class CustomerShell extends StatefulWidget {
 
 class _CustomerShellState extends State<CustomerShell> {
   int _index = 0;
+  bool _newsVisited = false;
 
   @override
   void initState() {
@@ -34,6 +36,7 @@ class _CustomerShellState extends State<CustomerShell> {
     const CustomerHomeScreen(),
     const CustomerShopsScreen(),
     _index == 2 ? QrScannerScreen(customerMode: true) : SizedBox.shrink(),
+    _newsVisited ? const NewsScreen() : const SizedBox.shrink(),
     CustomerReportsScreen(),
     CustomerProfileScreen(),
   ];
@@ -52,6 +55,7 @@ class _CustomerShellState extends State<CustomerShell> {
       Icons.qr_code_scanner_rounded,
       tr('nav.verify'),
     ),
+    AppNavItem(Icons.newspaper_outlined, Icons.newspaper, tr('nav.news')),
     AppNavItem(Icons.flag_outlined, Icons.flag_rounded, tr('nav.reports')),
     AppNavItem(
       Icons.person_outline_rounded,
@@ -70,7 +74,10 @@ class _CustomerShellState extends State<CustomerShell> {
     bottomNavigationBar: AppBottomNav(
       items: _items,
       currentIndex: _index,
-      onTap: (index) => setState(() => _index = index),
+      onTap: (index) => setState(() {
+        _index = index;
+        if (index == 3) _newsVisited = true;
+      }),
       centerIndex: 2,
     ),
   );

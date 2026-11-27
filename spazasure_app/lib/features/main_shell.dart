@@ -11,6 +11,7 @@ import 'package:spazasure_app/features/orders/screens/orders_screen.dart';
 import 'package:spazasure_app/features/cart/screens/cart_screen.dart';
 import 'package:spazasure_app/features/group_buy/screens/group_buy_screen.dart';
 import 'package:spazasure_app/features/profile/screens/profile_screen.dart';
+import 'package:spazasure_app/features/news/screens/news_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
 import 'package:spazasure_app/core/i18n/app_language.dart';
 
@@ -23,6 +24,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  bool _newsVisited = false;
 
   @override
   void initState() {
@@ -40,11 +42,12 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
-  final _screens = const [
+  List<Widget> get _screens => [
     HomeScreen(),
     OrdersScreen(),
     CartScreen(),
     GroupBuyScreen(),
+    _newsVisited ? const NewsScreen() : const SizedBox.shrink(),
     ProfileScreen(),
   ];
 
@@ -60,7 +63,10 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) => setState(() {
+          _currentIndex = index;
+          if (index == 4) _newsVisited = true;
+        }),
         centerIndex: 2,
         items: [
           AppNavItem(Icons.home_outlined, Icons.home_rounded, tr('nav.home')),
@@ -80,6 +86,7 @@ class _MainShellState extends State<MainShell> {
             Icons.groups_rounded,
             tr('shop.groupBuys'),
           ),
+          AppNavItem(Icons.newspaper_outlined, Icons.newspaper, tr('nav.news')),
           AppNavItem(
             Icons.person_outline_rounded,
             Icons.person_rounded,
