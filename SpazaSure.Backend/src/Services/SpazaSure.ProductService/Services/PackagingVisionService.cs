@@ -38,7 +38,11 @@ public sealed class PackagingAnalysis
 }
 
 /// <summary>Why an analysis could not be made, so the app can fall back to reading the text on the phone.</summary>
-public sealed record PackagingVisionResult(PackagingAnalysis? Analysis, string? Unavailable);
+public sealed record PackagingVisionResult(
+    PackagingAnalysis? Analysis,
+    string? Unavailable,
+    bool Escalated = false,
+    bool EscalationUnavailable = false);
 
 /// <summary>
 /// Reads a packaging photo with Claude's vision model: the product, who made it, what the
@@ -46,7 +50,9 @@ public sealed record PackagingVisionResult(PackagingAnalysis? Analysis, string? 
 /// </summary>
 public class PackagingVisionService(IConfiguration config, ILogger<PackagingVisionService> logger)
 {
-    private const string Model = "claude-opus-5-5";
+    private const string SonnetModel = "claude-sonnet-5-5";
+    private const string OpusModel = "claude-opus-5-5";
+    private const int MaxOutputTokens = 8192;
 
     private const string Instructions = """
         You inspect photos of product packaging for SpazaSure, a South African app that helps
@@ -91,12 +97,65 @@ public class PackagingVisionService(IConfiguration config, ILogger<PackagingVisi
             ? "Analyse this product packaging."
             : $"Analyse this product packaging. The phone's text recognition read the following, which may contain mistakes:\n\n{deviceText}";
 
+        var firstPass = await AnalyzeWithModelAsync(client, SonnetModel, "initial", image, mediaType, prompt, cancellationToken);
+        if (firstPass.Analysis is not { } sonnetAnalysis || !RequiresOpusReview(sonnetAnalysis))
+            return firstPass;
+
+        var secondPass = await AnalyzeWithModelAsync(client, OpusModel, "escalation", image, mediaType, prompt, cancellationToken);
+        if (secondPass.Analysis is not { } opusAnalysis)
+        {
+            logger.LogWarning(
+                "Opus packaging review unavailable ({Reason}); returning the Sonnet result as preliminary",
+                secondPass.Unavailable);
+            return firstPass with { EscalationUnavailable = true };
+        }
+
+        return new(PreferMoreCautiousResult(sonnetAnalysis, opusAnalysis), null, Escalated: true);
+    }
+
+    internal static bool RequiresOpusReview(PackagingAnalysis analysis) =>
+        !string.Equals(analysis.ImageQuality, "good", StringComparison.OrdinalIgnoreCase)
+        || analysis.Verdict is "some_concerns" or "likely_counterfeit" or "cannot_tell"
+        || analysis.RedFlags.Count > 0;
+
+    internal static PackagingAnalysis PreferMoreCautiousResult(
+        PackagingAnalysis sonnetAnalysis, PackagingAnalysis opusAnalysis)
+    {
+        if (CautionScore(sonnetAnalysis.Verdict) > CautionScore(opusAnalysis.Verdict))
+            return sonnetAnalysis;
+        if (sonnetAnalysis.RedFlags.Count > 0 && opusAnalysis.RedFlags.Count == 0)
+        {
+            if (sonnetAnalysis.Verdict == "looks_genuine")
+                sonnetAnalysis.Verdict = "some_concerns";
+            return sonnetAnalysis;
+        }
+        return opusAnalysis;
+    }
+
+    private static int CautionScore(string verdict) => verdict switch
+    {
+        "likely_counterfeit" => 3,
+        "some_concerns" => 2,
+        "cannot_tell" => 1,
+        "looks_genuine" => 0,
+        _ => 1,
+    };
+
+    private async Task<PackagingVisionResult> AnalyzeWithModelAsync(
+        AnthropicClient client,
+        string model,
+        string attempt,
+        byte[] image,
+        string mediaType,
+        string prompt,
+        CancellationToken cancellationToken)
+    {
         try
         {
             var response = await client.Beta.Messages.Create(new MessageCreateParams
             {
-                Model = Model,
-                MaxTokens = 16000,
+                Model = model,
+                MaxTokens = MaxOutputTokens,
                 Betas = ["server-side-fallback-2026-07-01"],
                 // A declined request is re-served by a fallback model chosen by refusal category
                 Fallbacks = new Default(),
@@ -126,6 +185,11 @@ public class PackagingVisionService(IConfiguration config, ILogger<PackagingVisi
                 ],
             }, cancellationToken);
 
+            var estimatedCostUsd = EstimateCostUsd(response.Model, response.Usage.InputTokens, response.Usage.OutputTokens);
+            logger.LogInformation(
+                "Anthropic packaging usage for {Attempt} attempt: model {Model}, input tokens {InputTokens}, output tokens {OutputTokens}, estimated cost USD {EstimatedCostUsd}",
+                attempt, response.Model, response.Usage.InputTokens, response.Usage.OutputTokens, estimatedCostUsd);
+
             if (response.StopReason == "refusal") return new(null, "declined");
 
             var json = string.Concat(response.Content
@@ -149,6 +213,28 @@ public class PackagingVisionService(IConfiguration config, ILogger<PackagingVisi
             logger.LogWarning(ex, "Packaging analysis could not be completed");
             return new(null, "error");
         }
+    }
+
+    internal static decimal? EstimateCostUsd(string model, long inputTokens, long outputTokens)
+    {
+        decimal inputPrice;
+        decimal outputPrice;
+        if (model.Contains("sonnet", StringComparison.OrdinalIgnoreCase))
+        {
+            inputPrice = 2m;
+            outputPrice = 10m;
+        }
+        else if (model.Contains("opus", StringComparison.OrdinalIgnoreCase))
+        {
+            inputPrice = 4m;
+            outputPrice = 20m;
+        }
+        else
+        {
+            return null;
+        }
+
+        return (inputTokens * inputPrice + outputTokens * outputPrice) / 1_000_000m;
     }
 
     private static JsonElement Text(string description) =>

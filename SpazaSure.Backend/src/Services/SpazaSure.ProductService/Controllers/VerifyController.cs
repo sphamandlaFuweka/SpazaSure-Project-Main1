@@ -194,6 +194,11 @@ public class VerifyController(
             },
             checks,
             riskLevel,
+            aiReview = new
+            {
+                escalated = result.Escalated,
+                escalationUnavailable = result.EscalationUnavailable,
+            },
         }));
     }
 

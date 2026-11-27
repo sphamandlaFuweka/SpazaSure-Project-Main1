@@ -98,6 +98,36 @@ class AuthService {
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
 
+  static Future<bool> isPhoneVerificationEnabled({
+    required bool customer,
+  }) async {
+    final accountType = customer ? 'customer' : 'shop';
+    final res = await ApiService.get(
+      '/$accountType/auth/phone-verification/status',
+    );
+    final data = res['data'];
+    if (data is! Map<String, dynamic> || data['enabled'] is! bool) {
+      throw const FormatException(
+        'Invalid phone-verification status response.',
+      );
+    }
+    return data['enabled'] as bool;
+  }
+
+  static Future<String> sendPhoneVerificationCode({
+    required String phone,
+    required bool customer,
+  }) async {
+    final accountType = customer ? 'customer' : 'shop';
+    final res = await ApiService.post(
+      '/$accountType/auth/phone-verification/send-code',
+      {'phone': _formatPhone(phone)},
+      auth: false,
+    );
+    return res['message']?.toString() ??
+        'If this number can be verified, a code has been sent.';
+  }
+
   static Future<AuthSession> registerCustomer({
     required String phone,
     required String firstName,
@@ -118,6 +148,7 @@ class AuthService {
     List<String>? notificationPreferences,
     bool marketingOptIn = false,
     bool acceptedPrivacyNotice = false,
+    String? phoneVerificationCode,
   }) async {
     final res = await ApiService.post('/customer/auth/register', {
       'phone': _formatPhone(phone),
@@ -142,6 +173,8 @@ class AuthService {
       'notificationPreferences': notificationPreferences ?? const <String>[],
       'marketingOptIn': marketingOptIn,
       'acceptedPrivacyNotice': acceptedPrivacyNotice,
+      if (phoneVerificationCode != null)
+        'phoneVerificationCode': phoneVerificationCode,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>, role: 'customer');
   }
@@ -161,6 +194,7 @@ class AuthService {
     String? email,
     Map<String, dynamic>? registrationDetails,
     bool acceptedPrivacyNotice = false,
+    String? phoneVerificationCode,
   }) async {
     final formatted = _formatPhone(phone);
     final res = await ApiService.post('/shop/auth/register', {
@@ -181,6 +215,8 @@ class AuthService {
       if (registrationDetails != null)
         'registrationDetails': registrationDetails,
       'acceptedPrivacyNotice': acceptedPrivacyNotice,
+      if (phoneVerificationCode != null)
+        'phoneVerificationCode': phoneVerificationCode,
     }, auth: false);
     return _parseAndSave(res['data'] as Map<String, dynamic>);
   }

@@ -64,6 +64,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> isPhoneVerificationEnabled({required bool customer}) =>
+      AuthService.isPhoneVerificationEnabled(customer: customer);
+
+  Future<String> sendPhoneVerificationCode({
+    required String phone,
+    required bool customer,
+  }) => AuthService.sendPhoneVerificationCode(phone: phone, customer: customer);
+
   Future<void> registerCustomer({
     required String phone,
     required String firstName,
@@ -84,6 +92,7 @@ class AuthProvider extends ChangeNotifier {
     List<String>? notificationPreferences,
     bool marketingOptIn = false,
     bool acceptedPrivacyNotice = false,
+    String? phoneVerificationCode,
   }) async {
     _session = await AuthService.registerCustomer(
       phone: phone,
@@ -105,6 +114,7 @@ class AuthProvider extends ChangeNotifier {
       notificationPreferences: notificationPreferences,
       marketingOptIn: marketingOptIn,
       acceptedPrivacyNotice: acceptedPrivacyNotice,
+      phoneVerificationCode: phoneVerificationCode,
     );
     _applyLanguage();
     _track(event: AnalyticsService.signUp);
@@ -127,6 +137,7 @@ class AuthProvider extends ChangeNotifier {
     Map<String, dynamic>? registrationDetails,
     Map<String, dynamic>? documents,
     bool acceptedPrivacyNotice = false,
+    String? phoneVerificationCode,
   }) async {
     _session = await AuthService.registerShop(
       phone: phone,
@@ -143,6 +154,7 @@ class AuthProvider extends ChangeNotifier {
       email: email,
       registrationDetails: registrationDetails,
       acceptedPrivacyNotice: acceptedPrivacyNotice,
+      phoneVerificationCode: phoneVerificationCode,
     );
     _track(event: AnalyticsService.signUp);
     notifyListeners();

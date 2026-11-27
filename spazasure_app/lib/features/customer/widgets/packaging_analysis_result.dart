@@ -34,6 +34,8 @@ class PackagingAnalysisResult extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = Map<String, dynamic>.from(result['analysis'] as Map? ?? const {});
     final onDevice = result['source'] == 'packaging_device';
+    final aiReview = result['aiReview'] as Map?;
+    final escalationUnavailable = aiReview?['escalationUnavailable'] == true;
     final style = RiskStyle.of(_s(result['riskLevel']));
     final verdict = _s(a['verdict']) ?? 'cannot_tell';
     final headline = switch (verdict) {
@@ -153,6 +155,16 @@ class PackagingAnalysisResult extends StatelessWidget {
                   fontSize: 11,
                 ),
               ),
+              if (escalationUnavailable) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'A second AI review could not be completed. Treat this result as preliminary and verify any concerns with the manufacturer.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

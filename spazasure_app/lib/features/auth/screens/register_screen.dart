@@ -109,6 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       'idNumber',
       'email',
       'phone',
+      'phoneVerificationCode',
       'alternatePhone',
       'password',
       'confirmPassword',
@@ -141,6 +142,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _currentStep = 0;
   bool _isLoading = false;
+  bool _phoneVerificationEnabled = false;
+  bool _phoneVerificationLoading = true;
+  bool _sendingVerificationCode = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _deliveryAvailable = false;
@@ -153,8 +157,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _registrationStatus;
   String? _monthlyStockBudget;
   AddressSuggestion? _address;
+  String? _phoneVerificationError;
+  String? _codeSentForPhone;
+  String? _codeRequestMessage;
 
   TextEditingController _controller(String key) => _formControllers[key]!;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoneVerificationStatus();
+  }
 
   @override
   void dispose() {
@@ -163,6 +176,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _loadPhoneVerificationStatus() async {
+    try {
+      final enabled = await context
+          .read<AuthProvider>()
+          .isPhoneVerificationEnabled(customer: false);
+      if (mounted) setState(() => _phoneVerificationEnabled = enabled);
+    } catch (error) {
+      if (mounted) setState(() => _phoneVerificationError = error.toString());
+    } finally {
+      if (mounted) setState(() => _phoneVerificationLoading = false);
+    }
+  }
+
+  Future<void> _sendPhoneVerificationCode() async {
+    final phone = _controller('phone').text.trim();
+    if (!SaValidation.isValidPhone(phone)) {
+      _showMessage('Enter a valid mobile number first.');
+      return;
+    }
+
+    setState(() => _sendingVerificationCode = true);
+    try {
+      final message = await context
+          .read<AuthProvider>()
+          .sendPhoneVerificationCode(phone: phone, customer: false);
+      if (!mounted) return;
+      setState(() {
+        _codeSentForPhone = phone;
+        _codeRequestMessage = message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _sendingVerificationCode = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -184,6 +235,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         } else if (!SaValidation.isValidPhone(value('phone'))) {
           error =
               'Enter a valid South African mobile number, e.g. 082 123 4567.';
+        } else if (_phoneVerificationEnabled &&
+            (_codeSentForPhone != value('phone') ||
+                !RegExp(r'^\d{6}$').hasMatch(value('phoneVerificationCode')))) {
+          error =
+              'Send a verification code to this number and enter the 6-digit code.';
         } else if (_controller('password').text.length < 8) {
           error = 'Create a password with at least 8 characters.';
         } else if (_controller('password').text !=
@@ -226,6 +282,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _nextStep() {
+    if (_phoneVerificationLoading || _phoneVerificationError != null) {
+      _showMessage(
+        'Phone verification settings could not be checked. Try again shortly.',
+      );
+      return;
+    }
     if (!_validateCurrentStep()) return;
     if (_currentStep < _stepLabels.length - 1) {
       setState(() => _currentStep++);
@@ -279,6 +341,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (_isLoading || !_validateCurrentStep()) return;
+    if (_phoneVerificationLoading || _phoneVerificationError != null) {
+      _showMessage(
+        'Phone verification settings could not be checked. Try again shortly.',
+      );
+      return;
+    }
+    if (_phoneVerificationEnabled &&
+        (_codeSentForPhone != _controller('phone').text.trim() ||
+            !RegExp(
+              r'^\d{6}$',
+            ).hasMatch(_controller('phoneVerificationCode').text.trim()))) {
+      _showMessage(
+        'Send a verification code to this number and enter the 6-digit code.',
+      );
+      return;
+    }
     final fullName =
         '${_controller('firstName').text.trim()} ${_controller('surname').text.trim()}';
 
@@ -300,6 +378,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         registrationDetails: _registrationDetails(),
         documents: _pickedDocs,
         acceptedPrivacyNotice: _acceptedPrivacyNotice,
+        phoneVerificationCode: _phoneVerificationEnabled
+            ? _controller('phoneVerificationCode').text.trim()
+            : null,
       );
 
       if (!mounted) return;
@@ -481,6 +562,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
         keyboardType: TextInputType.phone,
         prefixText: '+27  ',
       ),
+      if (_phoneVerificationError != null)
+        _hint(
+          'Phone verification settings could not be loaded. Please try again later.',
+          Icons.error_outline,
+        ),
+      if (_phoneVerificationEnabled) ...[
+        _field(
+          'phoneVerificationCode',
+          'SMS verification code *',
+          'Enter the 6-digit code',
+          keyboardType: TextInputType.number,
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _sendingVerificationCode
+                ? null
+                : _sendPhoneVerificationCode,
+            icon: _sendingVerificationCode
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sms_outlined),
+            label: Text(
+              _codeSentForPhone == _controller('phone').text.trim()
+                  ? 'Resend code'
+                  : 'Send verification code',
+            ),
+          ),
+        ),
+        if (_codeRequestMessage != null)
+          Text(
+            _codeRequestMessage!,
+            style: const TextStyle(color: _fieldHintColor),
+          ),
+      ],
       _field(
         'alternatePhone',
         'Alternative contact number',
@@ -513,7 +632,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
       ),
       _hint(
-        'Your mobile number and password are used to sign in. We are not sending SMS verification codes during signup.',
+        _phoneVerificationEnabled
+            ? 'Verify your mobile number by SMS before submitting your application.'
+            : 'Your mobile number and password are used to sign in.',
         Icons.lock_outline,
       ),
     ],

@@ -6,7 +6,10 @@ using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.AuthService.Services;
 
-public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
+public class ShopAuthService(
+    SpazaSureDbContext db,
+    IConfiguration config,
+    PhoneVerificationService? phoneVerification = null)
 {
     private static readonly HashSet<string> RegistrationDetailKeys =
     [
@@ -53,21 +56,33 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
         var addressError = AddressValidation.ValidateCoordinates(req.Latitude, req.Longitude);
         if (addressError is not null) return (false, addressError, null);
         if (!req.AcceptedPrivacyNotice) return (false, PrivacyNotice.NotAcceptedMessage, null);
-        if (SaValidation.NormalizePhone(req.Phone) is null)
+        var normalizedPhone = SaValidation.NormalizePhone(req.Phone);
+        if (normalizedPhone is null)
             return (false, "Enter a valid South African mobile number, e.g. 082 123 4567.", null);
+        var phone = config.GetValue<bool>("PhoneVerification:Enabled")
+            ? normalizedPhone
+            : req.Phone.Trim();
         // The owner's ID is checked against Home Affairs during the identity check, so it must be real.
         if (!SaValidation.IsValidIdNumber(req.IdNumber))
             return (false, "Enter a valid 13-digit South African ID number.", null);
 
-        if (await db.Users.AnyAsync(u => u.Phone == req.Phone))
+        if (await db.Users.AnyAsync(u => u.Phone == phone))
             return (false, "Phone number already registered.", null);
 
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == "spaza_owner" && r.IsActive);
         if (role is null) return (false, "Role configuration error.", null);
 
+        if (config.GetValue<bool>("PhoneVerification:Enabled"))
+        {
+            if (phoneVerification is null)
+                return (false, "Phone verification is unavailable. Please try again later.", null);
+            var verification = await phoneVerification.ConsumeRegistrationCodeAsync(phone, req.PhoneVerificationCode);
+            if (!verification.Success) return (false, verification.Error, null);
+        }
+
         var user = new User
         {
-            Phone = req.Phone,
+            Phone = phone,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             RoleId = role.Id,
             Status = "active"
@@ -80,7 +95,7 @@ public class ShopAuthService(SpazaSureDbContext db, IConfiguration config)
             ShopName = req.ShopName,
             OwnerName = req.FullName,
             OwnerIdNumber = SaValidation.NormalizeIdNumber(req.IdNumber!),
-            Phone = req.Phone,
+            Phone = phone,
             Email = req.Email,
             Address = req.Address,
             City = req.City,

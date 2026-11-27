@@ -9,6 +9,24 @@ using SpazaSure.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Configuration.GetValue<bool>("PhoneVerification:Enabled"))
+{
+    var requiredSmsSettings = new[]
+    {
+        "AfricaTalking:Username",
+        "AfricaTalking:ApiKey",
+        "PhoneVerification:HashKey"
+    };
+    var missingSmsSettings = requiredSmsSettings
+        .Where(key => string.IsNullOrWhiteSpace(builder.Configuration[key]))
+        .ToArray();
+    if (missingSmsSettings.Length > 0)
+        throw new InvalidOperationException(
+            $"Phone verification is enabled but required settings are missing: {string.Join(", ", missingSmsSettings)}.");
+    if (builder.Configuration["PhoneVerification:HashKey"]!.Length < 32)
+        throw new InvalidOperationException("PhoneVerification:HashKey must contain at least 32 characters.");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -78,6 +96,9 @@ builder.Services.AddSingleton(sp =>
 // Admins get a notification when a request crashes
 builder.Services.AddSingleton<SpazaSure.Shared.Helpers.IUnhandledErrorAlerts, SpazaSure.Infrastructure.Data.AdminErrorAlerts>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHttpClient<ISmsSender, AfricaTalkingSmsSender>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<PhoneVerificationService>();
 builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<ShopAuthService>();
 builder.Services.AddScoped<CustomerAuthService>();

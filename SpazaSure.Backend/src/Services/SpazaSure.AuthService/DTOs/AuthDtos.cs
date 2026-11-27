@@ -68,8 +68,11 @@ public record ShopRegisterRequest(
     double? Longitude = null,
     string? Email = null,
     JsonElement? RegistrationDetails = null,
-    bool AcceptedPrivacyNotice = false
+    bool AcceptedPrivacyNotice = false,
+    string? PhoneVerificationCode = null
 );
+
+public record SendPhoneVerificationCodeRequest([Required, Phone] string Phone);
 
 public record ShopAuthResponse(
     string AccessToken,
@@ -106,7 +109,8 @@ public record CustomerRegisterRequest(
     List<string>? Interests = null,
     List<string>? NotificationPreferences = null,
     bool MarketingOptIn = false,
-    bool AcceptedPrivacyNotice = false
+    bool AcceptedPrivacyNotice = false,
+    string? PhoneVerificationCode = null
 );
 
 public record CustomerAuthResponse(

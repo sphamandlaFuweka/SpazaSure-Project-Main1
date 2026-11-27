@@ -42,6 +42,10 @@ builder.Services.AddRateLimiter(o =>
         var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var path = ctx.Request.Path;
 
+        if (IsAuthPath(path, "/phone-verification/send-code"))
+            return RateLimitPartition.GetFixedWindowLimiter("phone-verification:" + ip, _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });
+
         if (IsAuthPath(path, "/forgot-password", "/reset-password"))
             return RateLimitPartition.GetFixedWindowLimiter("reset:" + ip, _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 });

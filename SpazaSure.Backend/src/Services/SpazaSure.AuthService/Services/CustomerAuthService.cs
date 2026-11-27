@@ -10,7 +10,10 @@ namespace SpazaSure.AuthService.Services;
 /// <summary>
 /// Handles phone/password authentication for customer app accounts.
 /// </summary>
-public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
+public class CustomerAuthService(
+    SpazaSureDbContext db,
+    IConfiguration config,
+    PhoneVerificationService? phoneVerification = null)
 {
     private readonly string _jwtSecret = config["Jwt:Secret"]!;
     private readonly int _accessExpiry = int.Parse(config["Jwt:AccessExpiryMinutes"] ?? "60");
@@ -24,18 +27,32 @@ public class CustomerAuthService(SpazaSureDbContext db, IConfiguration config)
         if (!req.AcceptedPrivacyNotice) return (false, PrivacyNotice.NotAcceptedMessage, null);
 
         var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+        var normalizedPhone = SaValidation.NormalizePhone(req.Phone);
+        if (config.GetValue<bool>("PhoneVerification:Enabled") && normalizedPhone is null)
+            return (false, "Enter a valid South African mobile number.", null);
+        var phone = config.GetValue<bool>("PhoneVerification:Enabled")
+            ? normalizedPhone!
+            : req.Phone.Trim();
 
         if (await db.Users.AnyAsync(u =>
-                u.Phone == req.Phone ||
+                u.Phone == phone ||
                 (email != null && u.Email != null && u.Email.ToLower() == email.ToLower())))
             return (false, "Phone number already registered.", null);
 
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == "customer" && r.IsActive);
         if (role is null) return (false, "Role configuration error.", null);
 
+        if (config.GetValue<bool>("PhoneVerification:Enabled"))
+        {
+            if (phoneVerification is null)
+                return (false, "Phone verification is unavailable. Please try again later.", null);
+            var verification = await phoneVerification.ConsumeRegistrationCodeAsync(phone, req.PhoneVerificationCode);
+            if (!verification.Success) return (false, verification.Error, null);
+        }
+
         var user = new User
         {
-            Phone = req.Phone,
+            Phone = phone,
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             RoleId = role.Id,

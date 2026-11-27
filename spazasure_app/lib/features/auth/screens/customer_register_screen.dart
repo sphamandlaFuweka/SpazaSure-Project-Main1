@@ -22,6 +22,7 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   final _lastNameController = TextEditingController();
   final _preferredNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _phoneVerificationCodeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -36,6 +37,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _loading = false;
+  bool _phoneVerificationEnabled = false;
+  bool _phoneVerificationLoading = true;
+  bool _sendingVerificationCode = false;
   bool _gettingLocation = false;
   bool _nearbyRecommendations = false;
   bool _marketingOptIn = false;
@@ -44,6 +48,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   double? _longitude;
   String _language = 'English';
   String? _province;
+  String? _phoneVerificationError;
+  String? _codeSentForPhone;
+  String? _codeRequestMessage;
 
   static const _languages = [
     'English',
@@ -106,11 +113,18 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
   final Set<String> _selectedAllergies = {};
 
   @override
+  void initState() {
+    super.initState();
+    _loadPhoneVerificationStatus();
+  }
+
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _preferredNameController.dispose();
     _phoneController.dispose();
+    _phoneVerificationCodeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -120,6 +134,51 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
     _areaController.dispose();
     _ageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPhoneVerificationStatus() async {
+    try {
+      final enabled = await context
+          .read<AuthProvider>()
+          .isPhoneVerificationEnabled(customer: true);
+      if (mounted) setState(() => _phoneVerificationEnabled = enabled);
+    } catch (error) {
+      if (mounted) setState(() => _phoneVerificationError = error.toString());
+    } finally {
+      if (mounted) setState(() => _phoneVerificationLoading = false);
+    }
+  }
+
+  Future<void> _sendPhoneVerificationCode() async {
+    if (_validatePhone(_phoneController.text) != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid mobile number first.')),
+      );
+      return;
+    }
+
+    setState(() => _sendingVerificationCode = true);
+    try {
+      final phone = _phoneController.text.trim();
+      final message = await context
+          .read<AuthProvider>()
+          .sendPhoneVerificationCode(phone: phone, customer: true);
+      if (!mounted) return;
+      setState(() {
+        _codeSentForPhone = phone;
+        _codeRequestMessage = message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sendingVerificationCode = false);
+    }
   }
 
   String? _validatePhone(String? value) {
@@ -226,6 +285,30 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
       );
       return;
     }
+    if (_phoneVerificationLoading || _phoneVerificationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Phone verification settings could not be checked. Try again shortly.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (_phoneVerificationEnabled &&
+        (_codeSentForPhone != _phoneController.text.trim() ||
+            !RegExp(
+              r'^\d{6}$',
+            ).hasMatch(_phoneVerificationCodeController.text.trim()))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Request a code for this mobile number and enter the 6-digit code.',
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -253,6 +336,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
         notificationPreferences: _selectedNotifications.toList(),
         marketingOptIn: _marketingOptIn,
         acceptedPrivacyNotice: _acceptedPrivacyNotice,
+        phoneVerificationCode: _phoneVerificationEnabled
+            ? _phoneVerificationCodeController.text.trim()
+            : null,
       );
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
@@ -331,6 +417,55 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (_phoneVerificationError != null) ...[
+                  const SizedBox(height: 8),
+                  _hintBox(
+                    Icons.error_outline_rounded,
+                    'Phone verification settings could not be loaded. Please try again later.',
+                  ),
+                ],
+                if (_phoneVerificationEnabled) ...[
+                  const SizedBox(height: 12),
+                  _textField(
+                    controller: _phoneVerificationCodeController,
+                    label: 'SMS verification code',
+                    required: true,
+                    keyboardType: TextInputType.number,
+                    hint: '6-digit code',
+                    validator: (value) =>
+                        RegExp(r'^\d{6}$').hasMatch((value ?? '').trim())
+                        ? null
+                        : 'Enter the 6-digit code',
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _sendingVerificationCode
+                          ? null
+                          : _sendPhoneVerificationCode,
+                      icon: _sendingVerificationCode
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.sms_outlined),
+                      label: Text(
+                        _codeSentForPhone == _phoneController.text.trim()
+                            ? 'Resend code'
+                            : 'Send verification code',
+                      ),
+                    ),
+                  ),
+                  if (_codeRequestMessage != null)
+                    Text(
+                      _codeRequestMessage!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 14),
                 _textField(
                   controller: _emailController,
@@ -425,7 +560,9 @@ class _CustomerRegisterScreenState extends State<CustomerRegisterScreen> {
                 const SizedBox(height: 10),
                 _hintBox(
                   Icons.info_outline_rounded,
-                  'We are using phone and password sign-in. SMS verification codes are not required.',
+                  _phoneVerificationEnabled
+                      ? 'Verify your mobile number by SMS before creating your account.'
+                      : 'Use your mobile number and password to sign in.',
                 ),
               ],
             ),

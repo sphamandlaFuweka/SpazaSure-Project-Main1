@@ -7,7 +7,7 @@ namespace SpazaSure.AuthService.Controllers;
 
 [ApiController]
 [Route("api/shop/auth")]
-public class ShopAuthController(ShopAuthService shopAuth) : ControllerBase
+public class ShopAuthController(ShopAuthService shopAuth, PhoneVerificationService phoneVerification) : ControllerBase
 {
     private string IpAddress => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
@@ -20,6 +20,18 @@ public class ShopAuthController(ShopAuthService shopAuth) : ControllerBase
         var (success, error, data) = await shopAuth.RegisterAsync(req, IpAddress);
         if (!success) return BadRequest(ApiResponse.Fail(error!));
         return Ok(ApiResponse<ShopAuthResponse>.Ok(data!));
+    }
+
+    [HttpGet("phone-verification/status")]
+    public IActionResult PhoneVerificationStatus() =>
+        Ok(ApiResponse<object>.Ok(new { enabled = phoneVerification.IsEnabled }));
+
+    [HttpPost("phone-verification/send-code")]
+    public async Task<IActionResult> SendPhoneVerificationCode(SendPhoneVerificationCodeRequest req)
+    {
+        var result = await phoneVerification.SendCodeAsync(req.Phone, HttpContext.RequestAborted);
+        if (!result.Success) return StatusCode(result.StatusCode, ApiResponse.Fail(result.Message));
+        return Ok(ApiResponse.Ok(result.Message));
     }
 
     /// <summary>
