@@ -43,8 +43,9 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
       final account = await CustomerBulkService.getAccount();
       if (!mounted) return;
       setState(() => _account = account);
-      if (account.isBulkActive && account.address != null)
+      if (account.isBulkActive && account.address != null) {
         await _loadCatalogue();
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e);
     } finally {
