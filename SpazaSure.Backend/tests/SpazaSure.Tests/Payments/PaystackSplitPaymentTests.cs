@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using SpazaSure.Infrastructure.Entities;
 using SpazaSure.OrderService.Services;
+using SpazaSure.Shared.Helpers;
 using Xunit;
 
 namespace SpazaSure.Tests.Payments;
@@ -87,7 +88,9 @@ public class PaystackSplitPaymentTests
         Assert.Equal(new long[] { 8000, 13000 }, shares);
 
         using var initialize = JsonDocument.Parse(fake.Requests.Single(r => r.Path == "/transaction/initialize").Body);
-        Assert.Equal(25500, initialize.RootElement.GetProperty("amount").GetInt32());
+        Assert.Equal(
+            PaystackFeeCalculator.ToMinorUnits(PaystackFeeCalculator.GrossUp(255m)),
+            initialize.RootElement.GetProperty("amount").GetInt32());
         Assert.Equal("SPL_checkout", initialize.RootElement.GetProperty("split_code").GetString());
         Assert.Equal("ACCT_1", supplierOne.PaystackSubaccountCode);
         Assert.Equal("ACCT_2", supplierTwo.PaystackSubaccountCode);

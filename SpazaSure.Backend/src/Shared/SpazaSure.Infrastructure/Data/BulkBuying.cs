@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.Infrastructure.Data;
 
@@ -17,8 +18,8 @@ public static class BulkBuying
     /// <summary>The Paystack plan code setting (Paystack:PlanCodes:...) for a renewing Bulk Buyer plan.</summary>
     public const string PaystackPlanSetting = "CustomerBulkMonthly";
 
-    public const string RequiredMessage =
-        "Bulk buying is part of the Bulk Buyer plan (R30 a month). Subscribe under Profile > Membership.";
+    public static string RequiredMessage =>
+        $"Bulk buying is part of the Bulk Buyer plan (R{PaystackFeeCalculator.GrossUp(MonthlyPrice):F2} a month). Subscribe under Profile > Membership.";
     public const string AddressRequiredMessage =
         "Add the address your bulk orders go to first, so we can show suppliers that deliver to you.";
 

@@ -253,13 +253,19 @@ export default function SubscriptionPage() {
   const annualSavings = (plan: SubscriptionPlan) => {
     if (!plan.monthlyPrice) return 0;
     const annualIfMonthly = plan.monthlyPrice * 12;
-    return Math.round(annualIfMonthly - plan.annualPrice);
+    return annualIfMonthly - plan.annualPrice;
   };
 
   const displayPrice = (plan: SubscriptionPlan) =>
     billingCycle === 'annual' && plan.annualPrice > 0
-      ? Math.round(plan.annualPrice / 12)
+      ? plan.annualPrice / 12
       : plan.monthlyPrice;
+
+  const formatPrice = (price: number) =>
+    price.toLocaleString('en-ZA', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   if (loading) {
     return (
@@ -519,7 +525,7 @@ export default function SubscriptionPage() {
                     ) : (
                       <>
                         <span className="text-lg font-bold opacity-70 mb-1">R</span>
-                        <span className="text-4xl font-black tabular-nums tracking-tight">{price.toLocaleString()}</span>
+                        <span className="text-4xl font-black tabular-nums tracking-tight">{formatPrice(price)}</span>
                         <span className="text-sm font-medium opacity-60 mb-1">/mo</span>
                       </>
                     )}
@@ -527,12 +533,12 @@ export default function SubscriptionPage() {
 
                   {billingCycle === 'annual' && savings > 0 && (
                     <div className="mt-2 inline-flex items-center gap-1 bg-white/15 border border-white/20 rounded-full px-2.5 py-1 text-[10px] font-bold text-white/90">
-                      <Sparkles size={9} /> Save R{savings.toLocaleString()}/year
+                      <Sparkles size={9} /> Save R{formatPrice(savings)}/year
                     </div>
                   )}
                   {billingCycle === 'annual' && plan.annualPrice > 0 && (
                     <p className="mt-1 text-[10px] text-white/50">
-                      Billed R{plan.annualPrice.toLocaleString()} annually
+                      Billed R{formatPrice(plan.annualPrice)} annually
                     </p>
                   )}
                 </div>
@@ -676,7 +682,7 @@ export default function SubscriptionPage() {
                     {p.monthlyPrice === 0 ? (
                       <span className="inline-flex items-center gap-1 bg-primary-50 text-primary px-3 py-1 rounded-full text-xs font-black">Free</span>
                     ) : (
-                      `R${p.monthlyPrice.toLocaleString()}/mo`
+                      `R${formatPrice(p.monthlyPrice)}/mo`
                     )}
                   </td>
                 ))}
@@ -774,7 +780,7 @@ export default function SubscriptionPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-black">
-                    {selectedPlan.monthlyPrice === 0 ? 'Free' : `R${displayPrice(selectedPlan).toLocaleString()}`}
+                    {selectedPlan.monthlyPrice === 0 ? 'Free' : `R${formatPrice(displayPrice(selectedPlan))}`}
                   </p>
                   {selectedPlan.monthlyPrice > 0 && (
                     <p className="text-white/60 text-xs mt-0.5">{billingCycle === 'annual' ? 'per month, billed annually' : 'per month'}</p>
@@ -794,7 +800,7 @@ export default function SubscriptionPage() {
                     <p className="font-bold text-blue-900 text-sm">Secure checkout via Paystack</p>
                     <p className="mt-1.5 text-xs text-blue-700 leading-relaxed">
                       You'll be redirected to <strong>Paystack Checkout</strong> to complete your payment of{' '}
-                      <strong>R{billingCycle === 'annual' ? selectedPlan.annualPrice.toLocaleString() : selectedPlan.monthlyPrice.toLocaleString()}</strong>.
+                      <strong>R{formatPrice(billingCycle === 'annual' ? selectedPlan.annualPrice : selectedPlan.monthlyPrice)}</strong>.
                     </p>
                     <p className="mt-2 text-xs text-blue-700 leading-relaxed">
                       This plan renews automatically every {billingCycle === 'annual' ? 'year' : 'month'} at the amount shown until you cancel. Cancellation ends the plan immediately.

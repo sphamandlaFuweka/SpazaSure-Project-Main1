@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/payments/paystack_fee.dart';
 import 'package:spazasure_app/core/widgets/brand_app_bar.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/providers/cart_provider.dart';
@@ -190,7 +191,11 @@ class _GroupBuyCheckoutScreenState extends State<GroupBuyCheckoutScreen> {
               _quoting ? 'Working out…' : _rand(quote.deliveryFee),
             ),
             const Divider(height: 20),
-            _row('Total', _rand(quote.total), bold: true),
+            _row(
+              'Total by card',
+              _rand(PaystackFeeCalculator.grossUp(quote.total)),
+              bold: true,
+            ),
           ]),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -205,13 +210,15 @@ class _GroupBuyCheckoutScreenState extends State<GroupBuyCheckoutScreen> {
                 ? () => _pay('wallet')
                 : null,
             icon: const Icon(Icons.account_balance_wallet_outlined),
-            label: Text('Pay from wallet (${_rand(quote.walletBalance)})'),
+            label: Text('Pay ${_rand(quote.total)} from wallet'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: canPay ? () => _pay('paystack') : null,
             icon: const Icon(Icons.credit_card),
-            label: Text('Pay ${_rand(quote.total)} by card'),
+            label: Text(
+              'Pay ${_rand(PaystackFeeCalculator.grossUp(quote.total))} by card',
+            ),
           ),
           const SizedBox(height: 8),
           Text(

@@ -117,13 +117,15 @@ public class MissedWebhookTests
     }
 
     [Fact]
-    public void PaystackAddingItsFeesOnTop_StillCoversTheOrder()
+    public void PaystackOrderValidationAcceptsOnlyBaseOrFeeInclusiveTotal()
     {
         var orders = new[] { new Order { TotalAmount = 250m } };
 
         OrderPayments.CoversOrders(25000, orders).Should().BeTrue();
-        OrderPayments.CoversOrders(25750, orders).Should().BeTrue();
+        OrderPayments.CoversOrders(
+            PaystackFeeCalculator.ToMinorUnits(PaystackFeeCalculator.GrossUp(250m)), orders).Should().BeTrue();
         OrderPayments.CoversOrders(24999, orders).Should().BeFalse();
+        OrderPayments.CoversOrders(25750, orders).Should().BeFalse();
     }
 
     [Fact]

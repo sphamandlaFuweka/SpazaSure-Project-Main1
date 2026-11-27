@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.UserService.Services;
 
@@ -13,7 +14,8 @@ public static class CustomerPlus
 {
     public const string PlusPlanKey = "plus";
     public const decimal MonthlyPrice = 19.99m;
-    public const string RequiredMessage = "This is a SpazaSure Plus feature. Upgrade under Profile > Membership.";
+    public static string RequiredMessage =>
+        $"This is a SpazaSure Plus feature. Upgrade for R{PaystackFeeCalculator.GrossUp(MonthlyPrice):F2} under Profile > Membership.";
 
     /// <summary>The plans a customer can pay for.</summary>
     public static bool IsPaidPlan(string? planKey) => planKey is PlusPlanKey or BulkBuying.PlanKey;
@@ -21,6 +23,9 @@ public static class CustomerPlus
     /// <summary>The monthly price of a paid plan.</summary>
     public static decimal PriceOf(string? planKey) =>
         planKey == BulkBuying.PlanKey ? BulkBuying.MonthlyPrice : MonthlyPrice;
+
+    public static decimal PayablePriceOf(string? planKey) =>
+        PaystackFeeCalculator.GrossUp(PriceOf(planKey));
 
     /// <summary>The Paystack plan code setting for a renewing plan.</summary>
     public static string PaystackPlanSetting(string planKey) =>
@@ -66,7 +71,7 @@ public static class CustomerPlus
         transaction.IsSuccessful &&
         string.Equals(transaction.Reference, reference, StringComparison.Ordinal) &&
         string.Equals(transaction.Currency, "ZAR", StringComparison.OrdinalIgnoreCase) &&
-        transaction.Amount == decimal.ToInt64(PriceOf(planKey) * 100m);
+        PaystackFeeCalculator.MatchesPaidAmount(transaction.Amount, PriceOf(planKey));
 
     /// <summary>
     /// After a customer moves to another plan (e.g. Plus to Bulk Buyer), ends their older paid plans

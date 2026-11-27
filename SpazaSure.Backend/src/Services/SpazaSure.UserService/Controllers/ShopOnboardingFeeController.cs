@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 using System.Security.Claims;
@@ -66,7 +67,7 @@ public class ShopOnboardingFeeController(
         {
             paid = false,
             paymentId = payment.Id,
-            amount,
+            amount = PaystackFeeCalculator.GrossUp(amount),
             checkoutUrl = checkout.AuthorizationUrl
         }));
     }
@@ -87,10 +88,15 @@ public class ShopOnboardingFeeController(
             .FirstOrDefaultAsync();
         return Ok(ApiResponse<object>.Ok(new
         {
-            amount,
+            amount = PaystackFeeCalculator.GrossUp(amount),
             paid = shop.OnboardingFeePaid,
             paymentReference = shop.OnboardingFeeRef,
-            pendingPayment = pending
+            pendingPayment = pending is null ? null : new
+            {
+                pending.Id,
+                amount = PaystackFeeCalculator.GrossUp(pending.Amount),
+                pending.ExpiresAt
+            }
         }));
     }
 
@@ -139,7 +145,7 @@ public class ShopOnboardingFeeController(
         transaction.IsSuccessful &&
         string.Equals(transaction.Reference, payment.ProviderPaymentId, StringComparison.Ordinal) &&
         string.Equals(transaction.Currency, "ZAR", StringComparison.OrdinalIgnoreCase) &&
-        transaction.Amount == decimal.ToInt64(decimal.Round(payment.Amount * 100m, 0, MidpointRounding.AwayFromZero));
+        PaystackFeeCalculator.MatchesPaidAmount(transaction.Amount, payment.Amount);
 
     private async Task<decimal> GetConfiguredAmount()
     {

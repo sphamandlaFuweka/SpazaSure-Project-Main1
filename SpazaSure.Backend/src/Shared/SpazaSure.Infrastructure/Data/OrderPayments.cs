@@ -12,11 +12,10 @@ namespace SpazaSure.Infrastructure.Data;
 public static class OrderPayments
 {
     /// <summary>
-    /// Whether Paystack's confirmed amount (in cents) covers the orders. More is fine: Paystack can
-    /// add its fees on top when they are passed to the customer.
+    /// Whether Paystack confirmed either the legacy base total or the exact fee-inclusive total.
     /// </summary>
     public static bool CoversOrders(long paidMinorUnits, IEnumerable<Order> orders) =>
-        paidMinorUnits >= decimal.ToInt64(decimal.Round(orders.Sum(o => o.TotalAmount) * 100m, 0, MidpointRounding.AwayFromZero));
+        PaystackFeeCalculator.MatchesPaidAmount(paidMinorUnits, orders.Sum(o => o.TotalAmount));
 
     /// <summary>All orders paid for in one Paystack checkout, with what notifications need.</summary>
     public static Task<List<Order>> ForReferenceAsync(SpazaSureDbContext db, string reference, CancellationToken ct) =>
@@ -68,7 +67,7 @@ public static class OrderPayments
             supplierId: unpaid[0].Shop.UserId.ToString(),
             type: "order",
             title: "Payment received",
-            message: $"We received your payment of R{unpaid.Sum(o => o.TotalAmount):F2} for {string.Join(", ", unpaid.Select(o => o.OrderNumber))}. Your supplier has been notified.",
+            message: $"Your order total is R{unpaid.Sum(o => o.TotalAmount):F2} for {string.Join(", ", unpaid.Select(o => o.OrderNumber))}, and your Paystack payment is confirmed. Your supplier has been notified.",
             referenceId: unpaid[0].Id.ToString(),
             routingKey: "order.paid");
         return unpaid;

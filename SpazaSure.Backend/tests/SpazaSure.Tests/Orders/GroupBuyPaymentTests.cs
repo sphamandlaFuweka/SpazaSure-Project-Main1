@@ -371,6 +371,23 @@ public class GroupBuyPaymentTests
     }
 
     [Fact]
+    public async Task ACardPaymentIncludingPaystackFee_JoinsAtTheBaseOrderValue()
+    {
+        var f = Create();
+        var participant = Reserve(f, f.Shop, 10);
+        var gross = PaystackFeeCalculator.GrossUp(participant.AmountPaid);
+
+        var result = await GroupBuyPayments.ConfirmCardAsync(
+            f.Db, f.GroupBuy, participant, PaystackFeeCalculator.ToMinorUnits(gross), DateTime.UtcNow);
+        f.Db.SaveChanges();
+
+        result.Should().Be(GroupBuyPayments.CardResult.Joined);
+        participant.AmountPaid.Should().BeLessThan(gross);
+        participant.Status.Should().Be("joined");
+        (await f.Wallet()).Should().Be(10_000m);
+    }
+
+    [Fact]
     public async Task ACardPayment_ForACampaignThatClosedMeanwhile_GoesToTheWallet()
     {
         var f = Create();

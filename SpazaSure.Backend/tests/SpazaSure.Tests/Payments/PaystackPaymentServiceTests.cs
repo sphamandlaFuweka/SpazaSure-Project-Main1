@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.UserService.Services;
 using Xunit;
 
@@ -73,9 +74,39 @@ public class PaystackPaymentServiceTests
         Assert.Equal("Bearer", capturedRequest.Headers.Authorization?.Scheme);
         Assert.Equal(SecretKey, capturedRequest.Headers.Authorization?.Parameter);
         Assert.NotNull(capturedBody);
-        Assert.Equal(15000, capturedBody.RootElement.GetProperty("amount").GetInt32());
+        Assert.Equal(
+            PaystackFeeCalculator.ToMinorUnits(PaystackFeeCalculator.GrossUp(150m)),
+            capturedBody.RootElement.GetProperty("amount").GetInt32());
         Assert.Equal("ZAR", capturedBody.RootElement.GetProperty("currency").GetString());
         Assert.Equal(CallbackUrl, capturedBody.RootElement.GetProperty("callback_url").GetString());
+        capturedBody.Dispose();
+    }
+
+    [Fact]
+    public async Task CreateHeldCheckoutAsync_IncludesFeeInThePaystackCharge()
+    {
+        JsonDocument? capturedBody = null;
+        using var client = new HttpClient(new TestHttpMessageHandler(async (request, _) =>
+        {
+            capturedBody = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            return JsonResponse("""
+                {"status":true,"data":{"authorization_url":"https://checkout.paystack.com/test","reference":"SS-held"}}
+                """);
+        }));
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Paystack:SecretKey"] = SecretKey,
+                ["Paystack:CallbackUrls:ShopCheckout"] = CallbackUrl
+            })
+            .Build();
+        var service = new SpazaSure.OrderService.Services.OrderPaystackPaymentService(
+            client, configuration);
+
+        await service.CreateHeldCheckoutAsync(20m, "shop@example.test", "SS-held");
+
+        Assert.NotNull(capturedBody);
+        Assert.Equal(2188, capturedBody.RootElement.GetProperty("amount").GetInt32());
         capturedBody.Dispose();
     }
 
@@ -91,7 +122,7 @@ public class PaystackPaymentServiceTests
             requests.Add((request.RequestUri!.ToString(), body));
             return request.RequestUri!.AbsolutePath.EndsWith("/plan/PLN-monthly", StringComparison.Ordinal)
                 ? JsonResponse("""
-                    {"status":true,"data":{"plan_code":"PLN-monthly","currency":"ZAR","interval":"monthly","amount":1999}}
+                    {"status":true,"data":{"plan_code":"PLN-monthly","currency":"ZAR","interval":"monthly","amount":2187}}
                     """)
                 : JsonResponse("""
                     {"status":true,"data":{"authorization_url":"https://checkout.paystack.com/test","reference":"SS-sub"}}
@@ -117,7 +148,7 @@ public class PaystackPaymentServiceTests
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/plan/PLN-monthly", StringComparison.Ordinal))
                 return Task.FromResult(JsonResponse("""
-                    {"status":true,"data":{"plan_code":"PLN-monthly","currency":"ZAR","interval":"annually","amount":1999}}
+                    {"status":true,"data":{"plan_code":"PLN-monthly","currency":"ZAR","interval":"annually","amount":2187}}
                     """));
             initializeRequested = true;
             return Task.FromResult(JsonResponse("{}"));
@@ -145,6 +176,19 @@ public class PaystackPaymentServiceTests
         Assert.True(service.IsValidWebhookSignature(payload, signature));
         Assert.False(service.IsValidWebhookSignature(payload, "not-a-signature"));
         Assert.False(service.IsValidWebhookSignature(payload, Convert.ToHexString(new byte[64])));
+    }
+
+    [Theory]
+    [InlineData(20, 21.88)]
+    [InlineData(97.29, 101.84)]
+    [InlineData(100, 104.64)]
+    public void GrossUp_UsesConfirmedTariffAndLeavesAtLeastTheTarget(decimal net, decimal expectedGross)
+    {
+        var gross = PaystackFeeCalculator.GrossUp(net);
+
+        Assert.Equal(expectedGross, gross);
+        Assert.True(gross - PaystackFeeCalculator.FeeFor(gross) >= net);
+        Assert.True(gross - 0.01m - PaystackFeeCalculator.FeeFor(gross - 0.01m) < net);
     }
 
     [Fact]

@@ -195,6 +195,7 @@ services:
       Paystack__CallbackUrls__CustomerSubscription: ${PROD_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://app.spazasure.co.za/?payment=success}
       Paystack__CallbackUrls__SupplierSubscription: ${PROD_PAYSTACK_SUPPLIER_CALLBACK_URL:-https://portal.spazasure.co.za/subscription?payment=success}
       Paystack__PlanCodes__CustomerPlusMonthly: ${PROD_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY:-}
+      Paystack__PlanCodes__CustomerBulkMonthly: ${PROD_PAYSTACK_PLAN_CUSTOMER_BULK_MONTHLY:-}
       Paystack__PlanCodes__SupplierBronzeMonthly: ${PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY:-}
       Paystack__PlanCodes__SupplierBronzeAnnual: ${PROD_PAYSTACK_PLAN_SUPPLIER_BRONZE_ANNUAL:-}
       Paystack__PlanCodes__SupplierSilverMonthly: ${PROD_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY:-}

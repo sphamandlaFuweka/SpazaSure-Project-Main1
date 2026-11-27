@@ -153,6 +153,7 @@ services:
       Paystack__CallbackUrls__CustomerSubscription: ${QA_PAYSTACK_CUSTOMER_CALLBACK_URL:-https://qa.example.com/?payment=success}
       Paystack__CallbackUrls__SupplierSubscription: ${QA_PAYSTACK_SUPPLIER_CALLBACK_URL:-https://qa.example.com/subscription?payment=success}
       Paystack__PlanCodes__CustomerPlusMonthly: ${QA_PAYSTACK_PLAN_CUSTOMER_PLUS_MONTHLY:-}
+      Paystack__PlanCodes__CustomerBulkMonthly: ${QA_PAYSTACK_PLAN_CUSTOMER_BULK_MONTHLY:-}
       Paystack__PlanCodes__SupplierBronzeMonthly: ${QA_PAYSTACK_PLAN_SUPPLIER_BRONZE_MONTHLY:-}
       Paystack__PlanCodes__SupplierBronzeAnnual: ${QA_PAYSTACK_PLAN_SUPPLIER_BRONZE_ANNUAL:-}
       Paystack__PlanCodes__SupplierSilverMonthly: ${QA_PAYSTACK_PLAN_SUPPLIER_SILVER_MONTHLY:-}

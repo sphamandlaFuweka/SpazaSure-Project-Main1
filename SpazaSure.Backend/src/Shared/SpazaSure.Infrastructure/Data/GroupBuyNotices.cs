@@ -18,7 +18,7 @@ public static class GroupBuyNotices
     {
         if (result == GroupBuyPayments.CardResult.Joined)
             events.PublishNotification(participant.Shop.UserId.ToString(), "group_buy", "You joined the group buy",
-                $"We received R{participant.AmountPaid:N2} for '{groupBuy.Title}'. Your order is placed when the target is reached.",
+                $"Your R{participant.AmountPaid:N2} group-buy amount is held for '{groupBuy.Title}'. Your order is placed when the target is reached.",
                 referenceId: groupBuy.Id.ToString(), routingKey: "notification.group_buy");
         else if (result == GroupBuyPayments.CardResult.RefundedToWallet)
             events.PublishNotification(participant.Shop.UserId.ToString(), "wallet", "Group buy payment added to your wallet",

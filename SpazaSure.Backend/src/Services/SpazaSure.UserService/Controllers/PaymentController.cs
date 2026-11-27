@@ -43,9 +43,9 @@ public class PaymentController(
             {
                 checkoutUrl = subscription.PaymentProviderCheckoutUrl,
                 subscriptionId = subscription.Id,
-                amount = subscription.BillingCycle == "annual"
+                amount = PaystackFeeCalculator.GrossUp(subscription.BillingCycle == "annual"
                     ? subscription.Plan.AnnualPrice
-                    : subscription.Plan.MonthlyPrice
+                    : subscription.Plan.MonthlyPrice)
             }));
 
         var amount = subscription.BillingCycle == "annual"
@@ -83,7 +83,7 @@ public class PaymentController(
         {
             checkoutUrl = checkout.AuthorizationUrl,
             subscriptionId = subscription.Id,
-            amount
+            amount = PaystackFeeCalculator.GrossUp(amount)
         }));
     }
 
@@ -536,9 +536,7 @@ public class PaymentController(
 
     private static bool IsExpectedAmount(PaystackTransaction transaction, decimal expectedAmount)
     {
-        var expectedMinorUnits = decimal.ToInt64(decimal.Round(
-            expectedAmount * 100m, 0, MidpointRounding.AwayFromZero));
-        return transaction.Amount == expectedMinorUnits;
+        return PaystackFeeCalculator.MatchesPaidAmount(transaction.Amount, expectedAmount);
     }
 
     private static bool TryGetString(JsonElement source, string propertyName, out string value)

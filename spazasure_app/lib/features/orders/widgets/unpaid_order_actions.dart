@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/payments/paystack_fee.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/models/models.dart';
 import 'package:spazasure_app/services/order_service.dart';
@@ -156,7 +157,7 @@ class _UnpaidOrderActionsState extends State<UnpaidOrderActions> {
                     )
                   : const Icon(Icons.credit_card),
               label: Text(
-                'Continue to payment (R${widget.order.total.toStringAsFixed(2)})',
+                'Continue to payment (R${PaystackFeeCalculator.grossUp(widget.order.total).toStringAsFixed(2)})',
               ),
             ),
           ),

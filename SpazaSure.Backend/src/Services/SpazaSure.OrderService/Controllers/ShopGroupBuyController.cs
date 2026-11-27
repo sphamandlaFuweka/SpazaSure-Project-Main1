@@ -477,7 +477,7 @@ public class ShopGroupBuyController(
             Paid = false,
             checkout.Reference,
             CheckoutUrl = checkout.AuthorizationUrl,
-            Amount = price.Total,
+            Amount = PaystackFeeCalculator.GrossUp(price.Total),
         }));
     }
 

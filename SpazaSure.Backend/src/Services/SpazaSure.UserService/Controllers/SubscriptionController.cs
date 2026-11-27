@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 using System.Security.Claims;
@@ -31,7 +32,9 @@ public class SubscriptionController(
         return Ok(ApiResponse<object>.Ok(plans.Select(p => new
         {
             p.Id, p.Tier, p.Name, p.Description,
-            p.MonthlyPrice, p.AnnualPrice, p.CommissionRate,
+            monthlyPrice = PaystackFeeCalculator.GrossUp(p.MonthlyPrice),
+            annualPrice = PaystackFeeCalculator.GrossUp(p.AnnualPrice),
+            p.CommissionRate,
             p.MaxListings, p.MaxOrders,
             p.HasAnalytics, p.HasPrioritySupport, p.HasBulkPricing,
             p.HasApiAccess, p.HasCustomBranding,
@@ -70,7 +73,9 @@ public class SubscriptionController(
             plan = plan is null ? null : new
             {
                 plan.Id, plan.Tier, plan.Name, plan.Description,
-                plan.MonthlyPrice, plan.AnnualPrice, plan.CommissionRate,
+                monthlyPrice = PaystackFeeCalculator.GrossUp(plan.MonthlyPrice),
+                annualPrice = PaystackFeeCalculator.GrossUp(plan.AnnualPrice),
+                plan.CommissionRate,
                 plan.MaxListings, plan.MaxOrders,
                 plan.HasAnalytics, plan.HasPrioritySupport, plan.HasBulkPricing,
                 plan.HasApiAccess, plan.HasCustomBranding
@@ -117,7 +122,7 @@ public class SubscriptionController(
                     status = pending.Status,
                     billingCycle,
                     nextBillingDate = pending.NextBillingDate,
-                    amountDue = pendingAmount,
+                    amountDue = PaystackFeeCalculator.GrossUp(pendingAmount),
                     paymentMethod = "paystack"
                 }));
             }
@@ -200,7 +205,7 @@ public class SubscriptionController(
             status = sub.Status,
             billingCycle,
             nextBillingDate = sub.NextBillingDate,
-            amountDue = amount,
+            amountDue = PaystackFeeCalculator.GrossUp(amount),
             paymentMethod
         }));
     }
@@ -283,7 +288,12 @@ public class SubscriptionController(
                 s.StartDate, s.EndDate, s.NextBillingDate,
                 s.AmountPaid, s.PaymentMethod, s.PaymentReference,
                 s.CancelledReason, s.CancelAtPeriodEnd,
-                plan = new { s.Plan.Tier, s.Plan.Name, s.Plan.MonthlyPrice }
+                plan = new
+                {
+                    s.Plan.Tier,
+                    s.Plan.Name,
+                    monthlyPrice = PaystackFeeCalculator.GrossUp(s.Plan.MonthlyPrice)
+                }
             })
             .ToListAsync();
 

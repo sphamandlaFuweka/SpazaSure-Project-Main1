@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 using SpazaSure.UserService.Services;
 
@@ -242,7 +243,7 @@ public sealed class CustomerSubscriptionController(
                 {
                     key = "plus",
                     name = "SpazaSure Plus",
-                    monthlyPrice = CustomerPlus.MonthlyPrice,
+                    monthlyPrice = CustomerPlus.PayablePriceOf(CustomerPlus.PlusPlanKey),
                     isAvailable = true,
                     description = "Richer product information and personalised shopping tools.",
                     features = new[]
@@ -260,7 +261,7 @@ public sealed class CustomerSubscriptionController(
                 {
                     key = BulkBuying.PlanKey,
                     name = "Bulk Buyer",
-                    monthlyPrice = BulkBuying.MonthlyPrice,
+                    monthlyPrice = PaystackFeeCalculator.GrossUp(BulkBuying.MonthlyPrice),
                     isAvailable = true,
                     description = "Buy in bulk straight from suppliers, delivered or collected.",
                     features = new[]

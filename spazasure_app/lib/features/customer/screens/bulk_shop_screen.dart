@@ -43,7 +43,8 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
       final account = await CustomerBulkService.getAccount();
       if (!mounted) return;
       setState(() => _account = account);
-      if (account.isBulkActive && account.address != null) await _loadCatalogue();
+      if (account.isBulkActive && account.address != null)
+        await _loadCatalogue();
     } catch (e) {
       if (mounted) setState(() => _error = e);
     } finally {
@@ -156,7 +157,11 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
         padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
         child: Row(
           children: [
-            const Icon(Icons.location_on_outlined, size: 20, color: AppColors.primary),
+            const Icon(
+              Icons.location_on_outlined,
+              size: 20,
+              color: AppColors.primary,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -166,16 +171,24 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
                     account.address!.fullLine,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Minimum R${account.minOrderAmount.toStringAsFixed(0)} per supplier · delivery or collection',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -185,9 +198,17 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
   Widget _upsell(BulkAccount account) => ListView(
     padding: const EdgeInsets.all(20),
     children: [
-      const Icon(Icons.inventory_2_outlined, size: 56, color: AppColors.primary),
+      const Icon(
+        Icons.inventory_2_outlined,
+        size: 56,
+        color: AppColors.primary,
+      ),
       const SizedBox(height: 12),
-      Text('Buy in bulk, straight from suppliers', style: AppTextStyles.h2, textAlign: TextAlign.center),
+      Text(
+        'Buy in bulk, straight from suppliers',
+        style: AppTextStyles.h2,
+        textAlign: TextAlign.center,
+      ),
       const SizedBox(height: 8),
       Text(
         'With the Bulk Buyer plan you shop the same verified suppliers that spaza shops buy from.',
@@ -196,7 +217,7 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
       ),
       const SizedBox(height: 20),
       for (final line in [
-        'R${account.monthlyPrice.toStringAsFixed(0)} a month, cancel any time',
+        'R${account.monthlyPrice.toStringAsFixed(2)} a month, cancel any time',
         'Orders from R${account.minOrderAmount.toStringAsFixed(0)} per supplier',
         'Delivered to your door, or collect from the supplier',
         'Pay safely by card with Paystack',
@@ -206,7 +227,11 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
           padding: const EdgeInsets.symmetric(vertical: 5),
           child: Row(
             children: [
-              const Icon(Icons.check_circle_outline_rounded, size: 20, color: AppColors.primary),
+              const Icon(
+                Icons.check_circle_outline_rounded,
+                size: 20,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 10),
               Expanded(child: Text(line, style: AppTextStyles.body)),
             ],
@@ -215,7 +240,9 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
       const SizedBox(height: 24),
       FilledButton(
         onPressed: _openMembership,
-        child: Text('Get Bulk Buyer for R${account.monthlyPrice.toStringAsFixed(0)}/month'),
+        child: Text(
+          'Get Bulk Buyer for R${account.monthlyPrice.toStringAsFixed(2)}/month',
+        ),
       ),
     ],
   );
@@ -226,9 +253,17 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.home_work_outlined, size: 56, color: AppColors.primary),
+          const Icon(
+            Icons.home_work_outlined,
+            size: 56,
+            color: AppColors.primary,
+          ),
           const SizedBox(height: 12),
-          Text('Where do your orders go?', style: AppTextStyles.h3, textAlign: TextAlign.center),
+          Text(
+            'Where do your orders go?',
+            style: AppTextStyles.h3,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 8),
           Text(
             'Add your address so we can show the suppliers that deliver to you.',
@@ -236,7 +271,10 @@ class _BulkShopScreenState extends State<BulkShopScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          FilledButton(onPressed: _editAddress, child: const Text('Add my address')),
+          FilledButton(
+            onPressed: _editAddress,
+            child: const Text('Add my address'),
+          ),
         ],
       ),
     ),

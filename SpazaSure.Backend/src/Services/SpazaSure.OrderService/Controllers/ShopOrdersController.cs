@@ -364,7 +364,8 @@ public class ShopOrdersController(
             }),
             orderNumber = firstOrder.OrderNumber,
             paymentMethod,
-            checkoutUrl = checkout.AuthorizationUrl
+            checkoutUrl = checkout.AuthorizationUrl,
+            totalAmount = PaystackFeeCalculator.GrossUp(createdOrders.Sum(order => order.TotalAmount))
         }));
     }
 
@@ -444,7 +445,7 @@ public class ShopOrdersController(
             paid = false,
             orderNumber = order.OrderNumber,
             checkoutUrl = checkout.AuthorizationUrl,
-            totalAmount = orders.Sum(o => o.TotalAmount),
+            totalAmount = PaystackFeeCalculator.GrossUp(orders.Sum(o => o.TotalAmount)),
         }));
     }
 

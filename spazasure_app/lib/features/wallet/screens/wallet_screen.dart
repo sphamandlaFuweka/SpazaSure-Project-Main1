@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/widgets/brand_pattern.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/payments/paystack_fee.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
 import 'package:spazasure_app/services/api_service.dart';
 import 'package:spazasure_app/services/billing_service.dart';
@@ -672,6 +673,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: amountCtrl,
+                  onChanged: (_) => setSheetState(() {}),
                   keyboardType: TextInputType.number,
                   style: const TextStyle(
                     fontSize: 24,
@@ -697,15 +699,36 @@ class _WalletScreenState extends State<WalletScreen> {
                 // Quick amounts
                 Row(
                   children: [
-                    _quickAmount('R50', amountCtrl),
+                    _quickAmount('R50', amountCtrl, () => setSheetState(() {})),
                     const SizedBox(width: 8),
-                    _quickAmount('R100', amountCtrl),
+                    _quickAmount(
+                      'R100',
+                      amountCtrl,
+                      () => setSheetState(() {}),
+                    ),
                     const SizedBox(width: 8),
-                    _quickAmount('R200', amountCtrl),
+                    _quickAmount(
+                      'R200',
+                      amountCtrl,
+                      () => setSheetState(() {}),
+                    ),
                     const SizedBox(width: 8),
-                    _quickAmount('R500', amountCtrl),
+                    _quickAmount(
+                      'R500',
+                      amountCtrl,
+                      () => setSheetState(() {}),
+                    ),
                   ],
                 ),
+                if (method == 'paystack' &&
+                    (double.tryParse(amountCtrl.text.trim()) ?? 0) > 0) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Pay R${PaystackFeeCalculator.grossUp(double.tryParse(amountCtrl.text.trim()) ?? 0).toStringAsFixed(2)}; '
+                    'R${(double.tryParse(amountCtrl.text.trim()) ?? 0).toStringAsFixed(2)} will be added to your wallet.',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
                 const SizedBox(height: 20),
                 Text(
                   'Payment Method',
@@ -905,7 +928,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       submitting
                           ? 'Submitting...'
                           : method == 'paystack'
-                          ? 'Continue to Paystack'
+                          ? 'Pay R${PaystackFeeCalculator.grossUp(double.tryParse(amountCtrl.text.trim()) ?? 0).toStringAsFixed(2)} with Paystack'
                           : method == 'eft'
                           ? 'Get deposit details'
                           : 'Submit Top-up Request',
@@ -1189,10 +1212,17 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _quickAmount(String label, TextEditingController ctrl) {
+  Widget _quickAmount(
+    String label,
+    TextEditingController ctrl, [
+    VoidCallback? onChanged,
+  ]) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => ctrl.text = label.replaceAll('R', ''),
+        onTap: () {
+          ctrl.text = label.replaceAll('R', '');
+          onChanged?.call();
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(

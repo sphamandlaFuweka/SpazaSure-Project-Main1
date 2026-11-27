@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Json;
+using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.UserService.Services;
 
@@ -28,7 +29,7 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
         CancellationToken cancellationToken = default)
     {
         return await InitializeTransactionAsync(
-            amount, email, reference, callbackUrl, null, cancellationToken);
+            PaystackFeeCalculator.GrossUp(amount), email, reference, callbackUrl, null, cancellationToken);
     }
 
     /// <summary>A single charge with no Paystack plan, so nothing renews by itself.</summary>
@@ -40,7 +41,7 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
         CancellationToken cancellationToken = default)
     {
         return await InitializeTransactionAsync(
-            amount, email, reference, callbackUrl, null, cancellationToken);
+            PaystackFeeCalculator.GrossUp(amount), email, reference, callbackUrl, null, cancellationToken);
     }
 
     /// <summary>
@@ -90,8 +91,8 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
             throw new InvalidOperationException("The Paystack plan code is not configured.");
 
         var plan = await GetPlanAsync(planCode, cancellationToken);
-        var expectedAmount = decimal.ToInt64(decimal.Round(
-            amount * 100m, 0, MidpointRounding.AwayFromZero));
+        var expectedAmount = PaystackFeeCalculator.ToMinorUnits(
+            PaystackFeeCalculator.GrossUp(amount));
         if (plan.Amount != expectedAmount ||
             !string.Equals(plan.Currency, Currency, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(plan.Interval, expectedInterval, StringComparison.OrdinalIgnoreCase))
@@ -101,7 +102,7 @@ public sealed class PaystackPaymentService(HttpClient httpClient, IConfiguration
         }
 
         return await InitializeTransactionAsync(
-            amount, email, reference, callbackUrl, planCode, cancellationToken);
+            PaystackFeeCalculator.GrossUp(amount), email, reference, callbackUrl, planCode, cancellationToken);
     }
 
     public async Task<PaystackPlan> GetPlanAsync(

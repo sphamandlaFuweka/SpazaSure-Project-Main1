@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Data;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 using SpazaSure.Shared.Models;
 
 namespace SpazaSure.UserService.Controllers;
@@ -27,7 +28,7 @@ public sealed class CustomerBulkAccountController(SpazaSureDbContext db) : Contr
         return Ok(ApiResponse<object>.Ok(new
         {
             isBulkActive = await BulkBuying.IsActiveAsync(db, UserId, ct),
-            monthlyPrice = BulkBuying.MonthlyPrice,
+            monthlyPrice = PaystackFeeCalculator.GrossUp(BulkBuying.MonthlyPrice),
             minOrderAmount = rules.BulkBuyerMinOrderAmount,
             address = account is null ? null : ToDto(account),
         }));

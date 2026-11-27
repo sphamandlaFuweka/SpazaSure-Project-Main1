@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/payments/paystack_fee.dart';
 import 'package:spazasure_app/services/analytics_service.dart';
 import 'package:spazasure_app/features/cart/screens/order_success_screen.dart';
 import 'package:spazasure_app/features/profile/screens/onboarding_fee_checkout_screen.dart';
@@ -125,7 +126,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Suppliers whose part of the cart is below the minimum order (products only), with what's missing.
   List<String> _belowMinimum(CartProvider cart) {
     final minimum = _bulk
-        ? (_bulkAccount?.minOrderAmount ?? cart.settings.bulkBuyerMinOrderAmount)
+        ? (_bulkAccount?.minOrderAmount ??
+              cart.settings.bulkBuyerMinOrderAmount)
         : cart.settings.minOrderAmount;
     if (minimum <= 0) return const [];
     final bySupplier = <String, double>{};
@@ -173,8 +175,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     _refreshQuotes(cart);
-    final total = _total(cart);
     final method = _effectiveMethod(cart);
+    final baseTotal = _total(cart);
+    final total = method == OrderService.paystack
+        ? PaystackFeeCalculator.grossUp(baseTotal)
+        : baseTotal;
     final quote = _deliveryOption == 'pickup' ? null : _quotes[_deliveryOption];
 
     return Scaffold(
@@ -345,19 +350,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ],
                 if (!_bulk) _divider(),
                 if (!_bulk)
-                _paymentRow(
-                  method: OrderService.cashOnDelivery,
-                  selected: method == OrderService.cashOnDelivery,
-                  icon: Icons.payments_rounded,
-                  iconColor: AppColors.accent,
-                  title: 'Cash on delivery',
-                  subtitle: _codAllowed(cart)
-                      ? 'Pay in cash when your order arrives'
-                      : !cart.settings.cashOnDeliveryEnabled
-                      ? 'Not available right now'
-                      : 'For orders up to R${cart.settings.cashOnDeliveryMaxOrderTotal.toStringAsFixed(0)}',
-                  enabled: _codAllowed(cart),
-                ),
+                  _paymentRow(
+                    method: OrderService.cashOnDelivery,
+                    selected: method == OrderService.cashOnDelivery,
+                    icon: Icons.payments_rounded,
+                    iconColor: AppColors.accent,
+                    title: 'Cash on delivery',
+                    subtitle: _codAllowed(cart)
+                        ? 'Pay in cash when your order arrives'
+                        : !cart.settings.cashOnDeliveryEnabled
+                        ? 'Not available right now'
+                        : 'For orders up to R${cart.settings.cashOnDeliveryMaxOrderTotal.toStringAsFixed(0)}',
+                    enabled: _codAllowed(cart),
+                  ),
               ],
             ),
           ),
@@ -604,7 +609,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 Text(
                   pickup ? 'Collect from suppliers' : 'Deliver to your address',
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -622,14 +629,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 if (!pickup && address != null && address.phone.isNotEmpty)
                   Text(
                     address.phone,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),
           ),
           IconButton(
             tooltip: 'Change address',
-            icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
             onPressed: _changeBulkAddress,
           ),
         ],
@@ -820,7 +833,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       final method = _effectiveMethod(cart);
-      final total = _total(cart);
+      final baseTotal = _total(cart);
+      final payableTotal = method == OrderService.paystack
+          ? PaystackFeeCalculator.grossUp(baseTotal)
+          : baseTotal;
       if (method == OrderService.wallet ||
           method == OrderService.cashOnDelivery) {
         final placed = await OrderService.placeOrder(
@@ -829,14 +845,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           deliveryAddress: deliveryAddress,
           paymentMethod: method,
         );
-        AnalyticsService.orderPlaced(value: total, items: cart.items.length);
+        AnalyticsService.orderPlaced(
+          value: baseTotal,
+          items: cart.items.length,
+        );
         cart.clear();
         if (!mounted) return;
         _showSuccess(
           OrderSuccess(
             orderNumber: placed.orderNumber,
             paymentMethod: method,
-            total: placed.totalAmount > 0 ? placed.totalAmount : total,
+            total: placed.totalAmount > 0 ? placed.totalAmount : baseTotal,
           ),
         );
         return;
@@ -867,7 +886,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Confirm with Paystack straight away, also when the page was closed before it redirected back.
       final confirmed = await OrderService.confirmPayment(checkout.orderNumber);
       if (paid != true && !confirmed) return;
-      AnalyticsService.orderPlaced(value: total, items: cart.items.length);
+      AnalyticsService.orderPlaced(
+        value: payableTotal,
+        items: cart.items.length,
+      );
       cart.clear();
       _pendingCheckoutUrl = null;
       _pendingOrderNumber = null;
@@ -876,7 +898,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         OrderSuccess(
           orderNumber: checkout.orderNumber,
           paymentMethod: OrderService.paystack,
-          total: total,
+          total: payableTotal,
           confirmed: confirmed,
         ),
       );

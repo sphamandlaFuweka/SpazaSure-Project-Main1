@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.Infrastructure.Data;
 
@@ -248,7 +249,8 @@ public static class GroupBuyPayments
         CancellationToken ct = default)
     {
         if (IsPaid(participant)) return CardResult.AlreadyPaid;
-        if (paidCents != ToCents(participant.AmountPaid)) return CardResult.WrongAmount;
+        if (!PaystackFeeCalculator.MatchesPaidAmount(paidCents, participant.AmountPaid))
+            return CardResult.WrongAmount;
 
         participant.PaymentStatus = "paid";
         participant.PaidAt = now;

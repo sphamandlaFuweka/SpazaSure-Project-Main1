@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spazasure_app/core/constants/app_colors.dart';
 import 'package:spazasure_app/core/constants/app_text_styles.dart';
+import 'package:spazasure_app/core/payments/paystack_fee.dart';
 import 'package:spazasure_app/features/customer/screens/customer_subscription_screen.dart';
 import 'package:spazasure_app/services/customer_subscription_service.dart';
 
@@ -81,7 +82,7 @@ class _UpsellSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Join SpazaSure Plus for R19.99 a month to unlock scan history, '
+            'Join SpazaSure Plus for R${PaystackFeeCalculator.grossUp(19.99).toStringAsFixed(2)} a month to unlock scan history, '
             'rewards and more.',
             textAlign: TextAlign.center,
             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),

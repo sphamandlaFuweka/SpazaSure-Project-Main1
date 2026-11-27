@@ -318,7 +318,8 @@ public class ShopWalletController(SpazaSureDbContext db, PaystackPaymentService 
             {
                 transactionId = transaction.Id,
                 checkoutUrl = checkout.AuthorizationUrl,
-                amount = transaction.Amount,
+                amount = PaystackFeeCalculator.GrossUp(transaction.Amount),
+                walletCredit = transaction.Amount,
                 currency = "ZAR"
             }));
         }

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using SpazaSure.Infrastructure.Entities;
+using SpazaSure.Shared.Helpers;
 
 namespace SpazaSure.OrderService.Services;
 
@@ -125,7 +126,7 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
             Content = JsonContent.Create(new
             {
                 email = customerEmail,
-                amount = decimal.ToInt64(decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero)),
+                amount = PaystackFeeCalculator.ToMinorUnits(PaystackFeeCalculator.GrossUp(amount)),
                 currency = "ZAR",
                 reference,
                 callback_url = _callbackUrl
@@ -171,8 +172,8 @@ public sealed class OrderPaystackPaymentService(HttpClient httpClient, IConfigur
             throw new InvalidOperationException("Order total must be greater than zero.");
         if (orders.Any(order => order.Subtotal < 0m) || supplierShares > amount)
             throw new InvalidOperationException("Supplier shares cannot exceed the order total.");
-        var amountInMinorUnits = decimal.ToInt64(
-            decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero));
+        var amountInMinorUnits = PaystackFeeCalculator.ToMinorUnits(
+            PaystackFeeCalculator.GrossUp(amount));
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post, "https://api.paystack.co/transaction/initialize")
